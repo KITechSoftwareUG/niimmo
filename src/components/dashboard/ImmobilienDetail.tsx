@@ -68,7 +68,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters }: ImmobilienDet
   // Filter einheiten based on filters
   let filteredEinheiten = einheiten || [];
   
-  if (filters.mietstatus) {
+  if (filters.mietstatus && filters.mietstatus !== "all") {
     const einheitenMitStatus = filteredEinheiten.map(einheit => {
       const vertrag = mietvertraege?.find(v => v.einheit_id === einheit.id);
       return { ...einheit, mietstatus: vertrag?.status || 'leerstehend' };
@@ -120,7 +120,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters }: ImmobilienDet
         {filteredEinheiten.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500">
-              {filters.mietstatus || filters.zahlungsstatus 
+              {(filters.mietstatus && filters.mietstatus !== "all") || (filters.zahlungsstatus && filters.zahlungsstatus !== "all")
                 ? "Keine Einheiten entsprechen den Filterkriterien" 
                 : "Keine Einheiten gefunden"
               }

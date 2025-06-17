@@ -10,8 +10,8 @@ import { Loader2 } from "lucide-react";
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
   const [filters, setFilters] = useState({
-    mietstatus: "",
-    zahlungsstatus: ""
+    mietstatus: "all",
+    zahlungsstatus: "all"
   });
 
   const { data: immobilien, isLoading } = useQuery({

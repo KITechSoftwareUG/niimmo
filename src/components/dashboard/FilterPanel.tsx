@@ -14,10 +14,11 @@ interface FilterPanelProps {
 
 export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
   const resetFilters = () => {
-    onFiltersChange({ mietstatus: "", zahlungsstatus: "" });
+    onFiltersChange({ mietstatus: "all", zahlungsstatus: "all" });
   };
 
-  const hasActiveFilters = filters.mietstatus || filters.zahlungsstatus;
+  const hasActiveFilters = filters.mietstatus !== "all" && filters.mietstatus !== "" && 
+                          filters.zahlungsstatus !== "all" && filters.zahlungsstatus !== "";
 
   return (
     <Card className="mb-6">
@@ -31,7 +32,7 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
           <div className="flex flex-wrap gap-3">
             <div className="min-w-[180px]">
               <Select
-                value={filters.mietstatus}
+                value={filters.mietstatus || "all"}
                 onValueChange={(value) => 
                   onFiltersChange({ ...filters, mietstatus: value })
                 }
@@ -40,7 +41,7 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
                   <SelectValue placeholder="Mietstatus" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Alle Mietstatuse</SelectItem>
+                  <SelectItem value="all">Alle Mietstatuse</SelectItem>
                   <SelectItem value="aktiv">Aktiv</SelectItem>
                   <SelectItem value="gekündigt">Gekündigt</SelectItem>
                   <SelectItem value="beendet">Beendet</SelectItem>
@@ -51,7 +52,7 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
 
             <div className="min-w-[180px]">
               <Select
-                value={filters.zahlungsstatus}
+                value={filters.zahlungsstatus || "all"}
                 onValueChange={(value) => 
                   onFiltersChange({ ...filters, zahlungsstatus: value })
                 }
@@ -60,7 +61,7 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
                   <SelectValue placeholder="Zahlungsstatus" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Alle Zahlungsstatuse</SelectItem>
+                  <SelectItem value="all">Alle Zahlungsstatuse</SelectItem>
                   <SelectItem value="bezahlt">Bezahlt</SelectItem>
                   <SelectItem value="offen">Offen</SelectItem>
                 </SelectContent>
