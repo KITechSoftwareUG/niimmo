@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,8 +19,12 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
         .from('mietvertraege')
         .select(`
           *,
-          einheiten(nummer, etage, qm),
-          immobilien(name, adresse)
+          einheiten(
+            nummer, 
+            etage, 
+            qm,
+            immobilien(name, adresse)
+          )
         `)
         .eq('id', vertragId)
         .single();
@@ -117,8 +120,8 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
             
             <div>
               <label className="text-sm font-medium text-gray-500">Immobilie</label>
-              <p>{vertrag?.immobilien?.name}</p>
-              <p className="text-sm text-gray-600">{vertrag?.immobilien?.adresse}</p>
+              <p>{vertrag?.einheiten?.immobilien?.name}</p>
+              <p className="text-sm text-gray-600">{vertrag?.einheiten?.immobilien?.adresse}</p>
             </div>
 
             <div>
