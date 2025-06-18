@@ -82,8 +82,8 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+              <p className="text-sm font-medium font-sans text-gray-600 mb-1">{stat.title}</p>
+              <p className="text-3xl font-bold font-sans text-gray-900">{stat.value}</p>
             </div>
             <div className={`p-3 rounded-xl ${stat.bg} ${stat.border} border`}>
               <stat.icon className={`h-6 w-6 ${stat.color}`} />

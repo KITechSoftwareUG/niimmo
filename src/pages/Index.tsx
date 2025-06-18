@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ImmobilienCard } from "@/components/dashboard/ImmobilienCard";
 import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
-import { FilterPanel } from "@/components/dashboard/FilterPanel";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { useState } from "react";
@@ -11,10 +10,6 @@ import { Loader2, Building2 } from "lucide-react";
 
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    mietstatus: "all",
-    zahlungsstatus: "all"
-  });
 
   const { data: immobilien, isLoading } = useQuery({
     queryKey: ['immobilien'],
@@ -49,7 +44,7 @@ const Index = () => {
             <ImmobilienDetail 
               immobilieId={selectedImmobilie}
               onBack={() => setSelectedImmobilie(null)}
-              filters={filters}
+              filters={{ mietstatus: "all", zahlungsstatus: "all" }}
             />
           </div>
         </div>
@@ -68,15 +63,15 @@ const Index = () => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-4xl font-display font-bold text-gradient-red mb-2">
+                <h1 className="text-4xl font-sans font-bold text-gradient-red mb-2">
                   Immobilien Dashboard
                 </h1>
-                <p className="text-gray-600 text-lg">
+                <p className="text-gray-600 text-lg font-sans">
                   Willkommen zurück! Hier ist Ihre Übersicht.
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-bold text-gray-800 mb-1">
+                <div className="text-3xl font-bold font-sans text-gray-800 mb-1">
                   {new Date().toLocaleDateString('de-DE', { 
                     weekday: 'long',
                     year: 'numeric', 
@@ -84,7 +79,7 @@ const Index = () => {
                     day: 'numeric' 
                   })}
                 </div>
-                <div className="text-gray-500">
+                <div className="text-gray-500 font-sans">
                   {new Date().toLocaleTimeString('de-DE', { 
                     hour: '2-digit', 
                     minute: '2-digit' 
@@ -94,11 +89,6 @@ const Index = () => {
             </div>
             
             <DashboardStats immobilien={immobilien} />
-          </div>
-
-          {/* Filter Panel */}
-          <div className="mb-8">
-            <FilterPanel filters={filters} onFiltersChange={setFilters} />
           </div>
 
           {/* Property Grid */}
@@ -124,10 +114,10 @@ const Index = () => {
                 <div className="relative mb-8">
                   <Building2 className="h-20 w-20 text-red-300 mx-auto floating-animation" />
                 </div>
-                <h3 className="text-2xl font-display font-semibold text-gray-700 mb-4">
+                <h3 className="text-2xl font-sans font-semibold text-gray-700 mb-4">
                   Keine Immobilien gefunden
                 </h3>
-                <p className="text-gray-500 leading-relaxed">
+                <p className="text-gray-500 font-sans leading-relaxed">
                   Beginnen Sie mit der Verwaltung Ihres Portfolios
                 </p>
               </div>

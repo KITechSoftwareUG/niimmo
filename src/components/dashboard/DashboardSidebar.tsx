@@ -13,8 +13,8 @@ export const DashboardSidebar = () => {
             className="h-12 w-auto"
           />
           <div>
-            <h2 className="text-xl font-display font-bold text-gray-800">NiImmo</h2>
-            <p className="text-sm text-gray-500">Immobilien Gruppe</p>
+            <h2 className="text-xl font-sans font-bold text-gray-800">NiImmo</h2>
+            <p className="text-sm font-sans text-gray-500">Immobilien Gruppe</p>
           </div>
         </div>
       </div>
@@ -22,23 +22,23 @@ export const DashboardSidebar = () => {
       {/* Navigation */}
       <div className="p-6">
         <nav className="space-y-2">
-          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl accent-red text-white font-medium">
+          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl accent-red text-white font-medium font-sans">
             <LayoutDashboard className="h-5 w-5" />
             <span>Dashboard</span>
           </a>
-          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-sans">
             <Calendar className="h-5 w-5" />
             <span>Kalender</span>
           </a>
-          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-sans">
             <Building2 className="h-5 w-5" />
             <span>Immobilien</span>
           </a>
-          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-sans">
             <User className="h-5 w-5" />
             <span>Mieter</span>
           </a>
-          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-sans">
             <Settings className="h-5 w-5" />
             <span>Einstellungen</span>
           </a>
@@ -47,12 +47,12 @@ export const DashboardSidebar = () => {
 
       {/* Quick Calendar */}
       <div className="p-6 border-t border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        <h3 className="text-lg font-semibold font-sans text-gray-800 mb-4">
           {new Date().toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
         </h3>
         <div className="calendar-grid mb-4">
           {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(day => (
-            <div key={day} className="text-xs font-medium text-gray-500 text-center py-2">
+            <div key={day} className="text-xs font-medium font-sans text-gray-500 text-center py-2">
               {day}
             </div>
           ))}
@@ -64,7 +64,7 @@ export const DashboardSidebar = () => {
             return (
               <div 
                 key={i} 
-                className={`calendar-cell text-xs flex items-center justify-center rounded ${
+                className={`calendar-cell text-xs font-sans flex items-center justify-center rounded ${
                   isToday ? 'today' : 
                   isCurrentMonth ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300'
                 }`}
@@ -83,8 +83,8 @@ export const DashboardSidebar = () => {
             <User className="h-6 w-6 text-red-600" />
           </div>
           <div>
-            <h4 className="font-semibold text-gray-800">Admin User</h4>
-            <p className="text-sm text-gray-500">Immobilien Manager</p>
+            <h4 className="font-semibold font-sans text-gray-800">Admin User</h4>
+            <p className="text-sm font-sans text-gray-500">Immobilien Manager</p>
           </div>
         </div>
       </div>
