@@ -94,17 +94,169 @@
 
   body {
     @apply bg-background text-foreground;
-    background: linear-gradient(135deg, hsl(0 10% 98%) 0%, hsl(0 15% 96%) 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    background: linear-gradient(135deg, 
+      hsl(0 15% 98%) 0%, 
+      hsl(355 25% 96%) 25%,
+      hsl(0 20% 94%) 50%,
+      hsl(355 15% 96%) 75%,
+      hsl(0 10% 98%) 100%);
     min-height: 100vh;
+    letter-spacing: -0.01em;
   }
 }
 
 @layer components {
-  .gradient-bg {
-    background: linear-gradient(135deg, hsl(0 70% 52%) 0%, hsl(0 60% 45%) 50%, hsl(0 70% 55%) 100%);
+  .luxury-gradient {
+    background: linear-gradient(135deg, 
+      hsl(0 75% 60%) 0%, 
+      hsl(355 70% 55%) 25%,
+      hsl(0 65% 50%) 50%,
+      hsl(355 70% 45%) 75%,
+      hsl(0 75% 55%) 100%);
+    position: relative;
   }
   
-  .card-shadow {
-    box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.1), 0 2px 4px -1px rgba(239, 68, 68, 0.06);
+  .luxury-gradient::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(220, 38, 38, 0.1) 0%, 
+      rgba(239, 68, 68, 0.05) 50%, 
+      rgba(220, 38, 38, 0.1) 100%);
+    border-radius: inherit;
+  }
+  
+  .glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(239, 68, 68, 0.1);
+    box-shadow: 
+      0 8px 32px rgba(239, 68, 68, 0.12),
+      0 4px 16px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  
+  .premium-card {
+    background: linear-gradient(145deg, 
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 252, 252, 0.9) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(239, 68, 68, 0.08);
+    box-shadow: 
+      0 12px 40px rgba(239, 68, 68, 0.15),
+      0 6px 20px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .premium-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 
+      0 20px 60px rgba(239, 68, 68, 0.25),
+      0 10px 30px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+  
+  .elegant-text {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, 
+      hsl(0 70% 35%) 0%, 
+      hsl(355 65% 30%) 50%, 
+      hsl(0 75% 40%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .status-glow {
+    position: relative;
+  }
+  
+  .status-glow::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: inherit;
+    padding: 2px;
+    background: linear-gradient(45deg, transparent, rgba(239, 68, 68, 0.3), transparent);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    z-index: -1;
+  }
+  
+  .animated-border {
+    position: relative;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 250, 250, 0.95));
+    border-radius: 16px;
+    padding: 2px;
+  }
+  
+  .animated-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 2px;
+    background: linear-gradient(45deg, 
+      hsl(0 70% 55%), 
+      hsl(355 65% 50%), 
+      hsl(0 75% 60%), 
+      hsl(355 70% 55%));
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    animation: borderRotate 3s linear infinite;
+  }
+  
+  @keyframes borderRotate {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  
+  .floating-animation {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  .shimmer {
+    background: linear-gradient(90deg, 
+      transparent, 
+      rgba(255, 255, 255, 0.6), 
+      transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+@layer utilities {
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+  
+  .filter-blur-xs {
+    filter: blur(1px);
   }
 }
