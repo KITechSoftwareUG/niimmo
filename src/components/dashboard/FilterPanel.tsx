@@ -1,5 +1,5 @@
 
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Filter, X, Sparkles } from "lucide-react";
@@ -21,11 +21,11 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
                           filters.zahlungsstatus !== "all" && filters.zahlungsstatus !== "";
 
   return (
-    <div className="premium-card rounded-2xl p-6 mb-8">
+    <div className="elegant-card rounded-2xl p-6 mb-8">
       <CardContent className="p-0">
         <div className="flex flex-wrap items-center gap-6">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gradient-to-br from-red-500 to-red-600 rounded-lg">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 accent-red rounded-xl modern-shadow">
               <Filter className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -34,7 +34,7 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-4 ml-auto">
+          <div className="flex flex-wrap gap-6 ml-auto">
             <div className="min-w-[200px]">
               <label className="block text-xs font-medium text-gray-600 mb-2">Mietstatus</label>
               <Select
@@ -43,10 +43,10 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
                   onFiltersChange({ ...filters, mietstatus: value })
                 }
               >
-                <SelectTrigger className="glass-card border-0 shadow-sm">
+                <SelectTrigger className="modern-input border-0 modern-shadow">
                   <SelectValue placeholder="Mietstatus wählen" />
                 </SelectTrigger>
-                <SelectContent className="glass-card border-0 shadow-xl">
+                <SelectContent className="elegant-card border-0 modern-shadow-lg">
                   <SelectItem value="all">
                     <div className="flex items-center space-x-2">
                       <Sparkles className="h-4 w-4 text-gray-400" />
@@ -89,10 +89,10 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
                   onFiltersChange({ ...filters, zahlungsstatus: value })
                 }
               >
-                <SelectTrigger className="glass-card border-0 shadow-sm">
+                <SelectTrigger className="modern-input border-0 modern-shadow">
                   <SelectValue placeholder="Zahlungsstatus wählen" />
                 </SelectTrigger>
-                <SelectContent className="glass-card border-0 shadow-xl">
+                <SelectContent className="elegant-card border-0 modern-shadow-lg">
                   <SelectItem value="all">
                     <div className="flex items-center space-x-2">
                       <Sparkles className="h-4 w-4 text-gray-400" />
@@ -121,7 +121,7 @@ export const FilterPanel = ({ filters, onFiltersChange }: FilterPanelProps) => {
                   variant="outline" 
                   size="sm"
                   onClick={resetFilters}
-                  className="glass-card border-0 hover:bg-red-50 transition-all duration-300"
+                  className="modern-input border-0 modern-shadow hover:bg-red-50 transition-all duration-300"
                 >
                   <X className="h-4 w-4 mr-2" />
                   <span>Filter zurücksetzen</span>

@@ -4,8 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { ImmobilienCard } from "@/components/dashboard/ImmobilienCard";
 import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
 import { FilterPanel } from "@/components/dashboard/FilterPanel";
+import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { useState } from "react";
-import { Loader2, Building2, Sparkles } from "lucide-react";
+import { Loader2, Building2 } from "lucide-react";
 
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
@@ -29,10 +31,10 @@ const Index = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center luxury-gradient">
-        <div className="glass-card p-8 rounded-2xl">
-          <Loader2 className="h-12 w-12 animate-spin text-white mx-auto mb-4" />
-          <p className="text-white font-medium text-lg">Dashboard wird geladen...</p>
+      <div className="min-h-screen modern-dashboard-bg flex items-center justify-center">
+        <div className="elegant-card p-12 rounded-3xl">
+          <Loader2 className="h-12 w-12 animate-spin text-red-500 mx-auto mb-6" />
+          <p className="text-gray-700 font-medium text-lg text-center">Dashboard wird geladen...</p>
         </div>
       </div>
     );
@@ -40,79 +42,71 @@ const Index = () => {
 
   if (selectedImmobilie) {
     return (
-      <ImmobilienDetail 
-        immobilieId={selectedImmobilie}
-        onBack={() => setSelectedImmobilie(null)}
-        filters={filters}
-      />
+      <div className="min-h-screen modern-dashboard-bg">
+        <div className="flex">
+          <DashboardSidebar />
+          <div className="flex-1">
+            <ImmobilienDetail 
+              immobilieId={selectedImmobilie}
+              onBack={() => setSelectedImmobilie(null)}
+              filters={filters}
+            />
+          </div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Luxurious Header with enhanced gradients */}
-      <div className="luxury-gradient text-white py-16 px-6 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-20 left-10 w-32 h-32 bg-white rounded-full filter blur-3xl animate-float"></div>
-          <div className="absolute top-40 right-20 w-24 h-24 bg-white rounded-full filter blur-3xl animate-float" style={{animationDelay: '1s'}}></div>
-          <div className="absolute bottom-20 left-1/3 w-28 h-28 bg-white rounded-full filter blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
-        </div>
+    <div className="min-h-screen modern-dashboard-bg">
+      <div className="flex">
+        <DashboardSidebar />
         
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-6">
-              <div className="p-4 glass-card rounded-2xl floating-animation">
-                <img 
-                  src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" 
-                  alt="NiImmo Gruppe Logo" 
-                  className="h-20 w-auto"
-                />
-              </div>
+        {/* Main Content */}
+        <div className="flex-1 p-8">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-6xl font-display font-bold mb-4 text-shadow elegant-text text-white">
+                <h1 className="text-4xl font-display font-bold text-gradient-red mb-2">
                   Immobilien Dashboard
                 </h1>
-                <p className="text-red-100 text-xl font-medium tracking-wide">
-                  Professionelle Verwaltung Ihrer Immobilienportfolios
+                <p className="text-gray-600 text-lg">
+                  Willkommen zurück! Hier ist Ihre Übersicht.
                 </p>
-                <div className="flex items-center mt-3 space-x-2">
-                  <Sparkles className="h-5 w-5 text-red-200" />
-                  <span className="text-red-200 text-sm font-medium">
-                    Premium Management System
-                  </span>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-gray-800 mb-1">
+                  {new Date().toLocaleDateString('de-DE', { 
+                    weekday: 'long',
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </div>
+                <div className="text-gray-500">
+                  {new Date().toLocaleTimeString('de-DE', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="glass-card p-6 rounded-2xl">
-                <Building2 className="h-16 w-16 text-white mx-auto mb-2" />
-                <div className="text-3xl font-bold text-white">
-                  {immobilien?.length || 0}
-                </div>
-                <div className="text-red-100 text-sm font-medium">
-                  Immobilien
-                </div>
-              </div>
-            </div>
+            
+            <DashboardStats immobilien={immobilien} />
           </div>
-        </div>
-      </div>
 
-      {/* Main content with enhanced styling */}
-      <div className="relative px-6 py-12" style={{
-        background: 'linear-gradient(135deg, rgba(255, 250, 250, 0.9) 0%, rgba(255, 245, 245, 0.8) 50%, rgba(254, 242, 242, 0.9) 100%)'
-      }}>
-        <div className="max-w-7xl mx-auto">
+          {/* Filter Panel */}
           <div className="mb-8">
             <FilterPanel filters={filters} onFiltersChange={setFilters} />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {/* Property Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
             {immobilien?.map((immobilie, index) => (
               <div 
                 key={immobilie.id} 
-                className="premium-card rounded-2xl overflow-hidden cursor-pointer group"
+                className="elegant-card rounded-2xl overflow-hidden cursor-pointer group"
                 style={{animationDelay: `${index * 0.1}s`}}
                 onClick={() => setSelectedImmobilie(immobilie.id)}
               >
@@ -126,15 +120,14 @@ const Index = () => {
 
           {immobilien?.length === 0 && (
             <div className="text-center py-20">
-              <div className="premium-card p-12 max-w-md mx-auto rounded-3xl">
-                <div className="relative mb-6">
-                  <Building2 className="h-20 w-20 text-red-300 mx-auto animate-pulse-glow" />
-                  <div className="absolute inset-0 bg-red-100 rounded-full filter blur-xl opacity-50"></div>
+              <div className="elegant-card p-12 max-w-md mx-auto rounded-3xl">
+                <div className="relative mb-8">
+                  <Building2 className="h-20 w-20 text-red-300 mx-auto floating-animation" />
                 </div>
-                <h3 className="text-2xl font-display font-semibold text-gray-700 mb-2">
+                <h3 className="text-2xl font-display font-semibold text-gray-700 mb-4">
                   Keine Immobilien gefunden
                 </h3>
-                <p className="text-gray-500">
+                <p className="text-gray-500 leading-relaxed">
                   Beginnen Sie mit der Verwaltung Ihres Portfolios
                 </p>
               </div>
