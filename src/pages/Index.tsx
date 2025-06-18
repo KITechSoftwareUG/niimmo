@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ImmobilienCard } from "@/components/dashboard/ImmobilienCard";
 import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
-import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
 import { useState } from "react";
 import { Loader2, Building2 } from "lucide-react";
 
@@ -27,7 +27,7 @@ const Index = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen modern-dashboard-bg flex items-center justify-center">
-        <div className="elegant-card p-12 rounded-3xl">
+        <div className="glass-card p-12 rounded-3xl">
           <Loader2 className="h-12 w-12 animate-spin text-red-500 mx-auto mb-6" />
           <p className="text-gray-700 font-medium text-lg text-center">Dashboard wird geladen...</p>
         </div>
@@ -38,15 +38,12 @@ const Index = () => {
   if (selectedImmobilie) {
     return (
       <div className="min-h-screen modern-dashboard-bg">
-        <div className="flex">
-          <DashboardSidebar />
-          <div className="flex-1">
-            <ImmobilienDetail 
-              immobilieId={selectedImmobilie}
-              onBack={() => setSelectedImmobilie(null)}
-              filters={{ mietstatus: "all", zahlungsstatus: "all" }}
-            />
-          </div>
+        <div className="container mx-auto p-8">
+          <ImmobilienDetail 
+            immobilieId={selectedImmobilie}
+            onBack={() => setSelectedImmobilie(null)}
+            filters={{ mietstatus: "all", zahlungsstatus: "all" }}
+          />
         </div>
       </div>
     );
@@ -54,49 +51,54 @@ const Index = () => {
 
   return (
     <div className="min-h-screen modern-dashboard-bg">
-      <div className="flex">
-        <DashboardSidebar />
-        
-        {/* Main Content */}
-        <div className="flex-1 p-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
+      <div className="container mx-auto p-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-6">
+              <img 
+                src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" 
+                alt="NiImmo Gruppe Logo" 
+                className="h-16 w-auto mr-4"
+              />
               <div>
-                <h1 className="text-4xl font-sans font-bold text-gradient-red mb-2">
-                  Immobilien Dashboard
+                <h1 className="text-5xl font-bold text-gradient-red mb-2">
+                  NiImmo Dashboard
                 </h1>
-                <p className="text-gray-600 text-lg font-sans">
-                  Willkommen zurück! Hier ist Ihre Übersicht.
+                <p className="text-xl text-gray-600">
+                  Immobilien Verwaltung
                 </p>
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold font-sans text-gray-800 mb-1">
-                  {new Date().toLocaleDateString('de-DE', { 
-                    weekday: 'long',
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </div>
-                <div className="text-gray-500 font-sans">
-                  {new Date().toLocaleTimeString('de-DE', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </div>
-              </div>
             </div>
-            
-            <DashboardStats immobilien={immobilien} />
+            <div className="text-gray-500">
+              {new Date().toLocaleDateString('de-DE', { 
+                weekday: 'long',
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })} • {new Date().toLocaleTimeString('de-DE', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </div>
           </div>
+          
+          <DashboardStats immobilien={immobilien} />
+        </div>
 
-          {/* Property Grid */}
+        {/* Fehlende Mietzahlungen Übersicht */}
+        <div className="mb-8">
+          <FehlendeMietzahlungen />
+        </div>
+
+        {/* Immobilien Grid */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Ihre Immobilien</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
             {immobilien?.map((immobilie, index) => (
               <div 
                 key={immobilie.id} 
-                className="elegant-card rounded-2xl overflow-hidden cursor-pointer group"
+                className="glass-card rounded-2xl overflow-hidden cursor-pointer group hover:shadow-xl transition-all duration-300"
                 style={{animationDelay: `${index * 0.1}s`}}
                 onClick={() => setSelectedImmobilie(immobilie.id)}
               >
@@ -107,23 +109,23 @@ const Index = () => {
               </div>
             ))}
           </div>
-
-          {immobilien?.length === 0 && (
-            <div className="text-center py-20">
-              <div className="elegant-card p-12 max-w-md mx-auto rounded-3xl">
-                <div className="relative mb-8">
-                  <Building2 className="h-20 w-20 text-red-300 mx-auto floating-animation" />
-                </div>
-                <h3 className="text-2xl font-sans font-semibold text-gray-700 mb-4">
-                  Keine Immobilien gefunden
-                </h3>
-                <p className="text-gray-500 font-sans leading-relaxed">
-                  Beginnen Sie mit der Verwaltung Ihres Portfolios
-                </p>
-              </div>
-            </div>
-          )}
         </div>
+
+        {immobilien?.length === 0 && (
+          <div className="text-center py-20">
+            <div className="glass-card p-12 max-w-md mx-auto rounded-3xl">
+              <div className="relative mb-8">
+                <Building2 className="h-20 w-20 text-red-300 mx-auto floating-animation" />
+              </div>
+              <h3 className="text-2xl font-semibold text-gray-700 mb-4">
+                Keine Immobilien gefunden
+              </h3>
+              <p className="text-gray-500 leading-relaxed">
+                Beginnen Sie mit der Verwaltung Ihres Portfolios
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
