@@ -6,6 +6,7 @@ import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
 import { FilterPanel } from "@/components/dashboard/FilterPanel";
+import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { useState } from "react";
 import { Loader2, Building2 } from "lucide-react";
 
@@ -72,9 +73,9 @@ const Index = () => {
     <div className="min-h-screen modern-dashboard-bg">
       <div className="container mx-auto p-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-6">
+        <div className="mb-6">
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center mb-4">
               <img 
                 src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" 
                 alt="NiImmo Gruppe Logo" 
@@ -105,8 +106,11 @@ const Index = () => {
           <DashboardStats immobilien={immobilien} />
         </div>
 
+        {/* Suchfunktion */}
+        <SearchPanel onImmobilieSelect={handleImmobilieClick} />
+
         {/* Fehlende Mietzahlungen Übersicht */}
-        <div className="mb-8">
+        <div className="mb-6">
           <FehlendeMietzahlungen />
         </div>
 
