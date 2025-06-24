@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -233,6 +232,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
                 einheit={einheit}
                 vertrag={vertrag}
                 filters={filters}
+                immobilie={immobilie}
               />
             );
           })}

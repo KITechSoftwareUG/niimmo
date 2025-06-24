@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, Square, Users, Calendar, Euro, User } from "lucide-react";
 import { useState } from "react";
-import { MietvertragDetail } from "./MietvertragDetail";
+import { EinheitenDetailModal } from "./EinheitenDetailModal";
 
 interface EinheitCardProps {
   einheit: {
@@ -29,10 +29,14 @@ interface EinheitCardProps {
     mietstatus: string;
     zahlungsstatus: string;
   };
+  immobilie?: {
+    name: string;
+    adresse: string;
+  };
 }
 
-export const EinheitCard = ({ einheit, vertrag, filters }: EinheitCardProps) => {
-  const [showDetail, setShowDetail] = useState(false);
+export const EinheitCard = ({ einheit, vertrag, filters, immobilie }: EinheitCardProps) => {
+  const [showModal, setShowModal] = useState(false);
 
   const getStatusColor = () => {
     if (!vertrag) return "bg-red-100 border-red-200";
@@ -66,15 +70,6 @@ export const EinheitCard = ({ einheit, vertrag, filters }: EinheitCardProps) => 
 
   if (!shouldShow()) return null;
 
-  if (showDetail && vertrag) {
-    return (
-      <MietvertragDetail 
-        vertragId={vertrag.id}
-        onBack={() => setShowDetail(false)}
-      />
-    );
-  }
-
   const getShortId = (id: string) => {
     return id.length > 8 ? `...${id.slice(-8)}` : id;
   };
@@ -82,88 +77,101 @@ export const EinheitCard = ({ einheit, vertrag, filters }: EinheitCardProps) => 
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (vertrag) {
-      setShowDetail(true);
-    }
+    setShowModal(true);
   };
 
   return (
-    <Card 
-      className={`transition-all hover:shadow-lg ${vertrag ? 'cursor-pointer' : ''} border-l-4 ${getStatusColor()}`}
-      onClick={vertrag ? handleCardClick : undefined}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-2">
-            <Home className="h-5 w-5 text-blue-600" />
-            <CardTitle className="text-lg">
-              {einheit.nummer ? `Einheit ${einheit.nummer}` : `Einheit ${getShortId(einheit.id)}`}
-            </CardTitle>
+    <>
+      <Card 
+        className={`transition-all hover:shadow-lg cursor-pointer border-l-4 ${getStatusColor()}`}
+        onClick={handleCardClick}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-2">
+              <Home className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-lg">
+                {einheit.nummer ? `Einheit ${einheit.nummer}` : `Einheit ${getShortId(einheit.id)}`}
+              </CardTitle>
+            </div>
+            {getStatusBadge()}
           </div>
-          {getStatusBadge()}
-        </div>
+          
+          {einheit.etage && (
+            <p className="text-sm text-gray-600">{einheit.etage}</p>
+          )}
+        </CardHeader>
         
-        {einheit.etage && (
-          <p className="text-sm text-gray-600">{einheit.etage}</p>
-        )}
-      </CardHeader>
-      
-      <CardContent className="space-y-3">
-        {einheit.qm && (
-          <div className="flex items-center space-x-2">
-            <Square className="h-4 w-4 text-gray-500" />
-            <span className="text-sm">{einheit.qm} m²</span>
-          </div>
-        )}
+        <CardContent className="space-y-3">
+          {einheit.qm && (
+            <div className="flex items-center space-x-2">
+              <Square className="h-4 w-4 text-gray-500" />
+              <span className="text-sm">{einheit.qm} m²</span>
+            </div>
+          )}
 
-        {vertrag && (
-          <>
-            {vertrag.mieter && vertrag.mieter.length > 0 && (
-              <div className="space-y-2">
+          {vertrag && (
+            <>
+              {vertrag.mieter && vertrag.mieter.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium">
+                      {vertrag.mieter.length === 1 ? 'Mieter:' : 'Mieter:'}
+                    </span>
+                  </div>
+                  <div className="pl-6 space-y-1">
+                    {vertrag.mieter.slice(0, 2).map((mieter, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <User className="h-3 w-3 text-gray-400" />
+                          <span className="text-sm text-gray-700">
+                            {mieter.Vorname} {mieter.Nachname}
+                          </span>
+                        </div>
+                        {mieter.rolle && (
+                          <Badge variant="outline" className="text-xs ml-2">
+                            {mieter.rolle}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                    {vertrag.mieter.length > 2 && (
+                      <div className="text-xs text-gray-500 pl-5">
+                        +{vertrag.mieter.length - 2} weitere
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {vertrag.kaltmiete && (
                 <div className="flex items-center space-x-2">
-                  <Users className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">
-                    {vertrag.mieter.length === 1 ? 'Mieter:' : 'Mieter:'}
+                  <Euro className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium">{vertrag.kaltmiete}€ / Monat</span>
+                </div>
+              )}
+
+              {vertrag.start_datum && (
+                <div className="flex items-center space-x-2">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">
+                    seit {new Date(vertrag.start_datum).toLocaleDateString('de-DE')}
                   </span>
                 </div>
-                <div className="pl-6 space-y-1">
-                  {vertrag.mieter.map((mieter, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <User className="h-3 w-3 text-gray-400" />
-                        <span className="text-sm text-gray-700">
-                          {mieter.Vorname} {mieter.Nachname}
-                        </span>
-                      </div>
-                      {mieter.rolle && (
-                        <Badge variant="outline" className="text-xs ml-2">
-                          {mieter.rolle}
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-            {vertrag.kaltmiete && (
-              <div className="flex items-center space-x-2">
-                <Euro className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium">{vertrag.kaltmiete}€ / Monat</span>
-              </div>
-            )}
-
-            {vertrag.start_datum && (
-              <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="text-sm">
-                  seit {new Date(vertrag.start_datum).toLocaleDateString('de-DE')}
-                </span>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+      <EinheitenDetailModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        einheit={einheit}
+        vertrag={vertrag}
+        immobilie={immobilie}
+      />
+    </>
   );
 };
