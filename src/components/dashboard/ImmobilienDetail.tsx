@@ -51,16 +51,57 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
   });
 
   const { data: mietvertraege } = useQuery({
-    queryKey: ['aktive-mietvertraege', immobilieId],
+    queryKey: ['mietvertraege-detail', immobilieId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('aktive_mietvertraege')
+      // Hole alle Mietverträge für die Einheiten dieser Immobilie
+      const einheitIds = einheiten?.map(e => e.id) || [];
+      if (einheitIds.length === 0) return [];
+
+      const { data: vertraege, error: vertraegeError } = await supabase
+        .from('mietvertraege')
         .select('*')
-        .eq('immobilie_id', immobilieId);
+        .in('einheit_id', einheitIds);
       
-      if (error) throw error;
-      return data;
-    }
+      if (vertraegeError) throw vertraegeError;
+
+      // Hole Mieter-Informationen für diese Verträge
+      const vertragIds = vertraege?.map(v => v.id) || [];
+      if (vertragIds.length === 0) return vertraege;
+
+      const { data: mietvertragMieter, error: mmError } = await supabase
+        .from('mietvertrag_mieter')
+        .select(`
+          mietvertrag_id,
+          rolle,
+          mieter_id
+        `)
+        .in('mietvertrag_id', vertragIds)
+        .eq('rolle', 'Hauptmieter');
+      
+      if (mmError) throw mmError;
+
+      const mieterIds = mietvertragMieter?.map(mm => mm.mieter_id) || [];
+      if (mieterIds.length === 0) return vertraege;
+
+      const { data: mieter, error: mieterError } = await supabase
+        .from('mieter')
+        .select('id, Vorname, Nachname')
+        .in('id', mieterIds);
+      
+      if (mieterError) throw mieterError;
+
+      // Verknüpfe die Daten
+      return vertraege?.map(vertrag => {
+        const mvMieter = mietvertragMieter?.find(mm => mm.mietvertrag_id === vertrag.id);
+        const mieterData = mieter?.find(m => m.id === mvMieter?.mieter_id);
+        
+        return {
+          ...vertrag,
+          mieter_name: mieterData ? `${mieterData.Vorname} ${mieterData.Nachname}` : undefined
+        };
+      }) || [];
+    },
+    enabled: !!einheiten
   });
 
   const handleFilterChange = (key: string, value: string) => {

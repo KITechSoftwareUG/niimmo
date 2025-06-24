@@ -1,9 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, Square, Users, Calendar, Euro, CheckCircle, XCircle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { Home, Square, Users, Calendar, Euro } from "lucide-react";
 import { useState } from "react";
 import { MietvertragDetail } from "./MietvertragDetail";
 
@@ -30,33 +28,12 @@ interface EinheitCardProps {
 
 export const EinheitCard = ({ einheit, vertrag, filters }: EinheitCardProps) => {
   const [showDetail, setShowDetail] = useState(false);
-  
-  const { data: letzteZahlung } = useQuery({
-    queryKey: ['letzte-zahlung', vertrag?.id],
-    queryFn: async () => {
-      if (!vertrag?.id) return null;
-      
-      const { data, error } = await supabase
-        .from('mietzahlungen')
-        .select('*')
-        .eq('mietvertrag_id', vertrag.id)
-        .order('monat', { ascending: false })
-        .limit(1);
-      
-      if (error) throw error;
-      return data?.[0] || null;
-    },
-    enabled: !!vertrag?.id
-  });
 
   const getStatusColor = () => {
     if (!vertrag) return "bg-red-100 border-red-200";
     
-    const isZahlungOffen = letzteZahlung && !letzteZahlung.bezahlt_am;
-    
-    if (vertrag.status === 'aktiv' && !isZahlungOffen) return "bg-green-100 border-green-200";
+    if (vertrag.status === 'aktiv') return "bg-green-100 border-green-200";
     if (vertrag.status === 'gekündigt') return "bg-yellow-100 border-yellow-200";
-    if (isZahlungOffen) return "bg-red-100 border-red-200";
     
     return "bg-gray-100 border-gray-200";
   };
@@ -64,35 +41,26 @@ export const EinheitCard = ({ einheit, vertrag, filters }: EinheitCardProps) => 
   const getStatusBadge = () => {
     if (!vertrag) return <Badge variant="destructive">Leerstehend</Badge>;
     
-    const isZahlungOffen = letzteZahlung && !letzteZahlung.bezahlt_am;
-    
-    if (vertrag.status === 'aktiv' && !isZahlungOffen) {
-      return <Badge className="bg-green-600">Aktiv & Bezahlt</Badge>;
+    if (vertrag.status === 'aktiv') {
+      return <Badge className="bg-green-600">Aktiv</Badge>;
     }
     if (vertrag.status === 'gekündigt') {
       return <Badge variant="secondary" className="bg-yellow-600 text-white">Gekündigt</Badge>;
-    }
-    if (isZahlungOffen) {
-      return <Badge variant="destructive">Zahlung offen</Badge>;
     }
     
     return <Badge>{vertrag.status}</Badge>;
   };
 
   // Apply filters
-  const zahlungsstatusFilter = () => {
-    if (!filters.zahlungsstatus) return true;
-    
-    if (filters.zahlungsstatus === 'bezahlt') {
-      return letzteZahlung?.bezahlt_am;
-    }
-    if (filters.zahlungsstatus === 'offen') {
-      return letzteZahlung && !letzteZahlung.bezahlt_am;
+  const shouldShow = () => {
+    if (filters.mietstatus !== "all") {
+      const currentStatus = vertrag?.status || 'leerstehend';
+      if (currentStatus !== filters.mietstatus) return false;
     }
     return true;
   };
 
-  if (!zahlungsstatusFilter()) return null;
+  if (!shouldShow()) return null;
 
   if (showDetail && vertrag) {
     return (
@@ -154,25 +122,6 @@ export const EinheitCard = ({ einheit, vertrag, filters }: EinheitCardProps) => 
                 <span className="text-sm">
                   seit {new Date(vertrag.start_datum).toLocaleDateString('de-DE')}
                 </span>
-              </div>
-            )}
-
-            {letzteZahlung && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Letzte Zahlung:</span>
-                <div className="flex items-center space-x-1">
-                  {letzteZahlung.bezahlt_am ? (
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <XCircle className="h-4 w-4 text-red-600" />
-                  )}
-                  <span className="text-xs">
-                    {new Date(letzteZahlung.monat).toLocaleDateString('de-DE', { 
-                      month: 'short', 
-                      year: 'numeric' 
-                    })}
-                  </span>
-                </div>
               </div>
             )}
           </>

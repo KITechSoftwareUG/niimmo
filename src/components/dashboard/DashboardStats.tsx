@@ -20,20 +20,20 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
     }
   });
 
-  const { data: aktiveMietvertraege } = useQuery({
-    queryKey: ['aktive-mietvertraege'],
+  const { data: mietvertraege } = useQuery({
+    queryKey: ['alle-mietvertraege'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('aktive_mietvertraege')
-        .select('id, kaltmiete')
-        .eq('status', 'aktiv');
+        .from('mietvertraege')
+        .select('id, kaltmiete, status');
       
       if (error) throw error;
       return data || [];
     }
   });
 
-  const gesamtMiete = aktiveMietvertraege?.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0) || 0;
+  const aktiveMietvertraege = mietvertraege?.filter(mv => mv.status === 'aktiv') || [];
+  const gesamtMiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0);
   const auslastung = gesamtEinheiten && aktiveMietvertraege ? 
     Math.round((aktiveMietvertraege.length / gesamtEinheiten) * 100) : 0;
 
