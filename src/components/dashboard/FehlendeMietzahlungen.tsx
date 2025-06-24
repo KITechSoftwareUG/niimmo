@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export const FehlendeMietzahlungen = () => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   const { data: mietvertraegeData } = useQuery({
     queryKey: ['mietvertraege-mit-mieter'],
