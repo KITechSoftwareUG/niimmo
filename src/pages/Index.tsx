@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ImmobilienCard } from "@/components/dashboard/ImmobilienCard";
@@ -64,32 +63,30 @@ const Index = () => {
       <div className="container mx-auto p-8">
         {/* Header */}
         <div className="mb-6">
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center mb-4">
-              <img 
-                src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" 
-                alt="NiImmo Gruppe Logo" 
-                className="h-16 w-auto mr-4"
-              />
-              <div>
-                <h1 className="text-5xl font-sans font-bold text-gradient-red mb-2">
-                  NiImmo Dashboard
-                </h1>
-                <p className="text-xl font-sans text-gray-600">
-                  Immobilien Verwaltung
-                </p>
+          <div className="glass-card p-6 rounded-2xl mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <img 
+                  src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" 
+                  alt="NiImmo Logo" 
+                  className="h-12 w-auto"
+                />
+                <div>
+                  <h1 className="text-3xl font-sans font-bold text-gradient-red">
+                    NiImmo Dashboard
+                  </h1>
+                  <p className="text-gray-600 font-sans text-sm">
+                    Zentrale Verwaltung für Mieter, Zahlungen und Immobilien
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="text-gray-500 font-sans">
-              {new Date().toLocaleDateString('de-DE', { 
-                weekday: 'long',
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })} • {new Date().toLocaleTimeString('de-DE', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              })}
+              <div className="text-right">
+                <div className="text-sm text-gray-500 font-sans mb-1">System Status</div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-sans text-gray-700">Online</span>
+                </div>
+              </div>
             </div>
           </div>
           
