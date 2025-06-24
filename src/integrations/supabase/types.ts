@@ -14,7 +14,9 @@ export type Database = {
           dateityp: string | null
           hochgeladen_am: string | null
           id: string
-          mietvertrag_id: string | null
+          kategorie: Database["public"]["Enums"]["kategorie"] | null
+          mieter_id: string
+          mietvertrag_id: string
           pfad: string | null
           titel: string | null
         }
@@ -22,7 +24,9 @@ export type Database = {
           dateityp?: string | null
           hochgeladen_am?: string | null
           id?: string
-          mietvertrag_id?: string | null
+          kategorie?: Database["public"]["Enums"]["kategorie"] | null
+          mieter_id: string
+          mietvertrag_id: string
           pfad?: string | null
           titel?: string | null
         }
@@ -30,16 +34,18 @@ export type Database = {
           dateityp?: string | null
           hochgeladen_am?: string | null
           id?: string
-          mietvertrag_id?: string | null
+          kategorie?: Database["public"]["Enums"]["kategorie"] | null
+          mieter_id?: string
+          mietvertrag_id?: string
           pfad?: string | null
           titel?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "dokumente_mietvertrag_id_fkey"
-            columns: ["mietvertrag_id"]
+            foreignKeyName: "dokumente_mieter_id_fkey"
+            columns: ["mieter_id"]
             isOneToOne: false
-            referencedRelation: "aktive_mietvertraege"
+            referencedRelation: "mieter"
             referencedColumns: ["id"]
           },
           {
@@ -51,32 +57,58 @@ export type Database = {
           },
         ]
       }
+      dokumente_embeddings: {
+        Row: {
+          dokument_id: string | null
+          embedding: string | null
+          text: string | null
+        }
+        Insert: {
+          dokument_id?: string | null
+          embedding?: string | null
+          text?: string | null
+        }
+        Update: {
+          dokument_id?: string | null
+          embedding?: string | null
+          text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dokumente_embeddings_dokument_id_fkey"
+            columns: ["dokument_id"]
+            isOneToOne: false
+            referencedRelation: "dokumente"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       einheiten: {
         Row: {
           aktualisiert_am: string | null
+          einheitentyp: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am: string | null
           etage: string | null
           id: string
           immobilie_id: string | null
-          nummer: string | null
           qm: number | null
         }
         Insert: {
           aktualisiert_am?: string | null
+          einheitentyp?: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am?: string | null
           etage?: string | null
           id?: string
           immobilie_id?: string | null
-          nummer?: string | null
           qm?: number | null
         }
         Update: {
           aktualisiert_am?: string | null
+          einheitentyp?: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am?: string | null
           etage?: string | null
           id?: string
           immobilie_id?: string | null
-          nummer?: string | null
           qm?: number | null
         }
         Relationships: [
@@ -93,29 +125,41 @@ export type Database = {
         Row: {
           adresse: string
           aktualisiert_am: string | null
+          Annuität: number | null
+          baujahr: number | null
           beschreibung: string | null
           einheiten_anzahl: number
           erstellt_am: string | null
           id: string
+          "Kontonr.": number | null
           name: string
+          objekttyp: Database["public"]["Enums"]["objekttyp"] | null
         }
         Insert: {
           adresse: string
           aktualisiert_am?: string | null
+          Annuität?: number | null
+          baujahr?: number | null
           beschreibung?: string | null
           einheiten_anzahl: number
           erstellt_am?: string | null
           id?: string
+          "Kontonr."?: number | null
           name: string
+          objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
         }
         Update: {
           adresse?: string
           aktualisiert_am?: string | null
+          Annuität?: number | null
+          baujahr?: number | null
           beschreibung?: string | null
           einheiten_anzahl?: number
           erstellt_am?: string | null
           id?: string
+          "Kontonr."?: number | null
           name?: string
+          objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
         }
         Relationships: []
       }
@@ -152,34 +196,40 @@ export type Database = {
       mietvertraege: {
         Row: {
           aktualisiert_am: string | null
-          einheit_id: string | null
+          betriebskosten: number | null
+          einheit_id: string
           ende_datum: string | null
           erstellt_am: string | null
           id: string
-          kaltmiete: number
-          start_datum: string
+          kaltmiete: number | null
+          kündigungsdatum: string | null
+          start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
           warmmiete: number | null
         }
         Insert: {
           aktualisiert_am?: string | null
-          einheit_id?: string | null
+          betriebskosten?: number | null
+          einheit_id: string
           ende_datum?: string | null
           erstellt_am?: string | null
           id?: string
-          kaltmiete: number
-          start_datum: string
+          kaltmiete?: number | null
+          kündigungsdatum?: string | null
+          start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           warmmiete?: number | null
         }
         Update: {
           aktualisiert_am?: string | null
-          einheit_id?: string | null
+          betriebskosten?: number | null
+          einheit_id?: string
           ende_datum?: string | null
           erstellt_am?: string | null
           id?: string
-          kaltmiete?: number
-          start_datum?: string
+          kaltmiete?: number | null
+          kündigungsdatum?: string | null
+          start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           warmmiete?: number | null
         }
@@ -195,16 +245,19 @@ export type Database = {
       }
       mietvertrag_mieter: {
         Row: {
+          Hinweis: string | null
           mieter_id: string
           mietvertrag_id: string
           rolle: Database["public"]["Enums"]["mieterrolle"] | null
         }
         Insert: {
+          Hinweis?: string | null
           mieter_id: string
           mietvertrag_id: string
           rolle?: Database["public"]["Enums"]["mieterrolle"] | null
         }
         Update: {
+          Hinweis?: string | null
           mieter_id?: string
           mietvertrag_id?: string
           rolle?: Database["public"]["Enums"]["mieterrolle"] | null
@@ -219,58 +272,6 @@ export type Database = {
           },
           {
             foreignKeyName: "mietvertrag_mieter_mietvertrag_id_fkey"
-            columns: ["mietvertrag_id"]
-            isOneToOne: false
-            referencedRelation: "aktive_mietvertraege"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mietvertrag_mieter_mietvertrag_id_fkey"
-            columns: ["mietvertrag_id"]
-            isOneToOne: false
-            referencedRelation: "mietvertraege"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      mietzahlungen: {
-        Row: {
-          aktualisiert_am: string | null
-          betrag: number
-          bezahlt_am: string | null
-          erstellt_am: string | null
-          id: string
-          mietvertrag_id: string | null
-          monat: string
-        }
-        Insert: {
-          aktualisiert_am?: string | null
-          betrag: number
-          bezahlt_am?: string | null
-          erstellt_am?: string | null
-          id?: string
-          mietvertrag_id?: string | null
-          monat: string
-        }
-        Update: {
-          aktualisiert_am?: string | null
-          betrag?: number
-          bezahlt_am?: string | null
-          erstellt_am?: string | null
-          id?: string
-          mietvertrag_id?: string | null
-          monat?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mietzahlungen_mietvertrag_id_fkey"
-            columns: ["mietvertrag_id"]
-            isOneToOne: false
-            referencedRelation: "aktive_mietvertraege"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mietzahlungen_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
             isOneToOne: false
             referencedRelation: "mietvertraege"
@@ -298,44 +299,115 @@ export type Database = {
       }
     }
     Views: {
-      aktive_mietvertraege: {
-        Row: {
-          aktualisiert_am: string | null
-          einheit_id: string | null
-          ende_datum: string | null
-          erstellt_am: string | null
-          id: string | null
-          immobilie_id: string | null
-          kaltmiete: number | null
-          mieter_name: string | null
-          nummer: string | null
-          start_datum: string | null
-          status: Database["public"]["Enums"]["mietstatus"] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "einheiten_immobilie_id_fkey"
-            columns: ["immobilie_id"]
-            isOneToOne: false
-            referencedRelation: "immobilien"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mietvertraege_einheit_id_fkey"
-            columns: ["einheit_id"]
-            isOneToOne: false
-            referencedRelation: "einheiten"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-    }
-    Functions: {
       [_ in never]: never
     }
+    Functions: {
+      binary_quantize: {
+        Args: { "": string } | { "": unknown }
+        Returns: unknown
+      }
+      halfvec_avg: {
+        Args: { "": number[] }
+        Returns: unknown
+      }
+      halfvec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      halfvec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      halfvec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      hnsw_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnsw_sparsevec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      hnswhandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_bit_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflat_halfvec_support: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      ivfflathandler: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      l2_norm: {
+        Args: { "": unknown } | { "": unknown }
+        Returns: number
+      }
+      l2_normalize: {
+        Args: { "": string } | { "": unknown } | { "": unknown }
+        Returns: string
+      }
+      sparsevec_out: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      sparsevec_send: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      sparsevec_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+      vector_avg: {
+        Args: { "": number[] }
+        Returns: string
+      }
+      vector_dims: {
+        Args: { "": string } | { "": unknown }
+        Returns: number
+      }
+      vector_norm: {
+        Args: { "": string }
+        Returns: number
+      }
+      vector_out: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      vector_send: {
+        Args: { "": string }
+        Returns: string
+      }
+      vector_typmod_in: {
+        Args: { "": unknown[] }
+        Returns: number
+      }
+    }
     Enums: {
+      einheitentyp:
+        | "Wohnung"
+        | "Gewerbe"
+        | "Stellplatz"
+        | "Garage"
+        | "Haus (Doppelhaushälfte, Reihenhaus)"
+        | "Lager"
+        | "Sonstiges"
+      kategorie: "Mietvertrag" | "Kündigung" | "Übergabeprotokoll" | "Sonstiges"
       mieterrolle: "Hauptmieter" | "Zweitmieter" | "Drittmieter"
       mietstatus: "aktiv" | "gekündigt" | "beendet"
+      objekttyp: "Wohnhaus" | "Gewerbe" | "Mischnutzung"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -451,8 +523,19 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      einheitentyp: [
+        "Wohnung",
+        "Gewerbe",
+        "Stellplatz",
+        "Garage",
+        "Haus (Doppelhaushälfte, Reihenhaus)",
+        "Lager",
+        "Sonstiges",
+      ],
+      kategorie: ["Mietvertrag", "Kündigung", "Übergabeprotokoll", "Sonstiges"],
       mieterrolle: ["Hauptmieter", "Zweitmieter", "Drittmieter"],
       mietstatus: ["aktiv", "gekündigt", "beendet"],
+      objekttyp: ["Wohnhaus", "Gewerbe", "Mischnutzung"],
     },
   },
 } as const

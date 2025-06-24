@@ -5,11 +5,16 @@ import { ImmobilienCard } from "@/components/dashboard/ImmobilienCard";
 import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
+import { FilterPanel } from "@/components/dashboard/FilterPanel";
 import { useState } from "react";
 import { Loader2, Building2 } from "lucide-react";
 
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
+  const [filters, setFilters] = useState({
+    mietstatus: "all",
+    zahlungsstatus: "all"
+  });
 
   const { data: immobilien, isLoading } = useQuery({
     queryKey: ['immobilien'],
@@ -23,6 +28,14 @@ const Index = () => {
       return data;
     }
   });
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const getActiveFiltersCount = () => {
+    return Object.values(filters).filter(value => value !== "all").length;
+  };
 
   if (isLoading) {
     return (
@@ -42,7 +55,7 @@ const Index = () => {
           <ImmobilienDetail 
             immobilieId={selectedImmobilie}
             onBack={() => setSelectedImmobilie(null)}
-            filters={{ mietstatus: "all", zahlungsstatus: "all" }}
+            filters={filters}
           />
         </div>
       </div>
@@ -90,6 +103,13 @@ const Index = () => {
         <div className="mb-8">
           <FehlendeMietzahlungen />
         </div>
+
+        {/* Filter Panel */}
+        <FilterPanel 
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          activeFiltersCount={getActiveFiltersCount()}
+        />
 
         {/* Immobilien Grid */}
         <div className="mb-6">
