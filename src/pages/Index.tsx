@@ -51,7 +51,10 @@ const Index = () => {
       <ImmobilienDetail 
         immobilieId={selectedImmobilie}
         onBack={handleBackClick}
-        filters={{}}
+        filters={{
+          mietstatus: "all",
+          zahlungsstatus: "all"
+        }}
       />
     );
   }
