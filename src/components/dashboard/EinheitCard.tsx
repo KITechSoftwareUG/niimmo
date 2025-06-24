@@ -89,8 +89,8 @@ export const EinheitCard = ({ einheit, vertrag, filters }: EinheitCardProps) => 
 
   return (
     <Card 
-      className={`transition-all hover:shadow-lg cursor-pointer border-l-4 ${getStatusColor()}`}
-      onClick={handleCardClick}
+      className={`transition-all hover:shadow-lg ${vertrag ? 'cursor-pointer' : ''} border-l-4 ${getStatusColor()}`}
+      onClick={vertrag ? handleCardClick : undefined}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
@@ -122,17 +122,21 @@ export const EinheitCard = ({ einheit, vertrag, filters }: EinheitCardProps) => 
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Users className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">Mieter:</span>
+                  <span className="text-sm font-medium">
+                    {vertrag.mieter.length === 1 ? 'Mieter:' : 'Mieter:'}
+                  </span>
                 </div>
                 <div className="pl-6 space-y-1">
                   {vertrag.mieter.map((mieter, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <User className="h-3 w-3 text-gray-400" />
-                      <span className="text-sm text-gray-700">
-                        {mieter.Vorname} {mieter.Nachname}
-                      </span>
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <User className="h-3 w-3 text-gray-400" />
+                        <span className="text-sm text-gray-700">
+                          {mieter.Vorname} {mieter.Nachname}
+                        </span>
+                      </div>
                       {mieter.rolle && (
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs ml-2">
                           {mieter.rolle}
                         </Badge>
                       )}

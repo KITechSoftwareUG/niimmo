@@ -51,17 +51,8 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
   const auslastung = einheitenStatus ? 
     Math.round((einheitenStatus.aktive / einheitenStatus.gesamt) * 100) : 0;
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onClick();
-  };
-
   return (
-    <div 
-      className="h-full cursor-pointer transition-all duration-300 hover:scale-[1.02]"
-      onClick={handleCardClick}
-    >
+    <div className="h-full">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center space-x-4">

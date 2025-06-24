@@ -16,7 +16,7 @@ const Index = () => {
     zahlungsstatus: "all"
   });
 
-  const { data: immobilien, isLoading } = useQuery({
+  const { data: immobilien, isLoading, refetch } = useQuery({
     queryKey: ['immobilien'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -43,6 +43,8 @@ const Index = () => {
 
   const handleBackClick = () => {
     setSelectedImmobilie(null);
+    // Refresh the immobilien data when going back
+    refetch();
   };
 
   if (isLoading) {
@@ -58,15 +60,11 @@ const Index = () => {
 
   if (selectedImmobilie) {
     return (
-      <div className="min-h-screen modern-dashboard-bg">
-        <div className="container mx-auto p-8">
-          <ImmobilienDetail 
-            immobilieId={selectedImmobilie}
-            onBack={handleBackClick}
-            filters={filters}
-          />
-        </div>
-      </div>
+      <ImmobilienDetail 
+        immobilieId={selectedImmobilie}
+        onBack={handleBackClick}
+        filters={filters}
+      />
     );
   }
 
@@ -126,8 +124,9 @@ const Index = () => {
             {immobilien?.map((immobilie, index) => (
               <div 
                 key={immobilie.id} 
-                className="glass-card rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300"
+                className="glass-card rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer"
                 style={{animationDelay: `${index * 0.1}s`}}
+                onClick={() => handleImmobilieClick(immobilie.id)}
               >
                 <ImmobilienCard
                   immobilie={immobilie}

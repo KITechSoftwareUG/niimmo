@@ -114,9 +114,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
     return Object.values(filters).filter(value => value !== "all").length;
   };
 
-  const handleBackClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleBackClick = () => {
     onBack();
   };
 
@@ -176,7 +174,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
                 
                 <div className="text-right space-y-2">
                   <Badge variant="outline" className="text-lg px-4 py-2">
-                    {immobilie?.einheiten_anzahl} Einheiten
+                    {filteredEinheiten.length} von {immobilie?.einheiten_anzahl} Einheiten
                   </Badge>
                   {immobilie?.objekttyp && (
                     <div className="text-sm text-gray-500">
@@ -246,7 +244,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
               <p className="text-gray-500">
                 {getActiveFiltersCount() > 0
                   ? "Keine Einheiten entsprechen den Filterkriterien" 
-                  : "Keine Einheiten gefunden"
+                  : "Keine Einheiten für diese Immobilie gefunden"
                 }
               </p>
             </div>
