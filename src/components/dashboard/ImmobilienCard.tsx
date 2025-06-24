@@ -19,16 +19,30 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
   const { data: einheitenStatus } = useQuery({
     queryKey: ['einheiten-status', immobilie.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('aktive_mietvertraege')
-        .select('status')
+      // Get all units for this property
+      const { data: einheiten, error: einheitenError } = await supabase
+        .from('einheiten')
+        .select('id')
         .eq('immobilie_id', immobilie.id);
       
-      if (error) throw error;
+      if (einheitenError) throw einheitenError;
+
+      if (!einheiten || einheiten.length === 0) {
+        return { aktive: 0, gekuendigt: 0, leerstehend: immobilie.einheiten_anzahl, gesamt: immobilie.einheiten_anzahl };
+      }
+
+      // Get rental contracts for these units
+      const einheitIds = einheiten.map(e => e.id);
+      const { data: vertraege, error: vertraegeError } = await supabase
+        .from('mietvertraege')
+        .select('status')
+        .in('einheit_id', einheitIds);
       
-      const aktive = data?.filter(v => v.status === 'aktiv').length || 0;
-      const gekuendigt = data?.filter(v => v.status === 'gekündigt').length || 0;
-      const leerstehend = immobilie.einheiten_anzahl - data?.length || 0;
+      if (vertraegeError) throw vertraegeError;
+      
+      const aktive = vertraege?.filter(v => v.status === 'aktiv').length || 0;
+      const gekuendigt = vertraege?.filter(v => v.status === 'gekündigt').length || 0;
+      const leerstehend = immobilie.einheiten_anzahl - (vertraege?.length || 0);
       
       return { aktive, gekuendigt, leerstehend, gesamt: immobilie.einheiten_anzahl };
     }
