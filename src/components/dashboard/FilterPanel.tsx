@@ -15,13 +15,13 @@ interface FilterPanelProps {
 
 export const FilterPanel = ({ filters, onFilterChange, activeFiltersCount }: FilterPanelProps) => {
   return (
-    <Card className="mb-6">
+    <Card className="mb-6 elegant-card">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 font-sans">
           <Filter className="h-5 w-5" />
           Filter
           {activeFiltersCount > 0 && (
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-2 font-sans">
               {activeFiltersCount} aktiv
             </Badge>
           )}
@@ -30,30 +30,30 @@ export const FilterPanel = ({ filters, onFilterChange, activeFiltersCount }: Fil
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="text-sm font-medium mb-2 block">Mietstatus</label>
+            <label className="text-sm font-sans font-medium mb-2 block text-gray-700">Mietstatus</label>
             <Select value={filters.mietstatus} onValueChange={(value) => onFilterChange('mietstatus', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full modern-input font-sans cursor-pointer hover:bg-gray-50 transition-colors">
                 <SelectValue placeholder="Alle Status" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Status</SelectItem>
-                <SelectItem value="aktiv">Aktiv</SelectItem>
-                <SelectItem value="gekündigt">Gekündigt</SelectItem>
-                <SelectItem value="leerstehend">Leerstehend</SelectItem>
+              <SelectContent className="bg-white border modern-shadow-lg z-50">
+                <SelectItem value="all" className="font-sans cursor-pointer">Alle Status</SelectItem>
+                <SelectItem value="aktiv" className="font-sans cursor-pointer">Aktiv</SelectItem>
+                <SelectItem value="gekündigt" className="font-sans cursor-pointer">Gekündigt</SelectItem>
+                <SelectItem value="leerstehend" className="font-sans cursor-pointer">Leerstehend</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">Zahlungsstatus</label>
+            <label className="text-sm font-sans font-medium mb-2 block text-gray-700">Zahlungsstatus</label>
             <Select value={filters.zahlungsstatus} onValueChange={(value) => onFilterChange('zahlungsstatus', value)}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full modern-input font-sans cursor-pointer hover:bg-gray-50 transition-colors">
                 <SelectValue placeholder="Alle Zahlungen" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Zahlungen</SelectItem>
-                <SelectItem value="bezahlt">Bezahlt</SelectItem>
-                <SelectItem value="offen">Offen</SelectItem>
+              <SelectContent className="bg-white border modern-shadow-lg z-50">
+                <SelectItem value="all" className="font-sans cursor-pointer">Alle Zahlungen</SelectItem>
+                <SelectItem value="bezahlt" className="font-sans cursor-pointer">Bezahlt</SelectItem>
+                <SelectItem value="offen" className="font-sans cursor-pointer">Offen</SelectItem>
               </SelectContent>
             </Select>
           </div>
