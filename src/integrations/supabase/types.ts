@@ -9,33 +9,69 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      csv_uploads: {
+        Row: {
+          anzahl_datensaetze: number | null
+          dateigroe_bytes: number | null
+          dateiname: string
+          erstellt_am: string | null
+          hochgeladen_am: string | null
+          id: string
+          status: string | null
+        }
+        Insert: {
+          anzahl_datensaetze?: number | null
+          dateigroe_bytes?: number | null
+          dateiname: string
+          erstellt_am?: string | null
+          hochgeladen_am?: string | null
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          anzahl_datensaetze?: number | null
+          dateigroe_bytes?: number | null
+          dateiname?: string
+          erstellt_am?: string | null
+          hochgeladen_am?: string | null
+          id?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       dokumente: {
         Row: {
           dateityp: string | null
+          erstellt_von: string | null
+          groesse_bytes: number | null
           hochgeladen_am: string | null
           id: string
           kategorie: Database["public"]["Enums"]["kategorie"] | null
-          mieter_id: string
+          mieter_id: string | null
           mietvertrag_id: string
           pfad: string | null
           titel: string | null
         }
         Insert: {
           dateityp?: string | null
+          erstellt_von?: string | null
+          groesse_bytes?: number | null
           hochgeladen_am?: string | null
           id?: string
           kategorie?: Database["public"]["Enums"]["kategorie"] | null
-          mieter_id: string
+          mieter_id?: string | null
           mietvertrag_id: string
           pfad?: string | null
           titel?: string | null
         }
         Update: {
           dateityp?: string | null
+          erstellt_von?: string | null
+          groesse_bytes?: number | null
           hochgeladen_am?: string | null
           id?: string
           kategorie?: Database["public"]["Enums"]["kategorie"] | null
-          mieter_id?: string
+          mieter_id?: string | null
           mietvertrag_id?: string
           pfad?: string | null
           titel?: string | null
@@ -46,6 +82,13 @@ export type Database = {
             columns: ["mieter_id"]
             isOneToOne: false
             referencedRelation: "mieter"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dokumente_mietvertrag_id_fkey"
+            columns: ["mietvertrag_id"]
+            isOneToOne: false
+            referencedRelation: "aktive_mietvertraege"
             referencedColumns: ["id"]
           },
           {
@@ -202,6 +245,7 @@ export type Database = {
           erstellt_am: string | null
           id: string
           kaltmiete: number | null
+          kuendigungsdatum: string | null
           kündigungsdatum: string | null
           start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
@@ -215,6 +259,7 @@ export type Database = {
           erstellt_am?: string | null
           id?: string
           kaltmiete?: number | null
+          kuendigungsdatum?: string | null
           kündigungsdatum?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
@@ -228,6 +273,7 @@ export type Database = {
           erstellt_am?: string | null
           id?: string
           kaltmiete?: number | null
+          kuendigungsdatum?: string | null
           kündigungsdatum?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
@@ -274,6 +320,13 @@ export type Database = {
             foreignKeyName: "mietvertrag_mieter_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
             isOneToOne: false
+            referencedRelation: "aktive_mietvertraege"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mietvertrag_mieter_mietvertrag_id_fkey"
+            columns: ["mietvertrag_id"]
+            isOneToOne: false
             referencedRelation: "mietvertraege"
             referencedColumns: ["id"]
           },
@@ -299,7 +352,47 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      aktive_mietvertraege: {
+        Row: {
+          aktualisiert_am: string | null
+          betriebskosten: number | null
+          einheit_id: string | null
+          ende_datum: string | null
+          erstellt_am: string | null
+          etage: string | null
+          hauptmail: string | null
+          id: string | null
+          immobilie_adresse: string | null
+          immobilie_name: string | null
+          kaltmiete: number | null
+          kuendigungsdatum: string | null
+          kündigungsdatum: string | null
+          mieter_id: string | null
+          Nachname: string | null
+          qm: number | null
+          rolle: Database["public"]["Enums"]["mieterrolle"] | null
+          start_datum: string | null
+          status: Database["public"]["Enums"]["mietstatus"] | null
+          Vorname: string | null
+          warmmiete: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mietvertraege_einheit_id_fkey"
+            columns: ["einheit_id"]
+            isOneToOne: false
+            referencedRelation: "einheiten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mietvertrag_mieter_mieter_id_fkey"
+            columns: ["mieter_id"]
+            isOneToOne: false
+            referencedRelation: "mieter"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       binary_quantize: {

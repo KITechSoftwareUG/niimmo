@@ -53,7 +53,6 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
   const { data: mietvertraege } = useQuery({
     queryKey: ['mietvertraege-detail', immobilieId],
     queryFn: async () => {
-      // Hole alle Mietverträge für die Einheiten dieser Immobilie
       const einheitIds = einheiten?.map(e => e.id) || [];
       if (einheitIds.length === 0) return [];
 
@@ -64,7 +63,6 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
       
       if (vertraegeError) throw vertraegeError;
 
-      // Hole Mieter-Informationen für diese Verträge
       const vertragIds = vertraege?.map(v => v.id) || [];
       if (vertragIds.length === 0) return vertraege;
 
@@ -75,8 +73,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
           rolle,
           mieter_id
         `)
-        .in('mietvertrag_id', vertragIds)
-        .eq('rolle', 'Hauptmieter');
+        .in('mietvertrag_id', vertragIds);
       
       if (mmError) throw mmError;
 
@@ -90,14 +87,19 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
       
       if (mieterError) throw mieterError;
 
-      // Verknüpfe die Daten
       return vertraege?.map(vertrag => {
-        const mvMieter = mietvertragMieter?.find(mm => mm.mietvertrag_id === vertrag.id);
-        const mieterData = mieter?.find(m => m.id === mvMieter?.mieter_id);
+        const allMieterForVertrag = mietvertragMieter?.filter(mm => mm.mietvertrag_id === vertrag.id) || [];
+        const mieterData = allMieterForVertrag.map(mvMieter => {
+          const mieterInfo = mieter?.find(m => m.id === mvMieter.mieter_id);
+          return {
+            ...mieterInfo,
+            rolle: mvMieter.rolle
+          };
+        }).filter(Boolean);
         
         return {
           ...vertrag,
-          mieter_name: mieterData ? `${mieterData.Vorname} ${mieterData.Nachname}` : undefined
+          mieter: mieterData
         };
       }) || [];
     },
@@ -112,6 +114,12 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
     return Object.values(filters).filter(value => value !== "all").length;
   };
 
+  const handleBackClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onBack();
+  };
+
   if (immobilieLoading || einheitenLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -120,7 +128,6 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
     );
   }
 
-  // Filter einheiten based on filters
   let filteredEinheiten = einheiten || [];
   
   if (filters.mietstatus && filters.mietstatus !== "all") {
@@ -138,8 +145,8 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
         <div className="mb-6">
           <Button 
             variant="ghost" 
-            onClick={onBack}
-            className="mb-4"
+            onClick={handleBackClick}
+            className="mb-4 hover:bg-gray-100 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Zurück zur Übersicht
@@ -212,7 +219,6 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
             )}
           </Card>
 
-          {/* Filter Panel */}
           <FilterPanel 
             filters={filters}
             onFilterChange={handleFilterChange}
