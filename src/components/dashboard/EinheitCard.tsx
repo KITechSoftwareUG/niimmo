@@ -16,6 +16,8 @@ interface EinheitCardProps {
     id: string;
     status: string;
     kaltmiete?: number;
+    warmmiete?: number;
+    betriebskosten?: number;
     start_datum?: string;
     ende_datum?: string;
     mieter?: Array<{
@@ -145,15 +147,43 @@ export const EinheitCard = ({ einheit, vertrag, filters, immobilie }: EinheitCar
                 </div>
               )}
 
-              {vertrag.kaltmiete && (
-                <div className="flex items-center space-x-2">
-                  <Euro className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">{vertrag.kaltmiete}€ / Monat</span>
-                </div>
-              )}
+              {/* Rent Information */}
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <div className="text-sm font-medium text-gray-700 mb-2">Mietinformationen</div>
+                
+                {vertrag.kaltmiete && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Euro className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">Kaltmiete</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-800">{vertrag.kaltmiete}€</span>
+                  </div>
+                )}
+
+                {vertrag.betriebskosten && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Euro className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">Betriebskosten</span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-800">{vertrag.betriebskosten}€</span>
+                  </div>
+                )}
+
+                {vertrag.warmmiete && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Euro className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm text-gray-600 font-medium">Warmmiete</span>
+                    </div>
+                    <span className="text-sm font-bold text-orange-600">{vertrag.warmmiete}€</span>
+                  </div>
+                )}
+              </div>
 
               {vertrag.start_datum && (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 pt-2">
                   <Calendar className="h-4 w-4 text-gray-500" />
                   <span className="text-sm">
                     seit {new Date(vertrag.start_datum).toLocaleDateString('de-DE')}
