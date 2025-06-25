@@ -1,5 +1,5 @@
 
-import { Building2, Users, TrendingUp, DollarSign } from "lucide-react";
+import { Building2, Users, TrendingUp, DollarSign, Euro } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -32,10 +32,19 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
     }
   });
 
+  const { data: erfassedMiete } = useQuery({
+    queryKey: ['erfassed-miete'],
+    queryFn: async () => {
+      // Hier würde normalerweise die Summe aller Zahlungen aus einer Zahlungen-Tabelle kommen
+      // Da diese Tabelle noch nicht existiert, verwenden wir einen Platzhalter-Wert
+      // TODO: Implementierung mit echter Zahlungstabelle
+      return 0;
+    }
+  });
+
   const aktiveMietvertraege = mietvertraege?.filter(mv => mv.status === 'aktiv') || [];
-  const gesamtMiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0);
-  const auslastung = gesamtEinheiten && aktiveMietvertraege ? 
-    Math.round((aktiveMietvertraege.length / gesamtEinheiten) * 100) : 0;
+  const erwartedMiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0);
+  const leerstände = gesamtEinheiten ? gesamtEinheiten - aktiveMietvertraege.length : 0;
 
   const stats = [
     {
@@ -55,25 +64,33 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
       border: "border-green-100"
     },
     {
-      title: "Auslastung",
-      value: `${auslastung}%`,
+      title: "Leerstände",
+      value: leerstände,
       icon: TrendingUp,
       color: "text-red-600",
       bg: "bg-red-50",
       border: "border-red-100"
     },
     {
-      title: "Monatliche Miete",
-      value: `€${gesamtMiete.toLocaleString()}`,
+      title: "Erwartete Miete",
+      value: `€${erwartedMiete.toLocaleString()}`,
       icon: DollarSign,
       color: "text-purple-600",
       bg: "bg-purple-50",
       border: "border-purple-100"
+    },
+    {
+      title: "Erfasste Miete",
+      value: `€${erfassedMiete?.toLocaleString() || 0}`,
+      icon: Euro,
+      color: "text-orange-600",
+      bg: "bg-orange-50",
+      border: "border-orange-100"
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
       {stats.map((stat, index) => (
         <div 
           key={stat.title} 
