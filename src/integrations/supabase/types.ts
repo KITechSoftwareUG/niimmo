@@ -88,13 +88,6 @@ export type Database = {
             foreignKeyName: "dokumente_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
             isOneToOne: false
-            referencedRelation: "aktive_mietvertraege"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "dokumente_mietvertrag_id_fkey"
-            columns: ["mietvertrag_id"]
-            isOneToOne: false
             referencedRelation: "mietvertraege"
             referencedColumns: ["id"]
           },
@@ -239,6 +232,7 @@ export type Database = {
       mietvertraege: {
         Row: {
           aktualisiert_am: string | null
+          bankkonto_mieter: string | null
           betriebskosten: number | null
           einheit_id: string
           ende_datum: string | null
@@ -246,13 +240,14 @@ export type Database = {
           id: string
           kaltmiete: number | null
           kuendigungsdatum: string | null
-          kündigungsdatum: string | null
           start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
+          verwendungszweck: string[] | null
           warmmiete: number | null
         }
         Insert: {
           aktualisiert_am?: string | null
+          bankkonto_mieter?: string | null
           betriebskosten?: number | null
           einheit_id: string
           ende_datum?: string | null
@@ -260,13 +255,14 @@ export type Database = {
           id?: string
           kaltmiete?: number | null
           kuendigungsdatum?: string | null
-          kündigungsdatum?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
+          verwendungszweck?: string[] | null
           warmmiete?: number | null
         }
         Update: {
           aktualisiert_am?: string | null
+          bankkonto_mieter?: string | null
           betriebskosten?: number | null
           einheit_id?: string
           ende_datum?: string | null
@@ -274,9 +270,9 @@ export type Database = {
           id?: string
           kaltmiete?: number | null
           kuendigungsdatum?: string | null
-          kündigungsdatum?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
+          verwendungszweck?: string[] | null
           warmmiete?: number | null
         }
         Relationships: [
@@ -320,13 +316,6 @@ export type Database = {
             foreignKeyName: "mietvertrag_mieter_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
             isOneToOne: false
-            referencedRelation: "aktive_mietvertraege"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mietvertrag_mieter_mietvertrag_id_fkey"
-            columns: ["mietvertrag_id"]
-            isOneToOne: false
             referencedRelation: "mietvertraege"
             referencedColumns: ["id"]
           },
@@ -352,47 +341,7 @@ export type Database = {
       }
     }
     Views: {
-      aktive_mietvertraege: {
-        Row: {
-          aktualisiert_am: string | null
-          betriebskosten: number | null
-          einheit_id: string | null
-          ende_datum: string | null
-          erstellt_am: string | null
-          etage: string | null
-          hauptmail: string | null
-          id: string | null
-          immobilie_adresse: string | null
-          immobilie_name: string | null
-          kaltmiete: number | null
-          kuendigungsdatum: string | null
-          kündigungsdatum: string | null
-          mieter_id: string | null
-          Nachname: string | null
-          qm: number | null
-          rolle: Database["public"]["Enums"]["mieterrolle"] | null
-          start_datum: string | null
-          status: Database["public"]["Enums"]["mietstatus"] | null
-          Vorname: string | null
-          warmmiete: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mietvertraege_einheit_id_fkey"
-            columns: ["einheit_id"]
-            isOneToOne: false
-            referencedRelation: "einheiten"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mietvertrag_mieter_mieter_id_fkey"
-            columns: ["mieter_id"]
-            isOneToOne: false
-            referencedRelation: "mieter"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       binary_quantize: {
