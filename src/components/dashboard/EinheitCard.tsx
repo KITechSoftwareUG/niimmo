@@ -27,17 +27,13 @@ interface EinheitCardProps {
       rolle: string;
     }>;
   } | null;
-  filters: {
-    mietstatus: string;
-    zahlungsstatus: string;
-  };
   immobilie?: {
     name: string;
     adresse: string;
   };
 }
 
-export const EinheitCard = ({ einheit, vertrag, filters, immobilie }: EinheitCardProps) => {
+export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) => {
   const [showModal, setShowModal] = useState(false);
 
   const getStatusColor = () => {
@@ -61,16 +57,6 @@ export const EinheitCard = ({ einheit, vertrag, filters, immobilie }: EinheitCar
     
     return <Badge>{vertrag.status}</Badge>;
   };
-
-  const shouldShow = () => {
-    if (filters.mietstatus !== "all") {
-      const currentStatus = vertrag?.status || 'leerstehend';
-      if (currentStatus !== filters.mietstatus) return false;
-    }
-    return true;
-  };
-
-  if (!shouldShow()) return null;
 
   const getShortId = (id: string) => {
     return id.length > 8 ? `...${id.slice(-8)}` : id;

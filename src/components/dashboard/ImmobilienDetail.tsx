@@ -1,13 +1,12 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { EinheitCard } from "./EinheitCard";
-import { FilterPanel } from "./FilterPanel";
 import { ArrowLeft, Building, MapPin, Calendar, Info } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
 
 interface ImmobilienDetailProps {
   immobilieId: string;
@@ -18,9 +17,7 @@ interface ImmobilienDetailProps {
   };
 }
 
-export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters }: ImmobilienDetailProps) => {
-  const [filters, setFilters] = useState(initialFilters);
-
+export const ImmobilienDetail = ({ immobilieId, onBack }: ImmobilienDetailProps) => {
   const { data: immobilie, isLoading: immobilieLoading } = useQuery({
     queryKey: ['immobilie', immobilieId],
     queryFn: async () => {
@@ -42,7 +39,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
         .from('einheiten')
         .select('*')
         .eq('immobilie_id', immobilieId)
-        .order('etage', { ascending: true });
+        .order('id', { ascending: true });
       
       if (error) throw error;
       return data;
@@ -105,14 +102,6 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
     enabled: !!einheiten
   });
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const getActiveFiltersCount = () => {
-    return Object.values(filters).filter(value => value !== "all").length;
-  };
-
   const handleBackClick = () => {
     onBack();
   };
@@ -123,17 +112,6 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
-  }
-
-  let filteredEinheiten = einheiten || [];
-  
-  if (filters.mietstatus && filters.mietstatus !== "all") {
-    const einheitenMitStatus = filteredEinheiten.map(einheit => {
-      const vertrag = mietvertraege?.find(v => v.einheit_id === einheit.id);
-      return { ...einheit, mietstatus: vertrag?.status || 'leerstehend' };
-    });
-    
-    filteredEinheiten = einheitenMitStatus.filter(e => e.mietstatus === filters.mietstatus);
   }
 
   return (
@@ -173,7 +151,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
                 
                 <div className="text-right space-y-2">
                   <Badge variant="outline" className="text-lg px-4 py-2">
-                    {filteredEinheiten.length} von {immobilie?.einheiten_anzahl} Einheiten
+                    {einheiten?.length || 0} von {immobilie?.einheiten_anzahl} Einheiten
                   </Badge>
                   {immobilie?.objekttyp && (
                     <div className="text-sm text-gray-500">
@@ -215,37 +193,27 @@ export const ImmobilienDetail = ({ immobilieId, onBack, filters: initialFilters 
               </CardContent>
             )}
           </Card>
-
-          <FilterPanel 
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            activeFiltersCount={getActiveFiltersCount()}
-          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEinheiten.map((einheit) => {
+          {einheiten?.map((einheit) => {
             const vertrag = mietvertraege?.find(v => v.einheit_id === einheit.id);
             return (
               <EinheitCard
                 key={einheit.id}
                 einheit={einheit}
                 vertrag={vertrag}
-                filters={filters}
                 immobilie={immobilie}
               />
             );
           })}
         </div>
 
-        {filteredEinheiten.length === 0 && (
+        {(!einheiten || einheiten.length === 0) && (
           <div className="text-center py-12">
             <div className="glass-card p-8 max-w-md mx-auto rounded-2xl">
               <p className="text-gray-500">
-                {getActiveFiltersCount() > 0
-                  ? "Keine Einheiten entsprechen den Filterkriterien" 
-                  : "Keine Einheiten für diese Immobilie gefunden"
-                }
+                Keine Einheiten für diese Immobilie gefunden
               </p>
             </div>
           </div>
