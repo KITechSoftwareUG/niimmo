@@ -1,4 +1,5 @@
 
+
 import { Building2, Users, TrendingUp, DollarSign, Euro } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -72,25 +73,18 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
       border: "border-red-100"
     },
     {
-      title: "Erwartete Miete",
-      value: `€${erwartedMiete.toLocaleString()}`,
-      icon: DollarSign,
+      title: "Monatliche Miete",
+      value: null, // Special case for combined rent display
+      icon: Euro,
       color: "text-purple-600",
       bg: "bg-purple-50",
-      border: "border-purple-100"
-    },
-    {
-      title: "Erfasste Miete",
-      value: `€${erfassedMiete?.toLocaleString() || 0}`,
-      icon: Euro,
-      color: "text-orange-600",
-      bg: "bg-orange-50",
-      border: "border-orange-100"
+      border: "border-purple-100",
+      isRentCard: true
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat, index) => (
         <div 
           key={stat.title} 
@@ -98,9 +92,22 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
           style={{animationDelay: `${index * 0.1}s`}}
         >
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <p className="text-sm font-medium font-sans text-gray-600 mb-1">{stat.title}</p>
-              <p className="text-3xl font-bold font-sans text-gray-900">{stat.value}</p>
+              {stat.isRentCard ? (
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Erwartete Miete</p>
+                    <p className="text-2xl font-bold font-sans text-gray-900">€{erwartedMiete.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Erfasste Miete</p>
+                    <p className="text-2xl font-bold font-sans text-gray-900">€{erfassedMiete?.toLocaleString() || 0}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-3xl font-bold font-sans text-gray-900">{stat.value}</p>
+              )}
             </div>
             <div className={`p-3 rounded-xl ${stat.bg} ${stat.border} border`}>
               <stat.icon className={`h-6 w-6 ${stat.color}`} />
@@ -111,3 +118,4 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
     </div>
   );
 };
+
