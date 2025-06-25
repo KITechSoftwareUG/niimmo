@@ -88,7 +88,7 @@ export type Database = {
             foreignKeyName: "dokumente_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
             isOneToOne: false
-            referencedRelation: "mietvertraege"
+            referencedRelation: "mietvertrag"
             referencedColumns: ["id"]
           },
         ]
@@ -170,6 +170,8 @@ export type Database = {
           "Kontonr.": number | null
           name: string
           objekttyp: Database["public"]["Enums"]["objekttyp"] | null
+          zaehlernummer_gas: string | null
+          zaehlernummer_strom: string | null
         }
         Insert: {
           adresse: string
@@ -183,6 +185,8 @@ export type Database = {
           "Kontonr."?: number | null
           name: string
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
+          zaehlernummer_gas?: string | null
+          zaehlernummer_strom?: string | null
         }
         Update: {
           adresse?: string
@@ -196,6 +200,8 @@ export type Database = {
           "Kontonr."?: number | null
           name?: string
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
+          zaehlernummer_gas?: string | null
+          zaehlernummer_strom?: string | null
         }
         Relationships: []
       }
@@ -229,7 +235,39 @@ export type Database = {
         }
         Relationships: []
       }
-      mietvertraege: {
+      mietforderungen: {
+        Row: {
+          betrag: number
+          erzeugt_am: string | null
+          id: string
+          mietvertrag_id: string | null
+          sollmonat: string
+        }
+        Insert: {
+          betrag?: number
+          erzeugt_am?: string | null
+          id?: string
+          mietvertrag_id?: string | null
+          sollmonat: string
+        }
+        Update: {
+          betrag?: number
+          erzeugt_am?: string | null
+          id?: string
+          mietvertrag_id?: string | null
+          sollmonat?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mietforderungen_mietvertrag_id_fkey"
+            columns: ["mietvertrag_id"]
+            isOneToOne: false
+            referencedRelation: "mietvertrag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mietvertrag: {
         Row: {
           aktualisiert_am: string | null
           bankkonto_mieter: string | null
@@ -244,6 +282,7 @@ export type Database = {
           status: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck: string[] | null
           warmmiete: number | null
+          weitere_bankkonten: string | null
         }
         Insert: {
           aktualisiert_am?: string | null
@@ -259,6 +298,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck?: string[] | null
           warmmiete?: number | null
+          weitere_bankkonten?: string | null
         }
         Update: {
           aktualisiert_am?: string | null
@@ -274,6 +314,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck?: string[] | null
           warmmiete?: number | null
+          weitere_bankkonten?: string | null
         }
         Relationships: [
           {
@@ -316,7 +357,7 @@ export type Database = {
             foreignKeyName: "mietvertrag_mieter_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
             isOneToOne: false
-            referencedRelation: "mietvertraege"
+            referencedRelation: "mietvertrag"
             referencedColumns: ["id"]
           },
         ]
@@ -339,9 +380,66 @@ export type Database = {
         }
         Relationships: []
       }
+      zahlungen: {
+        Row: {
+          betrag: number
+          buchungsdatum: string
+          id: string
+          import_datum: string | null
+          mietvertrag_id: string | null
+          quelle: string | null
+          verwendungszweck: string | null
+        }
+        Insert: {
+          betrag?: number
+          buchungsdatum: string
+          id?: string
+          import_datum?: string | null
+          mietvertrag_id?: string | null
+          quelle?: string | null
+          verwendungszweck?: string | null
+        }
+        Update: {
+          betrag?: number
+          buchungsdatum?: string
+          id?: string
+          import_datum?: string | null
+          mietvertrag_id?: string | null
+          quelle?: string | null
+          verwendungszweck?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zahlungen_mietvertrag_id_fkey"
+            columns: ["mietvertrag_id"]
+            isOneToOne: false
+            referencedRelation: "mietvertrag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      zahlungsstatus: {
+        Row: {
+          istbetrag: number | null
+          mietforderung_id: string | null
+          mietvertrag_id: string | null
+          rueckstand: number | null
+          sollbetrag: number | null
+          sollmonat: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mietforderungen_mietvertrag_id_fkey"
+            columns: ["mietvertrag_id"]
+            isOneToOne: false
+            referencedRelation: "mietvertrag"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       binary_quantize: {

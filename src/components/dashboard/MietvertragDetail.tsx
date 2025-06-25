@@ -18,7 +18,7 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
     queryKey: ['mietvertrag-detail', vertragId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('mietvertraege')
+        .from('mietvertrag')
         .select('*')
         .eq('id', vertragId)
         .single();

@@ -47,13 +47,13 @@ export const ImmobilienDetail = ({ immobilieId, onBack }: ImmobilienDetailProps)
   });
 
   const { data: mietvertraege } = useQuery({
-    queryKey: ['mietvertraege-detail', immobilieId],
+    queryKey: ['mietvertrag-detail', immobilieId],
     queryFn: async () => {
       const einheitIds = einheiten?.map(e => e.id) || [];
       if (einheitIds.length === 0) return [];
 
       const { data: vertraege, error: vertraegeError } = await supabase
-        .from('mietvertraege')
+        .from('mietvertrag')
         .select('*')
         .in('einheit_id', einheitIds);
       

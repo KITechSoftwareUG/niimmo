@@ -17,10 +17,10 @@ interface MietvertragDetailViewProps {
 
 export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }: MietvertragDetailViewProps) => {
   const { data: alleMietvertraege, isLoading: vertraegeLoading } = useQuery({
-    queryKey: ['alle-mietvertraege-einheit', einheitId],
+    queryKey: ['alle-mietvertrag-einheit', einheitId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('mietvertraege')
+        .from('mietvertrag')
         .select('*')
         .eq('einheit_id', einheitId)
         .order('id', { ascending: false });
