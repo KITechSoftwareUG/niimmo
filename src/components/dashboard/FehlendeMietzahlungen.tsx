@@ -19,7 +19,7 @@ export const FehlendeMietzahlungen = () => {
           sollbetrag,
           sollmonat,
           mietvertrag_id,
-          mietvertrag!inner(
+          mietvertrag!mietforderungen_mietvertrag_id_fkey(
             id,
             einheit_id,
             einheiten!inner(
