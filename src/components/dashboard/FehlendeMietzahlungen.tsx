@@ -8,74 +8,105 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 export const FehlendeMietzahlungen = () => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data: mietvertraegeData } = useQuery({
-    queryKey: ['mietvertraege-mit-mieter'],
+  const { data: fehlendeMietzahlungen } = useQuery({
+    queryKey: ['fehlende-mietzahlungen'],
     queryFn: async () => {
-      // Hole alle aktiven Mietverträge mit Mieter-Informationen
-      const { data: mietvertraege, error: mvError } = await supabase
-        .from('mietvertrag')
+      // Hole alle Mietforderungen mit Mietvertrag- und Mieter-Informationen
+      const { data: forderungen, error: forderungenError } = await supabase
+        .from('mietforderungen')
         .select(`
-          id, 
-          kaltmiete,
-          einheit_id,
-          status
-        `)
-        .eq('status', 'aktiv');
+          id,
+          sollbetrag,
+          sollmonat,
+          mietvertrag_id,
+          mietvertrag!inner(
+            id,
+            einheit_id,
+            einheiten!inner(
+              id,
+              immobilie_id,
+              immobilien!inner(
+                id,
+                name
+              )
+            )
+          )
+        `);
       
-      if (mvError) throw mvError;
+      if (forderungenError) {
+        console.error('Fehler beim Laden der Forderungen:', forderungenError);
+        throw forderungenError;
+      }
 
-      // Hole Einheiten-Informationen
-      const { data: einheiten, error: einheitenError } = await supabase
-        .from('einheiten')
-        .select('id, immobilie_id');
+      // Hole alle Zahlungen
+      const { data: zahlungen, error: zahlungenError } = await supabase
+        .from('zahlungen')
+        .select('*');
       
-      if (einheitenError) throw einheitenError;
+      if (zahlungenError) {
+        console.error('Fehler beim Laden der Zahlungen:', zahlungenError);
+        throw zahlungenError;
+      }
 
-      // Hole Immobilien-Namen
-      const { data: immobilien, error: immobilienError } = await supabase
-        .from('immobilien')
-        .select('id, name');
-      
-      if (immobilienError) throw immobilienError;
-
-      // Hole Mieter-Informationen
+      // Hole Mieter-Informationen für jeden Mietvertrag
       const { data: mietvertragMieter, error: mmError } = await supabase
         .from('mietvertrag_mieter')
         .select(`
           mietvertrag_id,
           rolle,
-          mieter_id
+          mieter_id,
+          mieter!inner(
+            id,
+            Vorname,
+            Nachname
+          )
         `)
         .eq('rolle', 'Hauptmieter');
       
-      if (mmError) throw mmError;
+      if (mmError) {
+        console.error('Fehler beim Laden der Mieter:', mmError);
+        throw mmError;
+      }
 
-      const { data: mieter, error: mieterError } = await supabase
-        .from('mieter')
-        .select('id, Vorname, Nachname');
+      // Berechne fehlende Zahlungen pro Mietvertrag
+      const fehlendMap = new Map();
       
-      if (mieterError) throw mieterError;
+      forderungen?.forEach(forderung => {
+        const mietvertragId = forderung.mietvertrag_id;
+        if (!mietvertragId) return;
 
-      // Verknüpfe die Daten
-      return mietvertraege?.map(mv => {
-        const einheit = einheiten?.find(e => e.id === mv.einheit_id);
-        const immobilie = immobilien?.find(i => i.id === einheit?.immobilie_id);
-        const mvMieter = mietvertragMieter?.find(mm => mm.mietvertrag_id === mv.id);
-        const mieterData = mieter?.find(m => m.id === mvMieter?.mieter_id);
-        
-        return {
-          ...mv,
-          immobilie_name: immobilie?.name || 'Unbekannt',
-          mieter_name: mieterData ? `${mieterData.Vorname} ${mieterData.Nachname}` : 'Unbekannt'
-        };
-      }) || [];
+        // Summiere alle Zahlungen für diesen Mietvertrag
+        const gesamtZahlungen = zahlungen
+          ?.filter(zahlung => zahlung.mietvertrag_id === mietvertragId)
+          .reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0) || 0;
+
+        // Summiere alle Forderungen für diesen Mietvertrag
+        const gesamtForderungen = forderungen
+          ?.filter(f => f.mietvertrag_id === mietvertragId)
+          .reduce((sum, f) => sum + (f.sollbetrag || 0), 0) || 0;
+
+        const fehlendBetrag = gesamtForderungen - gesamtZahlungen;
+
+        if (fehlendBetrag > 0) {
+          const mieter = mietvertragMieter?.find(mm => mm.mietvertrag_id === mietvertragId);
+          const immobilieName = forderung.mietvertrag?.einheiten?.immobilien?.name || 'Unbekannt';
+          const mieterName = mieter?.mieter ? 
+            `${mieter.mieter.Vorname} ${mieter.mieter.Nachname}` : 'Unbekannt';
+
+          fehlendMap.set(mietvertragId, {
+            mietvertrag_id: mietvertragId,
+            fehlend_betrag: fehlendBetrag,
+            immobilie_name: immobilieName,
+            mieter_name: mieterName
+          });
+        }
+      });
+
+      return Array.from(fehlendMap.values());
     }
   });
 
-  // Da wir keine Mietzahlungen-Tabelle in den Types haben, simulieren wir fehlende Zahlungen
-  // In einer echten Anwendung würde hier die Logik für fehlende Zahlungen stehen
-  const fehlendeMietzahlungen = mietvertraegeData?.slice(0, 3) || [];
-  const gesamtFehlend = fehlendeMietzahlungen.reduce((sum, mv) => sum + (mv.kaltmiete || 0), 0);
+  const gesamtFehlend = fehlendeMietzahlungen?.reduce((sum, item) => sum + item.fehlend_betrag, 0) || 0;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -88,11 +119,11 @@ export const FehlendeMietzahlungen = () => {
               </div>
               <div className="text-left">
                 <h3 className="text-lg font-semibold text-gray-800">Fehlende Mietzahlungen</h3>
-                <p className="text-sm text-gray-600">Aktuelle Monat: {new Date().toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}</p>
+                <p className="text-sm text-gray-600">Basierend auf Forderungen vs. Zahlungen</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {fehlendeMietzahlungen.length > 0 && (
+              {gesamtFehlend > 0 && (
                 <span className="text-lg font-bold text-red-600">
                   €{gesamtFehlend.toLocaleString()}
                 </span>
@@ -107,18 +138,18 @@ export const FehlendeMietzahlungen = () => {
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          {fehlendeMietzahlungen.length > 0 ? (
+          {fehlendeMietzahlungen && fehlendeMietzahlungen.length > 0 ? (
             <>
               <div className="space-y-3 mb-4">
-                {fehlendeMietzahlungen.map((mv) => (
-                  <div key={mv.id} className="flex items-center justify-between p-3 bg-white/60 rounded-lg border border-red-100">
+                {fehlendeMietzahlungen.map((item) => (
+                  <div key={item.mietvertrag_id} className="flex items-center justify-between p-3 bg-white/60 rounded-lg border border-red-100">
                     <div>
-                      <p className="font-medium text-gray-800">{mv.mieter_name}</p>
-                      <p className="text-sm text-gray-600">{mv.immobilie_name}</p>
+                      <p className="font-medium text-gray-800">{item.mieter_name}</p>
+                      <p className="text-sm text-gray-600">{item.immobilie_name}</p>
                     </div>
                     <div className="flex items-center gap-1 text-red-600 font-semibold">
                       <Euro className="h-4 w-4" />
-                      {mv.kaltmiete?.toLocaleString()}
+                      {item.fehlend_betrag.toLocaleString()}
                     </div>
                   </div>
                 ))}
@@ -126,7 +157,7 @@ export const FehlendeMietzahlungen = () => {
               
               <div className="pt-3 border-t border-red-200">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-gray-700">Gesamt fehlend (Beispiel):</span>
+                  <span className="font-medium text-gray-700">Gesamt fehlend:</span>
                   <span className="text-lg font-bold text-red-600">
                     €{gesamtFehlend.toLocaleString()}
                   </span>
@@ -135,7 +166,7 @@ export const FehlendeMietzahlungen = () => {
             </>
           ) : (
             <div className="text-center py-4">
-              <p className="text-green-600 font-medium">✓ Alle Mietzahlungen für diesen Monat erhalten</p>
+              <p className="text-green-600 font-medium">✓ Alle Mietzahlungen sind vollständig</p>
             </div>
           )}
         </CollapsibleContent>

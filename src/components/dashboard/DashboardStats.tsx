@@ -21,7 +21,7 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
   });
 
   const { data: mietvertraege } = useQuery({
-    queryKey: ['alle-mietvertraege'],
+    queryKey: ['alle-mietvertrag'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('mietvertrag')
@@ -33,12 +33,19 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
   });
 
   const { data: erfassedMiete } = useQuery({
-    queryKey: ['erfassed-miete'],
+    queryKey: ['erfasste-miete'],
     queryFn: async () => {
-      // Hier würde normalerweise die Summe aller Zahlungen aus einer Zahlungen-Tabelle kommen
-      // Da diese Tabelle noch nicht existiert, verwenden wir einen Platzhalter-Wert
-      // TODO: Implementierung mit echter Zahlungstabelle
-      return 0;
+      // Berechne die tatsächlich erfassten Mietzahlungen aus der Zahlungen-Tabelle
+      const { data: zahlungen, error } = await supabase
+        .from('zahlungen')
+        .select('betrag');
+      
+      if (error) {
+        console.error('Fehler beim Laden der Zahlungen:', error);
+        return 0;
+      }
+      
+      return zahlungen?.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0) || 0;
     }
   });
 
