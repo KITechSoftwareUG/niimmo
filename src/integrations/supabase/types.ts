@@ -47,7 +47,6 @@ export type Database = {
           hochgeladen_am: string | null
           id: string
           kategorie: Database["public"]["Enums"]["kategorie"] | null
-          mieter_id: string | null
           mietvertrag_id: string
           pfad: string | null
           titel: string | null
@@ -59,7 +58,6 @@ export type Database = {
           hochgeladen_am?: string | null
           id?: string
           kategorie?: Database["public"]["Enums"]["kategorie"] | null
-          mieter_id?: string | null
           mietvertrag_id: string
           pfad?: string | null
           titel?: string | null
@@ -71,19 +69,11 @@ export type Database = {
           hochgeladen_am?: string | null
           id?: string
           kategorie?: Database["public"]["Enums"]["kategorie"] | null
-          mieter_id?: string | null
           mietvertrag_id?: string
           pfad?: string | null
           titel?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "dokumente_mieter_id_fkey"
-            columns: ["mieter_id"]
-            isOneToOne: false
-            referencedRelation: "mieter"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "dokumente_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
@@ -128,6 +118,7 @@ export type Database = {
           id: string
           immobilie_id: string | null
           qm: number | null
+          zaehler: number | null
         }
         Insert: {
           aktualisiert_am?: string | null
@@ -137,6 +128,7 @@ export type Database = {
           id?: string
           immobilie_id?: string | null
           qm?: number | null
+          zaehler?: number | null
         }
         Update: {
           aktualisiert_am?: string | null
@@ -146,6 +138,7 @@ export type Database = {
           id?: string
           immobilie_id?: string | null
           qm?: number | null
+          zaehler?: number | null
         }
         Relationships: [
           {
@@ -170,8 +163,6 @@ export type Database = {
           "Kontonr.": number | null
           name: string
           objekttyp: Database["public"]["Enums"]["objekttyp"] | null
-          zaehlernummer_gas: string | null
-          zaehlernummer_strom: string | null
         }
         Insert: {
           adresse: string
@@ -185,8 +176,6 @@ export type Database = {
           "Kontonr."?: number | null
           name: string
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
-          zaehlernummer_gas?: string | null
-          zaehlernummer_strom?: string | null
         }
         Update: {
           adresse?: string
@@ -200,8 +189,6 @@ export type Database = {
           "Kontonr."?: number | null
           name?: string
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
-          zaehlernummer_gas?: string | null
-          zaehlernummer_strom?: string | null
         }
         Relationships: []
       }
@@ -235,29 +222,72 @@ export type Database = {
         }
         Relationships: []
       }
-      mietforderungen: {
+      mietforderung_zahlungen: {
         Row: {
           betrag: number
-          erzeugt_am: string | null
           id: string
-          mietvertrag_id: string | null
-          sollmonat: string
+          mietforderung_id: string | null
+          zahlung_id: string | null
         }
         Insert: {
-          betrag?: number
-          erzeugt_am?: string | null
+          betrag: number
           id?: string
-          mietvertrag_id?: string | null
-          sollmonat: string
+          mietforderung_id?: string | null
+          zahlung_id?: string | null
         }
         Update: {
           betrag?: number
+          id?: string
+          mietforderung_id?: string | null
+          zahlung_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mietforderung_zahlungen_mietforderung_id_fkey"
+            columns: ["mietforderung_id"]
+            isOneToOne: false
+            referencedRelation: "mietforderungen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mietforderung_zahlungen_zahlung_id_fkey"
+            columns: ["zahlung_id"]
+            isOneToOne: false
+            referencedRelation: "zahlungen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mietforderungen: {
+        Row: {
+          erzeugt_am: string | null
+          id: string
+          mietvertrag_id: string | null
+          sollbetrag: number | null
+          sollmonat: string
+        }
+        Insert: {
           erzeugt_am?: string | null
           id?: string
           mietvertrag_id?: string | null
+          sollbetrag?: number | null
+          sollmonat: string
+        }
+        Update: {
+          erzeugt_am?: string | null
+          id?: string
+          mietvertrag_id?: string | null
+          sollbetrag?: number | null
           sollmonat?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_mietvertrag_id_on_mietforderungen"
+            columns: ["mietvertrag_id"]
+            isOneToOne: false
+            referencedRelation: "mietvertrag"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mietforderungen_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
@@ -277,11 +307,11 @@ export type Database = {
           erstellt_am: string | null
           id: string
           kaltmiete: number | null
+          kaution_betrag: number | null
           kuendigungsdatum: string | null
           start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck: string[] | null
-          warmmiete: number | null
           weitere_bankkonten: string | null
         }
         Insert: {
@@ -293,11 +323,11 @@ export type Database = {
           erstellt_am?: string | null
           id?: string
           kaltmiete?: number | null
+          kaution_betrag?: number | null
           kuendigungsdatum?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck?: string[] | null
-          warmmiete?: number | null
           weitere_bankkonten?: string | null
         }
         Update: {
@@ -309,11 +339,11 @@ export type Database = {
           erstellt_am?: string | null
           id?: string
           kaltmiete?: number | null
+          kaution_betrag?: number | null
           kuendigungsdatum?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck?: string[] | null
-          warmmiete?: number | null
           weitere_bankkonten?: string | null
         }
         Relationships: [
@@ -384,28 +414,28 @@ export type Database = {
         Row: {
           betrag: number
           buchungsdatum: string
+          iban: string | null
           id: string
           import_datum: string | null
           mietvertrag_id: string | null
-          quelle: string | null
           verwendungszweck: string | null
         }
         Insert: {
           betrag?: number
           buchungsdatum: string
+          iban?: string | null
           id?: string
           import_datum?: string | null
           mietvertrag_id?: string | null
-          quelle?: string | null
           verwendungszweck?: string | null
         }
         Update: {
           betrag?: number
           buchungsdatum?: string
+          iban?: string | null
           id?: string
           import_datum?: string | null
           mietvertrag_id?: string | null
-          quelle?: string | null
           verwendungszweck?: string | null
         }
         Relationships: [
@@ -420,26 +450,7 @@ export type Database = {
       }
     }
     Views: {
-      zahlungsstatus: {
-        Row: {
-          istbetrag: number | null
-          mietforderung_id: string | null
-          mietvertrag_id: string | null
-          rueckstand: number | null
-          sollbetrag: number | null
-          sollmonat: string | null
-          status: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mietforderungen_mietvertrag_id_fkey"
-            columns: ["mietvertrag_id"]
-            isOneToOne: false
-            referencedRelation: "mietvertrag"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       binary_quantize: {

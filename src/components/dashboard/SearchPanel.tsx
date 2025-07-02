@@ -29,7 +29,7 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
           hauptmail,
           mietvertrag_mieter!inner(
             mietvertrag_id,
-            mietvertraege!inner(
+            mietvertrag!inner(
               einheit_id,
               einheiten!inner(
                 immobilie_id,
@@ -99,7 +99,7 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
                       key={mieter.id}
                       className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all cursor-pointer"
                       onClick={() => {
-                        const immobilie = mieter.mietvertrag_mieter[0]?.mietvertraege?.einheiten?.immobilien;
+                        const immobilie = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheiten?.immobilien;
                         if (immobilie) {
                           handleImmobilieClick(immobilie.id);
                         }
@@ -114,7 +114,7 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs">
-                            {mieter.mietvertrag_mieter[0]?.mietvertraege?.einheiten?.immobilien?.name || 'Unbekannt'}
+                            {mieter.mietvertrag_mieter[0]?.mietvertrag?.einheiten?.immobilien?.name || 'Unbekannt'}
                           </Badge>
                           <ArrowRight className="h-4 w-4 text-gray-400" />
                         </div>

@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle, Euro, ChevronDown, ChevronUp } from "lucide-react";
@@ -12,7 +13,7 @@ export const FehlendeMietzahlungen = () => {
     queryFn: async () => {
       // Hole alle aktiven Mietverträge mit Mieter-Informationen
       const { data: mietvertraege, error: mvError } = await supabase
-        .from('mietvertraege')
+        .from('mietvertrag')
         .select(`
           id, 
           kaltmiete,

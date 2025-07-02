@@ -34,7 +34,7 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
       // Get rental contracts for these units
       const einheitIds = einheiten.map(e => e.id);
       const { data: vertraege, error: vertraegeError } = await supabase
-        .from('mietvertraege')
+        .from('mietvertrag')
         .select('status')
         .in('einheit_id', einheitIds);
       

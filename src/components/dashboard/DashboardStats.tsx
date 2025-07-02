@@ -1,5 +1,4 @@
 
-
 import { Building2, Users, TrendingUp, DollarSign, Euro } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +24,7 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
     queryKey: ['alle-mietvertraege'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('mietvertraege')
+        .from('mietvertrag')
         .select('id, kaltmiete, status');
       
       if (error) throw error;
@@ -118,4 +117,3 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
     </div>
   );
 };
-
