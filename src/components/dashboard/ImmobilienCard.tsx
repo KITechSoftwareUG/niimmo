@@ -41,7 +41,7 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
       if (vertraegeError) throw vertraegeError;
       
       const aktive = vertraege?.filter(v => v.status === 'aktiv').length || 0;
-      const gekuendigt = vertraege?.filter(v => v.status === 'gekündigt').length || 0;
+      const gekuendigt = vertraege?.filter(v => v.status === 'gekuendigt').length || 0;
       const leerstehend = immobilie.einheiten_anzahl - (vertraege?.length || 0);
       
       return { aktive, gekuendigt, leerstehend, gesamt: immobilie.einheiten_anzahl };
