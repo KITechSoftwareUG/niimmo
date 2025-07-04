@@ -414,6 +414,7 @@ export type Database = {
         Row: {
           betrag: number
           buchungsdatum: string
+          empfaengername: string | null
           iban: string | null
           id: string
           import_datum: string | null
@@ -423,6 +424,7 @@ export type Database = {
         Insert: {
           betrag?: number
           buchungsdatum: string
+          empfaengername?: string | null
           iban?: string | null
           id?: string
           import_datum?: string | null
@@ -432,6 +434,7 @@ export type Database = {
         Update: {
           betrag?: number
           buchungsdatum?: string
+          empfaengername?: string | null
           iban?: string | null
           id?: string
           import_datum?: string | null
@@ -557,7 +560,7 @@ export type Database = {
         | "Sonstiges"
       kategorie: "Mietvertrag" | "Kündigung" | "Übergabeprotokoll" | "Sonstiges"
       mieterrolle: "Hauptmieter" | "Zweitmieter" | "Drittmieter"
-      mietstatus: "aktiv" | "gekündigt" | "beendet"
+      mietstatus: "aktiv" | "gekuendigt" | "beendet"
       objekttyp: "Wohnhaus" | "Gewerbe" | "Mischnutzung"
     }
     CompositeTypes: {
@@ -685,7 +688,7 @@ export const Constants = {
       ],
       kategorie: ["Mietvertrag", "Kündigung", "Übergabeprotokoll", "Sonstiges"],
       mieterrolle: ["Hauptmieter", "Zweitmieter", "Drittmieter"],
-      mietstatus: ["aktiv", "gekündigt", "beendet"],
+      mietstatus: ["aktiv", "gekuendigt", "beendet"],
       objekttyp: ["Wohnhaus", "Gewerbe", "Mischnutzung"],
     },
   },
