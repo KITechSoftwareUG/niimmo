@@ -26,6 +26,8 @@ export const useFehlendeMietzahlungen = () => {
   return useQuery({
     queryKey: ['fehlende-mietzahlungen'],
     queryFn: async () => {
+      console.log('Lade fehlende Mietzahlungen...');
+      
       // Hole alle Mietforderungen mit vollständigen Mietvertrag-Informationen
       const { data: forderungen, error: forderungenError } = await supabase
         .from('mietforderungen')
@@ -34,38 +36,22 @@ export const useFehlendeMietzahlungen = () => {
           sollbetrag,
           sollmonat,
           mietvertrag_id,
-          mietvertrag!mietforderungen_mietvertrag_id_fkey(
+          mietvertrag!inner(
             id,
             einheit_id,
             kaltmiete,
             betriebskosten,
-            kaution_betrag,
             status,
-            start_datum,
-            ende_datum,
             kuendigungsdatum,
-            bankkonto_mieter,
-            weitere_bankkonten,
-            verwendungszweck,
-            erstellt_am,
-            aktualisiert_am,
             einheiten!inner(
               id,
               einheitentyp,
               etage,
               qm,
-              zaehler,
-              immobilie_id,
               immobilien!inner(
                 id,
                 name,
-                adresse,
-                objekttyp,
-                baujahr,
-                einheiten_anzahl,
-                beschreibung,
-                "Kontonr.",
-                Annuität
+                adresse
               )
             )
           )
@@ -76,10 +62,11 @@ export const useFehlendeMietzahlungen = () => {
         throw forderungenError;
       }
 
-      // Hole alle Zahlungen
+      // Hole nur Zahlungen mit Kategorie "Miete (komplett)"
       const { data: zahlungen, error: zahlungenError } = await supabase
         .from('zahlungen')
-        .select('*');
+        .select('*')
+        .eq('kategorie', 'Miete (komplett)');
       
       if (zahlungenError) {
         console.error('Fehler beim Laden der Zahlungen:', zahlungenError);
@@ -98,10 +85,7 @@ export const useFehlendeMietzahlungen = () => {
             id,
             Vorname,
             Nachname,
-            hauptmail,
-            weitere_mails,
-            erstellt_am,
-            aktualisiert_am
+            hauptmail
           )
         `);
       
@@ -118,17 +102,20 @@ export const useFehlendeMietzahlungen = () => {
           mietvertrag_id,
           titel,
           kategorie,
-          dateityp,
-          groesse_bytes,
-          pfad,
-          erstellt_von,
-          hochgeladen_am
+          dateityp
         `);
       
       if (dokumenteError) {
         console.error('Fehler beim Laden der Dokumente:', dokumenteError);
         throw dokumenteError;
       }
+
+      console.log('Geladene Daten:', { 
+        forderungen: forderungen?.length, 
+        zahlungen: zahlungen?.length,
+        mietvertragMieter: mietvertragMieter?.length,
+        dokumente: dokumente?.length
+      });
 
       // Berechne fehlende Zahlungen pro Mietvertrag
       const fehlendMap = new Map();
@@ -137,7 +124,7 @@ export const useFehlendeMietzahlungen = () => {
         const mietvertragId = forderung.mietvertrag_id;
         if (!mietvertragId || !forderung.mietvertrag) return;
 
-        // Summiere alle Zahlungen für diesen Mietvertrag
+        // Summiere alle Zahlungen mit Kategorie "Miete (komplett)" für diesen Mietvertrag
         const gesamtZahlungen = zahlungen
           ?.filter(zahlung => zahlung.mietvertrag_id === mietvertragId)
           .reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0) || 0;
@@ -161,6 +148,11 @@ export const useFehlendeMietzahlungen = () => {
           const mieterName = hauptmieter?.mieter ? 
             `${hauptmieter.mieter.Vorname} ${hauptmieter.mieter.Nachname}` : 'Unbekannt';
 
+          // Bestimme ob Mietvertrag gekündigt ist (Status = 'gekuendigt' UND Kündigungsdatum vorhanden)
+          const istGekuendigt = forderung.mietvertrag.status === 'gekuendigt' && 
+                               forderung.mietvertrag.kuendigungsdatum;
+          const status = istGekuendigt ? 'Gekündigt' : forderung.mietvertrag.status || 'Unbekannt';
+
           fehlendMap.set(mietvertragId, {
             mietvertrag_id: mietvertragId,
             fehlend_betrag: fehlendBetrag,
@@ -178,12 +170,14 @@ export const useFehlendeMietzahlungen = () => {
             dokumente: mietvertragDokumente,
             kaltmiete: forderung.mietvertrag.kaltmiete || 0,
             betriebskosten: forderung.mietvertrag.betriebskosten || 0,
-            mietvertrag_status: forderung.mietvertrag.status || 'Unbekannt'
+            mietvertrag_status: status
           });
         }
       });
 
-      return Array.from(fehlendMap.values()) as FehlendeMietzahlung[];
+      const result = Array.from(fehlendMap.values()) as FehlendeMietzahlung[];
+      console.log('Berechnete fehlende Mietzahlungen:', result.length);
+      return result;
     }
   });
 };
