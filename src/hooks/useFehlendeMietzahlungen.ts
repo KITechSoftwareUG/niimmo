@@ -29,6 +29,7 @@ export const useFehlendeMietzahlungen = () => {
       console.log('Lade fehlende Mietzahlungen...');
       
       // Hole alle Mietforderungen mit vollständigen Mietvertrag-Informationen
+      // Verwende die spezifische Foreign Key Beziehung
       const { data: forderungen, error: forderungenError } = await supabase
         .from('mietforderungen')
         .select(`
@@ -36,19 +37,18 @@ export const useFehlendeMietzahlungen = () => {
           sollbetrag,
           sollmonat,
           mietvertrag_id,
-          mietvertrag!inner(
+          mietvertrag!mietforderungen_mietvertrag_id_fkey(
             id,
-            einheit_id,
             kaltmiete,
             betriebskosten,
             status,
             kuendigungsdatum,
-            einheiten!inner(
+            einheiten!mietvertraege_einheit_id_fkey(
               id,
               einheitentyp,
               etage,
               qm,
-              immobilien!inner(
+              immobilien!einheiten_immobilie_id_fkey(
                 id,
                 name,
                 adresse
@@ -81,7 +81,7 @@ export const useFehlendeMietzahlungen = () => {
           rolle,
           Hinweis,
           mieter_id,
-          mieter!inner(
+          mieter!mietvertrag_mieter_mieter_id_fkey(
             id,
             Vorname,
             Nachname,
