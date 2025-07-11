@@ -22,8 +22,8 @@ interface EinheitCardProps {
     ende_datum?: string;
     mieter?: Array<{
       id: string;
-      Vorname: string;
-      Nachname: string;
+      vorname: string;
+      nachname: string;
       rolle: string;
     }>;
   } | null;
@@ -110,6 +110,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
 
         {vertrag && (
           <>
+            {/* Mieter - Zugeordnet über Mietvertrag */}
             {vertrag.mieter && vertrag.mieter.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
@@ -118,32 +119,32 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
                     {vertrag.mieter.length === 1 ? 'Mieter:' : 'Mieter:'}
                   </span>
                 </div>
-                <div className="pl-6 space-y-1">
+                <div className="pl-6 space-y-2">
                   {vertrag.mieter.slice(0, 2).map((mieter, index) => (
-                    <div key={index} className="flex items-center justify-between">
+                    <div key={index} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
                       <div className="flex items-center space-x-2">
-                        <User className="h-3 w-3 text-gray-400" />
-                        <span className="text-sm text-gray-700">
-                          {mieter.Vorname} {mieter.Nachname}
+                        <User className="h-3 w-3 text-blue-600" />
+                        <span className="text-sm text-gray-700 font-medium">
+                          {mieter.vorname} {mieter.nachname}
                         </span>
                       </div>
                       {mieter.rolle && (
-                        <Badge variant="outline" className="text-xs ml-2">
+                        <Badge variant="outline" className="text-xs bg-white">
                           {mieter.rolle}
                         </Badge>
                       )}
                     </div>
                   ))}
                   {vertrag.mieter.length > 2 && (
-                    <div className="text-xs text-gray-500 pl-5">
-                      +{vertrag.mieter.length - 2} weitere
+                    <div className="text-xs text-gray-500 pl-5 bg-gray-50 rounded p-2">
+                      +{vertrag.mieter.length - 2} weitere Mieter
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Rent Information */}
+            {/* Mietinformationen */}
             <div className="space-y-2 pt-2 border-t border-gray-100">
               <div className="text-sm font-medium text-gray-700 mb-2">Mietinformationen</div>
               
@@ -187,6 +188,16 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
               </div>
             )}
           </>
+        )}
+
+        {/* Wenn keine Mieter zugeordnet sind */}
+        {(!vertrag || !vertrag.mieter || vertrag.mieter.length === 0) && (
+          <div className="flex items-center space-x-2 text-gray-500 bg-gray-50 p-2 rounded-lg">
+            <Users className="h-4 w-4" />
+            <span className="text-sm">
+              {vertrag ? 'Keine Mieter zugeordnet' : 'Leerstehend - Kein Mietvertrag'}
+            </span>
+          </div>
         )}
       </CardContent>
     </Card>
