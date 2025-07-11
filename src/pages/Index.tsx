@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ImmobilienCard } from "@/components/dashboard/ImmobilienCard";
@@ -6,11 +7,14 @@ import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
-import { useState } from "react";
+import { ImmobilienSorting } from "@/components/dashboard/ImmobilienSorting";
+import { useState, useMemo } from "react";
 import { Loader2, Building2 } from "lucide-react";
 
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<string>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const { data: immobilien, isLoading, refetch } = useQuery({
     queryKey: ['immobilien'],
@@ -24,6 +28,86 @@ const Index = () => {
       return data;
     }
   });
+
+  // Query to get unit status for each property for sorting by occupancy
+  const { data: einheitenStatusMap } = useQuery({
+    queryKey: ['einheiten-status-all'],
+    queryFn: async () => {
+      if (!immobilien) return {};
+
+      const statusMap: Record<string, number> = {};
+      
+      for (const immobilie of immobilien) {
+        // Get all units for this property
+        const { data: einheiten, error: einheitenError } = await supabase
+          .from('einheiten')
+          .select('id')
+          .eq('immobilie_id', immobilie.id);
+        
+        if (einheitenError) throw einheitenError;
+
+        if (!einheiten || einheiten.length === 0) {
+          statusMap[immobilie.id] = 0;
+          continue;
+        }
+
+        // Get rental contracts for these units
+        const einheitIds = einheiten.map(e => e.id);
+        const { data: vertraege, error: vertraegeError } = await supabase
+          .from('mietvertrag')
+          .select('status')
+          .in('einheit_id', einheitIds);
+        
+        if (vertraegeError) throw vertraegeError;
+        
+        const aktive = vertraege?.filter(v => v.status === 'aktiv').length || 0;
+        const auslastung = Math.round((aktive / immobilie.einheiten_anzahl) * 100);
+        statusMap[immobilie.id] = auslastung;
+      }
+      
+      return statusMap;
+    },
+    enabled: !!immobilien
+  });
+
+  // Sort immobilien based on selected criteria
+  const sortedImmobilien = useMemo(() => {
+    if (!immobilien) return [];
+
+    return [...immobilien].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'einheiten_anzahl':
+          aValue = a.einheiten_anzahl;
+          bValue = b.einheiten_anzahl;
+          break;
+        case 'auslastung':
+          aValue = einheitenStatusMap?.[a.id] || 0;
+          bValue = einheitenStatusMap?.[b.id] || 0;
+          break;
+        default:
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+  }, [immobilien, sortField, sortOrder, einheitenStatusMap]);
+
+  const handleSortChange = (field: string, order: 'asc' | 'desc') => {
+    setSortField(field);
+    setSortOrder(order);
+  };
 
   const handleImmobilieClick = (immobilieId: string) => {
     setSelectedImmobilie(immobilieId);
@@ -107,9 +191,15 @@ const Index = () => {
 
         {/* Immobilien Grid */}
         <div className="mb-6">
-          <h2 className="text-2xl font-sans font-bold text-gray-800 mb-6">Ihre Immobilien</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-sans font-bold text-gray-800">Ihre Immobilien</h2>
+          </div>
+          
+          {/* Sortierung */}
+          <ImmobilienSorting onSortChange={handleSortChange} />
+
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-            {immobilien?.map((immobilie, index) => (
+            {sortedImmobilien?.map((immobilie, index) => (
               <div 
                 key={immobilie.id} 
                 className="glass-card rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer"
@@ -125,7 +215,7 @@ const Index = () => {
           </div>
         </div>
 
-        {immobilien?.length === 0 && (
+        {sortedImmobilien?.length === 0 && (
           <div className="text-center py-20">
             <div className="glass-card p-12 max-w-md mx-auto rounded-3xl">
               <div className="relative mb-8">
