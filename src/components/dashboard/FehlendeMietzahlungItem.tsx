@@ -54,7 +54,7 @@ export const FehlendeMietzahlungItem = ({ item }: FehlendeMietzahlungItemProps) 
           <div className="text-sm">
             {item.alle_mieter.map((mieter, index) => (
               <span key={mieter.mieter_id} className="text-gray-600">
-                {mieter.mieter?.Vorname} {mieter.mieter?.Nachname} ({mieter.rolle})
+                {mieter.mieter?.vorname} {mieter.mieter?.nachname} ({mieter.rolle})
                 {index < item.alle_mieter!.length - 1 && ', '}
               </span>
             ))}

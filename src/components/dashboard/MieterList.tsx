@@ -34,7 +34,7 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                   <div className="space-y-3">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900 mb-1">
-                        {m.mieter?.Vorname} {m.mieter?.Nachname}
+                        {m.mieter?.vorname} {m.mieter?.nachname}
                       </h3>
                       {m.rolle && (
                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">

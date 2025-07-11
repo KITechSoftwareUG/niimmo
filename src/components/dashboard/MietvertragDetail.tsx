@@ -70,8 +70,8 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
         .select(`
           rolle,
           mieter:mieter_id (
-            Vorname,
-            Nachname,
+            vorname,
+            nachname,
             hauptmail,
             weitere_mails
           )
