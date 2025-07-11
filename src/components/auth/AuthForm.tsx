@@ -29,6 +29,13 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
     console.log('Auth form submitted:', { mode, email });
 
+    // Basic validation
+    if (!email || !password) {
+      setError('Bitte füllen Sie alle Felder aus');
+      setLoading(false);
+      return;
+    }
+
     if (mode === 'signup' && password !== confirmPassword) {
       setError('Passwörter stimmen nicht überein');
       setLoading(false);
@@ -45,7 +52,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
       if (mode === 'login') {
         console.log('Attempting login...');
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
 
@@ -53,20 +60,27 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
         if (error) {
           console.error('Login error:', error);
+          
+          // Handle different error cases
           if (error.message.includes('Invalid login credentials')) {
-            setError('Ungültige Anmeldedaten. Bitte überprüfen Sie E-Mail und Passwort.');
+            setError('Ungültige Anmeldedaten. Bitte überprüfen Sie E-Mail und Passwort oder registrieren Sie sich zuerst.');
+          } else if (error.message.includes('Email not confirmed')) {
+            setError('Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.');
+          } else if (error.message.includes('Too many requests')) {
+            setError('Zu viele Anmeldeversuche. Bitte warten Sie einen Moment.');
           } else {
-            setError(error.message);
+            setError(`Anmeldefehler: ${error.message}`);
           }
-        } else {
+        } else if (data?.user) {
           console.log('Login successful:', data);
+          setSuccess('Erfolgreich angemeldet!');
         }
       } else {
         console.log('Attempting signup...');
         const redirectUrl = `${window.location.origin}/`;
         
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             emailRedirectTo: redirectUrl
@@ -77,14 +91,24 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
         if (error) {
           console.error('Signup error:', error);
+          
+          // Handle different signup errors
           if (error.message.includes('User already registered')) {
-            setError('Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert. Versuchen Sie sich anzumelden.');
+            setError('Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert. Bitte melden Sie sich an.');
+          } else if (error.message.includes('Password should be at least')) {
+            setError('Das Passwort ist zu schwach. Bitte verwenden Sie ein stärkeres Passwort.');
+          } else if (error.message.includes('Invalid email')) {
+            setError('Bitte geben Sie eine gültige E-Mail-Adresse ein.');
           } else {
-            setError(error.message);
+            setError(`Registrierungsfehler: ${error.message}`);
           }
-        } else {
+        } else if (data?.user) {
           console.log('Signup successful:', data);
-          setSuccess('Registrierung erfolgreich! Bitte überprüfen Sie Ihre E-Mail zur Bestätigung.');
+          if (data.user.email_confirmed_at) {
+            setSuccess('Registrierung erfolgreich! Sie werden automatisch angemeldet.');
+          } else {
+            setSuccess('Registrierung erfolgreich! Bitte überprüfen Sie Ihre E-Mail zur Bestätigung.');
+          }
         }
       }
     } catch (err) {
