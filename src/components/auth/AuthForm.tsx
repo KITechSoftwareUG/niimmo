@@ -23,11 +23,13 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Form submitted - mode:', mode, 'email:', email);
+    
     setError(null);
     setSuccess(null);
     setLoading(true);
-
-    console.log('Auth form submitted:', { mode, email });
 
     // Basic validation
     if (!email || !password) {
@@ -50,7 +52,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
     try {
       if (mode === 'login') {
-        console.log('Attempting login...');
+        console.log('Attempting login with:', email.trim());
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
@@ -76,7 +78,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
           setSuccess('Erfolgreich angemeldet!');
         }
       } else {
-        console.log('Attempting signup...');
+        console.log('Attempting signup with:', email.trim());
         const redirectUrl = `${window.location.origin}/`;
         
         const { data, error } = await supabase.auth.signUp({
@@ -116,6 +118,21 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
       setError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log('Button clicked - triggering form submission');
+    
+    // Create and dispatch a form submit event
+    const form = e.currentTarget.closest('form');
+    if (form) {
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+      form.dispatchEvent(submitEvent);
+    } else {
+      // Fallback: call handleSubmit directly
+      handleSubmit(e as any);
     }
   };
 
@@ -203,8 +220,9 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
           )}
 
           <Button 
-            type="submit" 
-            className="w-full" 
+            type="submit"
+            onClick={handleButtonClick}
+            className="w-full cursor-pointer" 
             disabled={loading}
           >
             {loading ? (
@@ -221,7 +239,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
             <button
               type="button"
               onClick={onToggleMode}
-              className="text-sm text-blue-600 hover:text-blue-800 underline"
+              className="text-sm text-blue-600 hover:text-blue-800 underline cursor-pointer"
               disabled={loading}
             >
               {mode === 'login' 
