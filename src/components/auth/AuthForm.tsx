@@ -27,6 +27,8 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
     setSuccess(null);
     setLoading(true);
 
+    console.log('Auth form submitted:', { mode, email });
+
     if (mode === 'signup' && password !== confirmPassword) {
       setError('Passwörter stimmen nicht überein');
       setLoading(false);
@@ -41,22 +43,29 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
     try {
       if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({
+        console.log('Attempting login...');
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
+        console.log('Login response:', { data, error });
+
         if (error) {
+          console.error('Login error:', error);
           if (error.message.includes('Invalid login credentials')) {
             setError('Ungültige Anmeldedaten. Bitte überprüfen Sie E-Mail und Passwort.');
           } else {
             setError(error.message);
           }
+        } else {
+          console.log('Login successful:', data);
         }
       } else {
+        console.log('Attempting signup...');
         const redirectUrl = `${window.location.origin}/`;
         
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -64,17 +73,22 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
           }
         });
 
+        console.log('Signup response:', { data, error });
+
         if (error) {
+          console.error('Signup error:', error);
           if (error.message.includes('User already registered')) {
             setError('Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert. Versuchen Sie sich anzumelden.');
           } else {
             setError(error.message);
           }
         } else {
+          console.log('Signup successful:', data);
           setSuccess('Registrierung erfolgreich! Bitte überprüfen Sie Ihre E-Mail zur Bestätigung.');
         }
       }
     } catch (err) {
+      console.error('Unexpected error:', err);
       setError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     } finally {
       setLoading(false);
