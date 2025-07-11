@@ -78,7 +78,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack }: ImmobilienDetailProps)
 
       const { data: mieter, error: mieterError } = await supabase
         .from('mieter')
-        .select('id, Vorname, Nachname')
+        .select('id, vorname, nachname')
         .in('id', mieterIds);
       
       if (mieterError) throw mieterError;

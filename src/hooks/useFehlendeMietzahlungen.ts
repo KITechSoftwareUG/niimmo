@@ -83,8 +83,8 @@ export const useFehlendeMietzahlungen = () => {
           mieter_id,
           mieter!mietvertrag_mieter_mieter_id_fkey(
             id,
-            Vorname,
-            Nachname,
+            vorname,
+            nachname,
             hauptmail
           )
         `);
@@ -146,7 +146,7 @@ export const useFehlendeMietzahlungen = () => {
 
           const immobilieName = forderung.mietvertrag.einheiten?.immobilien?.name || 'Unbekannt';
           const mieterName = hauptmieter?.mieter ? 
-            `${hauptmieter.mieter.Vorname} ${hauptmieter.mieter.Nachname}` : 'Unbekannt';
+            `${hauptmieter.mieter.vorname} ${hauptmieter.mieter.nachname}` : 'Unbekannt';
 
           // Bestimme ob Mietvertrag gekündigt ist (Status = 'gekuendigt' UND Kündigungsdatum vorhanden)
           const istGekuendigt = forderung.mietvertrag.status === 'gekuendigt' && 

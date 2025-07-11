@@ -46,8 +46,8 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
           rolle,
           mieter:mieter_id (
             id,
-            Vorname,
-            Nachname,
+            vorname,
+            nachname,
             hauptmail,
             weitere_mails
           )
@@ -164,7 +164,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                   <div key={index} className="p-3 bg-blue-50 rounded-lg">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-medium">{m.Vorname} {m.Nachname}</p>
+                        <p className="font-medium">{m.vorname} {m.nachname}</p>
                         <p className="text-sm text-gray-600">{m.hauptmail}</p>
                         {m.weitere_mails && (
                           <p className="text-sm text-gray-500">{m.weitere_mails}</p>

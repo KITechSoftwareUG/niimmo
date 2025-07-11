@@ -24,8 +24,8 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
         .from('mieter')
         .select(`
           id, 
-          Vorname, 
-          Nachname, 
+          vorname, 
+          nachname, 
           hauptmail,
           mietvertrag_mieter!inner(
             mietvertrag_id,
@@ -42,7 +42,7 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
             )
           )
         `)
-        .or(`Vorname.ilike.%${searchTerm}%,Nachname.ilike.%${searchTerm}%,hauptmail.ilike.%${searchTerm}%`);
+        .or(`vorname.ilike.%${searchTerm}%,nachname.ilike.%${searchTerm}%,hauptmail.ilike.%${searchTerm}%`);
 
       if (mieterError) throw mieterError;
 
@@ -108,7 +108,7 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium text-gray-900">
-                            {mieter.Vorname} {mieter.Nachname}
+                            {mieter.vorname} {mieter.nachname}
                           </p>
                           <p className="text-sm text-gray-600">{mieter.hauptmail}</p>
                         </div>
