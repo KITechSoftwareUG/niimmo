@@ -5,6 +5,7 @@ import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
+import { UserMenu } from "@/components/dashboard/UserMenu";
 import { useState } from "react";
 import { Loader2, Building2 } from "lucide-react";
 
@@ -80,11 +81,14 @@ const Index = () => {
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm text-gray-500 font-sans mb-1">System Status</div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-sans text-gray-700">Online</span>
+              <div className="flex items-center gap-4">
+                <UserMenu />
+                <div className="text-right">
+                  <div className="text-sm text-gray-500 font-sans mb-1">System Status</div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-sans text-gray-700">Online</span>
+                  </div>
                 </div>
               </div>
             </div>

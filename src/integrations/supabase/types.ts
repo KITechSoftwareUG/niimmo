@@ -44,6 +44,30 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          content: string | null
+          embedding: string | null
+          fts: unknown | null
+          id: number
+          metadata: Json | null
+        }
+        Insert: {
+          content?: string | null
+          embedding?: string | null
+          fts?: unknown | null
+          id?: never
+          metadata?: Json | null
+        }
+        Update: {
+          content?: string | null
+          embedding?: string | null
+          fts?: unknown | null
+          id?: never
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       dokumente: {
         Row: {
           dateityp: string | null
@@ -203,8 +227,8 @@ export type Database = {
           erstellt_am: string | null
           hauptmail: string
           id: string
-          Nachname: string | null
-          Vorname: string
+          nachname: string | null
+          vorname: string
           weitere_mails: string | null
         }
         Insert: {
@@ -212,8 +236,8 @@ export type Database = {
           erstellt_am?: string | null
           hauptmail: string
           id?: string
-          Nachname?: string | null
-          Vorname: string
+          nachname?: string | null
+          vorname: string
           weitere_mails?: string | null
         }
         Update: {
@@ -221,8 +245,8 @@ export type Database = {
           erstellt_am?: string | null
           hauptmail?: string
           id?: string
-          Nachname?: string | null
-          Vorname?: string
+          nachname?: string | null
+          vorname?: string
           weitere_mails?: string | null
         }
         Relationships: []
@@ -499,6 +523,23 @@ export type Database = {
       hnswhandler: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      hybrid_search: {
+        Args: {
+          query_text: string
+          query_embedding: string
+          match_count: number
+          full_text_weight?: number
+          semantic_weight?: number
+          rrf_k?: number
+        }
+        Returns: {
+          id: number
+          content: string
+          fts_rank: number
+          dense_rank: number
+          rrf_score: number
+        }[]
       }
       ivfflat_bit_support: {
         Args: { "": unknown }
