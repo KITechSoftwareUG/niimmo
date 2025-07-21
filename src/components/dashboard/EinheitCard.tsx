@@ -58,8 +58,10 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
     return <Badge>{vertrag.status}</Badge>;
   };
 
-  const getShortId = (id: string) => {
-    return id.length > 8 ? `...${id.slice(-8)}` : id;
+  const getEinheitNumber = (id: string) => {
+    // Extract last 2 characters from UUID and convert to number
+    const lastTwo = id.slice(-2);
+    return parseInt(lastTwo, 16) % 100; // Convert hex to decimal and limit to 2 digits
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -89,7 +91,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
           <div className="flex items-center space-x-2">
             <Home className="h-5 w-5 text-blue-600" />
             <CardTitle className="text-lg">
-              {einheit.nummer ? `Einheit ${einheit.nummer}` : `Einheit ${getShortId(einheit.id)}`}
+              {einheit.nummer ? `Einheit ${einheit.nummer}` : `Einheit ${getEinheitNumber(einheit.id)}`}
             </CardTitle>
           </div>
           {getStatusBadge()}
