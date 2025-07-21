@@ -75,6 +75,33 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
     enabled: !!alleMietvertraege?.length
   });
 
+  const { data: zahlungenData } = useQuery({
+    queryKey: ['zahlungen-by-vertrag', alleMietvertraege?.map(v => v.id)],
+    queryFn: async () => {
+      if (!alleMietvertraege?.length) return {};
+      
+      const vertragIds = alleMietvertraege.map(v => v.id);
+      const { data, error } = await supabase
+        .from('zahlungen')
+        .select('*')
+        .in('mietvertrag_id', vertragIds)
+        .order('buchungsdatum', { ascending: false });
+      
+      if (error) throw error;
+      
+      const zahlungenByVertrag = {};
+      data?.forEach(zahlung => {
+        if (!zahlungenByVertrag[zahlung.mietvertrag_id]) {
+          zahlungenByVertrag[zahlung.mietvertrag_id] = [];
+        }
+        zahlungenByVertrag[zahlung.mietvertrag_id].push(zahlung);
+      });
+      
+      return zahlungenByVertrag;
+    },
+    enabled: !!alleMietvertraege?.length
+  });
+
   const generateZahlungshistorie = (vertrag: any) => {
     if (!vertrag) return [];
     
@@ -102,6 +129,17 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
 
   const MietvertragCard = ({ vertrag, mieter, isAktuell = false }: { vertrag: any, mieter: any[], isAktuell?: boolean }) => {
     const zahlungshistorie = generateZahlungshistorie(vertrag);
+    const zugeordneteZahlungen = zahlungenData?.[vertrag.id] || [];
+    
+    // Berechne Gesamtsaldo
+    const sollbetragProMonat = (vertrag.kaltmiete || 0) + (vertrag.betriebskosten || 0);
+    const anzahlMonate = zahlungshistorie.length;
+    const gesamtSoll = sollbetragProMonat * anzahlMonate;
+    const gesamtErhaltene = zugeordneteZahlungen.reduce((sum, z) => sum + (z.betrag || 0), 0);
+    const gesamtsaldo = gesamtErhaltene - gesamtSoll;
+    
+    // Annahme: Lastschriftverfahren Flag (noch nicht in DB)
+    const istLastschrift = vertrag.lastschrift_verfahren === true;
     
     return (
       <Card className={`${isAktuell ? 'border-green-500 shadow-lg' : 'border-gray-200'}`}>
@@ -184,55 +222,111 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
           )}
 
           {/* Zahlungshistorie */}
-          <div className="space-y-3">
-            <h4 className="font-semibold flex items-center space-x-2">
-              <Calendar className="h-4 w-4" />
-              <span>Zahlungshistorie</span>
-            </h4>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold flex items-center space-x-2">
+                <Calendar className="h-4 w-4" />
+                <span>Zahlungshistorie</span>
+              </h4>
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Gesamtsaldo</p>
+                <p className={`font-bold ${gesamtsaldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {gesamtsaldo >= 0 ? '+' : ''}{gesamtsaldo.toFixed(2)}€
+                </p>
+              </div>
+            </div>
+            
             <div className="max-h-64 overflow-y-auto space-y-2">
-              {zahlungshistorie.map((zahlung) => (
-                <div 
-                  key={zahlung.id} 
-                  className={`p-3 rounded-lg border-l-4 ${
-                    zahlung.bezahlt 
-                      ? 'bg-green-50 border-green-500' 
-                      : 'bg-red-50 border-red-500'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                      {zahlung.bezahlt ? (
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-600" />
-                      )}
-                      <div>
-                        <p className="font-medium">
-                          {new Date(zahlung.monat).toLocaleDateString('de-DE', { 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {zahlung.bezahlt 
-                            ? `Bezahlt am ${new Date(zahlung.bezahlt_am).toLocaleDateString('de-DE')}`
-                            : 'Noch ausstehend'
+              {zahlungshistorie.map((zahlung) => {
+                const sollbetrag = (vertrag?.kaltmiete || 0) + (vertrag?.betriebskosten || 0);
+                
+                return (
+                  <div 
+                    key={zahlung.id} 
+                    className={`p-3 rounded-lg border-l-4 ${
+                      zahlung.bezahlt 
+                        ? 'bg-green-50 border-green-500' 
+                        : istLastschrift && !zahlung.bezahlt
+                        ? 'bg-yellow-50 border-yellow-500'
+                        : 'bg-red-50 border-red-500'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-3">
+                        {zahlung.bezahlt ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : istLastschrift ? (
+                          <div className="h-5 w-5 rounded-full bg-yellow-500 flex items-center justify-center">
+                            <div className="h-2 w-2 rounded-full bg-white"></div>
+                          </div>
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-600" />
+                        )}
+                        <div>
+                          <p className="font-medium">
+                            {new Date(zahlung.monat).toLocaleDateString('de-DE', { 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Soll: {sollbetrag.toFixed(2)}€ (Kaltmiete + Betriebskosten)
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {zahlung.bezahlt 
+                              ? `Bezahlt am ${new Date(zahlung.bezahlt_am).toLocaleDateString('de-DE')}`
+                              : istLastschrift 
+                              ? 'Lastschrift eingereicht'
+                              : 'Noch ausstehend'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">{sollbetrag.toFixed(2)}€</p>
+                        <Badge 
+                          variant={zahlung.bezahlt ? "default" : istLastschrift && !zahlung.bezahlt ? "secondary" : "destructive"}
+                          className={
+                            zahlung.bezahlt 
+                              ? "bg-green-600 hover:bg-green-700" 
+                              : istLastschrift && !zahlung.bezahlt
+                              ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+                              : ""
                           }
-                        </p>
+                        >
+                          {zahlung.bezahlt ? 'Bezahlt' : istLastschrift ? 'Lastschrift' : 'Offen'}
+                        </Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold">{zahlung.betrag}€</p>
-                      <Badge 
-                        variant={zahlung.bezahlt ? "default" : "destructive"}
-                        className={zahlung.bezahlt ? "bg-green-600 hover:bg-green-700" : ""}
-                      >
-                        {zahlung.bezahlt ? 'Bezahlt' : 'Offen'}
-                      </Badge>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+
+            {/* Zugeordnete Überweisungen */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h5 className="font-semibold mb-3 flex items-center space-x-2">
+                <Euro className="h-4 w-4" />
+                <span>Zugeordnete Überweisungen</span>
+              </h5>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {zugeordneteZahlungen.map((zahlung) => (
+                  <div key={zahlung.id} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {zahlung.buchungsdatum ? new Date(zahlung.buchungsdatum).toLocaleDateString('de-DE') : 'Unbekannt'}
+                      </p>
+                      <p className="text-xs text-gray-600 truncate max-w-48">
+                        {zahlung.verwendungszweck || 'Keine Beschreibung'}
+                      </p>
+                    </div>
+                    <p className="font-bold text-green-600">+{Number(zahlung.betrag).toFixed(2)}€</p>
+                  </div>
+                ))}
+                {zugeordneteZahlungen.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">Keine Überweisungen zugeordnet</p>
+                )}
+              </div>
             </div>
           </div>
 
