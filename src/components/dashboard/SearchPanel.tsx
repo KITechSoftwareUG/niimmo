@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +64,30 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
     setSearchTerm("");
   };
 
+  const getFirstResult = () => {
+    if (!searchResults) return null;
+    if (searchResults.immobilien.length > 0) {
+      return { type: 'immobilie', id: searchResults.immobilien[0].id };
+    }
+    if (searchResults.mieter.length > 0) {
+      const mieter = searchResults.mieter[0];
+      const immobilie = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheiten?.immobilien;
+      if (immobilie) {
+        return { type: 'mieter', id: immobilie.id };
+      }
+    }
+    return null;
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && searchTerm.length >= 2) {
+      const firstResult = getFirstResult();
+      if (firstResult) {
+        handleImmobilieClick(firstResult.id);
+      }
+    }
+  };
+
   return (
     <Card className="mb-6 elegant-card">
       <CardHeader className="pb-4">
@@ -76,16 +100,17 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
         <div className="relative">
           <Input
             type="text"
-            placeholder="Mieter oder Immobilie suchen..."
+            placeholder="Mieter oder Immobilie suchen... (Enter für erstes Ergebnis)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyPress={handleKeyPress}
             className="pl-10 modern-input font-sans"
           />
           <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
 
         {searchResults && searchTerm.length >= 2 && (
-          <div className="mt-4 space-y-4 max-h-64 overflow-y-auto">
+          <div className="mt-4 space-y-4 max-h-80 overflow-y-auto animate-fade-in border-t pt-4">
             {/* Mieter Ergebnisse */}
             {searchResults.mieter.length > 0 && (
               <div>
