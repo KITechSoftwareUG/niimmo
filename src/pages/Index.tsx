@@ -5,14 +5,17 @@ import { ImmobilienCard } from "@/components/dashboard/ImmobilienCard";
 import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
+import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { ImmobilienSorting } from "@/components/dashboard/ImmobilienSorting";
 import { useState, useMemo } from "react";
-import { Loader2, Building2 } from "lucide-react";
+import { Loader2, Building2, BarChart3, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
   const [sortField, setSortField] = useState<string>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -134,6 +137,11 @@ const Index = () => {
     );
   }
 
+  // Analytics-Ansicht anzeigen
+  if (showAnalytics) {
+    return <Analytics onBack={() => setShowAnalytics(false)} />;
+  }
+
   if (selectedImmobilie) {
     return (
       <ImmobilienDetail 
@@ -171,6 +179,13 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                <Button 
+                  onClick={() => setShowAnalytics(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Analytics
+                </Button>
                 <UserMenu />
                 <div className="text-right">
                   <div className="text-sm text-gray-500 font-sans mb-1">System Status</div>

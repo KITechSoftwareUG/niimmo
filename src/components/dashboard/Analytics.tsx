@@ -1,6 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
-import { Euro, TrendingUp, TrendingDown, Building, Users } from 'lucide-react';
+import { Euro, TrendingUp, TrendingDown, Building, Users, ArrowLeft } from 'lucide-react';
+
+interface AnalyticsProps {
+  onBack?: () => void;
+}
 
 // Platzhalter-Daten
 const monatlicheEinnahmen = [
@@ -33,7 +38,7 @@ const preiserhöhungen = [
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
-export const Analytics = () => {
+export const Analytics = ({ onBack }: AnalyticsProps = {}) => {
   // Berechnete Kennzahlen
   const gesamtKaltmiete = monatlicheEinnahmen.reduce((sum, item) => sum + item.kaltmiete, 0);
   const gesamtBetriebskosten = monatlicheEinnahmen.reduce((sum, item) => sum + item.betriebskosten, 0);
@@ -43,6 +48,16 @@ export const Analytics = () => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
+          {onBack && (
+            <Button 
+              variant="ghost" 
+              onClick={onBack}
+              className="mb-4 hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Zurück zum Dashboard
+            </Button>
+          )}
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
           <p className="text-gray-600">Übersicht über Mieteinnahmen, Preiserhöhungen und finanzielle Kennzahlen</p>
         </div>
