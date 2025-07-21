@@ -211,9 +211,6 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                           <p className="text-sm text-gray-500">{m.weitere_mails}</p>
                         )}
                       </div>
-                      {m.rolle && (
-                        <Badge variant="outline">{m.rolle}</Badge>
-                      )}
                     </div>
                   </div>
                 ))}
