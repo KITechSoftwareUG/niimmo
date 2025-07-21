@@ -123,18 +123,13 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
                 </div>
                 <div className="pl-6 space-y-2">
                   {vertrag.mieter.slice(0, 2).map((mieter, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                    <div key={index} className="flex items-center p-2 bg-blue-50 rounded-lg">
                       <div className="flex items-center space-x-2">
                         <User className="h-3 w-3 text-blue-600" />
                         <span className="text-sm text-gray-700 font-medium">
                           {mieter.vorname} {mieter.nachname}
                         </span>
                       </div>
-                      {mieter.rolle && (
-                        <Badge variant="outline" className="text-xs bg-white">
-                          {mieter.rolle}
-                        </Badge>
-                      )}
                     </div>
                   ))}
                   {vertrag.mieter.length > 2 && (

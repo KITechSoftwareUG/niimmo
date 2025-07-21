@@ -187,7 +187,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
           <div className="space-y-3">
             <h4 className="font-semibold flex items-center space-x-2">
               <Calendar className="h-4 w-4" />
-              <span>Zahlungshistorie (ab Juli 2025)</span>
+              <span>Zahlungshistorie</span>
             </h4>
             <div className="max-h-64 overflow-y-auto space-y-2">
               {zahlungshistorie.map((zahlung) => (
@@ -223,7 +223,10 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                     </div>
                     <div className="text-right">
                       <p className="font-bold">{zahlung.betrag}€</p>
-                      <Badge variant={zahlung.bezahlt ? "default" : "destructive"}>
+                      <Badge 
+                        variant={zahlung.bezahlt ? "default" : "destructive"}
+                        className={zahlung.bezahlt ? "bg-green-600 hover:bg-green-700" : ""}
+                      >
                         {zahlung.bezahlt ? 'Bezahlt' : 'Offen'}
                       </Badge>
                     </div>

@@ -21,7 +21,7 @@ export const PaymentHistory = ({ payments }: PaymentHistoryProps) => {
           </div>
           <div>
             <span className="text-xl font-semibold text-gray-800">Zahlungshistorie</span>
-            <p className="text-sm text-gray-600 font-normal mt-1">Beispieldaten zur Demonstration</p>
+            <p className="text-sm text-gray-600 font-normal mt-1">Übersicht der Zahlungseingänge</p>
           </div>
         </CardTitle>
       </CardHeader>
