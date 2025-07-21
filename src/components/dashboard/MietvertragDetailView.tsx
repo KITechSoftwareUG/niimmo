@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ArrowLeft, FileText, User, Euro, Calendar, CheckCircle, XCircle, FolderOpen } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { DokumentenModal } from "./DokumentenModal";
 
 interface MietvertragDetailViewProps {
   einheitId: string;
@@ -16,6 +18,7 @@ interface MietvertragDetailViewProps {
 }
 
 export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }: MietvertragDetailViewProps) => {
+  const [selectedMietvertragId, setSelectedMietvertragId] = useState<string | null>(null);
   const { data: alleMietvertraege, isLoading: vertraegeLoading } = useQuery({
     queryKey: ['alle-mietvertrag-einheit', einheitId],
     queryFn: async () => {
@@ -233,7 +236,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
           {/* Dokumente Button */}
           <div className="pt-4 border-t">
             <Button 
-              onClick={() => console.log('Zu Dokumenten navigieren für Vertrag:', vertrag.id)}
+              onClick={() => setSelectedMietvertragId(vertrag.id)}
               className="w-full bg-blue-600 hover:bg-blue-700"
             >
               <FolderOpen className="h-4 w-4 mr-2" />
@@ -330,6 +333,17 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
             </Card>
           )}
         </div>
+
+        {/* Dokumenten Modal */}
+        {selectedMietvertragId && (
+          <DokumentenModal
+            isOpen={!!selectedMietvertragId}
+            onClose={() => setSelectedMietvertragId(null)}
+            mietvertragId={selectedMietvertragId}
+            einheit={einheit}
+            immobilie={immobilie}
+          />
+        )}
       </div>
     </div>
   );
