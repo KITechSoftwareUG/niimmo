@@ -208,10 +208,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-medium">{m.vorname} {m.nachname}</p>
-                        <p className="text-sm text-gray-600">{m.hauptmail}</p>
-                        {m.telnr && (
-                          <p className="text-sm text-gray-600">{m.telnr}</p>
-                        )}
+                        <p className="text-sm text-gray-600">{m.telnr || m.hauptmail}</p>
                         {m.geburtsdatum && (
                           <p className="text-sm text-gray-500">
                             Geb.: {new Date(m.geburtsdatum).toLocaleDateString('de-DE')}
