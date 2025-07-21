@@ -52,7 +52,9 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
             vorname,
             nachname,
             hauptmail,
-            weitere_mails
+            weitere_mails,
+            telnr,
+            geburtsdatum
           )
         `)
         .in('mietvertrag_id', vertragIds);
@@ -207,6 +209,14 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                       <div>
                         <p className="font-medium">{m.vorname} {m.nachname}</p>
                         <p className="text-sm text-gray-600">{m.hauptmail}</p>
+                        {m.telnr && (
+                          <p className="text-sm text-gray-600">{m.telnr}</p>
+                        )}
+                        {m.geburtsdatum && (
+                          <p className="text-sm text-gray-500">
+                            Geb.: {new Date(m.geburtsdatum).toLocaleDateString('de-DE')}
+                          </p>
+                        )}
                         {m.weitere_mails && (
                           <p className="text-sm text-gray-500">{m.weitere_mails}</p>
                         )}

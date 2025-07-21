@@ -225,27 +225,33 @@ export type Database = {
         Row: {
           aktualisiert_am: string | null
           erstellt_am: string | null
+          geburtsdatum: string | null
           hauptmail: string
           id: string
           nachname: string | null
+          telnr: string | null
           vorname: string
           weitere_mails: string | null
         }
         Insert: {
           aktualisiert_am?: string | null
           erstellt_am?: string | null
+          geburtsdatum?: string | null
           hauptmail: string
           id?: string
           nachname?: string | null
+          telnr?: string | null
           vorname: string
           weitere_mails?: string | null
         }
         Update: {
           aktualisiert_am?: string | null
           erstellt_am?: string | null
+          geburtsdatum?: string | null
           hauptmail?: string
           id?: string
           nachname?: string | null
+          telnr?: string | null
           vorname?: string
           weitere_mails?: string | null
         }
