@@ -7,6 +7,7 @@ import { ArrowLeft, Building, MapPin, Calendar, Info } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useEffect, useRef } from "react";
 
 interface ImmobilienDetailProps {
   immobilieId: string;
@@ -15,9 +16,11 @@ interface ImmobilienDetailProps {
     mietstatus: string;
     zahlungsstatus: string;
   };
+  scrollToEinheitId?: string | null;
 }
 
-export const ImmobilienDetail = ({ immobilieId, onBack }: ImmobilienDetailProps) => {
+export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: ImmobilienDetailProps) => {
+  const einheitRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const { data: immobilie, isLoading: immobilieLoading } = useQuery({
     queryKey: ['immobilie', immobilieId],
     queryFn: async () => {
@@ -101,6 +104,28 @@ export const ImmobilienDetail = ({ immobilieId, onBack }: ImmobilienDetailProps)
     },
     enabled: !!einheiten
   });
+
+  // Scroll to specific unit if scrollToEinheitId is provided
+  useEffect(() => {
+    if (scrollToEinheitId && einheiten && !einheitenLoading) {
+      const timer = setTimeout(() => {
+        const targetElement = einheitRefs.current[scrollToEinheitId];
+        if (targetElement) {
+          targetElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center'
+          });
+          // Add a temporary highlight effect
+          targetElement.style.transform = 'scale(1.02)';
+          targetElement.style.transition = 'transform 0.3s ease';
+          setTimeout(() => {
+            targetElement.style.transform = 'scale(1)';
+          }, 1000);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [scrollToEinheitId, einheiten, einheitenLoading]);
 
   const handleBackClick = () => {
     onBack();
@@ -199,12 +224,17 @@ export const ImmobilienDetail = ({ immobilieId, onBack }: ImmobilienDetailProps)
           {einheiten?.map((einheit) => {
             const vertrag = mietvertraege?.find(v => v.einheit_id === einheit.id);
             return (
-              <EinheitCard
+              <div 
                 key={einheit.id}
-                einheit={einheit}
-                vertrag={vertrag}
-                immobilie={immobilie}
-              />
+                ref={(el) => einheitRefs.current[einheit.id] = el}
+                className="transition-transform duration-300"
+              >
+                <EinheitCard
+                  einheit={einheit}
+                  vertrag={vertrag}
+                  immobilie={immobilie}
+                />
+              </div>
             );
           })}
         </div>

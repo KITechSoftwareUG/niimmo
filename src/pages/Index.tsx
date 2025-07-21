@@ -109,12 +109,16 @@ const Index = () => {
     setSortOrder(order);
   };
 
-  const handleImmobilieClick = (immobilieId: string) => {
+  const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
+
+  const handleImmobilieClick = (immobilieId: string, einheitId?: string) => {
     setSelectedImmobilie(immobilieId);
+    setSelectedEinheit(einheitId || null);
   };
 
   const handleBackClick = () => {
     setSelectedImmobilie(null);
+    setSelectedEinheit(null);
     // Refresh the immobilien data when going back
     refetch();
   };
@@ -139,6 +143,7 @@ const Index = () => {
           mietstatus: "all",
           zahlungsstatus: "all"
         }}
+        scrollToEinheitId={selectedEinheit}
       />
     );
   }

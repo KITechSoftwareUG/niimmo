@@ -8,7 +8,7 @@ import { Search, User, Building, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface SearchPanelProps {
-  onImmobilieSelect: (immobilieId: string) => void;
+  onImmobilieSelect: (immobilieId: string, einheitId?: string) => void;
 }
 
 export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
@@ -59,8 +59,8 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
     enabled: searchTerm.length >= 2
   });
 
-  const handleImmobilieClick = (immobilieId: string) => {
-    onImmobilieSelect(immobilieId);
+  const handleImmobilieClick = (immobilieId: string, einheitId?: string) => {
+    onImmobilieSelect(immobilieId, einheitId);
     setSearchTerm("");
   };
 
@@ -72,8 +72,9 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
     if (searchResults.mieter.length > 0) {
       const mieter = searchResults.mieter[0];
       const immobilie = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheiten?.immobilien;
+      const einheitId = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheit_id;
       if (immobilie) {
-        return { type: 'mieter', id: immobilie.id };
+        return { type: 'mieter', id: immobilie.id, einheitId };
       }
     }
     return null;
@@ -83,7 +84,7 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
     if (e.key === 'Enter' && searchTerm.length >= 2) {
       const firstResult = getFirstResult();
       if (firstResult) {
-        handleImmobilieClick(firstResult.id);
+        handleImmobilieClick(firstResult.id, firstResult.einheitId);
       }
     }
   };
@@ -125,8 +126,9 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
                       className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all cursor-pointer"
                       onClick={() => {
                         const immobilie = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheiten?.immobilien;
+                        const einheitId = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheit_id;
                         if (immobilie) {
-                          handleImmobilieClick(immobilie.id);
+                          handleImmobilieClick(immobilie.id, einheitId);
                         }
                       }}
                     >
