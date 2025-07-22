@@ -110,6 +110,13 @@ export type Database = {
             referencedRelation: "mietvertrag"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_dokumente_mietvertrag"
+            columns: ["mietvertrag_id"]
+            isOneToOne: false
+            referencedRelation: "mietvertrag"
+            referencedColumns: ["id"]
+          },
         ]
       }
       dokumente_embeddings: {
@@ -257,42 +264,6 @@ export type Database = {
         }
         Relationships: []
       }
-      mietforderung_zahlungen: {
-        Row: {
-          betrag: number
-          id: string
-          mietforderung_id: string | null
-          zahlung_id: string | null
-        }
-        Insert: {
-          betrag: number
-          id?: string
-          mietforderung_id?: string | null
-          zahlung_id?: string | null
-        }
-        Update: {
-          betrag?: number
-          id?: string
-          mietforderung_id?: string | null
-          zahlung_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mietforderung_zahlungen_mietforderung_id_fkey"
-            columns: ["mietforderung_id"]
-            isOneToOne: false
-            referencedRelation: "mietforderungen"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mietforderung_zahlungen_zahlung_id_fkey"
-            columns: ["zahlung_id"]
-            isOneToOne: false
-            referencedRelation: "zahlungen"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mietforderungen: {
         Row: {
           erzeugt_am: string | null
@@ -344,6 +315,7 @@ export type Database = {
           kaltmiete: number | null
           kaution_betrag: number | null
           kuendigungsdatum: string | null
+          lastschrift: boolean
           start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck: string[] | null
@@ -360,6 +332,7 @@ export type Database = {
           kaltmiete?: number | null
           kaution_betrag?: number | null
           kuendigungsdatum?: string | null
+          lastschrift?: boolean
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck?: string[] | null
@@ -376,6 +349,7 @@ export type Database = {
           kaltmiete?: number | null
           kaution_betrag?: number | null
           kuendigungsdatum?: string | null
+          lastschrift?: boolean
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck?: string[] | null
