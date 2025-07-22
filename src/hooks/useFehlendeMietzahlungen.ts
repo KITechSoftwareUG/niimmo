@@ -188,30 +188,33 @@ export const useFehlendeMietzahlungen = () => {
           
           let bezahltBetrag = 0;
           
-          // Zahlungen chronologisch den ältesten Forderungen zuordnen
-          for (const zahlung of sortiertZahlungen) {
-            if (zahlung.restbetrag <= 0 || bezahltBetrag >= sollbetrag) continue;
-            
-            // Bei Lastschrift: 6 Tage Wartezeit prüfen
-            let zahlungGueltig = true;
-            if (istLastschrift) {
-              const zahlungMitWartezeit = new Date(zahlung.buchungsdatum);
-              zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
+          // Nur wenn Zahlungen vorhanden sind, diese den Forderungen zuordnen
+          if (mietvertragZahlungen.length > 0) {
+            // Zahlungen chronologisch den ältesten Forderungen zuordnen
+            for (const zahlung of sortiertZahlungen) {
+              if (zahlung.restbetrag <= 0 || bezahltBetrag >= sollbetrag) continue;
               
-              if (heute < zahlungMitWartezeit) {
-                zahlungGueltig = false; // Zahlung noch in 6-Tage-Wartezeit bei Lastschrift
+              // Bei Lastschrift: 6 Tage Wartezeit prüfen
+              let zahlungGueltig = true;
+              if (istLastschrift) {
+                const zahlungMitWartezeit = new Date(zahlung.buchungsdatum);
+                zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
+                
+                if (heute < zahlungMitWartezeit) {
+                  zahlungGueltig = false; // Zahlung noch in 6-Tage-Wartezeit bei Lastschrift
+                }
               }
-            }
-            
-            if (zahlungGueltig) {
-              const verfuegbarBetrag = Math.min(zahlung.restbetrag, sollbetrag - bezahltBetrag);
-              bezahltBetrag += verfuegbarBetrag;
-              zahlung.restbetrag -= verfuegbarBetrag; // Zahlung anteilig verbrauchen
+              
+              if (zahlungGueltig) {
+                const verfuegbarBetrag = Math.min(zahlung.restbetrag, sollbetrag - bezahltBetrag);
+                bezahltBetrag += verfuegbarBetrag;
+                zahlung.restbetrag -= verfuegbarBetrag; // Zahlung anteilig verbrauchen
+              }
             }
           }
 
           effektiveZahlungen += bezahltBetrag;
-          const monatFehlend = Math.max(0, sollbetrag - bezahltBetrag);
+          const monatFehlend = sollbetrag - bezahltBetrag; // Entferne Math.max(0, ...) hier
           gesamtFehlendBetrag += monatFehlend;
         }
 
