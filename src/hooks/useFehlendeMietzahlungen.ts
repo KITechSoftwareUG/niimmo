@@ -213,13 +213,15 @@ export const useFehlendeMietzahlungen = () => {
       }
 
       const result = Array.from(fehlendMap.values()) as FehlendeMietzahlung[];
-      console.log('Berechnete fehlende Mietzahlungen mit Lastschrift-Logik:', result.length);
-      console.log('Beispiel-Details:', result[0] ? {
-        mietvertrag_id: result[0].mietvertrag_id,
-        fehlend_betrag: result[0].fehlend_betrag,
-        gesamt_forderungen: result[0].gesamt_forderungen,
-        gesamt_zahlungen: result[0].gesamt_zahlungen
-      } : 'Keine Daten');
+      console.log('=== ENDERGEBNIS ===');
+      console.log('Berechnete fehlende Mietzahlungen:', result.length);
+      console.log('Gesamtfehlbetrag:', result.reduce((sum, item) => sum + item.fehlend_betrag, 0));
+      console.log('Beispiele:', result.slice(0, 3).map(item => ({
+        mietvertrag_id: item.mietvertrag_id,
+        fehlend_betrag: item.fehlend_betrag,
+        gesamt_forderungen: item.gesamt_forderungen,
+        gesamt_zahlungen: item.gesamt_zahlungen
+      })));
       return result;
     }
   });
