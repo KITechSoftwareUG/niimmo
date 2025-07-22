@@ -142,6 +142,21 @@ export const useFehlendeMietzahlungen = () => {
 
         if (mietvertragForderungen.length === 0) continue;
 
+        // Debug für speziellen Fall
+        const gesamtZahlungsBetrag = mietvertragZahlungen.reduce((sum, z) => sum + (z.betrag || 0), 0);
+        const gesamtForderungsBetrag = mietvertragForderungen.reduce((sum, f) => sum + (f.sollbetrag || 0), 0);
+        
+        if (gesamtZahlungsBetrag > 10000 || gesamtForderungsBetrag < 2000) {
+          console.log(`Debug Mietvertrag ${mietvertragId}:`, {
+            forderungen: mietvertragForderungen.length,
+            zahlungen: mietvertragZahlungen.length,
+            gesamtForderung: gesamtForderungsBetrag,
+            gesamtZahlung: gesamtZahlungsBetrag,
+            forderungenDetails: mietvertragForderungen,
+            zahlungenDetails: mietvertragZahlungen
+          });
+        }
+
         // Forderungen nach Monat gruppieren
         const forderungenNachMonat = new Map<string, number>();
         mietvertragForderungen.forEach(forderung => {
@@ -200,6 +215,16 @@ export const useFehlendeMietzahlungen = () => {
           gesamtFehlendBetrag += monatFehlend;
         }
 
+        // Debug für speziellen Fall - Endergebnis
+        if (gesamtZahlungsBetrag > 10000 || gesamtForderungsBetrag < 2000) {
+          console.log(`Endergebnis für Mietvertrag ${mietvertragId}:`, {
+            gesamtFehlendBetrag,
+            gesamtForderung,
+            effektiveZahlungen,
+            wirdAngezeigt: gesamtFehlendBetrag > 0
+          });
+        }
+
         // Nur Mietverträge mit fehlenden Beträgen hinzufügen
         if (gesamtFehlendBetrag > 0) {
           // Finde zugehörige Einheit und Immobilie
@@ -243,7 +268,12 @@ export const useFehlendeMietzahlungen = () => {
 
       const result = Array.from(fehlendMap.values()) as FehlendeMietzahlung[];
       console.log('Berechnete fehlende Mietzahlungen mit Lastschrift-Logik:', result.length);
-      console.log('Beispiel Rückstand:', result[0]);
+      console.log('Beispiel-Details:', result[0] ? {
+        mietvertrag_id: result[0].mietvertrag_id,
+        fehlend_betrag: result[0].fehlend_betrag,
+        gesamt_forderungen: result[0].gesamt_forderungen,
+        gesamt_zahlungen: result[0].gesamt_zahlungen
+      } : 'Keine Daten');
       return result;
     }
   });
