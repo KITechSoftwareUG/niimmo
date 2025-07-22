@@ -47,10 +47,20 @@ export const useFehlendeMietzahlungen = () => {
         throw forderungenError;
       }
 
-      // Hole alle Zahlungen
-      const { data: zahlungen, error: zahlungenError } = await supabase
-        .from('zahlungen')
-        .select('*');
+        // Hole alle Zahlungen - nur Mietzahlungen für Hauptberechnung
+        const { data: allZahlungen, error: zahlungenError } = await supabase
+          .from('zahlungen')
+          .select('*');
+        
+        // Filtere Zahlungen: nur relevante Mietzahlungen für Hauptberechnung
+        const zahlungen = allZahlungen?.filter(z => 
+          z.kategorie === 'Miete (komplett)' || z.kategorie === 'Miete (unklar)'
+        ) || [];
+        
+        // Sonstige Zahlungen für separate Anzeige (Nichtmiete)
+        const sonstigeZahlungen = allZahlungen?.filter(z => 
+          z.kategorie === 'Nichtmiete'
+        ) || [];
       
       if (zahlungenError) {
         console.error('Fehler beim Laden der Zahlungen:', zahlungenError);
