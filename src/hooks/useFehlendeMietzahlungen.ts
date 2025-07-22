@@ -131,106 +131,48 @@ export const useFehlendeMietzahlungen = () => {
       const heute = new Date();
       const fehlendMap = new Map();
 
-      // Pro Mietvertrag die Zahlungsstatus berechnen mit verbesserter Logik
+      // Pro Mietvertrag die Zahlungsstatus berechnen - EINFACHE LOGIK
       for (const mietvertrag of mietvertraege || []) {
         const mietvertragId = mietvertrag.id;
         const istLastschrift = mietvertrag.lastschrift || false;
 
-        // Forderungen für diesen Mietvertrag nach Monat gruppieren
+        // Alle Forderungen für diesen Mietvertrag
         const mietvertragForderungen = forderungen?.filter(f => f.mietvertrag_id === mietvertragId) || [];
         const mietvertragZahlungen = zahlungen?.filter(z => z.mietvertrag_id === mietvertragId) || [];
 
+        // Wenn keine Forderungen existieren, überspringen
         if (mietvertragForderungen.length === 0) continue;
 
-        // Debug für speziellen Fall
-        const gesamtZahlungsBetrag = mietvertragZahlungen.reduce((sum, z) => sum + (z.betrag || 0), 0);
-        const gesamtForderungsBetrag = mietvertragForderungen.reduce((sum, f) => sum + (f.sollbetrag || 0), 0);
-        
-        if (gesamtZahlungsBetrag > 10000 || gesamtForderungsBetrag < 2000) {
-          console.log(`Debug Mietvertrag ${mietvertragId}:`, {
-            forderungen: mietvertragForderungen.length,
-            zahlungen: mietvertragZahlungen.length,
-            gesamtForderung: gesamtForderungsBetrag,
-            gesamtZahlung: gesamtZahlungsBetrag,
-            forderungenDetails: mietvertragForderungen,
-            zahlungenDetails: mietvertragZahlungen
-          });
-        }
+        // EINFACHE BERECHNUNG: Gesamtforderungen vs Gesamtzahlungen
+        const gesamtForderungen = mietvertragForderungen.reduce((sum, f) => sum + (f.sollbetrag || 0), 0);
+        let gesamtZahlungen = 0;
 
-        // Forderungen nach Monat gruppieren
-        const forderungenNachMonat = new Map<string, number>();
-        mietvertragForderungen.forEach(forderung => {
-          const monat = forderung.sollmonat;
-          if (monat) {
-            forderungenNachMonat.set(monat, (forderungenNachMonat.get(monat) || 0) + (forderung.sollbetrag || 0));
-          }
-        });
-
-        // Zahlungen nach Buchungsdatum sortieren
-        const sortiertZahlungen = mietvertragZahlungen
-          .map(zahlung => ({
-            ...zahlung,
-            buchungsdatum: new Date(zahlung.buchungsdatum),
-            restbetrag: zahlung.betrag || 0
-          }))
-          .sort((a, b) => a.buchungsdatum.getTime() - b.buchungsdatum.getTime());
-
-        let gesamtFehlendBetrag = 0;
-        let gesamtForderung = 0;
-        let effektiveZahlungen = 0;
-
-        // Für jeden Forderungsmonat prüfen (chronologisch)
-        const monate = Array.from(forderungenNachMonat.keys()).sort();
-        
-        for (const monat of monate) {
-          const sollbetrag = forderungenNachMonat.get(monat) || 0;
-          gesamtForderung += sollbetrag;
+        // Nur gültige Zahlungen berücksichtigen (bei Lastschrift: 6 Tage Wartezeit)
+        for (const zahlung of mietvertragZahlungen) {
+          let zahlungGueltig = true;
           
-          let bezahltBetrag = 0;
-          
-          // Nur wenn Zahlungen vorhanden sind, diese den Forderungen zuordnen
-          if (mietvertragZahlungen.length > 0) {
-            // Zahlungen chronologisch den ältesten Forderungen zuordnen
-            for (const zahlung of sortiertZahlungen) {
-              if (zahlung.restbetrag <= 0 || bezahltBetrag >= sollbetrag) continue;
-              
-              // Bei Lastschrift: 6 Tage Wartezeit prüfen
-              let zahlungGueltig = true;
-              if (istLastschrift) {
-                const zahlungMitWartezeit = new Date(zahlung.buchungsdatum);
-                zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
-                
-                if (heute < zahlungMitWartezeit) {
-                  zahlungGueltig = false; // Zahlung noch in 6-Tage-Wartezeit bei Lastschrift
-                }
-              }
-              
-              if (zahlungGueltig) {
-                const verfuegbarBetrag = Math.min(zahlung.restbetrag, sollbetrag - bezahltBetrag);
-                bezahltBetrag += verfuegbarBetrag;
-                zahlung.restbetrag -= verfuegbarBetrag; // Zahlung anteilig verbrauchen
-              }
+          if (istLastschrift) {
+            const zahlungMitWartezeit = new Date(zahlung.buchungsdatum);
+            zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
+            
+            if (heute < zahlungMitWartezeit) {
+              zahlungGueltig = false; // Zahlung noch in 6-Tage-Wartezeit
             }
           }
-
-          effektiveZahlungen += bezahltBetrag;
-          const monatFehlend = sollbetrag - bezahltBetrag; // Entferne Math.max(0, ...) hier
-          gesamtFehlendBetrag += monatFehlend;
+          
+          if (zahlungGueltig) {
+            gesamtZahlungen += (zahlung.betrag || 0);
+          }
         }
 
-        // Debug für speziellen Fall - Endergebnis
-        if (gesamtZahlungsBetrag > 10000 || gesamtForderungsBetrag < 2000) {
-          console.log(`Endergebnis für Mietvertrag ${mietvertragId}:`, {
-            gesamtFehlendBetrag,
-            gesamtForderung,
-            effektiveZahlungen,
-            wirdAngezeigt: gesamtFehlendBetrag > 0
-          });
-        }
+        // Fehlbetrag berechnen
+        const fehlbetrag = gesamtForderungen - gesamtZahlungen;
 
-        // Nur Mietverträge mit echten Forderungen (> 0) und fehlenden Beträgen hinzufügen
-        // Wenn keine Zahlungen vorhanden sind, ist der gesamte Forderungsbetrag fehlend
-        if (gesamtForderung > 0 && gesamtFehlendBetrag > 0) {
+        // Debug für alle Mietverträge
+        console.log(`Mietvertrag ${mietvertragId}: Forderungen=${gesamtForderungen}, Zahlungen=${gesamtZahlungen}, Fehlbetrag=${fehlbetrag}`);
+
+        // Nur wenn ein positiver Fehlbetrag existiert, in die Liste aufnehmen
+        if (fehlbetrag > 0) {
           // Finde zugehörige Einheit und Immobilie
           const einheit = einheiten?.find(e => e.id === mietvertrag.einheit_id);
           const immobilie = immobilien?.find(i => i.id === einheit?.immobilie_id);
@@ -250,9 +192,9 @@ export const useFehlendeMietzahlungen = () => {
 
           fehlendMap.set(mietvertragId, {
             mietvertrag_id: mietvertragId,
-            fehlend_betrag: gesamtFehlendBetrag,
-            gesamt_forderungen: gesamtForderung,
-            gesamt_zahlungen: effektiveZahlungen,
+            fehlend_betrag: fehlbetrag,
+            gesamt_forderungen: gesamtForderungen,
+            gesamt_zahlungen: gesamtZahlungen,
             immobilie_name: immobilieName,
             immobilie_adresse: immobilie?.adresse || 'Unbekannt',
             einheit_typ: einheit?.einheitentyp || 'Unbekannt',
