@@ -228,8 +228,9 @@ export const useFehlendeMietzahlungen = () => {
           });
         }
 
-        // Nur Mietverträge mit fehlenden Beträgen hinzufügen
-        if (gesamtFehlendBetrag > 0) {
+        // Nur Mietverträge mit echten Forderungen (> 0) und fehlenden Beträgen hinzufügen
+        // Wenn keine Zahlungen vorhanden sind, ist der gesamte Forderungsbetrag fehlend
+        if (gesamtForderung > 0 && gesamtFehlendBetrag > 0) {
           // Finde zugehörige Einheit und Immobilie
           const einheit = einheiten?.find(e => e.id === mietvertrag.einheit_id);
           const immobilie = immobilien?.find(i => i.id === einheit?.immobilie_id);
