@@ -28,7 +28,7 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
       if (einheitenError) throw einheitenError;
 
       if (!einheiten || einheiten.length === 0) {
-        return { aktive: 0, gekuendigt: 0, beendet: 0, gesamt: immobilie.einheiten_anzahl };
+        return { aktive: 0, gekuendigt: 0, beendet: 0, leerstehend: immobilie.einheiten_anzahl, gesamt: immobilie.einheiten_anzahl };
       }
 
       // Get rental contracts for these units
@@ -43,8 +43,9 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
       const aktive = vertraege?.filter(v => v.status === 'aktiv').length || 0;
       const gekuendigt = vertraege?.filter(v => v.status === 'gekuendigt').length || 0;
       const beendet = vertraege?.filter(v => v.status === 'beendet').length || 0;
+      const leerstehend = immobilie.einheiten_anzahl - aktive - gekuendigt - beendet;
       
-      return { aktive, gekuendigt, beendet, gesamt: immobilie.einheiten_anzahl };
+      return { aktive, gekuendigt, beendet, leerstehend, gesamt: immobilie.einheiten_anzahl };
     }
   });
 
@@ -127,8 +128,8 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
                 <div className="flex items-center justify-center mb-2">
                   <div className="w-3 h-3 bg-red-500 rounded-full modern-shadow"></div>
                 </div>
-                <div className="text-lg font-sans font-bold text-red-700">{einheitenStatus.beendet}</div>
-                <div className="text-xs text-red-600 font-sans font-medium">Beendet</div>
+                <div className="text-lg font-sans font-bold text-red-700">{einheitenStatus.beendet + einheitenStatus.leerstehend}</div>
+                <div className="text-xs text-red-600 font-sans font-medium">Beendet/Leer</div>
               </div>
             </div>
             
