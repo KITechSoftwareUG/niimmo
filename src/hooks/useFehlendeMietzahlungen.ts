@@ -24,6 +24,8 @@ export interface FehlendeMietzahlung {
 export const useFehlendeMietzahlungen = () => {
   return useQuery({
     queryKey: ['fehlende-mietzahlungen'],
+    staleTime: 0, // Immer neu laden
+    refetchOnMount: true,
     queryFn: async () => {
       console.log('Lade fehlende Mietzahlungen...');
       
