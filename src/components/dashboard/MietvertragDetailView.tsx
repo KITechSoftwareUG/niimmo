@@ -114,7 +114,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
     
     let checkDate = new Date(startDate);
     while (checkDate <= endDate && checkDate <= currentDate) {  
-      const isPaid = Math.random() > 0.3; // Simulierte Zahlung
+      const isPaid = false; // Bei leerer Zahlungstabelle ist nichts bezahlt
       payments.push({
         id: `${vertrag.id}-${checkDate.getFullYear()}-${checkDate.getMonth()}`,
         monat: checkDate.toISOString().split('T')[0],
