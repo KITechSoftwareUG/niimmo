@@ -52,20 +52,20 @@ export const useFehlendeMietzahlungen = () => {
           .from('zahlungen')
           .select('*');
         
-        // Filtere Zahlungen: nur relevante Mietzahlungen für Hauptberechnung
-        const zahlungen = allZahlungen?.filter(z => 
-          z.kategorie === 'Miete (komplett)' || z.kategorie === 'Miete (unklar)'
-        ) || [];
+        if (zahlungenError) {
+          console.error('Fehler beim Laden der Zahlungen:', zahlungenError);
+          throw zahlungenError;
+        }
+
+        // Prüfe ob Zahlungen existieren, sonst leere Arrays
+        const zahlungen = (allZahlungen && allZahlungen.length > 0) 
+          ? allZahlungen.filter(z => z.kategorie === 'Miete (komplett)' || z.kategorie === 'Miete (unklar)')
+          : [];
         
         // Sonstige Zahlungen für separate Anzeige (Nichtmiete)
-        const sonstigeZahlungen = allZahlungen?.filter(z => 
-          z.kategorie === 'Nichtmiete'
-        ) || [];
-      
-      if (zahlungenError) {
-        console.error('Fehler beim Laden der Zahlungen:', zahlungenError);
-        throw zahlungenError;
-      }
+        const sonstigeZahlungen = (allZahlungen && allZahlungen.length > 0)
+          ? allZahlungen.filter(z => z.kategorie === 'Nichtmiete')
+          : [];
 
       // Hole alle Einheiten
       const { data: einheiten, error: einheitenError } = await supabase
