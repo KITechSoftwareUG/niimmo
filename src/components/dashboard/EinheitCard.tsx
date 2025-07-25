@@ -59,9 +59,10 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
   };
 
   const getEinheitNumber = (id: string) => {
-    // Extract last 2 characters from UUID and convert to number
-    const lastTwo = id.slice(-2);
-    return parseInt(lastTwo, 16) % 100; // Convert hex to decimal and limit to 2 digits
+    // Extract numeric part from UUID and use last 2 digits
+    const numericPart = id.replace(/[^0-9]/g, '');
+    const lastTwoDigits = numericPart.slice(-2);
+    return parseInt(lastTwoDigits) || 1; // Default to 1 if no digits found
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
