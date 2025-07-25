@@ -138,6 +138,16 @@ export const useFehlendeMietzahlungen = () => {
         const kaltmiete = mietvertrag.kaltmiete || 0;
         const betriebskosten = mietvertrag.betriebskosten || 0;
 
+        // Prüfe ob Mietvertrag beendet ist
+        const istBeendet = mietvertrag.status === 'beendet' || 
+                          (mietvertrag.ende_datum && new Date(mietvertrag.ende_datum) < heute);
+
+        // Wenn Mietvertrag beendet ist, überspringen (behandeln wie nicht vorhanden)
+        if (istBeendet) {
+          console.log(`Mietvertrag ${mietvertragId}: Übersprungen (Vertrag beendet)`);
+          continue;
+        }
+
         // Wenn sowohl Kaltmiete als auch Betriebskosten 0 sind, überspringen
         // Diese Mietverträge gelten als "Bezahlt" und benötigen manuelle Prüfung
         if (kaltmiete === 0 && betriebskosten === 0) {
