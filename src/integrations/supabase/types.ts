@@ -367,22 +367,16 @@ export type Database = {
       }
       mietvertrag_mieter: {
         Row: {
-          hinweis: string | null
           mieter_id: string
           mietvertrag_id: string
-          rolle: string | null
         }
         Insert: {
-          hinweis?: string | null
           mieter_id: string
           mietvertrag_id: string
-          rolle?: string | null
         }
         Update: {
-          hinweis?: string | null
           mieter_id?: string
           mietvertrag_id?: string
-          rolle?: string | null
         }
         Relationships: [
           {
