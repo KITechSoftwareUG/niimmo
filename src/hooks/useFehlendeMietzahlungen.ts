@@ -135,6 +135,15 @@ export const useFehlendeMietzahlungen = () => {
       for (const mietvertrag of mietvertraege || []) {
         const mietvertragId = mietvertrag.id;
         const istLastschrift = mietvertrag.lastschrift || false;
+        const kaltmiete = mietvertrag.kaltmiete || 0;
+        const betriebskosten = mietvertrag.betriebskosten || 0;
+
+        // Wenn sowohl Kaltmiete als auch Betriebskosten 0 sind, überspringen
+        // Diese Mietverträge gelten als "Bezahlt" und benötigen manuelle Prüfung
+        if (kaltmiete === 0 && betriebskosten === 0) {
+          console.log(`Mietvertrag ${mietvertragId}: Übersprungen (Kaltmiete=0€, Betriebskosten=0€) - manuelle Prüfung erforderlich`);
+          continue;
+        }
 
         // Alle Forderungen für diesen Mietvertrag
         const mietvertragForderungen = forderungen?.filter(f => f.mietvertrag_id === mietvertragId) || [];
