@@ -106,6 +106,16 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
   const generateZahlungshistorie = (vertrag: any) => {
     if (!vertrag) return [];
     
+    // Prüfe ob Mietvertrag beendet ist
+    const heute = new Date();
+    const istBeendet = vertrag.status === 'beendet' || 
+                      (vertrag.ende_datum && new Date(vertrag.ende_datum) < heute);
+    
+    // Wenn beendet, keine Zahlungshistorie generieren
+    if (istBeendet) {
+      return [];
+    }
+    
     const payments = [];
     const startDate = new Date('2025-07-01');
     const currentDate = new Date();
