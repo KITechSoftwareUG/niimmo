@@ -171,18 +171,16 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
               <Euro className="h-4 w-4 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-600">Kaltmiete</p>
-                <p className="font-semibold">{vertrag.kaltmiete}€</p>
+                <p className="font-semibold">{vertrag.kaltmiete || 0}€</p>
               </div>
             </div>
-            {vertrag.betriebskosten && (
-              <div className="flex items-center space-x-2">
-                <Euro className="h-4 w-4 text-gray-500" />
-                <div>
-                  <p className="text-sm text-gray-600">Betriebskosten</p>
-                  <p className="font-semibold">{vertrag.betriebskosten}€</p>
-                </div>
+            <div className="flex items-center space-x-2">
+              <Euro className="h-4 w-4 text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-600">Betriebskosten</p>
+                <p className="font-semibold">{vertrag.betriebskosten || 0}€</p>
               </div>
-            )}
+            </div>
             {vertrag.warmmiete && (
               <div className="flex items-center space-x-2">
                 <Euro className="h-4 w-4 text-orange-500" />
