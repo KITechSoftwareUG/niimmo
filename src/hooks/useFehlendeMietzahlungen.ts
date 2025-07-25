@@ -95,7 +95,6 @@ export const useFehlendeMietzahlungen = () => {
         .select(`
           mietvertrag_id,
           rolle,
-          Hinweis,
           mieter_id,
           mieter!mietvertrag_mieter_mieter_id_fkey(
             id,

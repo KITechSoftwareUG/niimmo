@@ -55,28 +55,28 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
   return (
     <div className="h-full">
       <CardHeader className="pb-4">
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6 gap-4">
           <div className="flex items-center space-x-4">
             <div className="p-3 accent-red rounded-xl modern-shadow">
               <Building className="h-6 w-6 text-white" />
             </div>
-            <div>
-              <CardTitle className="text-xl font-sans font-semibold text-gray-800 mb-1">
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-lg sm:text-xl font-sans font-semibold text-gray-800 mb-1 truncate">
                 {immobilie.name}
               </CardTitle>
-              <div className="flex items-center text-gray-500">
-                <MapPin className="h-4 w-4 mr-1" />
-                <span className="text-sm font-sans">{immobilie.adresse}</span>
+              <div className="flex items-start text-gray-500">
+                <MapPin className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
+                <span className="text-sm font-sans leading-tight break-words">{immobilie.adresse}</span>
               </div>
             </div>
           </div>
           
-          <div className="text-right">
+          <div className="flex justify-center sm:justify-end">
             <div className="metric-card px-4 py-3 rounded-xl border border-gray-100">
-              <div className="text-2xl font-sans font-bold text-gray-800">
+              <div className="text-2xl font-sans font-bold text-gray-800 text-center">
                 {immobilie.einheiten_anzahl}
               </div>
-              <div className="text-xs text-gray-500 font-sans font-medium">
+              <div className="text-xs text-gray-500 font-sans font-medium text-center">
                 Einheiten
               </div>
             </div>

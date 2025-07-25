@@ -233,7 +233,7 @@ export type Database = {
           aktualisiert_am: string | null
           erstellt_am: string | null
           geburtsdatum: string | null
-          hauptmail: string
+          hauptmail: string | null
           id: string
           nachname: string | null
           telnr: string | null
@@ -244,7 +244,7 @@ export type Database = {
           aktualisiert_am?: string | null
           erstellt_am?: string | null
           geburtsdatum?: string | null
-          hauptmail: string
+          hauptmail?: string | null
           id?: string
           nachname?: string | null
           telnr?: string | null
@@ -255,7 +255,7 @@ export type Database = {
           aktualisiert_am?: string | null
           erstellt_am?: string | null
           geburtsdatum?: string | null
-          hauptmail?: string
+          hauptmail?: string | null
           id?: string
           nachname?: string | null
           telnr?: string | null
@@ -367,22 +367,22 @@ export type Database = {
       }
       mietvertrag_mieter: {
         Row: {
-          Hinweis: string | null
+          hinweis: string | null
           mieter_id: string
           mietvertrag_id: string
-          rolle: Database["public"]["Enums"]["mieterrolle"] | null
+          rolle: string | null
         }
         Insert: {
-          Hinweis?: string | null
+          hinweis?: string | null
           mieter_id: string
           mietvertrag_id: string
-          rolle?: Database["public"]["Enums"]["mieterrolle"] | null
+          rolle?: string | null
         }
         Update: {
-          Hinweis?: string | null
+          hinweis?: string | null
           mieter_id?: string
           mietvertrag_id?: string
-          rolle?: Database["public"]["Enums"]["mieterrolle"] | null
+          rolle?: string | null
         }
         Relationships: [
           {
