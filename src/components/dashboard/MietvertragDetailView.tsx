@@ -241,11 +241,14 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
               {zahlungshistorie.map((zahlung) => {
                 const sollbetrag = (vertrag?.kaltmiete || 0) + (vertrag?.betriebskosten || 0);
                 
+                // Wenn Sollbetrag 0€ ist, automatisch als bezahlt markieren
+                const istBezahlt = zahlung.bezahlt || sollbetrag === 0;
+                
                 return (
                   <div 
                     key={zahlung.id} 
                     className={`p-3 rounded-lg border-l-4 ${
-                      zahlung.bezahlt 
+                      istBezahlt 
                         ? 'bg-green-50 border-green-500' 
                         : istLastschrift && !zahlung.bezahlt
                         ? 'bg-yellow-50 border-yellow-500'
@@ -254,7 +257,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex items-center space-x-3">
-                        {zahlung.bezahlt ? (
+                        {istBezahlt ? (
                           <CheckCircle className="h-5 w-5 text-green-600" />
                         ) : istLastschrift ? (
                           <div className="h-5 w-5 rounded-full bg-yellow-500 flex items-center justify-center">
@@ -274,8 +277,10 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                             Soll: {sollbetrag.toFixed(2)}€ (Kaltmiete + Betriebskosten)
                           </p>
                           <p className="text-xs text-gray-500">
-                            {zahlung.bezahlt 
-                              ? `Bezahlt am ${new Date(zahlung.bezahlt_am).toLocaleDateString('de-DE')}`
+                            {istBezahlt 
+                              ? sollbetrag === 0 
+                                ? 'Automatisch bezahlt (0€ Sollbetrag)'
+                                : `Bezahlt am ${new Date(zahlung.bezahlt_am).toLocaleDateString('de-DE')}`
                               : istLastschrift 
                               ? 'Lastschrift eingereicht'
                               : 'Noch ausstehend'
@@ -286,16 +291,16 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                       <div className="text-right">
                         <p className="font-bold">{sollbetrag.toFixed(2)}€</p>
                         <Badge 
-                          variant={zahlung.bezahlt ? "default" : istLastschrift && !zahlung.bezahlt ? "secondary" : "destructive"}
+                          variant={istBezahlt ? "default" : istLastschrift && !zahlung.bezahlt ? "secondary" : "destructive"}
                           className={
-                            zahlung.bezahlt 
+                            istBezahlt 
                               ? "bg-green-600 hover:bg-green-700" 
                               : istLastschrift && !zahlung.bezahlt
                               ? "bg-yellow-500 hover:bg-yellow-600 text-white"
                               : ""
                           }
                         >
-                          {zahlung.bezahlt ? 'Bezahlt' : istLastschrift ? 'Lastschrift' : 'Offen'}
+                          {istBezahlt ? 'Bezahlt' : istLastschrift ? 'Lastschrift' : 'Offen'}
                         </Badge>
                       </div>
                     </div>
