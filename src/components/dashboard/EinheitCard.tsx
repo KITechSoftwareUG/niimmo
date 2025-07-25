@@ -146,25 +146,21 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
             <div className="space-y-2 pt-2 border-t border-gray-100">
               <div className="text-sm font-medium text-gray-700 mb-2">Mietinformationen</div>
               
-              {vertrag.kaltmiete && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Euro className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Kaltmiete</span>
-                  </div>
-                  <span className="text-sm font-medium text-gray-800">{vertrag.kaltmiete}€</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Euro className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Kaltmiete</span>
                 </div>
-              )}
+                <span className="text-sm font-medium text-gray-800">{vertrag.kaltmiete || 0}€</span>
+              </div>
 
-              {vertrag.betriebskosten && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Euro className="h-4 w-4 text-gray-500" />
-                    <span className="text-sm text-gray-600">Betriebskosten</span>
-                  </div>
-                  <span className="text-sm font-medium text-gray-800">{vertrag.betriebskosten}€</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Euro className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">Betriebskosten</span>
                 </div>
-              )}
+                <span className="text-sm font-medium text-gray-800">{vertrag.betriebskosten || 0}€</span>
+              </div>
 
               {vertrag.warmmiete && (
                 <div className="flex items-center justify-between">
