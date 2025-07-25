@@ -94,7 +94,6 @@ export const useFehlendeMietzahlungen = () => {
         .from('mietvertrag_mieter')
         .select(`
           mietvertrag_id,
-          rolle,
           mieter_id,
           mieter!mietvertrag_mieter_mieter_id_fkey(
             id,
@@ -179,13 +178,13 @@ export const useFehlendeMietzahlungen = () => {
           const immobilie = immobilien?.find(i => i.id === einheit?.immobilie_id);
 
           const alleMieter = mietvertragMieter?.filter(mm => mm.mietvertrag_id === mietvertragId) || [];
-          const hauptmieter = alleMieter.find(mm => mm.rolle === 'Hauptmieter');
+          const ersteMieter = alleMieter[0]; // Nimm einfach den ersten Mieter
           
           const mietvertragDokumente = dokumente?.filter(dok => dok.mietvertrag_id === mietvertragId) || [];
 
           const immobilieName = immobilie?.name || 'Unbekannt';
-          const mieterName = hauptmieter?.mieter ? 
-            `${hauptmieter.mieter.vorname} ${hauptmieter.mieter.nachname}` : 'Unbekannt';
+          const mieterName = ersteMieter?.mieter ? 
+            `${ersteMieter.mieter.vorname} ${ersteMieter.mieter.nachname}` : 'Unbekannt';
 
           // Bestimme ob Mietvertrag gekündigt ist
           const istGekuendigt = mietvertrag.status === 'gekuendigt' && mietvertrag.kuendigungsdatum;
@@ -202,7 +201,7 @@ export const useFehlendeMietzahlungen = () => {
             einheit_etage: einheit?.etage || 'Unbekannt',
             einheit_qm: einheit?.qm || 0,
             mieter_name: mieterName,
-            mieter_email: hauptmieter?.mieter?.hauptmail || 'Unbekannt',
+            mieter_email: ersteMieter?.mieter?.hauptmail || 'Unbekannt',
             alle_mieter: alleMieter,
             mietvertrag: mietvertrag,
             dokumente: mietvertragDokumente,

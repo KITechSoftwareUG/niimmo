@@ -46,7 +46,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
         .from('mietvertrag_mieter')
         .select(`
           mietvertrag_id,
-          rolle,
+          mieter_id,
           mieter:mieter_id (
             id,
             vorname,
@@ -67,8 +67,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
           mieterByVertrag[mm.mietvertrag_id] = [];
         }
         mieterByVertrag[mm.mietvertrag_id].push({
-          ...mm.mieter,
-          rolle: mm.rolle
+          ...mm.mieter
         });
       });
       

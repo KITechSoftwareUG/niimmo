@@ -60,7 +60,6 @@ export const DokumentenModal = ({
         .select(`
           *,
           mietvertrag_mieter!inner(
-            rolle,
             mieter:mieter_id (
               id,
               vorname,
@@ -268,15 +267,10 @@ export const DokumentenModal = ({
                     <div className="space-y-2">
                       {mietvertrag.mietvertrag_mieter.map((mm: any, index: number) => (
                         <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                          <span className="text-sm">
-                            {mm.mieter.vorname} {mm.mieter.nachname}
-                          </span>
-                          {mm.rolle && (
-                            <Badge variant="outline" className="text-xs">
-                              {mm.rolle}
-                            </Badge>
-                          )}
-                        </div>
+                           <span className="text-sm">
+                             {mm.mieter.vorname} {mm.mieter.nachname}
+                           </span>
+                         </div>
                       ))}
                     </div>
                   </div>

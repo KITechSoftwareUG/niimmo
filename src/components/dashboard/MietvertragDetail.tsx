@@ -68,7 +68,6 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
       const { data, error } = await supabase
         .from('mietvertrag_mieter')
         .select(`
-          rolle,
           mieter:mieter_id (
             vorname,
             nachname,

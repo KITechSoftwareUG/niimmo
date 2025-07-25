@@ -69,7 +69,6 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
         .from('mietvertrag_mieter')
         .select(`
           mietvertrag_id,
-          rolle,
           mieter_id
         `)
         .in('mietvertrag_id', vertragIds);
@@ -90,10 +89,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
         const allMieterForVertrag = mietvertragMieter?.filter(mm => mm.mietvertrag_id === vertrag.id) || [];
         const mieterData = allMieterForVertrag.map(mvMieter => {
           const mieterInfo = mieter?.find(m => m.id === mvMieter.mieter_id);
-          return {
-            ...mieterInfo,
-            rolle: mvMieter.rolle
-          };
+          return mieterInfo;
         }).filter(Boolean);
         
         return {
