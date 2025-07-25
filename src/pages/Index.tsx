@@ -162,7 +162,7 @@ const Index = () => {
         {/* Header */}
         <div className="mb-6">
           <div className="glass-card p-6 rounded-2xl mb-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <img 
                   src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" 
@@ -170,7 +170,7 @@ const Index = () => {
                   className="h-12 w-auto"
                 />
                 <div>
-                  <h1 className="text-3xl font-sans font-bold text-gradient-red">
+                  <h1 className="text-2xl lg:text-3xl font-sans font-bold text-gradient-red">
                     NiImmo Dashboard
                   </h1>
                   <p className="text-gray-600 font-sans text-sm">
@@ -178,20 +178,22 @@ const Index = () => {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <Button 
                   onClick={() => setShowAnalytics(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
                 >
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Analytics
                 </Button>
-                <UserMenu />
-                <div className="text-right">
-                  <div className="text-sm text-gray-500 font-sans mb-1">System Status</div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-sm font-sans text-gray-700">Online</span>
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <UserMenu />
+                  <div className="text-right ml-auto sm:ml-0">
+                    <div className="text-sm text-gray-500 font-sans mb-1">System Status</div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-sm font-sans text-gray-700">Online</span>
+                    </div>
                   </div>
                 </div>
               </div>
