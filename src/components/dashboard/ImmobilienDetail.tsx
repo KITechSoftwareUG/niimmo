@@ -58,7 +58,8 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
       const { data: vertraege, error: vertraegeError } = await supabase
         .from('mietvertrag')
         .select('*')
-        .in('einheit_id', einheitIds);
+        .in('einheit_id', einheitIds)
+        .neq('status', 'beendet'); // Beendete Mietverträge ausschließen
       
       if (vertraegeError) throw vertraegeError;
 
