@@ -188,13 +188,6 @@ const Index = () => {
                 </Button>
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                   <UserMenu />
-                  <div className="text-right ml-auto sm:ml-0">
-                    <div className="text-sm text-gray-500 font-sans mb-1">System Status</div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm font-sans text-gray-700">Online</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
