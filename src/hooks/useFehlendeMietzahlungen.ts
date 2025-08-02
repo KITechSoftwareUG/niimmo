@@ -61,7 +61,7 @@ export const useFehlendeMietzahlungen = () => {
 
         // Prüfe ob Zahlungen existieren, sonst leere Arrays
         const zahlungen = (allZahlungen && allZahlungen.length > 0) 
-          ? allZahlungen.filter(z => z.kategorie === 'Miete (komplett)' || z.kategorie === 'Miete (unklar)')
+          ? allZahlungen.filter(z => z.kategorie === 'Miete')
           : [];
         
         // Sonstige Zahlungen für separate Anzeige (Nichtmiete)

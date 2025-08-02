@@ -38,7 +38,8 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
       // Berechne die tatsächlich erfassten Mietzahlungen aus der Zahlungen-Tabelle
       const { data: zahlungen, error } = await supabase
         .from('zahlungen')
-        .select('betrag');
+        .select('betrag')
+        .eq('kategorie', 'Miete');
       
       if (error) {
         console.error('Fehler beim Laden der Zahlungen:', error);
