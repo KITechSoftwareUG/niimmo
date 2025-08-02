@@ -591,7 +591,12 @@ export type Database = {
         | "Haus (Doppelhaushälfte, Reihenhaus)"
         | "Lager"
         | "Sonstiges"
-      kategorie: "Mietvertrag" | "Kündigung" | "Übergabeprotokoll" | "Sonstiges"
+      kategorie:
+        | "Mietvertrag"
+        | "Kündigung"
+        | "Übergabeprotokoll"
+        | "Sonstiges"
+        | "Mietkaution"
       mieterrolle: "Hauptmieter" | "Zweitmieter" | "Drittmieter"
       mietstatus: "aktiv" | "gekuendigt" | "beendet"
       objekttyp: "Wohnhaus" | "Gewerbe" | "Mischnutzung"
@@ -732,7 +737,13 @@ export const Constants = {
         "Lager",
         "Sonstiges",
       ],
-      kategorie: ["Mietvertrag", "Kündigung", "Übergabeprotokoll", "Sonstiges"],
+      kategorie: [
+        "Mietvertrag",
+        "Kündigung",
+        "Übergabeprotokoll",
+        "Sonstiges",
+        "Mietkaution",
+      ],
       mieterrolle: ["Hauptmieter", "Zweitmieter", "Drittmieter"],
       mietstatus: ["aktiv", "gekuendigt", "beendet"],
       objekttyp: ["Wohnhaus", "Gewerbe", "Mischnutzung"],
