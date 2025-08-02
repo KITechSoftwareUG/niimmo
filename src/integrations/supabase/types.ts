@@ -75,8 +75,9 @@ export type Database = {
           groesse_bytes: number | null
           hochgeladen_am: string | null
           id: string
+          immobilie_id: string | null
           kategorie: Database["public"]["Enums"]["kategorie"] | null
-          mietvertrag_id: string
+          mietvertrag_id: string | null
           pfad: string | null
           titel: string | null
         }
@@ -86,8 +87,9 @@ export type Database = {
           groesse_bytes?: number | null
           hochgeladen_am?: string | null
           id?: string
+          immobilie_id?: string | null
           kategorie?: Database["public"]["Enums"]["kategorie"] | null
-          mietvertrag_id: string
+          mietvertrag_id?: string | null
           pfad?: string | null
           titel?: string | null
         }
@@ -97,12 +99,20 @@ export type Database = {
           groesse_bytes?: number | null
           hochgeladen_am?: string | null
           id?: string
+          immobilie_id?: string | null
           kategorie?: Database["public"]["Enums"]["kategorie"] | null
-          mietvertrag_id?: string
+          mietvertrag_id?: string | null
           pfad?: string | null
           titel?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "dokumente_immobilie_id_fkey"
+            columns: ["immobilie_id"]
+            isOneToOne: false
+            referencedRelation: "immobilien"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "dokumente_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
@@ -395,6 +405,24 @@ export type Database = {
           },
         ]
       }
+      n8n_chat_histories: {
+        Row: {
+          id: number
+          message: Json
+          session_id: string
+        }
+        Insert: {
+          id?: number
+          message: Json
+          session_id: string
+        }
+        Update: {
+          id?: number
+          message?: Json
+          session_id?: string
+        }
+        Relationships: []
+      }
       zahlungen: {
         Row: {
           betrag: number
@@ -567,7 +595,7 @@ export type Database = {
       mieterrolle: "Hauptmieter" | "Zweitmieter" | "Drittmieter"
       mietstatus: "aktiv" | "gekuendigt" | "beendet"
       objekttyp: "Wohnhaus" | "Gewerbe" | "Mischnutzung"
-      zahlkategorien: "Miete (komplett)" | "Miete (unklar)" | "Nichtmiete"
+      zahlkategorien: "Miete" | "Nichtmiete"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -708,7 +736,7 @@ export const Constants = {
       mieterrolle: ["Hauptmieter", "Zweitmieter", "Drittmieter"],
       mietstatus: ["aktiv", "gekuendigt", "beendet"],
       objekttyp: ["Wohnhaus", "Gewerbe", "Mischnutzung"],
-      zahlkategorien: ["Miete (komplett)", "Miete (unklar)", "Nichtmiete"],
+      zahlkategorien: ["Miete", "Nichtmiete"],
     },
   },
 } as const
