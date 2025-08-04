@@ -208,12 +208,8 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
           <Button 
             type="submit"
-            className="w-full cursor-pointer" 
+            className="w-full" 
             disabled={loading}
-            onClick={(e) => {
-              console.log('Button clicked!', { mode, email, loading });
-              // Let the form handle the submission naturally
-            }}
           >
             {loading ? (
               <>
