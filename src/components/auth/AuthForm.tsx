@@ -22,6 +22,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log('🔥 handleSubmit called!', { mode, email, loading });
     e.preventDefault();
     e.stopPropagation();
     
