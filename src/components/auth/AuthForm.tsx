@@ -208,9 +208,10 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
           )}
 
           <Button 
-            type="submit"
+            type="button"
             className="w-full" 
             disabled={loading}
+            onClick={handleSubmit}
           >
             {loading ? (
               <>
