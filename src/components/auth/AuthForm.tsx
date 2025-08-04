@@ -207,10 +207,15 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
             </Alert>
           )}
 
-          <Button 
-            type="submit"
-            className="w-full" 
+          <button 
+            type="button"
+            className="w-full h-10 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center gap-2 cursor-pointer"
             disabled={loading}
+            onClick={(e) => {
+              e.preventDefault();
+              console.log('🔥 Button clicked directly!');
+              handleSubmit(e);
+            }}
           >
             {loading ? (
               <>
@@ -220,7 +225,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
             ) : (
               mode === 'login' ? 'Anmelden' : 'Registrieren'
             )}
-          </Button>
+          </button>
 
           <div className="text-center">
             <button
