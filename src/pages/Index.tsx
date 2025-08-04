@@ -83,8 +83,9 @@ const Index = () => {
 
       switch (sortField) {
         case 'name':
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
+          // Natural sort for names with numbers (e.g., "Objekt 1", "Objekt 2", "Objekt 10")
+          aValue = a.name;
+          bValue = b.name;
           break;
         case 'einheiten_anzahl':
           aValue = a.einheiten_anzahl;
@@ -95,8 +96,17 @@ const Index = () => {
           bValue = einheitenStatusMap?.[b.id] || 0;
           break;
         default:
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
+          aValue = a.name;
+          bValue = b.name;
+      }
+
+      // Use natural sorting for strings with numbers
+      if (sortField === 'name' || sortField === 'default') {
+        const comparison = aValue.localeCompare(bValue, undefined, { 
+          numeric: true, 
+          sensitivity: 'base' 
+        });
+        return sortOrder === 'asc' ? comparison : -comparison;
       }
 
       if (sortOrder === 'asc') {
