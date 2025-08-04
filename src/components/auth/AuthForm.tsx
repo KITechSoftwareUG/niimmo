@@ -121,20 +121,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
     }
   };
 
-  const handleButtonClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    console.log('Button clicked - triggering form submission');
-    
-    // Create and dispatch a form submit event
-    const form = e.currentTarget.closest('form');
-    if (form) {
-      const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-      form.dispatchEvent(submitEvent);
-    } else {
-      // Fallback: call handleSubmit directly
-      handleSubmit(e as any);
-    }
-  };
+  // Removed handleButtonClick - form submission should be handled by onSubmit only
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -221,8 +208,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
           <Button 
             type="submit"
-            onClick={handleButtonClick}
-            className="w-full cursor-pointer" 
+            className="w-full" 
             disabled={loading}
           >
             {loading ? (
