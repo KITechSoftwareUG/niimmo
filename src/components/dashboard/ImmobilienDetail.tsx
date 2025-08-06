@@ -219,7 +219,27 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {einheiten?.map((einheit) => {
-            const vertrag = mietvertraege?.find(v => v.einheit_id === einheit.id);
+            // Find the most current rental contract for this unit
+            // Priority: 1. Active contracts, 2. Most recent terminated, 3. Most recent by start date
+            const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
+            
+            let vertrag = null;
+            if (vertraegeForEinheit.length > 0) {
+              // First, try to find an active contract
+              const activeVertrag = vertraegeForEinheit.find(v => v.status === 'aktiv');
+              
+              if (activeVertrag) {
+                vertrag = activeVertrag;
+              } else {
+                // If no active contract, find the most recent one by start date
+                vertrag = vertraegeForEinheit.reduce((latest, current) => {
+                  const latestDate = latest.start_datum ? new Date(latest.start_datum) : new Date(0);
+                  const currentDate = current.start_datum ? new Date(current.start_datum) : new Date(0);
+                  return currentDate > latestDate ? current : latest;
+                });
+              }
+            }
+            
             return (
               <div 
                 key={einheit.id}
