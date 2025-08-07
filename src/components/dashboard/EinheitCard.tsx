@@ -1,9 +1,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, Square, Users, Calendar, Euro, User } from "lucide-react";
-import { useState } from "react";
+import { Home, Square, Users, Calendar, Euro, User, AlertTriangle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { MietvertragDetailView } from "./MietvertragDetailView";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EinheitCardProps {
   einheit: {
@@ -20,6 +21,7 @@ interface EinheitCardProps {
     betriebskosten?: number;
     start_datum?: string;
     ende_datum?: string;
+    kuendigungsdatum?: string;
     mieter?: Array<{
       id: string;
       vorname: string;
@@ -36,11 +38,37 @@ interface EinheitCardProps {
 export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) => {
   const [showMietvertragDetail, setShowMietvertragDetail] = useState(false);
 
+  // Check if contract should be automatically ended
+  useEffect(() => {
+    const checkAndUpdateContractStatus = async () => {
+      if (vertrag && vertrag.status === 'gekündigt' && vertrag.kuendigungsdatum) {
+        const terminationDate = new Date(vertrag.kuendigungsdatum);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        terminationDate.setHours(0, 0, 0, 0);
+        
+        if (terminationDate <= today) {
+          try {
+            await supabase
+              .from('mietvertrag')
+              .update({ status: 'beendet' })
+              .eq('id', vertrag.id);
+          } catch (error) {
+            console.error('Error updating contract status:', error);
+          }
+        }
+      }
+    };
+
+    checkAndUpdateContractStatus();
+  }, [vertrag]);
+
   const getStatusColor = () => {
     if (!vertrag) return "bg-red-100 border-red-200";
     
     if (vertrag.status === 'aktiv') return "bg-green-100 border-green-200";
     if (vertrag.status === 'gekündigt') return "bg-yellow-100 border-yellow-200";
+    if (vertrag.status === 'beendet') return "bg-red-100 border-red-200";
     
     return "bg-gray-100 border-gray-200";
   };
@@ -53,6 +81,9 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
     }
     if (vertrag.status === 'gekündigt') {
       return <Badge variant="secondary" className="bg-yellow-600 text-white">Gekündigt</Badge>;
+    }
+    if (vertrag.status === 'beendet') {
+      return <Badge variant="destructive">Beendet</Badge>;
     }
     
     return <Badge>{vertrag.status}</Badge>;
@@ -178,6 +209,15 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
                 <Calendar className="h-4 w-4 text-gray-500" />
                 <span className="text-sm">
                   seit {new Date(vertrag.start_datum).toLocaleDateString('de-DE')}
+                </span>
+              </div>
+            )}
+
+            {vertrag.status === 'gekündigt' && vertrag.kuendigungsdatum && (
+              <div className="flex items-center space-x-2 pt-1">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <span className="text-sm text-yellow-700 font-medium">
+                  Kündigungsdatum: {new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')}
                 </span>
               </div>
             )}
