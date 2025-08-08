@@ -334,10 +334,7 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm text-red-600">
-                              Dauer: {calculateDuration(periode.startDatum, periode.endDatum)}
-                            </p>
-                            <p className="text-xs text-red-500 mt-1">
-                              {periode.endDatum ? 'Leerstandsphase beendet' : 'Leerstand dauert an'}
+                              {periode.endDatum ? 'Leerstand' : 'Leerstand dauert an'}
                             </p>
                           </div>
                           <Badge variant="destructive">
