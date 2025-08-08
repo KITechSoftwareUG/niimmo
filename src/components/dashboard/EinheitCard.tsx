@@ -74,18 +74,27 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
   };
 
   const getStatusBadge = () => {
+    console.log('EinheitCard - Vertrag status:', vertrag?.status, 'Vertrag:', vertrag);
+    
     if (!vertrag) return <Badge variant="destructive">Leerstehend</Badge>;
     
     if (vertrag.status === 'aktiv') {
-      return <Badge className="bg-green-600">Aktiv</Badge>;
+      return <Badge variant={undefined} className="bg-green-600 text-white border-transparent">Aktiv</Badge>;
     }
     if (vertrag.status === 'gekündigt') {
-      return <Badge variant={undefined} className="bg-yellow-600 text-white hover:bg-yellow-700 border-transparent">Gekündigt</Badge>;
+      console.log('Rendering gekündigt badge with yellow background');
+      return <Badge 
+        style={{ backgroundColor: '#d97706', color: 'white', border: 'none' }}
+        className="hover:bg-yellow-700"
+      >
+        Gekündigt
+      </Badge>;
     }
     if (vertrag.status === 'beendet') {
       return <Badge variant="destructive">Beendet</Badge>;
     }
     
+    console.log('Unknown status, using default badge:', vertrag.status);
     return <Badge>{vertrag.status}</Badge>;
   };
 
