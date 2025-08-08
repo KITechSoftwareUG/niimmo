@@ -67,7 +67,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
     if (!vertrag) return "bg-red-100 border-red-200";
     
     if (vertrag.status === 'aktiv') return "bg-green-100 border-green-200";
-    if (vertrag.status === 'gekündigt') return "bg-yellow-100 border-yellow-200";
+    if (vertrag.status === 'gekündigt') return "bg-amber-100 border-amber-300";
     if (vertrag.status === 'beendet') return "bg-red-100 border-red-200";
     
     return "bg-gray-100 border-gray-200";
