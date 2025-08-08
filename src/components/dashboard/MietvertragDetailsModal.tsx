@@ -14,9 +14,13 @@ import {
   Building2,
   Users,
   Download,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Phone,
+  Mail
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface MietvertragDetailsModalProps {
   isOpen: boolean;
@@ -33,6 +37,23 @@ export const MietvertragDetailsModal = ({
   einheit, 
   immobilie 
 }: MietvertragDetailsModalProps) => {
+  const { toast } = useToast();
+
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Kopiert!",
+        description: `${type} wurde in die Zwischenablage kopiert.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Fehler",
+        description: `${type} konnte nicht kopiert werden.`,
+        variant: "destructive",
+      });
+    }
+  };
   const { data: vertrag, isLoading: vertragLoading } = useQuery({
     queryKey: ['mietvertrag-detail', vertragId],
     queryFn: async () => {
@@ -86,6 +107,23 @@ export const MietvertragDetailsModal = ({
     enabled: isOpen && !!vertragId
   });
 
+  // Hole Forderungen ab Juli 2025
+  const { data: forderungen } = useQuery({
+    queryKey: ['forderungen-detail', vertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietforderungen')
+        .select('*')
+        .eq('mietvertrag_id', vertragId)
+        .gte('sollmonat', '2025-07')
+        .order('sollmonat', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen && !!vertragId
+  });
+
   const { data: dokumente } = useQuery({
     queryKey: ['dokumente-detail', vertragId],
     queryFn: async () => {
@@ -118,6 +156,50 @@ export const MietvertragDetailsModal = ({
 
   const gesamtZahlungen = zahlungen?.reduce((sum, zahlung) => sum + (Number(zahlung.betrag) || 0), 0) || 0;
   const sollMiete = vertrag ? (Number(vertrag.kaltmiete) || 0) + (Number(vertrag.betriebskosten) || 0) : 0;
+  const gesamtForderungen = forderungen?.reduce((sum, forderung) => sum + (Number(forderung.sollbetrag) || 0), 0) || 0;
+
+  // Erstelle eine Liste der Monate ab Juli 2025 mit Forderungen und Zahlungen
+  const generateMonthlyComparison = () => {
+    if (!forderungen || !zahlungen) return [];
+    
+    const monthlyData = [];
+    const startDate = new Date('2025-07-01');
+    const currentDate = new Date();
+    const endDate = new Date(Math.max(currentDate.getTime(), startDate.getTime()));
+    
+    // Erstelle Monate von Juli 2025 bis heute
+    const monthIterator = new Date(startDate);
+    while (monthIterator <= endDate) {
+      const monthKey = monthIterator.toISOString().slice(0, 7); // YYYY-MM Format
+      
+      // Finde Forderung für diesen Monat
+      const forderung = forderungen.find(f => f.sollmonat === monthKey);
+      
+      // Finde Zahlungen für diesen Monat (basierend auf Buchungsdatum)
+      const monthZahlungen = zahlungen.filter(z => {
+        if (!z.buchungsdatum) return false;
+        const zahlungMonat = z.buchungsdatum.slice(0, 7);
+        return zahlungMonat === monthKey;
+      });
+      
+      const zahlungenSum = monthZahlungen.reduce((sum, z) => sum + (Number(z.betrag) || 0), 0);
+      const sollbetrag = Number(forderung?.sollbetrag || 0);
+      
+      monthlyData.push({
+        monat: monthKey,
+        sollbetrag,
+        zahlungen: zahlungenSum,
+        differenz: zahlungenSum - sollbetrag,
+        status: zahlungenSum >= sollbetrag ? 'vollständig' : zahlungenSum > 0 ? 'teilweise' : 'offen'
+      });
+      
+      monthIterator.setMonth(monthIterator.getMonth() + 1);
+    }
+    
+    return monthlyData;
+  };
+
+  const monthlyComparison = generateMonthlyComparison();
 
   if (vertragLoading) {
     return (
@@ -225,11 +307,50 @@ export const MietvertragDetailsModal = ({
                   {mieter.map((m, index) => (
                       <div key={index} className="p-3 border rounded-lg">
                         <p className="font-semibold">{m.vorname} {m.nachname}</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
-                          <p>Email: {m.hauptmail || 'N/A'}</p>
-                          <p>Telefon: {m.telnr || 'N/A'}</p>
+                        <div className="space-y-2 mt-2">
+                          {m.hauptmail && (
+                            <div className="flex items-center justify-between group">
+                              <div className="flex items-center space-x-2">
+                                <Mail className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm text-gray-600">{m.hauptmail}</span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyToClipboard(m.hauptmail, 'E-Mail-Adresse');
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                title="E-Mail-Adresse kopieren"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                          
+                          {m.telnr && (
+                            <div className="flex items-center justify-between group">
+                              <div className="flex items-center space-x-2">
+                                <Phone className="h-4 w-4 text-gray-500" />
+                                <span className="text-sm text-gray-600">{m.telnr}</span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  copyToClipboard(m.telnr, 'Telefonnummer');
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                title="Telefonnummer kopieren"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                          
                           {m.geburtsdatum && (
-                            <p>Geburtsdatum: {formatDatum(m.geburtsdatum)}</p>
+                            <div className="flex items-center space-x-2">
+                              <Calendar className="h-4 w-4 text-gray-500" />
+                              <span className="text-sm text-gray-600">Geburtsdatum: {formatDatum(m.geburtsdatum)}</span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -257,7 +378,7 @@ export const MietvertragDetailsModal = ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="p-3 bg-blue-50 rounded-lg">
                       <p className="text-sm text-blue-600">Kaltmiete</p>
                       <p className="font-semibold text-lg">{formatBetrag(Number(vertrag?.kaltmiete) || 0)}</p>
@@ -266,8 +387,12 @@ export const MietvertragDetailsModal = ({
                       <p className="text-sm text-green-600">Betriebskosten</p>
                       <p className="font-semibold text-lg">{formatBetrag(Number(vertrag?.betriebskosten) || 0)}</p>
                     </div>
+                    <div className="p-3 bg-yellow-50 rounded-lg">
+                      <p className="text-sm text-yellow-600">Gesamtforderungen (ab Jul 2025)</p>
+                      <p className="font-semibold text-lg">{formatBetrag(gesamtForderungen)}</p>
+                    </div>
                     <div className="p-3 bg-purple-50 rounded-lg">
-                      <p className="text-sm text-purple-600">Gesamtmiete</p>
+                      <p className="text-sm text-purple-600">Gesamtmiete (monatlich)</p>
                       <p className="font-semibold text-lg">{formatBetrag(sollMiete)}</p>
                     </div>
                   </div>
@@ -287,10 +412,64 @@ export const MietvertragDetailsModal = ({
                 </CardContent>
               </Card>
 
+              {/* Monatliche Forderungen vs Zahlungen (ab Juli 2025) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Forderungen vs. Zahlungen (ab Juli 2025)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {monthlyComparison && monthlyComparison.length > 0 ? (
+                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                      {monthlyComparison.map((monthly) => (
+                        <div key={monthly.monat} className="p-3 border rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-semibold">
+                                {new Date(monthly.monat + '-01').toLocaleDateString('de-DE', { 
+                                  month: 'long', 
+                                  year: 'numeric' 
+                                })}
+                              </p>
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <p>Soll: {formatBetrag(monthly.sollbetrag)}</p>
+                                <p>Ist: {formatBetrag(monthly.zahlungen)}</p>
+                                <p className={`font-medium ${
+                                  monthly.differenz >= 0 ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  Differenz: {formatBetrag(monthly.differenz)}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge variant={
+                              monthly.status === 'vollständig' ? 'default' : 
+                              monthly.status === 'teilweise' ? 'secondary' : 
+                              'destructive'
+                            } className={
+                              monthly.status === 'vollständig' ? 'bg-green-100 text-green-800' : 
+                              monthly.status === 'teilweise' ? 'bg-yellow-100 text-yellow-800' : 
+                              'bg-red-100 text-red-800'
+                            }>
+                              {monthly.status === 'vollständig' ? '✓ Vollständig' : 
+                               monthly.status === 'teilweise' ? '◐ Teilweise' : 
+                               '✗ Offen'}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600">Keine Forderungen ab Juli 2025 gefunden</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Zahlungsliste */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Zahlungshistorie</CardTitle>
+                  <CardTitle>Alle Zahlungen</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {zahlungen && zahlungen.length > 0 ? (

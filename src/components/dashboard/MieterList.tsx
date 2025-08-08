@@ -1,13 +1,32 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, UserCheck } from "lucide-react";
+import { User, Mail, UserCheck, Copy, Phone } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface MieterListProps {
   mieter: any[];
 }
 
 export const MieterList = ({ mieter }: MieterListProps) => {
+  const { toast } = useToast();
+
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Kopiert!",
+        description: `${type} wurde in die Zwischenablage kopiert.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Fehler",
+        description: `${type} konnte nicht kopiert werden.`,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!mieter || mieter.length === 0) {
     return null;
   }
@@ -45,19 +64,65 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                     
                     <div className="space-y-2">
                       {m.mieter?.hauptmail && (
-                        <div className="flex items-center space-x-2">
-                          <Mail className="h-4 w-4 text-gray-500" />
-                          <span className="text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-sm">
-                            {m.mieter.hauptmail}
-                          </span>
+                        <div className="flex items-center justify-between group">
+                          <div className="flex items-center space-x-2">
+                            <Mail className="h-4 w-4 text-gray-500" />
+                            <span className="text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-sm">
+                              {m.mieter.hauptmail}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(m.mieter.hauptmail, 'E-Mail-Adresse');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                            title="E-Mail-Adresse kopieren"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
                         </div>
                       )}
+                      
+                      {m.mieter?.telnr && (
+                        <div className="flex items-center justify-between group">
+                          <div className="flex items-center space-x-2">
+                            <Phone className="h-4 w-4 text-gray-500" />
+                            <span className="text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-sm">
+                              {m.mieter.telnr}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(m.mieter.telnr, 'Telefonnummer');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                            title="Telefonnummer kopieren"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                      
                       {m.mieter?.weitere_mails && (
-                        <div className="flex items-center space-x-2">
-                          <Mail className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600 bg-gray-50 px-3 py-1 rounded-full text-sm">
-                            {m.mieter.weitere_mails}
-                          </span>
+                        <div className="flex items-center justify-between group">
+                          <div className="flex items-center space-x-2">
+                            <Mail className="h-4 w-4 text-gray-400" />
+                            <span className="text-gray-600 bg-gray-50 px-3 py-1 rounded-full text-sm">
+                              {m.mieter.weitere_mails}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(m.mieter.weitere_mails, 'Alternative E-Mail-Adresse');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                            title="Alternative E-Mail-Adresse kopieren"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
                         </div>
                       )}
                     </div>
