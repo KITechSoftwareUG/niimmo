@@ -333,9 +333,7 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
                       <CardContent>
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm text-red-600">
-                              {periode.endDatum ? 'Leerstand' : 'Leerstand dauert an'}
-                            </p>
+                            {/* Empty space */}
                           </div>
                           <Badge variant="destructive">
                             Nicht vermietet
