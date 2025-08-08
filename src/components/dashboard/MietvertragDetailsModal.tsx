@@ -40,7 +40,7 @@ export const MietvertragDetailsModal = ({
         .from('mietvertrag')
         .select('*')
         .eq('id', vertragId)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data;
@@ -131,6 +131,22 @@ export const MietvertragDetailsModal = ({
     );
   }
 
+  if (!vertrag) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Mietvertrag nicht gefunden</DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-8">
+            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Der angeforderte Mietvertrag konnte nicht gefunden werden.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -171,13 +187,25 @@ export const MietvertragDetailsModal = ({
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Status</p>
-                  <Badge className={
-                    vertrag?.status === 'aktiv' ? 'bg-green-600' : 
-                    vertrag?.status === 'gekuendigt' ? 'bg-yellow-600' :
-                    vertrag?.status === 'beendet' ? 'bg-red-600' : 'bg-gray-600'
-                  }>
-                    {vertrag?.status}
-                  </Badge>
+                  <div className="space-y-1">
+                    <Badge className={
+                      vertrag?.status === 'aktiv' ? 'bg-green-600' : 
+                      vertrag?.status === 'gekuendigt' ? 'bg-yellow-600' :
+                      vertrag?.status === 'beendet' ? 'bg-red-600' : 'bg-gray-600'
+                    }>
+                      {vertrag?.status}
+                    </Badge>
+                    {vertrag?.status === 'gekuendigt' && vertrag?.kuendigungsdatum && (
+                      <p className="text-sm text-yellow-600 font-medium">
+                        Gekündigt zum: {formatDatum(vertrag.kuendigungsdatum)}
+                      </p>
+                    )}
+                    {vertrag?.ende_datum && (
+                      <p className="text-sm text-gray-600">
+                        Vertragsende: {formatDatum(vertrag.ende_datum)}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>

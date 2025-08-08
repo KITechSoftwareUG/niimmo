@@ -57,19 +57,23 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
             vorname,
             nachname,
             hauptmail,
-            telnr
+            telnr,
+            geburtsdatum
           )
         `)
         .in('mietvertrag_id', vertragIds);
       
       if (error) throw error;
       
-      const mieterByVertrag = {};
+      // Group tenants by contract ID - preserve ALL tenant associations regardless of contract status
+      const mieterByVertrag: Record<string, any[]> = {};
       data?.forEach(mm => {
         if (!mieterByVertrag[mm.mietvertrag_id]) {
           mieterByVertrag[mm.mietvertrag_id] = [];
         }
-        mieterByVertrag[mm.mietvertrag_id].push(mm.mieter);
+        if (mm.mieter) {
+          mieterByVertrag[mm.mietvertrag_id].push(mm.mieter);
+        }
       });
       
       return mieterByVertrag;
