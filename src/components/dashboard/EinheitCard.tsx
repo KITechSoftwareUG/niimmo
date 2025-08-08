@@ -41,7 +41,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
   // Check if contract should be automatically ended
   useEffect(() => {
     const checkAndUpdateContractStatus = async () => {
-      if (vertrag && vertrag.status === 'gekündigt' && vertrag.kuendigungsdatum) {
+      if (vertrag && vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum) {
         const terminationDate = new Date(vertrag.kuendigungsdatum);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -67,7 +67,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
     if (!vertrag) return "bg-red-100 border-red-200";
     
     if (vertrag.status === 'aktiv') return "bg-green-100 border-green-200";
-    if (vertrag.status === 'gekündigt') return "bg-yellow-100 border-yellow-500";
+    if (vertrag.status === 'gekuendigt') return "bg-yellow-100 border-yellow-500";
     if (vertrag.status === 'beendet') return "bg-red-100 border-red-200";
     
     return "bg-gray-100 border-gray-200";
@@ -81,8 +81,8 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
     if (vertrag.status === 'aktiv') {
       return <Badge variant={undefined} className="bg-green-600 text-white border-transparent">Aktiv</Badge>;
     }
-    if (vertrag.status === 'gekündigt') {
-      console.log('Rendering gekündigt badge with yellow background');
+    if (vertrag.status === 'gekuendigt') {
+      console.log('Rendering gekuendigt badge with yellow background');
       return <Badge 
         style={{ backgroundColor: '#d97706', color: 'white', border: 'none' }}
         className="hover:bg-yellow-700"
@@ -222,7 +222,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
               </div>
             )}
 
-            {vertrag.status === 'gekündigt' && vertrag.kuendigungsdatum && (
+            {vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum && (
               <div className="flex items-center space-x-2 pt-1">
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
                 <span className="text-sm text-yellow-700 font-medium">

@@ -42,7 +42,7 @@ export const EinheitenDetailModal = ({
   const getStatusColor = () => {
     if (!vertrag) return "bg-red-100 text-red-800";
     if (vertrag.status === 'aktiv') return "bg-green-100 text-green-800";
-    if (vertrag.status === 'gekündigt') return "bg-yellow-100 text-yellow-800";
+    if (vertrag.status === 'gekuendigt') return "bg-yellow-100 text-yellow-800";
     return "bg-gray-100 text-gray-800";
   };
 
@@ -52,7 +52,7 @@ export const EinheitenDetailModal = ({
     if (vertrag.status === 'aktiv') {
       return <Badge className="bg-green-600">Aktiv</Badge>;
     }
-    if (vertrag.status === 'gekündigt') {
+    if (vertrag.status === 'gekuendigt') {
       return <Badge variant={undefined} className="bg-yellow-600 text-white hover:bg-yellow-700 border-transparent">Gekündigt</Badge>;
     }
     
