@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, Users, Euro, Building2, Clock, FileText } from "lucide-react";
 import { Loader2 } from "lucide-react";
-import { MietvertragDetailView } from "./MietvertragDetailView";
+import { MietvertragDetailsModal } from "./MietvertragDetailsModal";
 
 interface EinheitHistorieViewProps {
   einheitId: string;
@@ -164,17 +164,6 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
     return `${diffDays} Tag${diffDays > 1 ? 'e' : ''}`;
   };
 
-  if (selectedVertragId) {
-    return (
-      <MietvertragDetailView
-        einheitId={einheitId}
-        onBack={() => setSelectedVertragId(null)}
-        einheit={einheit}
-        immobilie={immobilie}
-      />
-    );
-  }
-
   if (vertraegeLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -185,6 +174,14 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      <MietvertragDetailsModal
+        isOpen={!!selectedVertragId}
+        onClose={() => setSelectedVertragId(null)}
+        vertragId={selectedVertragId || ''}
+        einheit={einheit}
+        immobilie={immobilie}
+      />
+      
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
           <Button 
@@ -255,7 +252,7 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
                             <Badge 
                               className={
                                 periode.isAktuell ? 'bg-green-600' : 
-                                periode.vertrag.status === 'gekündigt' ? 'bg-yellow-600' :
+                                periode.vertrag.status === 'gekuendigt' ? 'bg-yellow-600' :
                                 periode.vertrag.status === 'beendet' ? 'bg-red-600' : 'bg-gray-600'
                               }
                             >
