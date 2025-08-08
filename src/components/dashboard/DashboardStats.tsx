@@ -55,10 +55,35 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
   const erwartedMiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0);
   const leerstände = gesamtEinheiten ? gesamtEinheiten - aktiveMietvertraege.length : 0;
 
-  // Berechne das nächste Auslaufdatum
-  const naechstesAuslaufdatum = mietvertraege
-    ?.filter(mv => mv.ende_datum && new Date(mv.ende_datum) > new Date())
-    .sort((a, b) => new Date(a.ende_datum!).getTime() - new Date(b.ende_datum!).getTime())[0]?.ende_datum;
+  // Berechne das nächste Kündigungs- oder Auslaufdatum
+  const naechstesDatum = mietvertraege
+    ?.reduce((fruehesteDatum: string | null, mv) => {
+      const heute = new Date();
+      const kuendigungsdatum = mv.kuendigungsdatum ? new Date(mv.kuendigungsdatum) : null;
+      const auslaufdatum = mv.ende_datum ? new Date(mv.ende_datum) : null;
+      
+      let naechstesDatumFuerVertrag: Date | null = null;
+      
+      // Prüfe Kündigungsdatum
+      if (kuendigungsdatum && kuendigungsdatum > heute) {
+        naechstesDatumFuerVertrag = kuendigungsdatum;
+      }
+      
+      // Prüfe Auslaufdatum (falls früher als Kündigungsdatum oder kein Kündigungsdatum)
+      if (auslaufdatum && auslaufdatum > heute) {
+        if (!naechstesDatumFuerVertrag || auslaufdatum < naechstesDatumFuerVertrag) {
+          naechstesDatumFuerVertrag = auslaufdatum;
+        }
+      }
+      
+      if (!naechstesDatumFuerVertrag) return fruehesteDatum;
+      
+      const datumString = naechstesDatumFuerVertrag.toISOString().split('T')[0];
+      
+      if (!fruehesteDatum) return datumString;
+      
+      return new Date(datumString) < new Date(fruehesteDatum) ? datumString : fruehesteDatum;
+    }, null);
 
   const formatDatum = (datum: string | null) => {
     if (!datum) return 'Nicht verfügbar';
@@ -141,7 +166,7 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Nächstes Auslaufdatum</p>
                     <p className="text-sm font-medium font-sans text-gray-800">
-                      {formatDatum(naechstesAuslaufdatum)}
+                      {formatDatum(naechstesDatum)}
                     </p>
                   </div>
                 </div>
