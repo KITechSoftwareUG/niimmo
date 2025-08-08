@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Home, Square, Users, Calendar, Euro, User, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { MietvertragDetailView } from "./MietvertragDetailView";
+import { EinheitHistorieView } from "./EinheitHistorieView";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EinheitCardProps {
@@ -36,7 +36,7 @@ interface EinheitCardProps {
 }
 
 export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) => {
-  const [showMietvertragDetail, setShowMietvertragDetail] = useState(false);
+  const [showHistorie, setShowHistorie] = useState(false);
 
   // Check if contract should be automatically ended
   useEffect(() => {
@@ -99,14 +99,14 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setShowMietvertragDetail(true);
+    setShowHistorie(true);
   };
 
-  if (showMietvertragDetail) {
+  if (showHistorie) {
     return (
-      <MietvertragDetailView
+      <EinheitHistorieView
         einheitId={einheit.id}
-        onBack={() => setShowMietvertragDetail(false)}
+        onBack={() => setShowHistorie(false)}
         einheit={einheit}
         immobilie={immobilie}
       />
