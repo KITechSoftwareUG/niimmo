@@ -188,7 +188,7 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="bg-gray-50 min-h-fit p-6">
       <MietvertragDetailsModal
         isOpen={!!selectedVertragId}
         onClose={() => setSelectedVertragId(null)}
@@ -225,18 +225,18 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 pb-6">
           <h2 className="text-xl font-semibold text-gray-900">Mietvertrag-Historie</h2>
           
           {timeline.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <Card className="w-fit mx-auto">
+              <CardContent className="p-6 text-center">
+                <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-600">Keine Mietverträge für diese Einheit gefunden.</p>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {timeline.map((periode, index) => (
                 <Card 
                   key={index} 
