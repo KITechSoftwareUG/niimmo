@@ -101,12 +101,17 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
           vorherigendesVertrag.kuendigungsdatum ? new Date(vorherigendesVertrag.kuendigungsdatum) : null;
         
         if (vorherigesEndDatum && vorherigesEndDatum < startDatum) {
-          // Add vacancy period
-          perioden.push({
-            type: 'leerstand',
-            startDatum: vorherigesEndDatum,
-            endDatum: startDatum
-          });
+          // Calculate days between contracts
+          const daysDifference = Math.ceil((startDatum.getTime() - vorherigesEndDatum.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Only add vacancy period if more than 5 days
+          if (daysDifference > 5) {
+            perioden.push({
+              type: 'leerstand',
+              startDatum: vorherigesEndDatum,
+              endDatum: startDatum
+            });
+          }
         }
       }
 
@@ -130,15 +135,21 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
         letzterVertrag.kuendigungsdatum ? new Date(letzterVertrag.kuendigungsdatum) : null;
       
       if (letzteEndDatum && letzteEndDatum < heute && letzterVertrag.status !== 'aktiv') {
-        perioden.push({
-          type: 'leerstand',
-          startDatum: letzteEndDatum,
-          endDatum: null // Ongoing vacancy
-        });
+        // Check if more than 5 days have passed since the last contract ended
+        const daysSinceEnd = Math.ceil((heute.getTime() - letzteEndDatum.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceEnd > 5) {
+          perioden.push({
+            type: 'leerstand',
+            startDatum: letzteEndDatum,
+            endDatum: null // Ongoing vacancy
+          });
+        }
       }
     }
 
-    return perioden;
+    // Sort timeline so most current contracts appear first
+    return perioden.reverse();
   };
 
   const timeline = generateTimeline();
@@ -241,11 +252,16 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
                               <CardTitle className="text-lg">
                                 Mietvertrag {periode.isAktuell && '(Aktuell)'}
                               </CardTitle>
-                              <p className="text-sm text-gray-600">
-                                {formatDatum(periode.startDatum)} 
-                                {periode.endDatum && ` - ${formatDatum(periode.endDatum)}`}
-                                {!periode.endDatum && periode.isAktuell && ' - laufend'}
-                              </p>
+                               <p className="text-sm text-gray-600">
+                                 {formatDatum(periode.startDatum)} 
+                                 {periode.endDatum && ` - ${formatDatum(periode.endDatum)}`}
+                                 {!periode.endDatum && periode.isAktuell && ' - laufend'}
+                                 {periode.vertrag.status === 'gekuendigt' && periode.vertrag.kuendigungsdatum && (
+                                   <span className="block text-yellow-600 font-medium">
+                                     Gekündigt zum: {formatDatum(new Date(periode.vertrag.kuendigungsdatum))}
+                                   </span>
+                                 )}
+                               </p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
