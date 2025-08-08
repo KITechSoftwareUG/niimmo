@@ -99,7 +99,8 @@ export const useFehlendeMietzahlungen = () => {
             id,
             vorname,
             nachname,
-            hauptmail
+            hauptmail,
+            telnr
           )
         `);
       
