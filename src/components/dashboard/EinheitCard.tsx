@@ -80,7 +80,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
       return <Badge className="bg-green-600">Aktiv</Badge>;
     }
     if (vertrag.status === 'gekündigt') {
-      return <Badge variant="secondary" className="bg-yellow-600 text-white">Gekündigt</Badge>;
+      return <Badge variant="secondary" className="bg-amber-600 text-white">Gekündigt</Badge>;
     }
     if (vertrag.status === 'beendet') {
       return <Badge variant="destructive">Beendet</Badge>;
