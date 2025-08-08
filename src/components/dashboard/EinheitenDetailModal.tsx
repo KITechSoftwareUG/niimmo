@@ -1,7 +1,8 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Home, Square, Users, Calendar, Euro, User, Building, MapPin } from "lucide-react";
+import { Home, Square, Users, Calendar, Euro, User, Building, MapPin, Copy, Phone, Mail } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface EinheitenDetailModalProps {
   isOpen: boolean;
@@ -41,6 +42,7 @@ export const EinheitenDetailModal = ({
   vertrag, 
   immobilie 
 }: EinheitenDetailModalProps) => {
+  const { toast } = useToast();
   const getStatusColor = () => {
     if (!vertrag) return "bg-red-100 text-red-800";
     if (vertrag.status === 'aktiv') return "bg-green-100 text-green-800";
@@ -63,6 +65,22 @@ export const EinheitenDetailModal = ({
 
   const getShortId = (id: string) => {
     return id.length > 8 ? `...${id.slice(-8)}` : id;
+  };
+
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Kopiert!",
+        description: `${type} wurde in die Zwischenablage kopiert.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Fehler",
+        description: `${type} konnte nicht kopiert werden.`,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -185,16 +203,40 @@ export const EinheitenDetailModal = ({
                     {/* Kontaktinformationen */}
                     <div className="ml-6 space-y-1">
                       {mieter.telnr && (
-                        <div className="text-xs text-gray-600 flex items-center space-x-1">
-                          <span>📞</span>
-                          <span>{mieter.telnr}</span>
+                        <div className="text-xs text-gray-600 flex items-center justify-between group">
+                          <div className="flex items-center space-x-1">
+                            <Phone className="h-3 w-3" />
+                            <span>{mieter.telnr}</span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(mieter.telnr!, 'Telefonnummer');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                            title="Telefonnummer kopieren"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
                         </div>
                       )}
                       
                       {mieter.hauptmail && (
-                        <div className="text-xs text-gray-600 flex items-center space-x-1">
-                          <span>✉️</span>
-                          <span>{mieter.hauptmail}</span>
+                        <div className="text-xs text-gray-600 flex items-center justify-between group">
+                          <div className="flex items-center space-x-1">
+                            <Mail className="h-3 w-3" />
+                            <span>{mieter.hauptmail}</span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(mieter.hauptmail!, 'E-Mail-Adresse');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                            title="E-Mail-Adresse kopieren"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
                         </div>
                       )}
                     </div>

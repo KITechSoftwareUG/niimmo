@@ -1,10 +1,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Home, Square, Users, Calendar, Euro, User, AlertTriangle } from "lucide-react";
+import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail } from "lucide-react";
 import { useState, useEffect } from "react";
 import { EinheitHistorieView } from "./EinheitHistorieView";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface EinheitCardProps {
   einheit: {
@@ -39,6 +40,7 @@ interface EinheitCardProps {
 
 export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) => {
   const [showHistorie, setShowHistorie] = useState(false);
+  const { toast } = useToast();
 
   // Check if contract should be automatically ended
   useEffect(() => {
@@ -113,6 +115,22 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
     setShowHistorie(true);
   };
 
+  const copyToClipboard = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Kopiert!",
+        description: `${type} wurde in die Zwischenablage kopiert.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Fehler",
+        description: `${type} konnte nicht kopiert werden.`,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (showHistorie) {
     return (
       <EinheitHistorieView
@@ -176,17 +194,41 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
                       
                       {/* Telefonnummer */}
                       {mieter.telnr && (
-                        <div className="text-xs text-gray-600 ml-5 flex items-center space-x-1">
-                          <span>📞</span>
-                          <span>{mieter.telnr}</span>
+                        <div className="text-xs text-gray-600 ml-5 flex items-center justify-between group">
+                          <div className="flex items-center space-x-1">
+                            <Phone className="h-3 w-3" />
+                            <span>{mieter.telnr}</span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(mieter.telnr!, 'Telefonnummer');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                            title="Telefonnummer kopieren"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
                         </div>
                       )}
                       
                       {/* E-Mail */}
                       {mieter.hauptmail && (
-                        <div className="text-xs text-gray-600 ml-5 flex items-center space-x-1">
-                          <span>✉️</span>
-                          <span>{mieter.hauptmail}</span>
+                        <div className="text-xs text-gray-600 ml-5 flex items-center justify-between group">
+                          <div className="flex items-center space-x-1">
+                            <Mail className="h-3 w-3" />
+                            <span>{mieter.hauptmail}</span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(mieter.hauptmail!, 'E-Mail-Adresse');
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                            title="E-Mail-Adresse kopieren"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
                         </div>
                       )}
                     </div>
