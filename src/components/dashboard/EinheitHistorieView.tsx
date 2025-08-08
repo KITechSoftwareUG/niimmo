@@ -266,49 +266,27 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
                       </CardHeader>
                       
                       <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="flex items-center space-x-2">
-                            <Euro className="h-4 w-4 text-gray-500" />
-                            <div>
-                              <p className="text-sm text-gray-600">Kaltmiete</p>
-                              <p className="font-semibold">{periode.vertrag.kaltmiete || 0}€</p>
-                            </div>
-                          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4 text-gray-500" />
                             <div>
-                              <p className="text-sm text-gray-600">Dauer</p>
-                              <p className="font-semibold">
-                                {calculateDuration(periode.startDatum, periode.endDatum)}
-                              </p>
+                              <p className="text-sm text-gray-600">Mietbeginn</p>
+                              <p className="font-semibold">{formatDatum(periode.startDatum)}</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Users className="h-4 w-4 text-gray-500" />
                             <div>
                               <p className="text-sm text-gray-600">Mieter</p>
-                              <p className="font-semibold">{periode.mieter?.length || 0}</p>
+                              <p className="font-semibold">
+                                {periode.mieter && periode.mieter.length > 0 
+                                  ? periode.mieter.map(m => `${m.vorname} ${m.nachname}`).join(', ')
+                                  : 'Keine Mieter zugeordnet'
+                                }
+                              </p>
                             </div>
                           </div>
                         </div>
-
-                        {periode.mieter && periode.mieter.length > 0 && (
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-medium text-gray-700">Zugeordnete Mieter:</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {periode.mieter.slice(0, 3).map((mieter, mIndex) => (
-                                <Badge key={mIndex} variant="outline" className="text-xs">
-                                  {mieter.vorname} {mieter.nachname}
-                                </Badge>
-                              ))}
-                              {periode.mieter.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{periode.mieter.length - 3} weitere
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        )}
 
                         <div className="pt-2 border-t">
                           <p className="text-sm text-blue-600 font-medium">
