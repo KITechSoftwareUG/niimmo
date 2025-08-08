@@ -223,14 +223,16 @@ export const MietvertragDetailsModal = ({
               {mieter && mieter.length > 0 ? (
                 <div className="space-y-3">
                   {mieter.map((m, index) => (
-                    <div key={index} className="p-3 border rounded-lg">
-                      <p className="font-semibold">{m.vorname} {m.nachname}</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
-                        <p>Email: {m.hauptmail || 'N/A'}</p>
-                        <p>Telefon: {m.telnr || 'N/A'}</p>
-                        <p>Geburtsdatum: {m.geburtsdatum ? formatDatum(m.geburtsdatum) : 'N/A'}</p>
+                      <div key={index} className="p-3 border rounded-lg">
+                        <p className="font-semibold">{m.vorname} {m.nachname}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 text-sm text-gray-600">
+                          <p>Email: {m.hauptmail || 'N/A'}</p>
+                          <p>Telefon: {m.telnr || 'N/A'}</p>
+                          {m.geburtsdatum && (
+                            <p>Geburtsdatum: {formatDatum(m.geburtsdatum)}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
                   ))}
                 </div>
               ) : (
