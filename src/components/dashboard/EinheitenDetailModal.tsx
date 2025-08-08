@@ -24,6 +24,8 @@ interface EinheitenDetailModalProps {
       Vorname: string;
       Nachname: string;
       rolle: string;
+      telnr?: string;
+      hauptmail?: string;
     }>;
   } | null;
   immobilie?: {
@@ -165,18 +167,37 @@ export const EinheitenDetailModal = ({
               
               <div className="space-y-2">
                 {vertrag.mieter.map((mieter, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-900">
-                        {mieter.Vorname} {mieter.Nachname}
-                      </span>
+                  <div key={index} className="flex flex-col justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm font-medium text-gray-900">
+                          {mieter.Vorname} {mieter.Nachname}
+                        </span>
+                      </div>
+                      {mieter.rolle && (
+                        <Badge variant="outline" className="text-xs">
+                          {mieter.rolle}
+                        </Badge>
+                      )}
                     </div>
-                    {mieter.rolle && (
-                      <Badge variant="outline" className="text-xs">
-                        {mieter.rolle}
-                      </Badge>
-                    )}
+                    
+                    {/* Kontaktinformationen */}
+                    <div className="ml-6 space-y-1">
+                      {mieter.telnr && (
+                        <div className="text-xs text-gray-600 flex items-center space-x-1">
+                          <span>📞</span>
+                          <span>{mieter.telnr}</span>
+                        </div>
+                      )}
+                      
+                      {mieter.hauptmail && (
+                        <div className="text-xs text-gray-600 flex items-center space-x-1">
+                          <span>✉️</span>
+                          <span>{mieter.hauptmail}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

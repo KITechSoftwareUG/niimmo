@@ -27,6 +27,8 @@ interface EinheitCardProps {
       vorname: string;
       nachname: string;
       rolle: string;
+      telnr?: string;
+      hauptmail?: string;
     }>;
   } | null;
   immobilie?: {
@@ -164,13 +166,29 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
                 </div>
                 <div className="pl-6 space-y-2">
                   {vertrag.mieter.slice(0, 2).map((mieter, index) => (
-                    <div key={index} className="flex items-center p-2 bg-blue-50 rounded-lg">
-                      <div className="flex items-center space-x-2">
+                    <div key={index} className="flex flex-col p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center space-x-2 mb-2">
                         <User className="h-3 w-3 text-blue-600" />
                         <span className="text-sm text-gray-700 font-medium">
                           {mieter.vorname} {mieter.nachname}
                         </span>
                       </div>
+                      
+                      {/* Telefonnummer */}
+                      {mieter.telnr && (
+                        <div className="text-xs text-gray-600 ml-5 flex items-center space-x-1">
+                          <span>📞</span>
+                          <span>{mieter.telnr}</span>
+                        </div>
+                      )}
+                      
+                      {/* E-Mail */}
+                      {mieter.hauptmail && (
+                        <div className="text-xs text-gray-600 ml-5 flex items-center space-x-1">
+                          <span>✉️</span>
+                          <span>{mieter.hauptmail}</span>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {vertrag.mieter.length > 2 && (
