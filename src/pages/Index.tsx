@@ -8,7 +8,6 @@ import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlun
 import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
-import { ImmobilienSorting } from "@/components/dashboard/ImmobilienSorting";
 import { useState, useMemo } from "react";
 import { Loader2, Building2, BarChart3, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,8 +15,6 @@ import { Button } from "@/components/ui/button";
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
-  const [sortField, setSortField] = useState<string>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const { data: immobilien, isLoading, refetch } = useQuery({
     queryKey: ['immobilien'],
@@ -73,54 +70,18 @@ const Index = () => {
     enabled: !!immobilien
   });
 
-  // Sort immobilien based on selected criteria
+  // Sort immobilien alphabetically by name (ascending)
   const sortedImmobilien = useMemo(() => {
     if (!immobilien) return [];
 
     return [...immobilien].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortField) {
-        case 'name':
-          // Natural sort for names with numbers (e.g., "Objekt 1", "Objekt 2", "Objekt 10")
-          aValue = a.name;
-          bValue = b.name;
-          break;
-        case 'einheiten_anzahl':
-          aValue = a.einheiten_anzahl;
-          bValue = b.einheiten_anzahl;
-          break;
-        case 'auslastung':
-          aValue = einheitenStatusMap?.[a.id] || 0;
-          bValue = einheitenStatusMap?.[b.id] || 0;
-          break;
-        default:
-          aValue = a.name;
-          bValue = b.name;
-      }
-
-      // Use natural sorting for strings with numbers
-      if (sortField === 'name' || sortField === 'default') {
-        const comparison = aValue.localeCompare(bValue, undefined, { 
-          numeric: true, 
-          sensitivity: 'base' 
-        });
-        return sortOrder === 'asc' ? comparison : -comparison;
-      }
-
-      if (sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      // Use natural sorting for names with numbers (e.g., "Objekt 1", "Objekt 2", "Objekt 10")
+      return a.name.localeCompare(b.name, undefined, { 
+        numeric: true, 
+        sensitivity: 'base' 
+      });
     });
-  }, [immobilien, sortField, sortOrder, einheitenStatusMap]);
-
-  const handleSortChange = (field: string, order: 'asc' | 'desc') => {
-    setSortField(field);
-    setSortOrder(order);
-  };
+  }, [immobilien]);
 
   const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
 
@@ -219,9 +180,6 @@ const Index = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-sans font-bold text-gray-800">Ihre Immobilien</h2>
           </div>
-          
-          {/* Sortierung */}
-          <ImmobilienSorting onSortChange={handleSortChange} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
             {sortedImmobilien?.map((immobilie, index) => (
