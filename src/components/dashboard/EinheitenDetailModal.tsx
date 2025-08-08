@@ -53,7 +53,7 @@ export const EinheitenDetailModal = ({
       return <Badge className="bg-green-600">Aktiv</Badge>;
     }
     if (vertrag.status === 'gekündigt') {
-      return <Badge variant="secondary" className="bg-yellow-600 text-white">Gekündigt</Badge>;
+      return <Badge className="bg-yellow-600 text-white hover:bg-yellow-700">Gekündigt</Badge>;
     }
     
     return <Badge>{vertrag.status}</Badge>;
