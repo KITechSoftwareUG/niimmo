@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { EinheitCard } from "./EinheitCard";
-import { ArrowLeft, Building, MapPin, Calendar, Info } from "lucide-react";
+import { ArrowLeft, Building, MapPin, Calendar, Info, Euro, Home, TrendingUp } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +102,31 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
     enabled: !!einheiten
   });
 
+  // Query für alle aktiven und gekündigten Mietverträge für Finanzberechnungen
+  const { data: alleMietvertraege } = useQuery({
+    queryKey: ['alle-mietvertrag-immobilie', immobilieId],
+    queryFn: async () => {
+      const einheitIds = einheiten?.map(e => e.id) || [];
+      if (einheitIds.length === 0) return [];
+
+      const { data, error } = await supabase
+        .from('mietvertrag')
+        .select('kaltmiete, betriebskosten, status')
+        .in('einheit_id', einheitIds)
+        .in('status', ['aktiv', 'gekuendigt']);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!einheiten
+  });
+
+  // Berechne Gesamtwerte
+  const gesamtKaltmiete = alleMietvertraege?.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0) || 0;
+  const gesamtBetriebskosten = alleMietvertraege?.reduce((sum, vertrag) => sum + (vertrag.betriebskosten || 0), 0) || 0;
+  const gesamtWarmmiete = gesamtKaltmiete + gesamtBetriebskosten;
+  const gesamtQm = einheiten?.reduce((sum, einheit) => sum + (einheit.qm || 0), 0) || 0;
+
   // Scroll to specific unit if scrollToEinheitId is provided
   useEffect(() => {
     if (scrollToEinheitId && einheiten && !einheitenLoading) {
@@ -184,8 +209,68 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
               </div>
             </CardHeader>
             
-            {(immobilie?.baujahr || immobilie?.["Kontonr."] || immobilie?.["Annuität"]) && (
-              <CardContent className="pt-0">
+            <CardContent className="pt-0">
+              {/* Erweiterte Immobilien-Informationen */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                {/* Flächeninformationen */}
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Home className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-600">Gesamtfläche</p>
+                      <p className="text-2xl font-bold text-blue-800">{gesamtQm.toLocaleString()} m²</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-600">Alle Einheiten</p>
+                </div>
+
+                {/* Kaltmiete */}
+                <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Euro className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-600">Kaltmiete</p>
+                      <p className="text-2xl font-bold text-green-800">€{gesamtKaltmiete.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-green-600">Monatlich gesamt</p>
+                </div>
+
+                {/* Betriebskosten */}
+                <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="p-2 bg-orange-100 rounded-lg">
+                      <TrendingUp className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-orange-600">Betriebskosten</p>
+                      <p className="text-2xl font-bold text-orange-800">€{gesamtBetriebskosten.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-orange-600">Monatlich gesamt</p>
+                </div>
+
+                {/* Warmmiete */}
+                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <Euro className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-purple-600">Warmmiete</p>
+                      <p className="text-2xl font-bold text-purple-800">€{gesamtWarmmiete.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-purple-600">Kalt + Betriebs.</p>
+                </div>
+              </div>
+
+              {/* Bestehende Informationen */}
+              {(immobilie?.baujahr || immobilie?.["Kontonr."] || immobilie?.["Annuität"]) && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
                   {immobilie?.baujahr && (
                     <div className="flex items-center space-x-2">
@@ -212,8 +297,8 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
                     </div>
                   )}
                 </div>
-              </CardContent>
-            )}
+              )}
+            </CardContent>
           </Card>
         </div>
 
