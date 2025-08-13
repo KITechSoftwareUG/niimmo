@@ -5,9 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardStatsProps {
   immobilien: any[] | undefined;
+  onNavigateToContract?: (immobilieId: string, einheitId: string, mietvertragId: string) => void;
 }
 
-export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
+export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardStatsProps) => {
   const { data: gesamtEinheiten } = useQuery({
     queryKey: ['gesamt-einheiten'],
     queryFn: async () => {
@@ -25,7 +26,18 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('mietvertrag')
-        .select('id, kaltmiete, status, ende_datum, kuendigungsdatum');
+        .select(`
+          id, 
+          kaltmiete, 
+          status, 
+          ende_datum, 
+          kuendigungsdatum,
+          einheit_id,
+          einheiten(
+            id,
+            immobilie_id
+          )
+        `);
       
       if (error) throw error;
       return data || [];
@@ -55,9 +67,9 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
   const erwartedMiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0);
   const leerstände = gesamtEinheiten ? gesamtEinheiten - aktiveMietvertraege.length : 0;
 
-  // Berechne das nächste Kündigungs- oder Auslaufdatum
-  const naechstesDatum = mietvertraege
-    ?.reduce((fruehesteDatum: string | null, mv) => {
+  // Berechne das nächste Kündigungs- oder Auslaufdatum und finde den zugehörigen Vertrag
+  const naechstesVertragInfo = mietvertraege
+    ?.reduce((frueheste: { datum: string | null, vertrag: any | null }, mv) => {
       const heute = new Date();
       const kuendigungsdatum = mv.kuendigungsdatum ? new Date(mv.kuendigungsdatum) : null;
       const auslaufdatum = mv.ende_datum ? new Date(mv.ende_datum) : null;
@@ -76,14 +88,17 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
         }
       }
       
-      if (!naechstesDatumFuerVertrag) return fruehesteDatum;
+      if (!naechstesDatumFuerVertrag) return frueheste;
       
       const datumString = naechstesDatumFuerVertrag.toISOString().split('T')[0];
       
-      if (!fruehesteDatum) return datumString;
+      if (!frueheste.datum) return { datum: datumString, vertrag: mv };
       
-      return new Date(datumString) < new Date(fruehesteDatum) ? datumString : fruehesteDatum;
-    }, null);
+      return new Date(datumString) < new Date(frueheste.datum) ? { datum: datumString, vertrag: mv } : frueheste;
+    }, { datum: null, vertrag: null });
+
+  const naechstesDatum = naechstesVertragInfo?.datum;
+  const naechsterVertrag = naechstesVertragInfo?.vertrag;
 
   const formatDatum = (datum: string | null) => {
     if (!datum) return 'Nicht verfügbar';
@@ -165,7 +180,18 @@ export const DashboardStats = ({ immobilien }: DashboardStatsProps) => {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Nächstes Auslaufdatum</p>
-                    <p className="text-sm font-medium font-sans text-gray-800">
+                    <p 
+                      className="text-sm font-medium font-sans text-gray-800 cursor-pointer hover:text-blue-600 transition-colors"
+                      onClick={() => {
+                        if (naechsterVertrag && onNavigateToContract) {
+                          onNavigateToContract(
+                            naechsterVertrag.einheiten?.immobilie_id,
+                            naechsterVertrag.einheit_id,
+                            naechsterVertrag.id
+                          );
+                        }
+                      }}
+                    >
                       {formatDatum(naechstesDatum)}
                     </p>
                   </div>

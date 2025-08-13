@@ -97,6 +97,11 @@ const Index = () => {
     refetch();
   };
 
+  const handleNavigateToContract = (immobilieId: string, einheitId: string, mietvertragId: string) => {
+    setSelectedImmobilie(immobilieId);
+    setSelectedEinheit(einheitId);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen modern-dashboard-bg flex items-center justify-center">
@@ -164,7 +169,7 @@ const Index = () => {
             </div>
           </div>
           
-          <DashboardStats immobilien={immobilien} />
+          <DashboardStats immobilien={immobilien} onNavigateToContract={handleNavigateToContract} />
         </div>
 
         {/* Suchfunktion */}
