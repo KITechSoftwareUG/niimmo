@@ -210,7 +210,7 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
           
           <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Historie - {einheit?.nummer ? `Einheit ${einheit.nummer}` : 'Einheit'}
+              Historie {einheitId ? `Einheit ${einheitId.slice(-2)}` : 'Einheit'}
             </h1>
             {immobilie && (
               <p className="text-gray-600">{immobilie.name} - {immobilie.adresse}</p>
