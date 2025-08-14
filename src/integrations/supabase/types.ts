@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -72,6 +72,7 @@ export type Database = {
         Row: {
           dateityp: string | null
           erstellt_von: string | null
+          geloescht: boolean
           groesse_bytes: number | null
           hochgeladen_am: string | null
           id: string
@@ -84,6 +85,7 @@ export type Database = {
         Insert: {
           dateityp?: string | null
           erstellt_von?: string | null
+          geloescht?: boolean
           groesse_bytes?: number | null
           hochgeladen_am?: string | null
           id?: string
@@ -96,6 +98,7 @@ export type Database = {
         Update: {
           dateityp?: string | null
           erstellt_von?: string | null
+          geloescht?: boolean
           groesse_bytes?: number | null
           hochgeladen_am?: string | null
           id?: string
@@ -206,9 +209,11 @@ export type Database = {
           einheiten_anzahl: number
           erstellt_am: string | null
           id: string
-          "Kontonr.": number | null
+          kaufpreis: number | null
+          "Kontonr.": string | null
           name: string
           objekttyp: Database["public"]["Enums"]["objekttyp"] | null
+          restschuld: number | null
         }
         Insert: {
           adresse: string
@@ -219,9 +224,11 @@ export type Database = {
           einheiten_anzahl: number
           erstellt_am?: string | null
           id?: string
-          "Kontonr."?: number | null
+          kaufpreis?: number | null
+          "Kontonr."?: string | null
           name: string
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
+          restschuld?: number | null
         }
         Update: {
           adresse?: string
@@ -232,9 +239,11 @@ export type Database = {
           einheiten_anzahl?: number
           erstellt_am?: string | null
           id?: string
-          "Kontonr."?: number | null
+          kaufpreis?: number | null
+          "Kontonr."?: string | null
           name?: string
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
+          restschuld?: number | null
         }
         Relationships: []
       }
@@ -423,6 +432,63 @@ export type Database = {
         }
         Relationships: []
       }
+      system_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+        }
+        Relationships: []
+      }
+      user_activities: {
+        Row: {
+          component: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          page_path: string | null
+          session_id: string | null
+          timestamp: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          component?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          page_path?: string | null
+          session_id?: string | null
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          component?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          page_path?: string | null
+          session_id?: string | null
+          timestamp?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       zahlungen: {
         Row: {
           betrag: number
@@ -510,18 +576,18 @@ export type Database = {
       }
       hybrid_search: {
         Args: {
-          query_text: string
-          query_embedding: string
-          match_count: number
           full_text_weight?: number
-          semantic_weight?: number
+          match_count: number
+          query_embedding: string
+          query_text: string
           rrf_k?: number
+          semantic_weight?: number
         }
         Returns: {
-          id: number
           content: string
-          fts_rank: number
           dense_rank: number
+          fts_rank: number
+          id: number
           rrf_score: number
         }[]
       }
@@ -555,6 +621,10 @@ export type Database = {
       }
       sparsevec_typmod_in: {
         Args: { "": unknown[] }
+        Returns: number
+      }
+      update_expired_terminated_contracts: {
+        Args: Record<PropertyKey, never>
         Returns: number
       }
       vector_avg: {
@@ -597,10 +667,12 @@ export type Database = {
         | "Übergabeprotokoll"
         | "Sonstiges"
         | "Mietkaution"
+        | "Mieterunterlagen"
+        | "Schriftverkehr"
       mieterrolle: "Hauptmieter" | "Zweitmieter" | "Drittmieter"
       mietstatus: "aktiv" | "gekuendigt" | "beendet"
       objekttyp: "Wohnhaus" | "Gewerbe" | "Mischnutzung"
-      zahlkategorien: "Miete" | "Nichtmiete"
+      zahlkategorien: "Miete" | "Nichtmiete" | "Mietkaution"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -743,11 +815,13 @@ export const Constants = {
         "Übergabeprotokoll",
         "Sonstiges",
         "Mietkaution",
+        "Mieterunterlagen",
+        "Schriftverkehr",
       ],
       mieterrolle: ["Hauptmieter", "Zweitmieter", "Drittmieter"],
       mietstatus: ["aktiv", "gekuendigt", "beendet"],
       objekttyp: ["Wohnhaus", "Gewerbe", "Mischnutzung"],
-      zahlkategorien: ["Miete", "Nichtmiete"],
+      zahlkategorien: ["Miete", "Nichtmiete", "Mietkaution"],
     },
   },
 } as const

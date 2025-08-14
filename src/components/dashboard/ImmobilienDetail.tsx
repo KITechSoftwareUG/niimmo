@@ -211,61 +211,81 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
             
             <CardContent className="pt-0">
               {/* Erweiterte Immobilien-Informationen */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                 {/* Flächeninformationen */}
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Home className="h-5 w-5 text-blue-600" />
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
+                      <Home className="h-6 w-6 text-blue-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-blue-600">Gesamtfläche</p>
-                      <p className="text-2xl font-bold text-blue-800">{gesamtQm.toLocaleString()} m²</p>
-                    </div>
+                    <p className="text-xs font-medium text-blue-600 mb-1">Gesamtfläche</p>
+                    <p className="text-xl font-bold text-blue-900">{gesamtQm.toLocaleString()}</p>
+                    <p className="text-xs text-blue-700">m²</p>
                   </div>
-                  <p className="text-xs text-blue-600">Alle Einheiten</p>
                 </div>
 
                 {/* Kaltmiete */}
-                <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <Euro className="h-5 w-5 text-green-600" />
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
+                      <Euro className="h-6 w-6 text-green-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-green-600">Kaltmiete</p>
-                      <p className="text-2xl font-bold text-green-800">€{gesamtKaltmiete.toLocaleString()}</p>
-                    </div>
+                    <p className="text-xs font-medium text-green-600 mb-1">Kaltmiete</p>
+                    <p className="text-xl font-bold text-green-900">€{gesamtKaltmiete.toLocaleString()}</p>
+                    <p className="text-xs text-green-700">monatlich</p>
                   </div>
-                  <p className="text-xs text-green-600">Monatlich gesamt</p>
                 </div>
 
                 {/* Betriebskosten */}
-                <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <TrendingUp className="h-5 w-5 text-orange-600" />
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
+                      <TrendingUp className="h-6 w-6 text-orange-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-orange-600">Betriebskosten</p>
-                      <p className="text-2xl font-bold text-orange-800">€{gesamtBetriebskosten.toLocaleString()}</p>
-                    </div>
+                    <p className="text-xs font-medium text-orange-600 mb-1">Betriebskosten</p>
+                    <p className="text-xl font-bold text-orange-900">€{gesamtBetriebskosten.toLocaleString()}</p>
+                    <p className="text-xs text-orange-700">monatlich</p>
                   </div>
-                  <p className="text-xs text-orange-600">Monatlich gesamt</p>
                 </div>
 
                 {/* Warmmiete */}
-                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Euro className="h-5 w-5 text-purple-600" />
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
+                      <Euro className="h-6 w-6 text-purple-600" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-purple-600">Warmmiete</p>
-                      <p className="text-2xl font-bold text-purple-800">€{gesamtWarmmiete.toLocaleString()}</p>
-                    </div>
+                    <p className="text-xs font-medium text-purple-600 mb-1">Warmmiete</p>
+                    <p className="text-xl font-bold text-purple-900">€{gesamtWarmmiete.toLocaleString()}</p>
+                    <p className="text-xs text-purple-700">gesamt</p>
                   </div>
-                  <p className="text-xs text-purple-600">Kalt + Betriebs.</p>
+                </div>
+
+                {/* Kaufpreis */}
+                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 border border-indigo-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
+                      <Building className="h-6 w-6 text-indigo-600" />
+                    </div>
+                    <p className="text-xs font-medium text-indigo-600 mb-1">Kaufpreis</p>
+                    <p className="text-xl font-bold text-indigo-900">
+                      {immobilie?.kaufpreis ? `€${immobilie.kaufpreis.toLocaleString()}` : 'Nicht erfasst'}
+                    </p>
+                    <p className="text-xs text-indigo-700">einmalig</p>
+                  </div>
+                </div>
+
+                {/* Restschuld */}
+                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200 hover:shadow-md transition-all duration-300">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
+                      <TrendingUp className="h-6 w-6 text-red-600" />
+                    </div>
+                    <p className="text-xs font-medium text-red-600 mb-1">Restschuld</p>
+                    <p className="text-xl font-bold text-red-900">
+                      {immobilie?.restschuld ? `€${immobilie.restschuld.toLocaleString()}` : 'Nicht erfasst'}
+                    </p>
+                    <p className="text-xs text-red-700">aktuell</p>
+                  </div>
                 </div>
               </div>
 
