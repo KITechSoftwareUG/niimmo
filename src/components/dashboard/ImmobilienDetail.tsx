@@ -289,33 +289,54 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
                 </div>
               </div>
 
-              {/* Bestehende Informationen */}
+              {/* Zusätzliche Immobilien-Informationen */}
               {(immobilie?.baujahr || immobilie?.["Kontonr."] || immobilie?.["Annuität"]) && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-                  {immobilie?.baujahr && (
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm">
-                        <strong>Baujahr:</strong> {immobilie.baujahr}
-                      </span>
-                    </div>
-                  )}
-                  {immobilie?.["Kontonr."] && (
-                    <div className="flex items-center space-x-2">
-                      <Info className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm">
-                        <strong>Kontonr.:</strong> {immobilie["Kontonr."]}
-                      </span>
-                    </div>
-                  )}
-                  {immobilie?.["Annuität"] && (
-                    <div className="flex items-center space-x-2">
-                      <Info className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm">
-                        <strong>Annuität:</strong> €{immobilie["Annuität"]?.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
+                <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200/60 shadow-sm">
+                  <h4 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                    <Info className="h-5 w-5 text-slate-600 mr-2" />
+                    Weitere Informationen
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {immobilie?.baujahr && (
+                      <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-amber-100 rounded-lg">
+                            <Calendar className="h-5 w-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Baujahr</p>
+                            <p className="text-lg font-bold text-slate-900">{immobilie.baujahr}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {immobilie?.["Kontonr."] && (
+                      <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-blue-100 rounded-lg">
+                            <Info className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Kontonummer</p>
+                            <p className="text-lg font-bold text-slate-900">{immobilie["Kontonr."]}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {immobilie?.["Annuität"] && (
+                      <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-emerald-100 rounded-lg">
+                            <Euro className="h-5 w-5 text-emerald-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Annuität</p>
+                            <p className="text-lg font-bold text-slate-900">€{immobilie["Annuität"]?.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>
