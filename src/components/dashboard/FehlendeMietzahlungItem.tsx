@@ -62,20 +62,6 @@ export const FehlendeMietzahlungItem = ({ item }: FehlendeMietzahlungItemProps) 
         </div>
       )}
 
-      {item.dokumente && item.dokumente.length > 0 && (
-        <div className="mt-3 pt-3 border-t">
-          <p className="text-xs text-gray-500 mb-1">Dokumente ({item.dokumente.length}):</p>
-          <div className="text-xs text-gray-600">
-            {item.dokumente.slice(0, 3).map((dok, index) => (
-              <span key={dok.id}>
-                {dok.titel || dok.dateityp}
-                {index < Math.min(item.dokumente!.length, 3) - 1 && ', '}
-              </span>
-            ))}
-            {item.dokumente.length > 3 && ` +${item.dokumente.length - 3} weitere`}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
