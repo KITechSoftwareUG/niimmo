@@ -5,7 +5,11 @@ import { useFehlendeMietzahlungen } from "@/hooks/useFehlendeMietzahlungen";
 import { FehlendeMietzahlungenHeader } from "./FehlendeMietzahlungenHeader";
 import { FehlendeMietzahlungItem } from "./FehlendeMietzahlungItem";
 
-export const FehlendeMietzahlungen = () => {
+interface FehlendeMietzahlungenProps {
+  onMietvertragClick?: (mietvertragId: string) => void;
+}
+
+export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlungenProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { data: fehlendeMietzahlungen } = useFehlendeMietzahlungen();
 
@@ -27,7 +31,7 @@ export const FehlendeMietzahlungen = () => {
             <>
               <div className="space-y-4 mb-4">
                 {fehlendeMietzahlungen.map((item) => (
-                  <FehlendeMietzahlungItem key={item.mietvertrag_id} item={item} />
+                  <FehlendeMietzahlungItem key={item.mietvertrag_id} item={item} onMietvertragClick={onMietvertragClick} />
                 ))}
               </div>
               

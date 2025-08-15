@@ -102,6 +102,25 @@ const Index = () => {
     setSelectedEinheit(einheitId);
   };
 
+  const handleMietvertragClick = async (mietvertragId: string) => {
+    // Fetch the rental contract to get einheit_id and immobilie_id
+    const { data: mietvertrag } = await supabase
+      .from('mietvertrag')
+      .select(`
+        einheit_id,
+        einheiten (
+          immobilie_id
+        )
+      `)
+      .eq('id', mietvertragId)
+      .single();
+    
+    if (mietvertrag?.einheit_id && mietvertrag.einheiten?.immobilie_id) {
+      setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);
+      setSelectedEinheit(mietvertragId); // Navigate directly to the contract
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen modern-dashboard-bg flex items-center justify-center">
@@ -177,7 +196,7 @@ const Index = () => {
 
         {/* Fehlende Mietzahlungen Übersicht */}
         <div className="mb-6">
-          <FehlendeMietzahlungen />
+          <FehlendeMietzahlungen onMietvertragClick={handleMietvertragClick} />
         </div>
 
         {/* Immobilien Grid */}

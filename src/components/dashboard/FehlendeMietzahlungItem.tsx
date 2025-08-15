@@ -4,11 +4,21 @@ import { FehlendeMietzahlung } from "@/hooks/useFehlendeMietzahlungen";
 
 interface FehlendeMietzahlungItemProps {
   item: FehlendeMietzahlung;
+  onMietvertragClick?: (mietvertragId: string) => void;
 }
 
-export const FehlendeMietzahlungItem = ({ item }: FehlendeMietzahlungItemProps) => {
+export const FehlendeMietzahlungItem = ({ item, onMietvertragClick }: FehlendeMietzahlungItemProps) => {
+  const handleClick = () => {
+    if (onMietvertragClick && item.mietvertrag_id) {
+      onMietvertragClick(item.mietvertrag_id);
+    }
+  };
+
   return (
-    <div className="p-4 bg-white/60 rounded-lg border border-red-100">
+    <div 
+      className="p-4 bg-white/60 rounded-lg border border-red-100 cursor-pointer hover:bg-white/80 transition-colors"
+      onClick={handleClick}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <p className="font-medium text-gray-800 text-lg">{item.mieter_name}</p>
