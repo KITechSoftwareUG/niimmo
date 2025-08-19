@@ -150,7 +150,7 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
       isStatusCard: true
     },
     {
-      title: "Monatliche Miete",
+      title: `Monatliche Miete (${getCurrentMonthYear()})`,
       value: null, // Special case for combined rent display
       icon: Euro,
       color: "text-purple-600",
