@@ -175,11 +175,24 @@ export const MietvertragDetailsModal = ({
       // Finde Forderung für diesen Monat
       const forderung = forderungen.find(f => f.sollmonat === monthKey);
       
-      // Finde Zahlungen für diesen Monat (basierend auf Buchungsdatum)
+      // Finde Zahlungen für diesen Monat (intelligente Zuordnung)
       const monthZahlungen = zahlungen.filter(z => {
         if (!z.buchungsdatum) return false;
-        const zahlungMonat = z.buchungsdatum.slice(0, 7);
-        return zahlungMonat === monthKey;
+        
+        const zahlungsDatum = new Date(z.buchungsdatum);
+        const zahlungsTag = zahlungsDatum.getDate();
+        const zahlungMonat = z.buchungsdatum.slice(0, 7); // YYYY-MM
+        
+        // Wenn Zahlung nach dem 25. des Monats, ordne sie dem nächsten Monat zu
+        if (zahlungsTag > 25) {
+          const naechsterMonat = new Date(zahlungsDatum);
+          naechsterMonat.setMonth(naechsterMonat.getMonth() + 1);
+          const naechsterMonatKey = naechsterMonat.toISOString().slice(0, 7);
+          return naechsterMonatKey === monthKey;
+        } else {
+          // Normale Zuordnung zum aktuellen Monat
+          return zahlungMonat === monthKey;
+        }
       });
       
       const zahlungenSum = monthZahlungen.reduce((sum, z) => sum + (Number(z.betrag) || 0), 0);
