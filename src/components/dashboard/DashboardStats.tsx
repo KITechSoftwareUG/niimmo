@@ -178,7 +178,7 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
                     <p className="text-2xl font-bold font-sans text-gray-900">€{erwartedMiete.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Erfasste Miete ({getCurrentMonthYear()})</p>
+                    <p className="text-xs text-gray-500 mb-1">Erfasste Miete</p>
                     <p className="text-2xl font-bold font-sans text-gray-900">€{erfassedMiete?.toLocaleString() || 0}</p>
                   </div>
                 </div>
