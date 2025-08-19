@@ -47,11 +47,17 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
   const { data: erfassedMiete } = useQuery({
     queryKey: ['erfasste-miete'],
     queryFn: async () => {
-      // Berechne die tatsächlich erfassten Mietzahlungen aus der Zahlungen-Tabelle
+      // Berechne die tatsächlich erfassten Mietzahlungen für den aktuellen Monat
+      const heute = new Date();
+      const monatBeginn = new Date(heute.getFullYear(), heute.getMonth(), 1);
+      const monatEnde = new Date(heute.getFullYear(), heute.getMonth() + 1, 0);
+      
       const { data: zahlungen, error } = await supabase
         .from('zahlungen')
         .select('betrag')
-        .eq('kategorie', 'Miete');
+        .eq('kategorie', 'Miete')
+        .gte('buchungsdatum', monatBeginn.toISOString().split('T')[0])
+        .lte('buchungsdatum', monatEnde.toISOString().split('T')[0]);
       
       if (error) {
         console.error('Fehler beim Laden der Zahlungen:', error);
