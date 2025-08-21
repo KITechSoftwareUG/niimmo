@@ -42,7 +42,7 @@ export const MietvertragDetailsModal = ({
 }: MietvertragDetailsModalProps) => {
   const { toast } = useToast();
   const [selectedYear, setSelectedYear] = useState<string>("2025");
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("alle");
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -175,8 +175,8 @@ export const MietvertragDetailsModal = ({
                        new Date();
     
     // Filtere nach ausgewähltem Jahr oder zeige alle Jahre
-    const filterStart = selectedYear ? new Date(`${selectedYear}-01-01`) : vertragStart;
-    const filterEnd = selectedYear ? new Date(`${selectedYear}-12-31`) : vertragEnde;
+    const filterStart = selectedYear && selectedYear !== "alle" ? new Date(`${selectedYear}-01-01`) : vertragStart;
+    const filterEnd = selectedYear && selectedYear !== "alle" ? new Date(`${selectedYear}-12-31`) : vertragEnde;
     
     // Bestimme den tatsächlichen Zeitraum (Schnittmenge von Vertrag und Filter)
     const startDate = new Date(Math.max(vertragStart.getTime(), filterStart.getTime()));
@@ -190,7 +190,7 @@ export const MietvertragDetailsModal = ({
       const monthKey = monthIterator.toISOString().slice(0, 7); // YYYY-MM Format
       
       // Filtere nach ausgewähltem Monat wenn gesetzt
-      if (selectedMonth && monthKey !== `${selectedYear}-${selectedMonth.padStart(2, '0')}`) {
+      if (selectedMonth && selectedMonth !== "alle" && monthKey !== `${selectedYear}-${selectedMonth.padStart(2, '0')}`) {
         monthIterator.setMonth(monthIterator.getMonth() + 1);
         continue;
       }
@@ -253,7 +253,7 @@ export const MietvertragDetailsModal = ({
 
   // Verfügbare Monate für das ausgewählte Jahr
   const getAvailableMonths = () => {
-    if (!vertrag || !selectedYear) return [];
+    if (!vertrag || !selectedYear || selectedYear === "alle") return [];
     
     const year = parseInt(selectedYear);
     const vertragStart = vertrag.start_datum ? new Date(vertrag.start_datum) : new Date(`${year}-01-01`);
@@ -499,8 +499,8 @@ export const MietvertragDetailsModal = ({
                         <SelectTrigger className="w-24">
                           <SelectValue placeholder="Jahr" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Alle Jahre</SelectItem>
+                        <SelectContent className="bg-background border shadow-md z-50">
+                          <SelectItem value="alle">Alle Jahre</SelectItem>
                           {getAvailableYears().map(year => (
                             <SelectItem key={year} value={year}>{year}</SelectItem>
                           ))}
@@ -508,13 +508,13 @@ export const MietvertragDetailsModal = ({
                       </Select>
                       
                       {/* Monat auswählen */}
-                      {selectedYear && (
+                      {selectedYear && selectedYear !== "alle" && (
                         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                           <SelectTrigger className="w-32">
                             <SelectValue placeholder="Monat" />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">Alle Monate</SelectItem>
+                          <SelectContent className="bg-background border shadow-md z-50">
+                            <SelectItem value="alle">Alle Monate</SelectItem>
                             {getAvailableMonths().map(month => (
                               <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
                             ))}
