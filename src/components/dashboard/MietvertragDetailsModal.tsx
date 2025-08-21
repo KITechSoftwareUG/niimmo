@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Euro, 
   Calendar, 
@@ -17,7 +18,9 @@ import {
   AlertCircle,
   Copy,
   Phone,
-  Mail
+  Mail,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +41,8 @@ export const MietvertragDetailsModal = ({
   immobilie 
 }: MietvertragDetailsModalProps) => {
   const { toast } = useToast();
+  const [selectedYear, setSelectedYear] = useState<string>("2025");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -107,7 +112,7 @@ export const MietvertragDetailsModal = ({
     enabled: isOpen && !!vertragId
   });
 
-  // Hole Forderungen ab Juli 2025
+  // Hole alle Forderungen
   const { data: forderungen } = useQuery({
     queryKey: ['forderungen-detail', vertragId],
     queryFn: async () => {
@@ -115,7 +120,6 @@ export const MietvertragDetailsModal = ({
         .from('mietforderungen')
         .select('*')
         .eq('mietvertrag_id', vertragId)
-        .gte('sollmonat', '2025-07')
         .order('sollmonat', { ascending: true });
       
       if (error) throw error;
@@ -158,19 +162,38 @@ export const MietvertragDetailsModal = ({
   const sollMiete = vertrag ? (Number(vertrag.kaltmiete) || 0) + (Number(vertrag.betriebskosten) || 0) : 0;
   const gesamtForderungen = forderungen?.reduce((sum, forderung) => sum + (Number(forderung.sollbetrag) || 0), 0) || 0;
 
-  // Erstelle eine Liste der Monate ab Juli 2025 mit Forderungen und Zahlungen
+  // Erstelle eine Liste der Monate basierend auf der Vertragslaufzeit
   const generateMonthlyComparison = () => {
-    if (!forderungen || !zahlungen) return [];
+    if (!forderungen || !zahlungen || !vertrag) return [];
     
     const monthlyData = [];
-    const startDate = new Date('2025-07-01');
-    const currentDate = new Date();
-    const endDate = new Date(Math.max(currentDate.getTime(), startDate.getTime()));
     
-    // Erstelle Monate von Juli 2025 bis heute
-    const monthIterator = new Date(startDate);
-    while (monthIterator <= endDate) {
+    // Bestimme Start- und Enddatum basierend auf Vertragslaufzeit
+    const vertragStart = vertrag.start_datum ? new Date(vertrag.start_datum) : new Date('2025-01-01');
+    const vertragEnde = vertrag.ende_datum ? new Date(vertrag.ende_datum) : 
+                       vertrag.kuendigungsdatum ? new Date(vertrag.kuendigungsdatum) : 
+                       new Date();
+    
+    // Filtere nach ausgewähltem Jahr oder zeige alle Jahre
+    const filterStart = selectedYear ? new Date(`${selectedYear}-01-01`) : vertragStart;
+    const filterEnd = selectedYear ? new Date(`${selectedYear}-12-31`) : vertragEnde;
+    
+    // Bestimme den tatsächlichen Zeitraum (Schnittmenge von Vertrag und Filter)
+    const startDate = new Date(Math.max(vertragStart.getTime(), filterStart.getTime()));
+    const endDate = new Date(Math.min(vertragEnde.getTime(), filterEnd.getTime()));
+    
+    // Erstelle Monate für den Zeitraum
+    const monthIterator = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const endIterator = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    
+    while (monthIterator <= endIterator) {
       const monthKey = monthIterator.toISOString().slice(0, 7); // YYYY-MM Format
+      
+      // Filtere nach ausgewähltem Monat wenn gesetzt
+      if (selectedMonth && monthKey !== `${selectedYear}-${selectedMonth.padStart(2, '0')}`) {
+        monthIterator.setMonth(monthIterator.getMonth() + 1);
+        continue;
+      }
       
       // Finde Forderung für diesen Monat
       const forderung = forderungen.find(f => f.sollmonat === monthKey);
@@ -209,7 +232,46 @@ export const MietvertragDetailsModal = ({
       monthIterator.setMonth(monthIterator.getMonth() + 1);
     }
     
-    return monthlyData;
+    return monthlyData.reverse(); // Neueste zuerst
+  };
+
+  // Verfügbare Jahre basierend auf Vertragsdaten
+  const getAvailableYears = () => {
+    if (!vertrag) return [];
+    
+    const startYear = vertrag.start_datum ? new Date(vertrag.start_datum).getFullYear() : 2025;
+    const endYear = vertrag.ende_datum ? new Date(vertrag.ende_datum).getFullYear() : 
+                   vertrag.kuendigungsdatum ? new Date(vertrag.kuendigungsdatum).getFullYear() : 
+                   new Date().getFullYear();
+    
+    const years = [];
+    for (let year = startYear; year <= endYear; year++) {
+      years.push(year.toString());
+    }
+    return years;
+  };
+
+  // Verfügbare Monate für das ausgewählte Jahr
+  const getAvailableMonths = () => {
+    if (!vertrag || !selectedYear) return [];
+    
+    const year = parseInt(selectedYear);
+    const vertragStart = vertrag.start_datum ? new Date(vertrag.start_datum) : new Date(`${year}-01-01`);
+    const vertragEnde = vertrag.ende_datum ? new Date(vertrag.ende_datum) : 
+                       vertrag.kuendigungsdatum ? new Date(vertrag.kuendigungsdatum) : 
+                       new Date(`${year}-12-31`);
+    
+    const startMonth = vertragStart.getFullYear() === year ? vertragStart.getMonth() + 1 : 1;
+    const endMonth = vertragEnde.getFullYear() === year ? vertragEnde.getMonth() + 1 : 12;
+    
+    const months = [];
+    for (let month = startMonth; month <= endMonth; month++) {
+      months.push({
+        value: month.toString(),
+        label: new Date(year, month - 1, 1).toLocaleDateString('de-DE', { month: 'long' })
+      });
+    }
+    return months;
   };
 
   const monthlyComparison = generateMonthlyComparison();
@@ -401,7 +463,7 @@ export const MietvertragDetailsModal = ({
                       <p className="font-semibold text-lg">{formatBetrag(Number(vertrag?.betriebskosten) || 0)}</p>
                     </div>
                     <div className="p-3 bg-yellow-50 rounded-lg">
-                      <p className="text-sm text-yellow-600">Gesamtforderungen (ab Jul 2025)</p>
+                      <p className="text-sm text-yellow-600">Gesamtforderungen</p>
                       <p className="font-semibold text-lg">{formatBetrag(gesamtForderungen)}</p>
                     </div>
                     <div className="p-3 bg-purple-50 rounded-lg">
@@ -425,10 +487,42 @@ export const MietvertragDetailsModal = ({
                 </CardContent>
               </Card>
 
-              {/* Monatliche Forderungen vs Zahlungen (ab Juli 2025) */}
+              {/* Monatliche Forderungen vs Zahlungen */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Forderungen vs. Zahlungen (ab Juli 2025)</CardTitle>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Forderungen vs. Zahlungen</CardTitle>
+                    
+                    <div className="flex items-center space-x-2">
+                      {/* Jahr auswählen */}
+                      <Select value={selectedYear} onValueChange={setSelectedYear}>
+                        <SelectTrigger className="w-24">
+                          <SelectValue placeholder="Jahr" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Alle Jahre</SelectItem>
+                          {getAvailableYears().map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Monat auswählen */}
+                      {selectedYear && (
+                        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                          <SelectTrigger className="w-32">
+                            <SelectValue placeholder="Monat" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">Alle Monate</SelectItem>
+                            {getAvailableMonths().map(month => (
+                              <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {monthlyComparison && monthlyComparison.length > 0 ? (
