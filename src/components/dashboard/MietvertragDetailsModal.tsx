@@ -162,41 +162,27 @@ export const MietvertragDetailsModal = ({
   const sollMiete = vertrag ? (Number(vertrag.kaltmiete) || 0) + (Number(vertrag.betriebskosten) || 0) : 0;
   const gesamtForderungen = forderungen?.reduce((sum, forderung) => sum + (Number(forderung.sollbetrag) || 0), 0) || 0;
 
-  // Erstelle eine Liste der Monate basierend auf der Vertragslaufzeit
+  // Erstelle eine Liste der Monate basierend auf vorhandenen Forderungen
   const generateMonthlyComparison = () => {
     if (!forderungen || !zahlungen || !vertrag) return [];
     
     const monthlyData = [];
     
-    // Bestimme Start- und Enddatum basierend auf Vertragslaufzeit
-    const vertragStart = vertrag.start_datum ? new Date(vertrag.start_datum) : new Date('2025-01-01');
-    const vertragEnde = vertrag.ende_datum ? new Date(vertrag.ende_datum) : 
-                       vertrag.kuendigungsdatum ? new Date(vertrag.kuendigungsdatum) : 
-                       new Date();
-    
-    // Filtere nach ausgewähltem Jahr oder zeige alle Jahre
-    const filterStart = selectedYear && selectedYear !== "alle" ? new Date(`${selectedYear}-01-01`) : vertragStart;
-    const filterEnd = selectedYear && selectedYear !== "alle" ? new Date(`${selectedYear}-12-31`) : vertragEnde;
-    
-    // Bestimme den tatsächlichen Zeitraum (Schnittmenge von Vertrag und Filter)
-    const startDate = new Date(Math.max(vertragStart.getTime(), filterStart.getTime()));
-    const endDate = new Date(Math.min(vertragEnde.getTime(), filterEnd.getTime()));
-    
-    // Erstelle Monate für den Zeitraum
-    const monthIterator = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    const endIterator = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-    
-    while (monthIterator <= endIterator) {
-      const monthKey = monthIterator.toISOString().slice(0, 7); // YYYY-MM Format
+    // Gehe durch alle Forderungen und erstelle Einträge nur für Monate mit Forderungen
+    for (const forderung of forderungen) {
+      const monthKey = forderung.sollmonat; // YYYY-MM Format
       
-      // Filtere nach ausgewähltem Monat wenn gesetzt
-      if (selectedMonth && selectedMonth !== "alle" && monthKey !== `${selectedYear}-${selectedMonth.padStart(2, '0')}`) {
-        monthIterator.setMonth(monthIterator.getMonth() + 1);
-        continue;
+      // Filtere nach ausgewähltem Jahr wenn gesetzt
+      if (selectedYear && selectedYear !== "alle") {
+        const forderungYear = monthKey.split('-')[0];
+        if (forderungYear !== selectedYear) continue;
       }
       
-      // Finde Forderung für diesen Monat
-      const forderung = forderungen.find(f => f.sollmonat === monthKey);
+      // Filtere nach ausgewähltem Monat wenn gesetzt
+      if (selectedMonth && selectedMonth !== "alle") {
+        const forderungMonth = monthKey.split('-')[1];
+        if (forderungMonth !== selectedMonth.padStart(2, '0')) continue;
+      }
       
       // Finde Zahlungen für diesen Monat (intelligente Zuordnung)
       const monthZahlungen = zahlungen.filter(z => {
@@ -219,7 +205,7 @@ export const MietvertragDetailsModal = ({
       });
       
       const zahlungenSum = monthZahlungen.reduce((sum, z) => sum + (Number(z.betrag) || 0), 0);
-      const sollbetrag = Number(forderung?.sollbetrag || 0);
+      const sollbetrag = Number(forderung.sollbetrag || 0);
       
       monthlyData.push({
         monat: monthKey,
@@ -228,50 +214,45 @@ export const MietvertragDetailsModal = ({
         differenz: zahlungenSum - sollbetrag,
         status: zahlungenSum >= sollbetrag ? 'vollständig' : zahlungenSum > 0 ? 'teilweise' : 'offen'
       });
-      
-      monthIterator.setMonth(monthIterator.getMonth() + 1);
     }
     
-    return monthlyData.reverse(); // Neueste zuerst
+    // Sortiere nach Monat (neueste zuerst)
+    return monthlyData.sort((a, b) => b.monat.localeCompare(a.monat));
   };
 
-  // Verfügbare Jahre basierend auf Vertragsdaten
+  // Verfügbare Jahre basierend auf Forderungen
   const getAvailableYears = () => {
-    if (!vertrag) return [];
+    if (!forderungen || forderungen.length === 0) return [];
     
-    const startYear = vertrag.start_datum ? new Date(vertrag.start_datum).getFullYear() : 2025;
-    const endYear = vertrag.ende_datum ? new Date(vertrag.ende_datum).getFullYear() : 
-                   vertrag.kuendigungsdatum ? new Date(vertrag.kuendigungsdatum).getFullYear() : 
-                   new Date().getFullYear();
+    const years = new Set<string>();
+    forderungen.forEach(f => {
+      if (f.sollmonat) {
+        const year = f.sollmonat.split('-')[0];
+        years.add(year);
+      }
+    });
     
-    const years = [];
-    for (let year = startYear; year <= endYear; year++) {
-      years.push(year.toString());
-    }
-    return years;
+    return Array.from(years).sort();
   };
 
-  // Verfügbare Monate für das ausgewählte Jahr
+  // Verfügbare Monate für das ausgewählte Jahr basierend auf Forderungen
   const getAvailableMonths = () => {
-    if (!vertrag || !selectedYear || selectedYear === "alle") return [];
+    if (!forderungen || !selectedYear || selectedYear === "alle") return [];
     
-    const year = parseInt(selectedYear);
-    const vertragStart = vertrag.start_datum ? new Date(vertrag.start_datum) : new Date(`${year}-01-01`);
-    const vertragEnde = vertrag.ende_datum ? new Date(vertrag.ende_datum) : 
-                       vertrag.kuendigungsdatum ? new Date(vertrag.kuendigungsdatum) : 
-                       new Date(`${year}-12-31`);
+    const months = new Set<{value: string, label: string}>();
     
-    const startMonth = vertragStart.getFullYear() === year ? vertragStart.getMonth() + 1 : 1;
-    const endMonth = vertragEnde.getFullYear() === year ? vertragEnde.getMonth() + 1 : 12;
+    forderungen.forEach(f => {
+      if (f.sollmonat && f.sollmonat.startsWith(selectedYear)) {
+        const month = f.sollmonat.split('-')[1];
+        const monthNum = parseInt(month);
+        months.add({
+          value: monthNum.toString(),
+          label: new Date(parseInt(selectedYear), monthNum - 1, 1).toLocaleDateString('de-DE', { month: 'long' })
+        });
+      }
+    });
     
-    const months = [];
-    for (let month = startMonth; month <= endMonth; month++) {
-      months.push({
-        value: month.toString(),
-        label: new Date(year, month - 1, 1).toLocaleDateString('de-DE', { month: 'long' })
-      });
-    }
-    return months;
+    return Array.from(months).sort((a, b) => parseInt(a.value) - parseInt(b.value));
   };
 
   const monthlyComparison = generateMonthlyComparison();
