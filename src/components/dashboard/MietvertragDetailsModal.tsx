@@ -194,6 +194,32 @@ export const MietvertragDetailsModal = ({
     }
   };
 
+  // Automatische Mahnstufen-Prüfung für alle Verträge
+  const handleCheckMahnstufen = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('check-mahnstufen', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Mahnstufen-Prüfung abgeschlossen",
+        description: `${data.results?.length || 0} Verträge wurden aktualisiert.`,
+      });
+
+      // Refresh data
+      window.location.reload();
+    } catch (error) {
+      console.error('Fehler bei der Mahnstufen-Prüfung:', error);
+      toast({
+        title: "Fehler",
+        description: "Mahnstufen-Prüfung konnte nicht durchgeführt werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getMahnstufeColor = (stufe: number) => {
     switch (stufe) {
       case 0: return 'bg-green-100 text-green-800 border-green-200';
@@ -393,6 +419,14 @@ export const MietvertragDetailsModal = ({
             
             {/* Mahnsystem */}
             <div className="flex items-center space-x-2">
+              <button
+                onClick={handleCheckMahnstufen}
+                className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
+                title="Mahnstufen für alle Verträge prüfen"
+              >
+                Alle prüfen
+              </button>
+              
               <div className={`px-3 py-2 rounded-lg border-2 ${getMahnstufeColor(vertrag?.mahnstufe || 0)}`}>
                 <div className="flex items-center space-x-2">
                   <AlertTriangle className="h-4 w-4" />

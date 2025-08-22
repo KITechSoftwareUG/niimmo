@@ -551,6 +551,15 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      check_and_update_mahnstufen: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          alte_mahnstufe: number
+          grund: string
+          mietvertrag_id: string
+          neue_mahnstufe: number
+        }[]
+      }
       halfvec_avg: {
         Args: { "": number[] }
         Returns: unknown
