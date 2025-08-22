@@ -158,6 +158,46 @@ export const MietvertragDetailsModal = ({
     }).format(betrag);
   };
 
+  const handleDownloadDocument = async (dokument: any) => {
+    if (!dokument.pfad) {
+      toast({
+        title: "Fehler",
+        description: "Dateipfad nicht gefunden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('dokumente')
+        .download(dokument.pfad);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = dokument.titel || 'dokument';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download erfolgreich",
+        description: `${dokument.titel || 'Dokument'} wurde heruntergeladen.`,
+      });
+    } catch (error) {
+      console.error('Download-Fehler:', error);
+      toast({
+        title: "Download-Fehler",
+        description: "Das Dokument konnte nicht heruntergeladen werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const gesamtZahlungen = zahlungen?.reduce((sum, zahlung) => sum + (Number(zahlung.betrag) || 0), 0) || 0;
   const sollMiete = vertrag ? (Number(vertrag.kaltmiete) || 0) + (Number(vertrag.betriebskosten) || 0) : 0;
   const gesamtForderungen = forderungen?.reduce((sum, forderung) => sum + (Number(forderung.sollbetrag) || 0), 0) || 0;
@@ -622,7 +662,13 @@ export const MietvertragDetailsModal = ({
                               <Badge variant="outline">
                                 {dokument.kategorie || 'Sonstige'}
                               </Badge>
-                              <Download className="h-4 w-4 text-gray-400 cursor-pointer hover:text-gray-600" />
+                              <button
+                                onClick={() => handleDownloadDocument(dokument)}
+                                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                title="Dokument herunterladen"
+                              >
+                                <Download className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                              </button>
                             </div>
                           </div>
                         </div>
