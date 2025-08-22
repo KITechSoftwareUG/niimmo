@@ -335,6 +335,9 @@ export type Database = {
           kaution_betrag: number | null
           kuendigungsdatum: string | null
           lastschrift: boolean
+          letzte_mahnung_am: string | null
+          mahnstufe: number | null
+          naechste_mahnung_am: string | null
           start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck: string[] | null
@@ -352,6 +355,9 @@ export type Database = {
           kaution_betrag?: number | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
+          letzte_mahnung_am?: string | null
+          mahnstufe?: number | null
+          naechste_mahnung_am?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck?: string[] | null
@@ -369,6 +375,9 @@ export type Database = {
           kaution_betrag?: number | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
+          letzte_mahnung_am?: string | null
+          mahnstufe?: number | null
+          naechste_mahnung_am?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           verwendungszweck?: string[] | null

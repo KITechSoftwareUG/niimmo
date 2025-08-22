@@ -20,7 +20,10 @@ import {
   Phone,
   Mail,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  Plus,
+  Minus
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -156,6 +159,59 @@ export const MietvertragDetailsModal = ({
       style: 'currency',
       currency: 'EUR'
     }).format(betrag);
+  };
+
+  // Mahnstufe-Funktionen
+  const handleMahnstufeChange = async (newMahnstufe: number) => {
+    if (!vertrag) return;
+    
+    try {
+      const { error } = await supabase
+        .from('mietvertrag')
+        .update({ 
+          mahnstufe: newMahnstufe,
+          letzte_mahnung_am: new Date().toISOString(),
+          naechste_mahnung_am: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 Tage später
+        })
+        .eq('id', vertragId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Mahnstufe aktualisiert",
+        description: `Mahnstufe wurde auf ${newMahnstufe} gesetzt.`,
+      });
+
+      // Refresh data
+      window.location.reload();
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren der Mahnstufe:', error);
+      toast({
+        title: "Fehler",
+        description: "Mahnstufe konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getMahnstufeColor = (stufe: number) => {
+    switch (stufe) {
+      case 0: return 'bg-green-100 text-green-800 border-green-200';
+      case 1: return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 2: return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 3: return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getMahnstufeText = (stufe: number) => {
+    switch (stufe) {
+      case 0: return 'Keine Mahnung';
+      case 1: return '1. Mahnung';
+      case 2: return '2. Mahnung';
+      case 3: return '3. Mahnung';
+      default: return 'Unbekannt';
+    }
   };
 
   const handleDownloadDocument = async (dokument: any) => {
@@ -329,10 +385,46 @@ export const MietvertragDetailsModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <FileText className="h-5 w-5" />
-            <span>Mietvertrag Details</span>
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center space-x-2">
+              <FileText className="h-5 w-5" />
+              <span>Mietvertrag Details</span>
+            </DialogTitle>
+            
+            {/* Mahnsystem */}
+            <div className="flex items-center space-x-2">
+              <div className={`px-3 py-2 rounded-lg border-2 ${getMahnstufeColor(vertrag?.mahnstufe || 0)}`}>
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm font-semibold">{getMahnstufeText(vertrag?.mahnstufe || 0)}</span>
+                </div>
+                {vertrag?.letzte_mahnung_am && (
+                  <p className="text-xs mt-1">
+                    Letzte Mahnung: {formatDatum(vertrag.letzte_mahnung_am)}
+                  </p>
+                )}
+              </div>
+              
+              <div className="flex flex-col space-y-1">
+                <button
+                  onClick={() => handleMahnstufeChange(Math.min((vertrag?.mahnstufe || 0) + 1, 3))}
+                  disabled={(vertrag?.mahnstufe || 0) >= 3}
+                  className="p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Mahnstufe erhöhen"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => handleMahnstufeChange(Math.max((vertrag?.mahnstufe || 0) - 1, 0))}
+                  disabled={(vertrag?.mahnstufe || 0) <= 0}
+                  className="p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Mahnstufe verringern"
+                >
+                  <Minus className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -567,22 +659,9 @@ export const MietvertragDetailsModal = ({
                                   Differenz: {formatBetrag(monthly.differenz)}
                                 </p>
                               </div>
-                            </div>
-                            <Badge variant={
-                              monthly.status === 'vollständig' ? 'default' : 
-                              monthly.status === 'teilweise' ? 'secondary' : 
-                              'destructive'
-                            } className={
-                              monthly.status === 'vollständig' ? 'bg-green-100 text-green-800' : 
-                              monthly.status === 'teilweise' ? 'bg-yellow-100 text-yellow-800' : 
-                              'bg-red-100 text-red-800'
-                            }>
-                              {monthly.status === 'vollständig' ? '✓ Vollständig' : 
-                               monthly.status === 'teilweise' ? '◐ Teilweise' : 
-                               '✗ Offen'}
-                            </Badge>
-                          </div>
-                        </div>
+                             </div>
+                           </div>
+                         </div>
                       ))}
                     </div>
                   ) : (
