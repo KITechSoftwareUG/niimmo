@@ -191,13 +191,13 @@ const Index = () => {
           <DashboardStats immobilien={immobilien} onNavigateToContract={handleNavigateToContract} />
         </div>
 
-        {/* Suchfunktion */}
-        <SearchPanel onImmobilieSelect={handleImmobilieClick} />
-
         {/* Fehlende Mietzahlungen Übersicht */}
         <div className="mb-6">
           <FehlendeMietzahlungen onMietvertragClick={handleMietvertragClick} />
         </div>
+
+        {/* Suchfunktion */}
+        <SearchPanel onImmobilieSelect={handleImmobilieClick} />
 
         {/* Immobilien Grid */}
         <div className="mb-6">
