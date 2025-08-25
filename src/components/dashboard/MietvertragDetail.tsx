@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { MietvertragHeader } from "./MietvertragHeader";
 import { MietvertragInfo } from "./MietvertragInfo";
 import { MieterList } from "./MieterList";
-import { PaymentHistoryWithMahnung } from "./PaymentHistoryWithMahnung";
+import { PaymentHistory } from "./PaymentHistory";
 import { DocumentsList } from "./DocumentsList";
 
 interface MietvertragDetailProps {
@@ -113,7 +113,7 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
       
       <MieterList mieter={mieter} />
       
-      <PaymentHistoryWithMahnung 
+      <PaymentHistory 
         mietvertragId={vertragId} 
         currentMahnstufe={vertrag?.mahnstufe || 0} 
       />

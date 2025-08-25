@@ -1,84 +1,332 @@
 
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Euro, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Euro, CheckCircle, XCircle, Clock, Send, AlertTriangle, RefreshCw } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { MahnstufeIndicator } from "./MahnstufeIndicator";
+import { useToast } from "@/hooks/use-toast";
 
 interface PaymentHistoryProps {
-  payments: any[];
+  mietvertragId: string;
+  currentMahnstufe?: number;
 }
 
-export const PaymentHistory = ({ payments }: PaymentHistoryProps) => {
-  if (!payments || payments.length === 0) {
-    return null;
+export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentHistoryProps) => {
+  const [isSendingMahnung, setIsSendingMahnung] = useState(false);
+  const [isCheckingMahnstufen, setIsCheckingMahnstufen] = useState(false);
+  const { toast } = useToast();
+
+  // Lade Mietforderungen
+  const { data: forderungen, isLoading: forderungenLoading, refetch: refetchForderungen } = useQuery({
+    queryKey: ['mietforderungen', mietvertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietforderungen')
+        .select('*')
+        .eq('mietvertrag_id', mietvertragId)
+        .order('sollmonat', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Lade Zahlungen für Abgleich
+  const { data: zahlungen, refetch: refetchZahlungen } = useQuery({
+    queryKey: ['zahlungen', mietvertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('zahlungen')
+        .select('*')
+        .eq('mietvertrag_id', mietvertragId)
+        .order('buchungsdatum', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Lade Mietvertrag-Details
+  const { data: vertrag, refetch: refetchVertrag } = useQuery({
+    queryKey: ['mietvertrag-payment-detail', mietvertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietvertrag')
+        .select('*')
+        .eq('id', mietvertragId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Prüfe Zahlungsstatus für jede Forderung
+  const getPaymentStatus = (forderung: any) => {
+    if (!zahlungen) return { paid: false, paymentDate: null, isLate: false };
+    
+    const sollDatum = new Date(forderung.sollmonat + '-01');
+    const fälligkeitsDatum = new Date(sollDatum);
+    fälligkeitsDatum.setMonth(fälligkeitsDatum.getMonth() + 1);
+    fälligkeitsDatum.setDate(7); // 7. des Folgemonats
+    
+    const matchingZahlung = zahlungen.find(z => {
+      const zahlungsDatum = new Date(z.buchungsdatum);
+      const toleranzStart = new Date(fälligkeitsDatum);
+      toleranzStart.setDate(toleranzStart.getDate() - 7);
+      const toleranzEnde = new Date(fälligkeitsDatum);
+      toleranzEnde.setDate(toleranzEnde.getDate() + 7);
+      
+      return zahlungsDatum >= toleranzStart && 
+             zahlungsDatum <= toleranzEnde &&
+             Math.abs(z.betrag - forderung.sollbetrag) <= 50;
+    });
+
+    if (matchingZahlung) {
+      const zahlungsDatum = new Date(matchingZahlung.buchungsdatum);
+      const isLate = zahlungsDatum > fälligkeitsDatum;
+      return { paid: true, paymentDate: matchingZahlung.buchungsdatum, isLate };
+    }
+
+    return { paid: false, paymentDate: null, isLate: fälligkeitsDatum < new Date() };
+  };
+
+  const handleSendMahnung = async () => {
+    if (!vertrag) return;
+    
+    setIsSendingMahnung(true);
+    try {
+      const offeneForderungen = forderungen?.filter(f => {
+        const status = getPaymentStatus(f);
+        return !status.paid;
+      });
+
+      const { data, error } = await supabase.functions.invoke('send-mahnung', {
+        body: {
+          mietvertragId,
+          mahnstufe: vertrag.mahnstufe || currentMahnstufe,
+          vertragData: vertrag,
+          forderungen: offeneForderungen
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Mahnung versendet",
+        description: `Mahnung Stufe ${vertrag.mahnstufe || currentMahnstufe} wurde erfolgreich versendet.`,
+      });
+    } catch (error) {
+      console.error('Fehler beim Versenden der Mahnung:', error);
+      toast({
+        title: "Fehler",
+        description: "Mahnung konnte nicht versendet werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingMahnung(false);
+    }
+  };
+
+  const handleCheckMahnstufen = async () => {
+    setIsCheckingMahnstufen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-mahnstufen', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Mahnstufen-Prüfung abgeschlossen",
+        description: `Mahnstufen wurden basierend auf verspäteten Zahlungen aktualisiert.`,
+      });
+
+      // Refresh all data
+      await Promise.all([
+        refetchForderungen(),
+        refetchZahlungen(),
+        refetchVertrag()
+      ]);
+
+    } catch (error) {
+      console.error('Fehler bei der Mahnstufen-Prüfung:', error);
+      toast({
+        title: "Fehler",
+        description: "Mahnstufen-Prüfung konnte nicht durchgeführt werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingMahnstufen(false);
+    }
+  };
+
+  if (forderungenLoading || !forderungen) {
+    return (
+      <Card className="elegant-card border-0 shadow-lg rounded-2xl overflow-hidden">
+        <CardContent className="p-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
+
+  if (forderungen.length === 0) {
+    return (
+      <Card className="elegant-card border-0 shadow-lg rounded-2xl overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-muted/30 to-muted/10 border-b">
+          <CardTitle className="flex items-center space-x-3">
+            <div className="p-2 bg-muted rounded-lg">
+              <Euro className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <span className="text-xl font-semibold">Zahlungshistorie</span>
+              <p className="text-sm text-muted-foreground font-normal mt-1">Übersicht der Zahlungseingänge</p>
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-8">
+          <p className="text-muted-foreground text-center">Keine Zahlungshistorie verfügbar</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const currentMahnstufeFromDB = vertrag?.mahnstufe || currentMahnstufe;
 
   return (
     <Card className="elegant-card border-0 shadow-lg rounded-2xl overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-        <CardTitle className="flex items-center space-x-3">
-          <div className="p-2 bg-yellow-100 rounded-lg">
-            <Euro className="h-5 w-5 text-yellow-600" />
+      <CardHeader className="bg-gradient-to-r from-muted/30 to-muted/10 border-b">
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-accent/20 rounded-lg">
+              <Euro className="h-5 w-5 text-accent-foreground" />
+            </div>
+            <div>
+              <span className="text-xl font-semibold">Zahlungshistorie</span>
+              <p className="text-sm text-muted-foreground font-normal mt-1">Übersicht der Zahlungseingänge</p>
+            </div>
           </div>
-          <div>
-            <span className="text-xl font-semibold text-gray-800">Zahlungshistorie</span>
-            <p className="text-sm text-gray-600 font-normal mt-1">Übersicht der Zahlungseingänge</p>
+          
+          <div className="flex items-center space-x-4">
+            <Button
+              onClick={handleCheckMahnstufen}
+              disabled={isCheckingMahnstufen}
+              size="sm"
+              variant="outline"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isCheckingMahnstufen ? 'animate-spin' : ''}`} />
+              {isCheckingMahnstufen ? 'Prüfe...' : 'Mahnstufen prüfen'}
+            </Button>
+            
+            {currentMahnstufeFromDB > 0 && (
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="text-sm font-medium">Mahnstufe {currentMahnstufeFromDB}</span>
+                  <MahnstufeIndicator stufe={currentMahnstufeFromDB} />
+                </div>
+                <Button
+                  onClick={handleSendMahnung}
+                  disabled={isSendingMahnung}
+                  size="sm"
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isSendingMahnung ? 'Sende...' : 'Mahnung verschicken'}
+                </Button>
+              </div>
+            )}
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-8">
         <div className="space-y-4">
-          {payments.map((zahlung) => (
-            <div key={zahlung.id} className="p-6 bg-gradient-to-r from-white to-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className={`p-3 rounded-full ${
-                    zahlung.bezahlt_am 
-                      ? 'bg-green-100 text-green-600' 
-                      : 'bg-red-100 text-red-600'
-                  }`}>
-                    {zahlung.bezahlt_am ? (
-                      <CheckCircle className="h-6 w-6" />
-                    ) : (
-                      <XCircle className="h-6 w-6" />
-                    )}
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">
-                      {new Date(zahlung.monat).toLocaleDateString('de-DE', { 
-                        month: 'long', 
-                        year: 'numeric' 
-                      })}
-                    </h4>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">
-                        {zahlung.bezahlt_am 
-                          ? `Bezahlt am ${new Date(zahlung.bezahlt_am).toLocaleDateString('de-DE')}`
-                          : 'Noch ausstehend'
-                        }
-                      </span>
+          {forderungen.map((forderung) => {
+            const status = getPaymentStatus(forderung);
+            
+            return (
+              <div key={forderung.id} className="p-6 bg-gradient-to-r from-card to-muted/20 rounded-xl border hover:shadow-md transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-3 rounded-full ${
+                      status.paid 
+                        ? status.isLate 
+                          ? 'bg-orange-100 text-orange-600' 
+                          : 'bg-green-100 text-green-600'
+                        : 'bg-red-100 text-red-600'
+                    }`}>
+                      {status.paid ? (
+                        <CheckCircle className="h-6 w-6" />
+                      ) : (
+                        <XCircle className="h-6 w-6" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold mb-1">
+                        {new Date(forderung.sollmonat + '-01').toLocaleDateString('de-DE', { 
+                          month: 'long', 
+                          year: 'numeric' 
+                        })}
+                      </h4>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          {status.paid 
+                            ? `Bezahlt am ${new Date(status.paymentDate!).toLocaleDateString('de-DE')}${status.isLate ? ' (verspätet)' : ''}`
+                            : 'Noch ausstehend'
+                          }
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <div className="text-right space-y-2">
-                  <p className="text-2xl font-bold text-gray-900">
-                    {zahlung.betrag.toLocaleString()}€
-                  </p>
-                  <Badge 
-                    variant={zahlung.bezahlt_am ? "default" : "destructive"}
-                    className={`${
-                      zahlung.bezahlt_am 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-red-100 text-red-800 hover:bg-red-200'
-                    }`}
-                  >
-                    {zahlung.bezahlt_am ? '✓ Bezahlt' : '⚠ Offen'}
-                  </Badge>
+                  
+                  <div className="text-right space-y-2">
+                    <p className="text-2xl font-bold">
+                      {forderung.sollbetrag.toLocaleString()}€
+                    </p>
+                    <Badge 
+                      variant={status.paid ? (status.isLate ? "secondary" : "default") : "destructive"}
+                      className={`${
+                        status.paid 
+                          ? status.isLate
+                            ? 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                            : 'bg-green-100 text-green-800 hover:bg-green-200' 
+                          : 'bg-red-100 text-red-800 hover:bg-red-200'
+                      }`}
+                    >
+                      {status.paid ? (status.isLate ? '⚡ Verspätet' : '✓ Bezahlt') : '⚠ Offen'}
+                    </Badge>
+                  </div>
                 </div>
               </div>
+            );
+          })}
+        </div>
+        
+        {/* Zusammenfassung */}
+        <div className="mt-6 p-4 bg-muted/20 rounded-lg border">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              <p>Automatische Mahnstufen-Prüfung ab 2025 aktiv</p>
+              <p>Toleranz: ±7 Tage Zahlungseingang, ±50€ Betragsdifferenz</p>
             </div>
-          ))}
+            {currentMahnstufeFromDB > 0 && (
+              <div className="text-right">
+                <p className="text-sm font-medium text-destructive">
+                  Aktuelle Mahnstufe: {currentMahnstufeFromDB}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {vertrag?.letzte_mahnung_am && `Letzte Mahnung: ${new Date(vertrag.letzte_mahnung_am).toLocaleDateString('de-DE')}`}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
