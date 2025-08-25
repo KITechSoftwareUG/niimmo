@@ -208,42 +208,52 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
               <Euro className="h-5 w-5 text-accent-foreground" />
             </div>
             <div>
-              <span className="text-xl font-semibold">Zahlungshistorie</span>
-              <p className="text-sm text-muted-foreground font-normal mt-1">Übersicht der Zahlungseingänge</p>
+              <span className="text-xl font-semibold">Zahlungshistorie & Mahnstufen</span>
+              <p className="text-sm text-muted-foreground font-normal mt-1">
+                Automatische Prüfung verspäteter Zahlungen ab 2025
+              </p>
             </div>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <Button
-              onClick={handleCheckMahnstufen}
-              disabled={isCheckingMahnstufen}
-              size="sm"
-              variant="outline"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isCheckingMahnstufen ? 'animate-spin' : ''}`} />
-              {isCheckingMahnstufen ? 'Prüfe...' : 'Mahnstufen prüfen'}
-            </Button>
-            
-            {currentMahnstufeFromDB > 0 && (
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <span className="text-sm font-medium">Mahnstufe {currentMahnstufeFromDB}</span>
-                  <MahnstufeIndicator stufe={currentMahnstufeFromDB} />
-                </div>
-                <Button
-                  onClick={handleSendMahnung}
-                  disabled={isSendingMahnung}
-                  size="sm"
-                  className="bg-destructive hover:bg-destructive/90"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {isSendingMahnung ? 'Sende...' : 'Mahnung verschicken'}
-                </Button>
-              </div>
-            )}
-          </div>
+          <Button
+            onClick={handleCheckMahnstufen}
+            disabled={isCheckingMahnstufen}
+            size="sm"
+            variant="outline"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isCheckingMahnstufen ? 'animate-spin' : ''}`} />
+            {isCheckingMahnstufen ? 'Prüfe...' : 'Mahnstufen prüfen'}
+          </Button>
         </CardTitle>
+
+        {/* Mahnstufen-Bereich - prominent angezeigt */}
+        {currentMahnstufeFromDB > 0 && (
+          <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <div>
+                  <p className="font-semibold text-destructive">Mahnstufe {currentMahnstufeFromDB} aktiv</p>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <MahnstufeIndicator stufe={currentMahnstufeFromDB} />
+                    <span className="text-sm text-muted-foreground">
+                      {vertrag?.letzte_mahnung_am && `Letzte Mahnung: ${new Date(vertrag.letzte_mahnung_am).toLocaleDateString('de-DE')}`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <Button
+                onClick={handleSendMahnung}
+                disabled={isSendingMahnung}
+                size="sm"
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {isSendingMahnung ? 'Sende...' : 'Mahnung verschicken'}
+              </Button>
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="p-8">
         <div className="space-y-4">
@@ -309,20 +319,22 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
           })}
         </div>
         
-        {/* Zusammenfassung */}
+        {/* Info-Bereich */}
         <div className="mt-6 p-4 bg-muted/20 rounded-lg border">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              <p>Automatische Mahnstufen-Prüfung ab 2025 aktiv</p>
-              <p>Toleranz: ±7 Tage Zahlungseingang, ±50€ Betragsdifferenz</p>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p className="font-medium">Automatische Mahnstufen-Prüfung (ab 2025):</p>
+              <p>• Toleranz: ±7 Tage Zahlungseingang, ±50€ Betragsdifferenz</p>
+              <p>• Fälligkeit: 7. Tag des Folgemonats</p>
+              <p>• Max. Mahnstufe: 3</p>
             </div>
-            {currentMahnstufeFromDB > 0 && (
+            {currentMahnstufeFromDB === 0 && (
               <div className="text-right">
-                <p className="text-sm font-medium text-destructive">
-                  Aktuelle Mahnstufe: {currentMahnstufeFromDB}
+                <p className="text-sm font-medium text-green-600">
+                  ✓ Alle Zahlungen pünktlich
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {vertrag?.letzte_mahnung_am && `Letzte Mahnung: ${new Date(vertrag.letzte_mahnung_am).toLocaleDateString('de-DE')}`}
+                  Keine Mahnstufe aktiv
                 </p>
               </div>
             )}
