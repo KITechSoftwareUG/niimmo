@@ -426,47 +426,6 @@ export const MietvertragDetailsModal = ({
               <span>Mietvertrag Details</span>
             </DialogTitle>
             
-            {/* Mahnsystem */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleCheckMahnstufen}
-                className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200 transition-colors"
-                title="Mahnstufen für alle Verträge prüfen"
-              >
-                Alle prüfen
-              </button>
-              
-              <div className={`px-3 py-2 rounded-lg border-2 ${getMahnstufeColor(vertrag?.mahnstufe || 0)}`}>
-                <div className="flex items-center space-x-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span className="text-sm font-semibold">{getMahnstufeText(vertrag?.mahnstufe || 0)}</span>
-                </div>
-                {vertrag?.letzte_mahnung_am && (
-                  <p className="text-xs mt-1">
-                    Letzte Mahnung: {formatDatum(vertrag.letzte_mahnung_am)}
-                  </p>
-                )}
-              </div>
-              
-              <div className="flex flex-col space-y-1">
-                <button
-                  onClick={() => handleMahnstufeChange(Math.min((vertrag?.mahnstufe || 0) + 1, 3))}
-                  disabled={(vertrag?.mahnstufe || 0) >= 3}
-                  className="p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Mahnstufe erhöhen"
-                >
-                  <Plus className="h-3 w-3" />
-                </button>
-                <button
-                  onClick={() => handleMahnstufeChange(Math.max((vertrag?.mahnstufe || 0) - 1, 0))}
-                  disabled={(vertrag?.mahnstufe || 0) <= 0}
-                  className="p-1 hover:bg-gray-200 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Mahnstufe verringern"
-                >
-                  <Minus className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
           </div>
         </DialogHeader>
 
