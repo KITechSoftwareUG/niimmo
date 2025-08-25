@@ -324,6 +324,7 @@ export type Database = {
       }
       mietvertrag: {
         Row: {
+          "2025 voll": boolean | null
           aktualisiert_am: string | null
           bankkonto_mieter: string | null
           betriebskosten: number | null
@@ -344,6 +345,7 @@ export type Database = {
           weitere_bankkonten: string | null
         }
         Insert: {
+          "2025 voll"?: boolean | null
           aktualisiert_am?: string | null
           bankkonto_mieter?: string | null
           betriebskosten?: number | null
@@ -364,6 +366,7 @@ export type Database = {
           weitere_bankkonten?: string | null
         }
         Update: {
+          "2025 voll"?: boolean | null
           aktualisiert_am?: string | null
           bankkonto_mieter?: string | null
           betriebskosten?: number | null

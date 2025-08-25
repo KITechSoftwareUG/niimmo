@@ -251,13 +251,19 @@ export const MietvertragDetailsModal = ({
     }
 
     try {
-      const { data, error } = await supabase.storage
+      // Create a signed URL for private bucket access
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('dokumente')
-        .download(dokument.pfad);
+        .createSignedUrl(dokument.pfad, 60); // Valid for 60 seconds
 
-      if (error) throw error;
+      if (signedUrlError) throw signedUrlError;
 
-      const url = URL.createObjectURL(data);
+      // Download using the signed URL
+      const response = await fetch(signedUrlData.signedUrl);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = dokument.titel || 'dokument';

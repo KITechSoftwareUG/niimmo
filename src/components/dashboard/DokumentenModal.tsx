@@ -134,22 +134,27 @@ export const DokumentenModal = ({
         const dokument = dokumente?.find(d => d.id === dokumentId);
         if (!dokument || !dokument.pfad) continue;
 
-        const { data, error } = await supabase.storage
+        // Create a signed URL for private bucket access
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
           .from('dokumente')
-          .download(dokument.pfad);
+          .createSignedUrl(dokument.pfad, 60); // Valid for 60 seconds
 
-        if (error) {
-          console.error('Download Error:', error);
+        if (signedUrlError) {
+          console.error('Signed URL Error:', signedUrlError);
           toast({
             variant: "destructive",
             title: "Download fehlgeschlagen",
-            description: `Fehler beim Download von ${dokument.titel}: ${error.message}`
+            description: `Fehler beim Download von ${dokument.titel}: ${signedUrlError.message}`
           });
           continue;
         }
 
-        // Download auslösen
-        const url = URL.createObjectURL(data);
+        // Download using the signed URL
+        const response = await fetch(signedUrlData.signedUrl);
+        if (!response.ok) throw new Error('Download failed');
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = dokument.titel || 'dokument';
