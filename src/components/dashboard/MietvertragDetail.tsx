@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { MietvertragHeader } from "./MietvertragHeader";
 import { MietvertragInfo } from "./MietvertragInfo";
 import { MieterList } from "./MieterList";
-import { PaymentHistory } from "./PaymentHistory";
+import { PaymentHistoryWithMahnung } from "./PaymentHistoryWithMahnung";
 import { DocumentsList } from "./DocumentsList";
 
 interface MietvertragDetailProps {
@@ -96,21 +96,6 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
     }
   });
 
-  // Simulate payment history since mietzahlungen table doesn't exist in types
-  const simulatedPayments = vertrag ? [
-    {
-      id: '1',
-      monat: new Date().toISOString().split('T')[0],
-      betrag: vertrag.kaltmiete || 0,
-      bezahlt_am: Math.random() > 0.3 ? new Date(Date.now() - Math.random() * 10 * 24 * 60 * 60 * 1000).toISOString() : null
-    },
-    {
-      id: '2', 
-      monat: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      betrag: vertrag.kaltmiete || 0,
-      bezahlt_am: new Date(Date.now() - (30 + Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString()
-    }
-  ] : [];
 
   if (vertragLoading) {
     return (
@@ -128,7 +113,10 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
       
       <MieterList mieter={mieter} />
       
-      <PaymentHistory payments={simulatedPayments} />
+      <PaymentHistoryWithMahnung 
+        mietvertragId={vertragId} 
+        currentMahnstufe={vertrag?.mahnstufe || 0} 
+      />
       
       <DocumentsList dokumente={dokumente} />
     </div>
