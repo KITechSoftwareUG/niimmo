@@ -35,20 +35,19 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                 ))}
               </div>
               
-              <div className="pt-4 border-t border-red-200">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium">Gesamt fehlend: <span className="text-red-600 font-bold">€{gesamtFehlend.toLocaleString()}</span></p>
-                    <p className="text-xs mt-1">Automatische Mahnstufen ab 2025 • Toleranz: ±7 Tage, ±50€</p>
+                <div className="pt-4 border-t border-red-200">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      <p className="font-medium">Gesamt fehlend: <span className="text-red-600 font-bold">€{gesamtFehlend.toLocaleString()}</span></p>
+                    </div>
                   </div>
                 </div>
-              </div>
             </>
           ) : (
             <div className="text-center py-8">
               <div className="p-4 bg-green-50 rounded-lg border border-green-200 inline-block">
                 <p className="text-green-700 font-medium text-lg">✓ Alle Mietzahlungen sind vollständig</p>
-                <p className="text-green-600 text-sm mt-1">Automatische Mahnstufen-Prüfung läuft im Hintergrund</p>
+                <p className="text-green-600 text-sm mt-1">Keine offenen Forderungen gefunden</p>
               </div>
             </div>
           )}

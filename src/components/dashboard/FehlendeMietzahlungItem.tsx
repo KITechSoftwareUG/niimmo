@@ -1,11 +1,6 @@
 
-import { useState } from "react";
-import { Euro, Send, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Euro } from "lucide-react";
 import { FehlendeMietzahlung } from "@/hooks/useFehlendeMietzahlungen";
-import { MahnstufeIndicator } from "./MahnstufeIndicator";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface FehlendeMietzahlungItemProps {
   item: FehlendeMietzahlung;
@@ -13,44 +8,9 @@ interface FehlendeMietzahlungItemProps {
 }
 
 export const FehlendeMietzahlungItem = ({ item, onMietvertragClick }: FehlendeMietzahlungItemProps) => {
-  const [isSendingMahnung, setIsSendingMahnung] = useState(false);
-  const { toast } = useToast();
-
   const handleClick = () => {
     if (onMietvertragClick && item.mietvertrag_id) {
       onMietvertragClick(item.mietvertrag_id);
-    }
-  };
-
-  const handleSendMahnung = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Verhindert das Triggern des Mietvertrag-Clicks
-    
-    setIsSendingMahnung(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('send-mahnung', {
-        body: {
-          mietvertragId: item.mietvertrag_id,
-          mahnstufe: item.mahnstufe,
-          vertragData: item.mietvertrag,
-          forderungen: [] // Wird in der Edge Function basierend auf dem Mietvertrag geladen
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Mahnung versendet",
-        description: `Mahnung Stufe ${item.mahnstufe} wurde erfolgreich versendet.`,
-      });
-    } catch (error) {
-      console.error('Fehler beim Versenden der Mahnung:', error);
-      toast({
-        title: "Fehler",
-        description: "Mahnung konnte nicht versendet werden.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSendingMahnung(false);
     }
   };
 
@@ -73,26 +33,6 @@ export const FehlendeMietzahlungItem = ({ item, onMietvertragClick }: FehlendeMi
           <p className="text-xs text-gray-500">Status: {item.mietvertrag_status}</p>
         </div>
       </div>
-
-      {/* Mahnstufe und Button */}
-      {item.mahnstufe > 0 && (
-        <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200 mb-3">
-          <div className="flex items-center space-x-3">
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-            <span className="text-sm font-medium text-red-800">Mahnstufe {item.mahnstufe}</span>
-            <MahnstufeIndicator stufe={item.mahnstufe} />
-          </div>
-          <Button
-            onClick={handleSendMahnung}
-            disabled={isSendingMahnung}
-            size="sm"
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
-            <Send className="h-3 w-3 mr-1" />
-            {isSendingMahnung ? 'Sende...' : 'Mahnung verschicken'}
-          </Button>
-        </div>
-      )}
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm border-t pt-3">
         <div>
