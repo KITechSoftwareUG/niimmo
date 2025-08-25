@@ -5,7 +5,6 @@ import { ImmobilienCard } from "@/components/dashboard/ImmobilienCard";
 import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
-import { MahnstufeManager } from "@/components/dashboard/MahnstufeManager";
 import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
@@ -190,11 +189,6 @@ const Index = () => {
           </div>
           
           <DashboardStats immobilien={immobilien} onNavigateToContract={handleNavigateToContract} />
-        </div>
-
-        {/* Mahnstufen Manager */}
-        <div className="mb-6">
-          <MahnstufeManager />
         </div>
 
         {/* Fehlende Mietzahlungen Übersicht */}
