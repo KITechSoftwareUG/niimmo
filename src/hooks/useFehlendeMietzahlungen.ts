@@ -50,7 +50,7 @@ export const useFehlendeMietzahlungen = () => {
         throw forderungenError;
       }
 
-        // Hole alle Zahlungen - nur Mietzahlungen für Hauptberechnung
+        // Hole alle Zahlungen - einschließlich Mietzahlungen und unzugeordneter Zahlungen
         const { data: allZahlungen, error: zahlungenError } = await supabase
           .from('zahlungen')
           .select('*');
@@ -61,8 +61,14 @@ export const useFehlendeMietzahlungen = () => {
         }
 
         // Prüfe ob Zahlungen existieren, sonst leere Arrays
+        // Berücksichtige Mietzahlungen (kategorie='Miete') und unzugeordnete Zahlungen (kategorie=null)
+        // sowie positive Beträge (Eingänge) die potentiell Mietzahlungen sein könnten
         const zahlungen = (allZahlungen && allZahlungen.length > 0) 
-          ? allZahlungen.filter(z => z.kategorie === 'Miete')
+          ? allZahlungen.filter(z => 
+              z.kategorie === 'Miete' || 
+              z.kategorie === null || 
+              (z.betrag > 0 && z.kategorie !== 'Nichtmiete')
+            )
           : [];
         
         // Sonstige Zahlungen für separate Anzeige (Nichtmiete)
