@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
+  const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
+  const [selectedMietvertrag, setSelectedMietvertrag] = useState<string | null>(null);
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
 
   const { data: immobilien, isLoading, refetch } = useQuery({
@@ -83,16 +85,16 @@ const Index = () => {
     });
   }, [immobilien]);
 
-  const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
-
   const handleImmobilieClick = (immobilieId: string, einheitId?: string) => {
     setSelectedImmobilie(immobilieId);
     setSelectedEinheit(einheitId || null);
+    setSelectedMietvertrag(null);
   };
 
   const handleBackClick = () => {
     setSelectedImmobilie(null);
     setSelectedEinheit(null);
+    setSelectedMietvertrag(null);
     // Refresh the immobilien data when going back
     refetch();
   };
@@ -100,6 +102,7 @@ const Index = () => {
   const handleNavigateToContract = (immobilieId: string, einheitId: string, mietvertragId: string) => {
     setSelectedImmobilie(immobilieId);
     setSelectedEinheit(einheitId);
+    setSelectedMietvertrag(mietvertragId);
   };
 
   const handleMietvertragClick = async (mietvertragId: string) => {
@@ -117,7 +120,8 @@ const Index = () => {
     
     if (mietvertrag?.einheit_id && mietvertrag.einheiten?.immobilie_id) {
       setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);
-      setSelectedEinheit(mietvertragId); // Navigate directly to the contract
+      setSelectedEinheit(mietvertrag.einheit_id); // Set to unit ID for proper scrolling
+      setSelectedMietvertrag(mietvertragId); // Set contract ID to open modal
     }
   };
 
@@ -147,6 +151,7 @@ const Index = () => {
           zahlungsstatus: "all"
         }}
         scrollToEinheitId={selectedEinheit}
+        openMietvertragId={selectedMietvertrag}
       />
     );
   }

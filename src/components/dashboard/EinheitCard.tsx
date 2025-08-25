@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail } from "lucide-react";
 import { useState, useEffect } from "react";
 import { EinheitHistorieView } from "./EinheitHistorieView";
+import { MietvertragDetailsModal } from "./MietvertragDetailsModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,11 +37,22 @@ interface EinheitCardProps {
     name: string;
     adresse: string;
   };
+  openMietvertragId?: string | null;
 }
 
-export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) => {
+export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId }: EinheitCardProps) => {
   const [showHistorie, setShowHistorie] = useState(false);
+  const [showMietvertragDetails, setShowMietvertragDetails] = useState(false);
+  const [autoOpenContract, setAutoOpenContract] = useState(false);
   const { toast } = useToast();
+
+  // Check if this contract should be automatically opened
+  useEffect(() => {
+    if (openMietvertragId && vertrag?.id === openMietvertragId) {
+      setAutoOpenContract(true);
+      setShowMietvertragDetails(true);
+    }
+  }, [openMietvertragId, vertrag?.id]);
 
   // Check if contract should be automatically ended
   useEffect(() => {
@@ -143,166 +155,179 @@ export const EinheitCard = ({ einheit, vertrag, immobilie }: EinheitCardProps) =
   }
 
   return (
-    <Card 
-      className={`transition-all hover:shadow-lg cursor-pointer border-l-4 ${getStatusColor()}`}
-      onClick={handleCardClick}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-2">
-            <Home className="h-5 w-5 text-blue-600" />
-            <CardTitle className="text-lg">
-              {einheit.nummer ? `Einheit ${einheit.nummer}` : `Einheit ${getEinheitNumber(einheit.id)}`}
-            </CardTitle>
+    <>
+      <Card 
+        className={`transition-all hover:shadow-lg cursor-pointer border-l-4 ${getStatusColor()}`}
+        onClick={handleCardClick}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-2">
+              <Home className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-lg">
+                {einheit.nummer ? `Einheit ${einheit.nummer}` : `Einheit ${getEinheitNumber(einheit.id)}`}
+              </CardTitle>
+            </div>
+            {getStatusBadge()}
           </div>
-          {getStatusBadge()}
-        </div>
+          
+          {einheit.etage && (
+            <p className="text-sm text-gray-600">{einheit.etage}</p>
+          )}
+        </CardHeader>
         
-        {einheit.etage && (
-          <p className="text-sm text-gray-600">{einheit.etage}</p>
-        )}
-      </CardHeader>
-      
-      <CardContent className="space-y-3">
-        {einheit.qm && (
-          <div className="flex items-center space-x-2">
-            <Square className="h-4 w-4 text-gray-500" />
-            <span className="text-sm">{einheit.qm} m²</span>
-          </div>
-        )}
+        <CardContent className="space-y-3">
+          {einheit.qm && (
+            <div className="flex items-center space-x-2">
+              <Square className="h-4 w-4 text-gray-500" />
+              <span className="text-sm">{einheit.qm} m²</span>
+            </div>
+          )}
 
-        {vertrag && (
-          <>
-            {/* Mieter - Zugeordnet über Mietvertrag */}
-            {vertrag.mieter && vertrag.mieter.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Users className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">
-                    {vertrag.mieter.length === 1 ? 'Mieter:' : 'Mieter:'}
-                  </span>
-                </div>
-                <div className="pl-6 space-y-2">
-                  {vertrag.mieter.slice(0, 2).map((mieter, index) => (
-                    <div key={index} className="flex flex-col p-3 bg-blue-50 rounded-lg">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <User className="h-3 w-3 text-blue-600" />
-                        <span className="text-sm text-gray-700 font-medium">
-                          {mieter.vorname} {mieter.nachname}
-                        </span>
-                      </div>
-                      
-                      {/* Telefonnummer */}
-                      {mieter.telnr && (
-                        <div className="text-xs text-gray-600 ml-5 flex items-center justify-between group">
-                          <div className="flex items-center space-x-1">
-                            <Phone className="h-3 w-3" />
-                            <span>{mieter.telnr}</span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(mieter.telnr!, 'Telefonnummer');
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                            title="Telefonnummer kopieren"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
-                      
-                      {/* E-Mail */}
-                      {mieter.hauptmail && (
-                        <div className="text-xs text-gray-600 ml-5 flex items-center justify-between group">
-                          <div className="flex items-center space-x-1">
-                            <Mail className="h-3 w-3" />
-                            <span>{mieter.hauptmail}</span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(mieter.hauptmail!, 'E-Mail-Adresse');
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                            title="E-Mail-Adresse kopieren"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {vertrag.mieter.length > 2 && (
-                    <div className="text-xs text-gray-500 pl-5 bg-gray-50 rounded p-2">
-                      +{vertrag.mieter.length - 2} weitere Mieter
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Mietinformationen */}
-            <div className="space-y-2 pt-2 border-t border-gray-100">
-              <div className="text-sm font-medium text-gray-700 mb-2">Mietinformationen</div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Euro className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">Kaltmiete</span>
-                </div>
-                <span className="text-sm font-medium text-gray-800">{vertrag.kaltmiete || 0}€</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Euro className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-600">Betriebskosten</span>
-                </div>
-                <span className="text-sm font-medium text-gray-800">{vertrag.betriebskosten || 0}€</span>
-              </div>
-
-              {vertrag.warmmiete && (
-                <div className="flex items-center justify-between">
+          {vertrag && (
+            <>
+              {/* Mieter - Zugeordnet über Mietvertrag */}
+              {vertrag.mieter && vertrag.mieter.length > 0 && (
+                <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <Euro className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm text-gray-600 font-medium">Warmmiete</span>
+                    <Users className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium">
+                      {vertrag.mieter.length === 1 ? 'Mieter:' : 'Mieter:'}
+                    </span>
                   </div>
-                  <span className="text-sm font-bold text-orange-600">{vertrag.warmmiete}€</span>
+                  <div className="pl-6 space-y-2">
+                    {vertrag.mieter.slice(0, 2).map((mieter, index) => (
+                      <div key={index} className="flex flex-col p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <User className="h-3 w-3 text-blue-600" />
+                          <span className="text-sm text-gray-700 font-medium">
+                            {mieter.vorname} {mieter.nachname}
+                          </span>
+                        </div>
+                        
+                        {/* Telefonnummer */}
+                        {mieter.telnr && (
+                          <div className="text-xs text-gray-600 ml-5 flex items-center justify-between group">
+                            <div className="flex items-center space-x-1">
+                              <Phone className="h-3 w-3" />
+                              <span>{mieter.telnr}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(mieter.telnr!, 'Telefonnummer');
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                              title="Telefonnummer kopieren"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* E-Mail */}
+                        {mieter.hauptmail && (
+                          <div className="text-xs text-gray-600 ml-5 flex items-center justify-between group">
+                            <div className="flex items-center space-x-1">
+                              <Mail className="h-3 w-3" />
+                              <span>{mieter.hauptmail}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyToClipboard(mieter.hauptmail!, 'E-Mail-Adresse');
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                              title="E-Mail-Adresse kopieren"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {vertrag.mieter.length > 2 && (
+                      <div className="text-xs text-gray-500 pl-5 bg-gray-50 rounded p-2">
+                        +{vertrag.mieter.length - 2} weitere Mieter
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
+
+              {/* Mietinformationen */}
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <div className="text-sm font-medium text-gray-700 mb-2">Mietinformationen</div>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Euro className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">Kaltmiete</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-800">{vertrag.kaltmiete || 0}€</span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Euro className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">Betriebskosten</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-800">{vertrag.betriebskosten || 0}€</span>
+                </div>
+
+                {vertrag.warmmiete && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Euro className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm text-gray-600 font-medium">Warmmiete</span>
+                    </div>
+                    <span className="text-sm font-bold text-orange-600">{vertrag.warmmiete}€</span>
+                  </div>
+                )}
+              </div>
+
+              {vertrag.start_datum && (
+                <div className="flex items-center space-x-2 pt-2">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm">
+                    seit {new Date(vertrag.start_datum).toLocaleDateString('de-DE')}
+                  </span>
+                </div>
+              )}
+
+              {vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum && (
+                <div className="flex items-center space-x-2 pt-1">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm text-yellow-700 font-medium">
+                    Kündigungsdatum: {new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Wenn keine Mieter zugeordnet sind */}
+          {(!vertrag || !vertrag.mieter || vertrag.mieter.length === 0) && (
+            <div className="flex items-center space-x-2 text-gray-500 bg-gray-50 p-2 rounded-lg">
+              <Users className="h-4 w-4" />
+              <span className="text-sm">
+                {vertrag ? 'Keine Mieter zugeordnet' : 'Leerstehend - Kein Mietvertrag'}
+              </span>
             </div>
-
-            {vertrag.start_datum && (
-              <div className="flex items-center space-x-2 pt-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="text-sm">
-                  seit {new Date(vertrag.start_datum).toLocaleDateString('de-DE')}
-                </span>
-              </div>
-            )}
-
-            {vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum && (
-              <div className="flex items-center space-x-2 pt-1">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <span className="text-sm text-yellow-700 font-medium">
-                  Kündigungsdatum: {new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')}
-                </span>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Wenn keine Mieter zugeordnet sind */}
-        {(!vertrag || !vertrag.mieter || vertrag.mieter.length === 0) && (
-          <div className="flex items-center space-x-2 text-gray-500 bg-gray-50 p-2 rounded-lg">
-            <Users className="h-4 w-4" />
-            <span className="text-sm">
-              {vertrag ? 'Keine Mieter zugeordnet' : 'Leerstehend - Kein Mietvertrag'}
-            </span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Contract Details Modal */}
+      {vertrag && (
+        <MietvertragDetailsModal
+          isOpen={showMietvertragDetails}
+          onClose={() => setShowMietvertragDetails(false)}
+          vertragId={vertrag.id}
+          einheit={einheit}
+          immobilie={immobilie}
+        />
+      )}
+    </>
   );
 };

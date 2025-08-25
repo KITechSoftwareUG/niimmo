@@ -17,9 +17,10 @@ interface ImmobilienDetailProps {
     zahlungsstatus: string;
   };
   scrollToEinheitId?: string | null;
+  openMietvertragId?: string | null;
 }
 
-export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: ImmobilienDetailProps) => {
+export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openMietvertragId }: ImmobilienDetailProps) => {
   const einheitRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const { data: immobilie, isLoading: immobilieLoading } = useQuery({
     queryKey: ['immobilie', immobilieId],
@@ -376,6 +377,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId }: Imm
                   einheit={einheit}
                   vertrag={vertrag}
                   immobilie={immobilie}
+                  openMietvertragId={openMietvertragId}
                 />
               </div>
             );
