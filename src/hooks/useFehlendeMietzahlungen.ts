@@ -19,6 +19,7 @@ export interface FehlendeMietzahlung {
   kaltmiete: number;
   betriebskosten: number;
   mietvertrag_status: string;
+  mahnstufe: number;
 }
 
 export const useFehlendeMietzahlungen = () => {
@@ -227,7 +228,8 @@ export const useFehlendeMietzahlungen = () => {
             dokumente: mietvertragDokumente,
             kaltmiete: mietvertrag.kaltmiete || 0,
             betriebskosten: mietvertrag.betriebskosten || 0,
-            mietvertrag_status: status
+            mietvertrag_status: status,
+            mahnstufe: mietvertrag.mahnstufe || 0
           });
         }
       }
