@@ -552,126 +552,6 @@ export const MietvertragDetailsModal = ({
             </CardContent>
           </Card>
 
-          {/* Mahnstufen-Bereich */}
-          {vertrag && (
-            <Card className="border-destructive/20 bg-destructive/5">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                    <span>Mahnstufen-Verwaltung</span>
-                  </div>
-                  {(vertrag.mahnstufe || 0) > 0 && (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-destructive">
-                        Aktuelle Mahnstufe: {vertrag.mahnstufe}
-                      </span>
-                      <MahnstufeIndicator stufe={vertrag.mahnstufe || 0} />
-                    </div>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm text-muted-foreground">Mahnstufe:</span>
-                      <MahnstufeIndicator stufe={vertrag.mahnstufe || 0} />
-                      <span className="font-medium">
-                        {vertrag.mahnstufe === 0 ? 'Keine Mahnung' : 
-                         vertrag.mahnstufe === 1 ? '1. Mahnung' :
-                         vertrag.mahnstufe === 2 ? '2. Mahnung' :
-                         vertrag.mahnstufe === 3 ? '3. Mahnung' : 'Unbekannt'}
-                      </span>
-                    </div>
-                    {vertrag.letzte_mahnung_am && (
-                      <p className="text-xs text-muted-foreground">
-                        Letzte Mahnung: {formatDatum(vertrag.letzte_mahnung_am)}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    {(vertrag.mahnstufe || 0) > 0 && (
-                      <Button
-                        onClick={async () => {
-                          try {
-                            // Hole offene Forderungen
-                            const { data: forderungen } = await supabase
-                              .from('mietforderungen')
-                              .select('*')
-                              .eq('mietvertrag_id', vertrag.id);
-
-                            // Hole Mieter-Daten
-                            const { data: mieterData } = await supabase
-                              .from('mietvertrag_mieter')
-                              .select(`
-                                mieter:mieter_id (
-                                  vorname,
-                                  nachname,
-                                  hauptmail
-                                )
-                              `)
-                              .eq('mietvertrag_id', vertrag.id);
-
-                            const { data, error } = await supabase.functions.invoke('send-mahnung', {
-                              body: {
-                                mietvertragId: vertrag.id,
-                                mahnstufe: vertrag.mahnstufe,
-                                vertragData: {
-                                  ...vertrag,
-                                  mieter: mieterData,
-                                  einheit: einheit,
-                                  immobilie: immobilie
-                                },
-                                forderungen: forderungen || []
-                              }
-                            });
-
-                            if (error) throw error;
-
-                            toast({
-                              title: "Mahnung versendet",
-                              description: `Mahnung Stufe ${vertrag.mahnstufe} wurde erfolgreich versendet.`,
-                            });
-                          } catch (error) {
-                            console.error('Fehler beim Versenden der Mahnung:', error);
-                            toast({
-                              title: "Fehler",
-                              description: "Mahnung konnte nicht versendet werden.",
-                              variant: "destructive",
-                            });
-                          }
-                        }}
-                        size="sm"
-                        className="bg-destructive hover:bg-destructive/90"
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        Mahnung verschicken
-                      </Button>
-                    )}
-                    
-                    <Button
-                      onClick={handleCheckMahnstufen}
-                      size="sm"
-                      variant="outline"
-                    >
-                      Mahnstufen prüfen
-                    </Button>
-                  </div>
-                </div>
-                
-                {(vertrag.mahnstufe || 0) === 0 && (
-                  <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-sm text-green-700 flex items-center">
-                      <span className="mr-2">✓</span>
-                      Alle Zahlungen sind pünktlich - keine Mahnstufe aktiv
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           <Tabs defaultValue="zahlungen" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -705,6 +585,96 @@ export const MietvertragDetailsModal = ({
                     <div className="p-3 bg-purple-50 rounded-lg">
                       <p className="text-sm text-purple-600">Gesamtmiete (monatlich)</p>
                       <p className="font-semibold text-lg">{formatBetrag(sollMiete)}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Mahnstufen-Verwaltung kompakt */}
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-sm font-medium">Mahnstufe:</span>
+                        <MahnstufeIndicator stufe={vertrag?.mahnstufe || 0} />
+                        <span className="text-sm">
+                          {vertrag?.mahnstufe === 0 ? 'Keine Mahnung' : 
+                           vertrag?.mahnstufe === 1 ? '1. Mahnung' :
+                           vertrag?.mahnstufe === 2 ? '2. Mahnung' :
+                           vertrag?.mahnstufe === 3 ? '3. Mahnung' : 'Unbekannt'}
+                        </span>
+                        {vertrag?.letzte_mahnung_am && (
+                          <span className="text-xs text-gray-500">
+                            • Letzte: {formatDatum(vertrag.letzte_mahnung_am)}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        {(vertrag?.mahnstufe || 0) > 0 && (
+                          <Button
+                            onClick={async () => {
+                              try {
+                                // Hole offene Forderungen
+                                const { data: forderungen } = await supabase
+                                  .from('mietforderungen')
+                                  .select('*')
+                                  .eq('mietvertrag_id', vertrag.id);
+
+                                // Hole Mieter-Daten
+                                const { data: mieterData } = await supabase
+                                  .from('mietvertrag_mieter')
+                                  .select(`
+                                    mieter:mieter_id (
+                                      vorname,
+                                      nachname,
+                                      hauptmail
+                                    )
+                                  `)
+                                  .eq('mietvertrag_id', vertrag.id);
+
+                                const { data, error } = await supabase.functions.invoke('send-mahnung', {
+                                  body: {
+                                    mietvertragId: vertrag.id,
+                                    mahnstufe: vertrag.mahnstufe,
+                                    vertragData: {
+                                      ...vertrag,
+                                      mieter: mieterData,
+                                      einheit: einheit,
+                                      immobilie: immobilie
+                                    },
+                                    forderungen: forderungen || []
+                                  }
+                                });
+
+                                if (error) throw error;
+
+                                toast({
+                                  title: "Mahnung versendet",
+                                  description: `Mahnung Stufe ${vertrag.mahnstufe} wurde erfolgreich versendet.`,
+                                });
+                              } catch (error) {
+                                console.error('Fehler beim Versenden der Mahnung:', error);
+                                toast({
+                                  title: "Fehler",
+                                  description: "Mahnung konnte nicht versendet werden.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            size="sm"
+                            variant="destructive"
+                          >
+                            <Send className="h-4 w-4 mr-1" />
+                            Mahnung senden
+                          </Button>
+                        )}
+                        
+                        <Button
+                          onClick={handleCheckMahnstufen}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Mahnstufen prüfen
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   
