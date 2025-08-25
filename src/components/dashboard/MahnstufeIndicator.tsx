@@ -12,14 +12,14 @@ export const MahnstufeIndicator = ({ stufe, className }: MahnstufeIndicatorProps
         <div
           key={level}
           className={cn(
-            "w-2 h-6 rounded-sm transition-colors",
+            "w-3 h-8 rounded-md border transition-all duration-300 shadow-sm",
             level <= stufe
               ? level === 1
-                ? "bg-yellow-500"
+                ? "bg-gradient-to-t from-yellow-400 to-yellow-500 border-yellow-300 shadow-yellow-200"
                 : level === 2
-                ? "bg-orange-500"
-                : "bg-red-500"
-              : "bg-muted/30"
+                ? "bg-gradient-to-t from-orange-400 to-orange-500 border-orange-300 shadow-orange-200"
+                : "bg-gradient-to-t from-red-400 to-red-500 border-red-300 shadow-red-200"
+              : "bg-gradient-to-t from-gray-100 to-gray-200 border-gray-300"
           )}
         />
       ))}
