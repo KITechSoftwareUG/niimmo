@@ -139,20 +139,16 @@ export const useFehlendeMietzahlungen = () => {
       const heute = new Date();
       const fehlendMap = new Map();
 
-      // Pro Mietvertrag die Zahlungsstatus berechnen - EINFACHE LOGIK
+      // Pro Mietvertrag die Zahlungsstatus berechnen - NUR AKTIVE MIETVERTRÄGE
       for (const mietvertrag of mietvertraege || []) {
         const mietvertragId = mietvertrag.id;
         const istLastschrift = mietvertrag.lastschrift || false;
         const kaltmiete = mietvertrag.kaltmiete || 0;
         const betriebskosten = mietvertrag.betriebskosten || 0;
 
-        // Prüfe ob Mietvertrag beendet ist
-        const istBeendet = mietvertrag.status === 'beendet' || 
-                          (mietvertrag.ende_datum && new Date(mietvertrag.ende_datum) < heute);
-
-        // Wenn Mietvertrag beendet ist, überspringen (behandeln wie nicht vorhanden)
-        if (istBeendet) {
-          console.log(`Mietvertrag ${mietvertragId}: Übersprungen (Vertrag beendet)`);
+        // Nur aktive Mietverträge berücksichtigen
+        if (mietvertrag.status !== 'aktiv') {
+          console.log(`Mietvertrag ${mietvertragId}: Übersprungen (Status: ${mietvertrag.status})`);
           continue;
         }
 
@@ -213,9 +209,8 @@ export const useFehlendeMietzahlungen = () => {
           const mieterName = ersteMieter?.mieter ? 
             `${ersteMieter.mieter.vorname} ${ersteMieter.mieter.nachname}` : 'Unbekannt';
 
-          // Bestimme ob Mietvertrag gekündigt ist
-          const istGekuendigt = mietvertrag.status === 'gekuendigt' && mietvertrag.kuendigungsdatum;
-          const status = istGekuendigt ? 'Gekündigt' : mietvertrag.status || 'Unbekannt';
+           // Status ist bereits aktiv, da wir nur aktive Mietverträge betrachten
+           const status = 'Aktiv';
 
           fehlendMap.set(mietvertragId, {
             mietvertrag_id: mietvertragId,
