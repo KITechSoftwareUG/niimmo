@@ -769,7 +769,7 @@ export const MietvertragDetailsModal = ({
                 </CardHeader>
                 <CardContent>
                   {zahlungen && zahlungen.length > 0 ? (
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
                       {zahlungen.map((zahlung) => (
                         <div key={zahlung.id} className="p-3 border rounded-lg">
                           <div className="flex justify-between items-start">
