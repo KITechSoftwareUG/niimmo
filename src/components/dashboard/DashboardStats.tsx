@@ -6,9 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 interface DashboardStatsProps {
   immobilien: any[] | undefined;
   onNavigateToContract?: (immobilieId: string, einheitId: string, mietvertragId: string) => void;
+  onShowMietUebersicht?: () => void;
 }
 
-export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardStatsProps) => {
+export const DashboardStats = ({ immobilien, onNavigateToContract, onShowMietUebersicht }: DashboardStatsProps) => {
   const { data: gesamtEinheiten } = useQuery({
     queryKey: ['gesamt-einheiten'],
     queryFn: async () => {
@@ -165,8 +166,11 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
       {stats.map((stat, index) => (
         <div 
           key={stat.title} 
-          className={`metric-card p-6 rounded-2xl border ${stat.border} ${stat.bg}`}
+          className={`metric-card p-6 rounded-2xl border ${stat.border} ${stat.bg} ${
+            stat.isRentCard ? 'cursor-pointer hover:shadow-lg transition-all duration-200' : ''
+          }`}
           style={{animationDelay: `${index * 0.1}s`}}
+          onClick={stat.isRentCard ? onShowMietUebersicht : undefined}
         >
           <div className="flex items-center justify-between">
             <div className="flex-1">

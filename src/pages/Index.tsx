@@ -7,6 +7,7 @@ import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlun
 import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
+import { MietUebersichtModal } from "@/components/dashboard/MietUebersichtModal";
 import { useState, useMemo } from "react";
 import { Loader2, Building2, BarChart3, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ const Index = () => {
   const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
   const [selectedMietvertrag, setSelectedMietvertrag] = useState<string | null>(null);
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
+  const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
   const {
     data: immobilien,
     isLoading,
@@ -159,7 +161,11 @@ const Index = () => {
             </div>
           </div>
           
-          <DashboardStats immobilien={immobilien} onNavigateToContract={handleNavigateToContract} />
+          <DashboardStats 
+            immobilien={immobilien} 
+            onNavigateToContract={handleNavigateToContract}
+            onShowMietUebersicht={() => setShowMietUebersicht(true)}
+          />
         </div>
 
         {/* Fehlende Mietzahlungen Übersicht */}
@@ -199,6 +205,11 @@ const Index = () => {
             </div>
           </div>}
       </div>
+      
+      <MietUebersichtModal 
+        open={showMietUebersicht} 
+        onOpenChange={setShowMietUebersicht} 
+      />
     </div>;
 };
 export default Index;
