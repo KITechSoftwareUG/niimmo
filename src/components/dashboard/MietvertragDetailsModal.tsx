@@ -728,18 +728,18 @@ export const MietvertragDetailsModal = ({
                 </CardHeader>
                 <CardContent>
                   {monthlyComparison && monthlyComparison.length > 0 ? (
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
                       {monthlyComparison.map((monthly) => (
-                        <div key={monthly.monat} className="p-3 border rounded-lg">
+                        <div key={monthly.monat} className="p-2 border rounded-lg">
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="font-semibold">
+                              <p className="font-medium text-sm">
                                 {new Date(monthly.monat + '-01').toLocaleDateString('de-DE', { 
                                   month: 'long', 
                                   year: 'numeric' 
                                 })}
                               </p>
-                              <div className="text-sm text-gray-600 space-y-1">
+                              <div className="text-xs text-gray-600 space-y-0.5">
                                 <p>Soll: {formatBetrag(monthly.sollbetrag)}</p>
                                 <p>Ist: {formatBetrag(monthly.zahlungen)}</p>
                                 <p className={`font-medium ${
@@ -769,20 +769,20 @@ export const MietvertragDetailsModal = ({
                 </CardHeader>
                 <CardContent>
                   {zahlungen && zahlungen.length > 0 ? (
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                    <div className="space-y-2 max-h-[32rem] overflow-y-auto">
                       {zahlungen.map((zahlung) => (
-                        <div key={zahlung.id} className="p-3 border rounded-lg">
+                        <div key={zahlung.id} className="p-2 border rounded-lg">
                           <div className="flex justify-between items-start">
                             <div>
-                              <p className="font-semibold">{formatBetrag(Number(zahlung.betrag))}</p>
-                              <p className="text-sm text-gray-600">
+                              <p className="font-medium text-sm">{formatBetrag(Number(zahlung.betrag))}</p>
+                              <p className="text-xs text-gray-600">
                                 {zahlung.buchungsdatum ? formatDatum(zahlung.buchungsdatum) : 'N/A'}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 truncate max-w-xs">
                                 {zahlung.verwendungszweck || 'Kein Verwendungszweck'}
                               </p>
                             </div>
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="text-xs">
                               {zahlung.kategorie || 'Sonstige'}
                             </Badge>
                           </div>
