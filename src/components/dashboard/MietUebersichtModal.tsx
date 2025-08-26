@@ -5,10 +5,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Building2, User, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState, useMemo } from "react";
+import React from "react";
 
 interface MietUebersichtModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface OrganizedPropertyGroup {
+  immobilie: {
+    id: string;
+    name: string;
+    adresse: string;
+  };
+  vertraege: any[];
 }
 
 export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalProps) => {
@@ -31,7 +41,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     if (sortField !== field) return <ArrowUpDown className="h-4 w-4" />;
     return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
-  // Hole alle Mietverträge mit den zugehörigen Daten
+  // Erweitere Datenabfrage um fehlende Felder
   const { data: mietvertraegeData, isLoading } = useQuery({
     queryKey: ['miet-uebersicht'],
     queryFn: async () => {
@@ -45,10 +55,14 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
           start_datum,
           ende_datum,
           kuendigungsdatum,
+          kaution_betrag,
+          einheit_id,
           einheiten (
             id,
             etage,
             qm,
+            einheitentyp,
+            immobilie_id,
             immobilien (
               id,
               name,
@@ -142,66 +156,41 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
       .join(', ');
   };
 
-  // Sortiere die Daten
-  const sortedMietvertraege = useMemo(() => {
-    if (!mietvertraegeData || !sortField) return mietvertraegeData;
+  // Sortiere die Daten und organisiere sie nach Immobilien
+  const organizedData = useMemo((): OrganizedPropertyGroup[] => {
+    if (!mietvertraegeData) return [];
 
-    return [...mietvertraegeData].sort((a, b) => {
-      let aValue, bValue;
-
-      switch (sortField) {
-        case 'immobilie':
-          aValue = a.einheiten?.immobilien?.name || '';
-          bValue = b.einheiten?.immobilien?.name || '';
-          break;
-        case 'einheit':
-          aValue = a.einheiten?.id || '';
-          bValue = b.einheiten?.id || '';
-          break;
-        case 'mieter':
-          aValue = getMieterNamen(a.id);
-          bValue = getMieterNamen(b.id);
-          break;
-        case 'sollmiete':
-          aValue = (a.kaltmiete || 0) + (a.betriebskosten || 0);
-          bValue = (b.kaltmiete || 0) + (b.betriebskosten || 0);
-          break;
-        case 'aktuellerMonat':
-          aValue = getZahlungenFuerVertrag(a.id).aktuellerMonat;
-          bValue = getZahlungenFuerVertrag(b.id).aktuellerMonat;
-          break;
-        case 'gesamt':
-          aValue = getZahlungenFuerVertrag(a.id).gesamt;
-          bValue = getZahlungenFuerVertrag(b.id).gesamt;
-          break;
-        case 'status':
-          aValue = a.status || '';
-          bValue = b.status || '';
-          break;
-        case 'startDatum':
-          aValue = a.start_datum ? new Date(a.start_datum) : new Date(0);
-          bValue = b.start_datum ? new Date(b.start_datum) : new Date(0);
-          break;
-        default:
-          return 0;
+    // Gruppiere nach Immobilien
+    const groupedByProperty: Record<string, OrganizedPropertyGroup> = mietvertraegeData.reduce((acc, vertrag) => {
+      const immobilieId = vertrag.einheiten?.immobilie_id;
+      const immobilieName = vertrag.einheiten?.immobilien?.name || 'Unbekannte Immobilie';
+      
+      if (!acc[immobilieId]) {
+        acc[immobilieId] = {
+          immobilie: {
+            id: immobilieId,
+            name: immobilieName,
+            adresse: vertrag.einheiten?.immobilien?.adresse || ''
+          },
+          vertraege: []
+        };
       }
+      
+      acc[immobilieId].vertraege.push(vertrag);
+      return acc;
+    }, {} as Record<string, OrganizedPropertyGroup>);
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        const comparison = aValue.localeCompare(bValue);
-        return sortDirection === 'asc' ? comparison : -comparison;
-      }
-
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-      }
-
-      if (aValue instanceof Date && bValue instanceof Date) {
-        return sortDirection === 'asc' ? aValue.getTime() - bValue.getTime() : bValue.getTime() - aValue.getTime();
-      }
-
-      return 0;
+    // Sortiere Verträge innerhalb jeder Immobilie
+    Object.values(groupedByProperty).forEach(group => {
+      group.vertraege.sort((a, b) => {
+        const aEinheitId = parseInt(a.einheiten?.id || '0');
+        const bEinheitId = parseInt(b.einheiten?.id || '0');
+        return aEinheitId - bEinheitId;
+      });
     });
-  }, [mietvertraegeData, sortField, sortDirection, zahlungenData, mieterData]);
+
+    return Object.values(groupedByProperty);
+  }, [mietvertraegeData]);
 
   if (isLoading) {
     return (
@@ -228,189 +217,240 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
         <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-gray-100">
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-50 select-none"
-                  onClick={() => handleSort('immobilie')}
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('lfdNr')}
                 >
-                  <div className="flex items-center gap-2">
-                    Immobilie
-                    <SortIcon field="immobilie" />
+                  <div className="flex items-center justify-center gap-1">
+                    lfd. Nr
+                    <SortIcon field="lfdNr" />
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-50 select-none"
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
                   onClick={() => handleSort('einheit')}
                 >
-                  <div className="flex items-center gap-2">
-                    Einheit
+                  <div className="flex items-center justify-center gap-1">
+                    Einh.
                     <SortIcon field="einheit" />
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-50 select-none"
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
                   onClick={() => handleSort('mieter')}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-1">
                     Mieter
                     <SortIcon field="mieter" />
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-50 select-none"
-                  onClick={() => handleSort('sollmiete')}
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('lage')}
                 >
-                  <div className="flex items-center gap-2">
-                    Sollmiete
-                    <SortIcon field="sollmiete" />
+                  <div className="flex items-center justify-center gap-1">
+                    Lage
+                    <SortIcon field="lage" />
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-50 select-none"
-                  onClick={() => handleSort('aktuellerMonat')}
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('nutzung')}
                 >
-                  <div className="flex items-center gap-2">
-                    Akt. Monat
-                    <SortIcon field="aktuellerMonat" />
+                  <div className="flex items-center justify-center gap-1">
+                    Nutzung
+                    <SortIcon field="nutzung" />
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-50 select-none"
-                  onClick={() => handleSort('gesamt')}
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('flaeche')}
                 >
-                  <div className="flex items-center gap-2">
-                    Gesamt
-                    <SortIcon field="gesamt" />
+                  <div className="flex items-center justify-center gap-1">
+                    Fläche
+                    <SortIcon field="flaeche" />
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-50 select-none"
-                  onClick={() => handleSort('status')}
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('preisProQm')}
                 >
-                  <div className="flex items-center gap-2">
-                    Status
-                    <SortIcon field="status" />
+                  <div className="flex items-center justify-center gap-1">
+                    €/m²
+                    <SortIcon field="preisProQm" />
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-50 select-none"
-                  onClick={() => handleSort('startDatum')}
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('kaltmiete')}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center gap-1">
+                    KM
+                    <SortIcon field="kaltmiete" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('betriebskosten')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    BKV
+                    <SortIcon field="betriebskosten" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('gesamtmiete')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Gesamtmiete
+                    <SortIcon field="gesamtmiete" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('mietbeginn')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Mietbeginn
+                    <SortIcon field="mietbeginn" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('letzteMieterhoehung')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    letzte Mieterh.
+                    <SortIcon field="letzteMieterhoehung" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('laufzeit')}
+                >
+                  <div className="flex items-center justify-center gap-1">
                     Laufzeit
-                    <SortIcon field="startDatum" />
+                    <SortIcon field="laufzeit" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-150 select-none text-center font-bold text-xs"
+                  onClick={() => handleSort('kaution')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    Kaution
+                    <SortIcon field="kaution" />
                   </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedMietvertraege?.map((vertrag) => {
-                const zahlungsStats = getZahlungenFuerVertrag(vertrag.id);
-                const mieterNamen = getMieterNamen(vertrag.id);
-                const sollmiete = (vertrag.kaltmiete || 0) + (vertrag.betriebskosten || 0);
-                
-                // Fix infinity calculation
-                const calculatePercentage = (received: number, expected: number) => {
-                  if (expected === 0) return 0;
-                  return ((received / expected) * 100);
-                };
-                
-                const percentage = calculatePercentage(zahlungsStats.aktuellerMonat, sollmiete);
+              {organizedData.map((propertyGroup, propertyIndex) => {
+                let laufendeNummer = 1;
                 
                 return (
-                  <TableRow key={vertrag.id}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-gray-500" />
-                          <span className="font-medium text-sm">
-                            {vertrag.einheiten?.immobilien?.name || 'N/A'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          {vertrag.einheiten?.immobilien?.adresse || 'N/A'}
-                        </p>
-                      </div>
-                    </TableCell>
+                  <React.Fragment key={propertyGroup.immobilie.id}>
+                    {/* Property Header Row */}
+                    <TableRow className="bg-blue-50 font-bold">
+                      <TableCell colSpan={14} className="text-left font-bold text-sm">
+                        Obj. {propertyIndex + 1} {propertyGroup.immobilie.name}
+                      </TableCell>
+                    </TableRow>
                     
-                    <TableCell>
-                      <div className="text-sm">
-                        <p>ID: {vertrag.einheiten?.id || 'N/A'}</p>
-                        <p className="text-xs text-gray-500">
-                          {vertrag.einheiten?.etage ? `${vertrag.einheiten.etage}. OG` : ''} 
-                          {vertrag.einheiten?.qm ? ` • ${vertrag.einheiten.qm}m²` : ''}
-                        </p>
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm">{mieterNamen || 'Kein Mieter'}</span>
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="text-sm font-medium">
-                        €{sollmiete.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Kalt: €{(vertrag.kaltmiete || 0).toLocaleString()} 
-                        + NK: €{(vertrag.betriebskosten || 0).toLocaleString()}
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="text-sm font-medium">
-                        €{zahlungsStats.aktuellerMonat.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {zahlungsStats.aktuellerMonat >= sollmiete ? '✅' : '❌'} 
-                        {percentage.toFixed(0)}%
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="text-sm">
-                        €{zahlungsStats.gesamt.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {zahlungsStats.anzahlZahlungen} Zahlungen
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <Badge 
-                        variant={
-                          vertrag.status === 'aktiv' ? 'default' : 
-                          vertrag.status === 'gekuendigt' ? 'destructive' : 
-                          'secondary'
-                        }
-                      >
-                        {vertrag.status}
-                      </Badge>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="text-xs space-y-1">
-                        <p>Start: {vertrag.start_datum ? new Date(vertrag.start_datum).toLocaleDateString('de-DE') : 'N/A'}</p>
-                        {vertrag.kuendigungsdatum && (
-                          <p className="text-red-600">
-                            Kündigung: {new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')}
-                          </p>
-                        )}
-                        {vertrag.ende_datum && (
-                          <p>Ende: {new Date(vertrag.ende_datum).toLocaleDateString('de-DE')}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                    {/* Unit Rows */}
+                    {propertyGroup.vertraege.map((vertrag, index) => {
+                      const mieterNamen = getMieterNamen(vertrag.id);
+                      const gesamtmiete = (vertrag.kaltmiete || 0) + (vertrag.betriebskosten || 0);
+                      const preisProQm = vertrag.einheiten?.qm ? (vertrag.kaltmiete || 0) / (vertrag.einheiten.qm || 1) : 0;
+                      
+                      return (
+                        <TableRow key={vertrag.id} className="border-b">
+                          {/* lfd. Nr */}
+                          <TableCell className="text-center text-xs border-r">
+                            {laufendeNummer++}
+                          </TableCell>
+                          
+                          {/* Einh. */}
+                          <TableCell className="text-center text-xs border-r">
+                            {vertrag.einheiten?.id || '-'}
+                          </TableCell>
+                          
+                          {/* Mieter */}
+                          <TableCell className="text-xs border-r">
+                            {mieterNamen || '-'}
+                          </TableCell>
+                          
+                          {/* Lage */}
+                          <TableCell className="text-center text-xs border-r">
+                            {vertrag.einheiten?.etage || '-'}
+                          </TableCell>
+                          
+                          {/* Nutzung */}
+                          <TableCell className="text-center text-xs border-r">
+                            {vertrag.einheiten?.einheitentyp || 'Wohnung'}
+                          </TableCell>
+                          
+                          {/* Fläche */}
+                          <TableCell className="text-center text-xs border-r">
+                            {vertrag.einheiten?.qm ? `${vertrag.einheiten.qm}m²` : '-'}
+                          </TableCell>
+                          
+                          {/* €/m² */}
+                          <TableCell className="text-center text-xs border-r">
+                            {preisProQm > 0 ? `${preisProQm.toFixed(2)} €` : '-'}
+                          </TableCell>
+                          
+                          {/* KM */}
+                          <TableCell className="text-center text-xs border-r">
+                            {(vertrag.kaltmiete || 0).toLocaleString()} €
+                          </TableCell>
+                          
+                          {/* BKV */}
+                          <TableCell className="text-center text-xs border-r">
+                            {(vertrag.betriebskosten || 0).toLocaleString()} €
+                          </TableCell>
+                          
+                          {/* Gesamtmiete */}
+                          <TableCell className="text-center text-xs font-medium border-r">
+                            {gesamtmiete.toLocaleString()} €
+                          </TableCell>
+                          
+                          {/* Mietbeginn */}
+                          <TableCell className="text-center text-xs border-r">
+                            {vertrag.start_datum ? new Date(vertrag.start_datum).toLocaleDateString('de-DE') : '-'}
+                          </TableCell>
+                          
+                          {/* letzte Mieterh. */}
+                          <TableCell className="text-center text-xs border-r">
+                            1/0/1900
+                          </TableCell>
+                          
+                          {/* Laufzeit */}
+                          <TableCell className="text-center text-xs border-r">
+                            {vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum 
+                              ? new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')
+                              : vertrag.ende_datum 
+                                ? new Date(vertrag.ende_datum).toLocaleDateString('de-DE')
+                                : 'unbefristet'
+                            }
+                          </TableCell>
+                          
+                          {/* Kaution */}
+                          <TableCell className="text-center text-xs">
+                            {vertrag.kaution_betrag ? `${vertrag.kaution_betrag.toLocaleString()} €` : '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </React.Fragment>
                 );
               })}
             </TableBody>
           </Table>
           
-          {sortedMietvertraege?.length === 0 && (
+          {organizedData?.length === 0 && (
             <div className="text-center py-10">
               <p className="text-gray-500">Keine Mietverträge gefunden</p>
             </div>
