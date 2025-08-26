@@ -391,7 +391,7 @@ export const MietvertragDetailsModal = ({
   if (vertragLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+        <DialogContent className="max-w-7xl max-h-[95vh] flex flex-col">
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
@@ -403,13 +403,15 @@ export const MietvertragDetailsModal = ({
   if (!vertrag) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-7xl max-h-[95vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Mietvertrag nicht gefunden</DialogTitle>
           </DialogHeader>
-          <div className="text-center py-8">
-            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Der angeforderte Mietvertrag konnte nicht gefunden werden.</p>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">Der angeforderte Mietvertrag konnte nicht gefunden werden.</p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -418,8 +420,8 @@ export const MietvertragDetailsModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-7xl max-h-[95vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center space-x-2">
               <FileText className="h-5 w-5" />
@@ -428,7 +430,7 @@ export const MietvertragDetailsModal = ({
           </div>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4">
           {/* Grundinformationen */}
           <Card>
             <CardHeader>
