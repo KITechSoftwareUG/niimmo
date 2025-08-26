@@ -612,7 +612,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                     {/* Property Header Row */}
                     <TableRow className="bg-blue-50 font-bold">
                       <TableCell colSpan={14} className="text-left font-bold text-sm">
-                        Obj. {propertyIndex + 1} {propertyGroup.immobilie.name}
+                        Objekt {propertyIndex + 1} {propertyGroup.immobilie.name}
                       </TableCell>
                     </TableRow>
                     
