@@ -595,17 +595,6 @@ export const MietvertragDetailsModal = ({
                       <div className="flex items-center space-x-3">
                         <span className="text-sm font-medium">Mahnstufe:</span>
                         <MahnstufeIndicator stufe={vertrag?.mahnstufe || 0} />
-                        <span className="text-sm">
-                          {vertrag?.mahnstufe === 0 ? 'Keine Mahnung' : 
-                           vertrag?.mahnstufe === 1 ? '1. Mahnung' :
-                           vertrag?.mahnstufe === 2 ? '2. Mahnung' :
-                           vertrag?.mahnstufe === 3 ? '3. Mahnung' : 'Unbekannt'}
-                        </span>
-                        {vertrag?.letzte_mahnung_am && (
-                          <span className="text-xs text-gray-500">
-                            • Letzte: {formatDatum(vertrag.letzte_mahnung_am)}
-                          </span>
-                        )}
                       </div>
                       
                       <div className="flex items-center space-x-2">
