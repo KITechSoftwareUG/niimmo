@@ -95,7 +95,7 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+    background: linear-gradient(135deg, hsl(0, 60%, 25%) 0%, hsl(0, 50%, 35%) 25%, hsl(0, 45%, 42%) 50%, hsl(0, 50%, 35%) 75%, hsl(0, 60%, 25%) 100%);
     min-height: 100vh;
     letter-spacing: -0.01em;
     font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
@@ -109,8 +109,9 @@
 
 @layer components {
   .modern-dashboard-bg {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%, #f8fafc 100%);
+    background: linear-gradient(135deg, hsl(0, 60%, 25%) 0%, hsl(0, 50%, 35%) 25%, hsl(0, 45%, 42%) 50%, hsl(0, 50%, 35%) 75%, hsl(0, 60%, 25%) 100%);
     position: relative;
+    min-height: 100vh;
   }
   
   .modern-dashboard-bg::before {
@@ -120,8 +121,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: radial-gradient(circle at 30% 20%, rgba(239, 68, 68, 0.03) 0%, transparent 50%),
-                radial-gradient(circle at 70% 80%, rgba(239, 68, 68, 0.02) 0%, transparent 50%);
+    opacity: 0;
   }
   
   .elegant-card {
