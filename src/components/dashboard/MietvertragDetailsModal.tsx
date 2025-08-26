@@ -26,8 +26,7 @@ import {
   AlertTriangle,
   Plus,
   Minus,
-  Send,
-  X
+  Send
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -426,14 +425,6 @@ export const MietvertragDetailsModal = ({
               <FileText className="h-5 w-5" />
               <span>Mietvertrag Details</span>
             </DialogTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={onClose}
-              className="h-8 w-8 p-0 hover:bg-gray-100"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
