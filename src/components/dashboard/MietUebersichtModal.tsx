@@ -405,16 +405,32 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
       return acc;
     }, {} as Record<string, OrganizedPropertyGroup>);
 
-    // Sortiere Verträge innerhalb jeder Immobilie
+    // Sortiere Verträge innerhalb jeder Immobilie chronologisch
     Object.values(groupedByProperty).forEach(group => {
       group.vertraege.sort((a, b) => {
+        // Primäre Sortierung: Einheit ID (numerisch)
         const aEinheitId = parseInt(a.einheiten?.id || '0');
         const bEinheitId = parseInt(b.einheiten?.id || '0');
-        return aEinheitId - bEinheitId;
+        
+        if (aEinheitId !== bEinheitId) {
+          return aEinheitId - bEinheitId;
+        }
+        
+        // Sekundäre Sortierung: Mietbeginn (chronologisch)
+        const aStartDate = a.start_datum ? new Date(a.start_datum) : new Date(0);
+        const bStartDate = b.start_datum ? new Date(b.start_datum) : new Date(0);
+        
+        return aStartDate.getTime() - bStartDate.getTime();
       });
     });
 
-    return Object.values(groupedByProperty);
+    // Sortiere Immobilien alphabetisch nach Namen
+    return Object.values(groupedByProperty).sort((a, b) => {
+      return a.immobilie.name.localeCompare(b.immobilie.name, 'de', { 
+        numeric: true, 
+        sensitivity: 'base' 
+      });
+    });
   }, [mietvertraegeData]);
 
   if (isLoading) {
