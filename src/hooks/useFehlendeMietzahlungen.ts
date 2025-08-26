@@ -159,9 +159,19 @@ export const useFehlendeMietzahlungen = () => {
           continue;
         }
 
-        // Alle Forderungen für diesen Mietvertrag
-        const mietvertragForderungen = forderungen?.filter(f => f.mietvertrag_id === mietvertragId) || [];
-        const mietvertragZahlungen = zahlungen?.filter(z => z.mietvertrag_id === mietvertragId) || [];
+        // Alle Forderungen für diesen Mietvertrag im Jahr 2025
+        const mietvertragForderungen = forderungen?.filter(f => 
+          f.mietvertrag_id === mietvertragId && 
+          f.sollmonat && 
+          f.sollmonat.startsWith('2025')
+        ) || [];
+        
+        // Alle Zahlungen für diesen Mietvertrag im Jahr 2025
+        const mietvertragZahlungen = zahlungen?.filter(z => 
+          z.mietvertrag_id === mietvertragId && 
+          z.buchungsdatum &&
+          new Date(z.buchungsdatum).getFullYear() === 2025
+        ) || [];
 
         // Wenn keine Forderungen existieren, überspringen
         if (mietvertragForderungen.length === 0) continue;
