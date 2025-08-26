@@ -222,29 +222,31 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
   const saveAllChanges = async () => {
     try {
       for (const cell of editingCells) {
-        const { vertragId, field, value } = cell;
-        
-        // Find the contract for updates
-        const vertrag = mietvertraegeData?.find(v => v.id === vertragId);
-        if (!vertrag) continue;
+          const { vertragId, field, value } = cell;
+          
+          // Find the contract for updates
+          const vertrag = mietvertraegeData?.find(v => v.id === vertragId);
+          if (!vertrag) continue;
 
-        switch (field) {
-          case 'mieter':
-            await saveMieterMutation.mutateAsync({ vertragId, mieterName: value });
-            break;
-            
-          case 'kaltmiete':
-          case 'betriebskosten':
-          case 'kaution':
-          case 'startDatum':
-            await saveMietvertragMutation.mutateAsync({
-              id: vertragId,
-              updates: {
-                [field === 'startDatum' ? 'start_datum' : 
-                 field === 'kaution' ? 'kaution_betrag' : field]: value
-              }
-            });
-            break;
+          switch (field) {
+            case 'mieter':
+              await saveMieterMutation.mutateAsync({ vertragId, mieterName: value });
+              break;
+              
+            case 'kaltmiete':
+            case 'betriebskosten':
+            case 'kaution':
+            case 'startDatum':
+            case 'letzteMieterhoehung':
+              await saveMietvertragMutation.mutateAsync({
+                id: vertragId,
+                updates: {
+                  [field === 'startDatum' ? 'start_datum' : 
+                   field === 'kaution' ? 'kaution_betrag' :
+                   field === 'letzteMieterhoehung' ? 'letzte_mieterhoehung_am' : field]: value
+                }
+              });
+              break;
             
           case 'etage':
           case 'qm':
@@ -281,6 +283,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
           ende_datum,
           kuendigungsdatum,
           kaution_betrag,
+          letzte_mieterhoehung_am,
           einheit_id,
           einheiten (
             id,
@@ -627,13 +630,27 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none text-center font-bold text-xs"
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
                   onClick={() => handleSort('kaution')}
                 >
                   <div className="flex items-center justify-center gap-1">
                     Kaution
                     <SortIcon field="kaution" />
                   </div>
+                </TableHead>
+                <TableHead 
+                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
+                  onClick={() => handleSort('naechsteMietErhoehung')}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    nächste mögl. Erhöh.
+                    <SortIcon field="naechsteMietErhoehung" />
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="text-center font-bold text-xs"
+                >
+                  Aktion
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -645,7 +662,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                   <React.Fragment key={propertyGroup.immobilie.id}>
                     {/* Property Header Row */}
                     <TableRow className="bg-blue-50 font-bold">
-                      <TableCell colSpan={14} className="text-left font-bold text-sm">
+                      <TableCell colSpan={16} className="text-left font-bold text-sm">
                         Objekt {propertyIndex + 1} {propertyGroup.immobilie.name}
                       </TableCell>
                     </TableRow>
@@ -830,8 +847,24 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           </TableCell>
                           
                           {/* letzte Mieterh. */}
-                          <TableCell className="text-center text-xs border-r">
-                            1/0/1900
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'letzteMieterhoehung') ? (
+                              <Input
+                                type="date"
+                                value={getEditingValue(vertrag.id, 'letzteMieterhoehung') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'letzteMieterhoehung', e.target.value)}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'letzteMieterhoehung')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'letzteMieterhoehung', vertrag.letzte_mieterhoehung_am)}
+                              >
+                                {vertrag.letzte_mieterhoehung_am ? new Date(vertrag.letzte_mieterhoehung_am).toLocaleDateString('de-DE') : '-'}
+                              </div>
+                            )}
                           </TableCell>
                           
                           {/* Laufzeit */}
@@ -845,7 +878,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           </TableCell>
                           
                           {/* Kaution */}
-                          <TableCell className="text-center text-xs p-1">
+                          <TableCell className="text-center text-xs border-r p-1">
                             {isFieldEditing(vertrag.id, 'kaution') ? (
                               <Input
                                 type="number"
@@ -863,6 +896,93 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                                 {vertrag.kaution_betrag ? `${vertrag.kaution_betrag.toLocaleString()} €` : '-'}
                               </div>
                             )}
+                          </TableCell>
+                          
+                          {/* nächste mögl. Erhöh. */}
+                          <TableCell className="text-center text-xs border-r">
+                            {(() => {
+                              const startDatum = vertrag.start_datum ? new Date(vertrag.start_datum) : null;
+                              const letzteMieterhoehung = vertrag.letzte_mieterhoehung_am ? new Date(vertrag.letzte_mieterhoehung_am) : null;
+                              
+                              if (!startDatum) return '-';
+                              
+                              // Verwende das spätere Datum (Einzug oder letzte Mieterhöhung)
+                              const referenzDatum = letzteMieterhoehung && letzteMieterhoehung > startDatum ? letzteMieterhoehung : startDatum;
+                              
+                              // Frühest mögliche Erhöhung: 15 Monate nach Referenzdatum
+                              const naechsteMoeglicheErhoehung = new Date(referenzDatum);
+                              naechsteMoeglicheErhoehung.setMonth(naechsteMoeglicheErhoehung.getMonth() + 15);
+                              
+                              const heute = new Date();
+                              
+                              if (naechsteMoeglicheErhoehung <= heute) {
+                                return (
+                                  <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
+                                    jetzt möglich
+                                  </Badge>
+                                );
+                              } else {
+                                return naechsteMoeglicheErhoehung.toLocaleDateString('de-DE');
+                              }
+                            })()}
+                          </TableCell>
+                          
+                          {/* Aktion */}
+                          <TableCell className="text-center text-xs">
+                            {(() => {
+                              const startDatum = vertrag.start_datum ? new Date(vertrag.start_datum) : null;
+                              const letzteMieterhoehung = vertrag.letzte_mieterhoehung_am ? new Date(vertrag.letzte_mieterhoehung_am) : null;
+                              
+                              if (!startDatum) return null;
+                              
+                              const referenzDatum = letzteMieterhoehung && letzteMieterhoehung > startDatum ? letzteMieterhoehung : startDatum;
+                              const naechsteMoeglicheErhoehung = new Date(referenzDatum);
+                              naechsteMoeglicheErhoehung.setMonth(naechsteMoeglicheErhoehung.getMonth() + 15);
+                              
+                              const heute = new Date();
+                              
+                              if (naechsteMoeglicheErhoehung <= heute) {
+                                return (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-6 px-2 text-xs"
+                                    onClick={async () => {
+                                      try {
+                                        const mieterNamen = getMieterNamen(vertrag.id);
+                                        const { error } = await supabase.functions.invoke('send-rent-increase-notification', {
+                                          body: {
+                                            vertragId: vertrag.id,
+                                            mieterName: mieterNamen,
+                                            immobilieName: vertrag.einheiten?.immobilien?.name,
+                                            einheitId: vertrag.einheiten?.id,
+                                            aktuelleKaltmiete: vertrag.kaltmiete,
+                                            aktuelleBetriebskosten: vertrag.betriebskosten
+                                          }
+                                        });
+                                        
+                                        if (error) throw error;
+                                        
+                                        toast({ 
+                                          title: "Benachrichtigung versendet", 
+                                          description: "Die Mieterhöhungsbenachrichtigung wurde versendet."
+                                        });
+                                      } catch (error) {
+                                        console.error('Error sending notification:', error);
+                                        toast({ 
+                                          title: "Fehler", 
+                                          description: "Die Benachrichtigung konnte nicht versendet werden.",
+                                          variant: "destructive"
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Erhöhung
+                                  </Button>
+                                );
+                              }
+                              return null;
+                            })()}
                           </TableCell>
                         </TableRow>
                       );
