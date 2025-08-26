@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,6 @@ import { Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useRef } from "react";
-
 interface ImmobilienDetailProps {
   immobilieId: string;
   onBack: () => void;
@@ -19,81 +17,81 @@ interface ImmobilienDetailProps {
   scrollToEinheitId?: string | null;
   openMietvertragId?: string | null;
 }
-
-export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openMietvertragId }: ImmobilienDetailProps) => {
-  const einheitRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  const { data: immobilie, isLoading: immobilieLoading } = useQuery({
+export const ImmobilienDetail = ({
+  immobilieId,
+  onBack,
+  scrollToEinheitId,
+  openMietvertragId
+}: ImmobilienDetailProps) => {
+  const einheitRefs = useRef<{
+    [key: string]: HTMLDivElement | null;
+  }>({});
+  const {
+    data: immobilie,
+    isLoading: immobilieLoading
+  } = useQuery({
     queryKey: ['immobilie', immobilieId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('immobilien')
-        .select('*')
-        .eq('id', immobilieId)
-        .single();
-      
+      const {
+        data,
+        error
+      } = await supabase.from('immobilien').select('*').eq('id', immobilieId).single();
       if (error) throw error;
       return data;
     }
   });
-
-  const { data: einheiten, isLoading: einheitenLoading } = useQuery({
+  const {
+    data: einheiten,
+    isLoading: einheitenLoading
+  } = useQuery({
     queryKey: ['einheiten', immobilieId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('einheiten')
-        .select('*')
-        .eq('immobilie_id', immobilieId)
-        .order('id', { ascending: true });
-      
+      const {
+        data,
+        error
+      } = await supabase.from('einheiten').select('*').eq('immobilie_id', immobilieId).order('id', {
+        ascending: true
+      });
       if (error) throw error;
       return data;
     }
   });
-
-  const { data: mietvertraege } = useQuery({
+  const {
+    data: mietvertraege
+  } = useQuery({
     queryKey: ['mietvertrag-detail', immobilieId],
     queryFn: async () => {
       const einheitIds = einheiten?.map(e => e.id) || [];
       if (einheitIds.length === 0) return [];
+      const {
+        data: vertraege,
+        error: vertraegeError
+      } = await supabase.from('mietvertrag').select('*').in('einheit_id', einheitIds).neq('status', 'beendet'); // Beendete Mietverträge ausschließen
 
-      const { data: vertraege, error: vertraegeError } = await supabase
-        .from('mietvertrag')
-        .select('*')
-        .in('einheit_id', einheitIds)
-        .neq('status', 'beendet'); // Beendete Mietverträge ausschließen
-      
       if (vertraegeError) throw vertraegeError;
-
       const vertragIds = vertraege?.map(v => v.id) || [];
       if (vertragIds.length === 0) return vertraege;
-
-      const { data: mietvertragMieter, error: mmError } = await supabase
-        .from('mietvertrag_mieter')
-        .select(`
+      const {
+        data: mietvertragMieter,
+        error: mmError
+      } = await supabase.from('mietvertrag_mieter').select(`
           mietvertrag_id,
           mieter_id
-        `)
-        .in('mietvertrag_id', vertragIds);
-      
+        `).in('mietvertrag_id', vertragIds);
       if (mmError) throw mmError;
-
       const mieterIds = mietvertragMieter?.map(mm => mm.mieter_id) || [];
       if (mieterIds.length === 0) return vertraege;
-
-      const { data: mieter, error: mieterError } = await supabase
-        .from('mieter')
-        .select('id, vorname, nachname, hauptmail, telnr')
-        .in('id', mieterIds);
-      
+      const {
+        data: mieter,
+        error: mieterError
+      } = await supabase.from('mieter').select('id, vorname, nachname, hauptmail, telnr').in('id', mieterIds);
       if (mieterError) throw mieterError;
-
       return vertraege?.map(vertrag => {
         const allMieterForVertrag = mietvertragMieter?.filter(mm => mm.mietvertrag_id === vertrag.id) || [];
         const mieterData = allMieterForVertrag.map(mvMieter => {
           const mieterInfo = mieter?.find(m => m.id === mvMieter.mieter_id);
           return mieterInfo;
         }).filter(Boolean);
-        
         return {
           ...vertrag,
           mieter: mieterData
@@ -104,18 +102,17 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
   });
 
   // Query für alle aktiven und gekündigten Mietverträge für Finanzberechnungen
-  const { data: alleMietvertraege } = useQuery({
+  const {
+    data: alleMietvertraege
+  } = useQuery({
     queryKey: ['alle-mietvertrag-immobilie', immobilieId],
     queryFn: async () => {
       const einheitIds = einheiten?.map(e => e.id) || [];
       if (einheitIds.length === 0) return [];
-
-      const { data, error } = await supabase
-        .from('mietvertrag')
-        .select('kaltmiete, betriebskosten, status')
-        .in('einheit_id', einheitIds)
-        .in('status', ['aktiv', 'gekuendigt']);
-      
+      const {
+        data,
+        error
+      } = await supabase.from('mietvertrag').select('kaltmiete, betriebskosten, status').in('einheit_id', einheitIds).in('status', ['aktiv', 'gekuendigt']);
       if (error) throw error;
       return data || [];
     },
@@ -134,8 +131,8 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
       const timer = setTimeout(() => {
         const targetElement = einheitRefs.current[scrollToEinheitId];
         if (targetElement) {
-          targetElement.scrollIntoView({ 
-            behavior: 'smooth', 
+          targetElement.scrollIntoView({
+            behavior: 'smooth',
             block: 'center'
           });
           // Add a temporary highlight effect
@@ -149,28 +146,18 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
       return () => clearTimeout(timer);
     }
   }, [scrollToEinheitId, einheiten, einheitenLoading]);
-
   const handleBackClick = () => {
     onBack();
   };
-
   if (immobilieLoading || einheitenLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
+    return <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="min-h-screen bg-gray-50 p-6">
+  return <div className="min-h-screen p-6 bg-slate-300">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={handleBackClick}
-            className="mb-4 hover:bg-gray-100 transition-colors"
-          >
+          <Button variant="ghost" onClick={handleBackClick} className="mb-4 hover:bg-gray-100 transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Zurück zur Übersicht
           </Button>
@@ -191,9 +178,7 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
                       <MapPin className="h-4 w-4 mr-2" />
                       <span>{immobilie?.adresse}</span>
                     </div>
-                    {immobilie?.beschreibung && (
-                      <p className="text-gray-500 mt-2">{immobilie.beschreibung}</p>
-                    )}
+                    {immobilie?.beschreibung && <p className="text-gray-500 mt-2">{immobilie.beschreibung}</p>}
                   </div>
                 </div>
                 
@@ -201,11 +186,9 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
                   <Badge variant="outline" className="text-lg px-4 py-2">
                     {einheiten?.length || 0} von {immobilie?.einheiten_anzahl} Einheiten
                   </Badge>
-                  {immobilie?.objekttyp && (
-                    <div className="text-sm text-gray-500">
+                  {immobilie?.objekttyp && <div className="text-sm text-gray-500">
                       {immobilie.objekttyp}
-                    </div>
-                  )}
+                    </div>}
                 </div>
               </div>
             </CardHeader>
@@ -291,15 +274,13 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
               </div>
 
               {/* Zusätzliche Immobilien-Informationen */}
-              {(immobilie?.baujahr || immobilie?.["Kontonr."] || immobilie?.["Annuität"]) && (
-                <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200/60 shadow-sm">
+              {(immobilie?.baujahr || immobilie?.["Kontonr."] || immobilie?.["Annuität"]) && <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200/60 shadow-sm">
                   <h4 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
                     <Info className="h-5 w-5 text-slate-600 mr-2" />
                     Weitere Informationen
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {immobilie?.baujahr && (
-                      <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
+                    {immobilie?.baujahr && <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
                         <div className="flex items-center space-x-3">
                           <div className="p-2 bg-amber-100 rounded-lg">
                             <Calendar className="h-5 w-5 text-amber-600" />
@@ -309,10 +290,8 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
                             <p className="text-lg font-bold text-slate-900">{immobilie.baujahr}</p>
                           </div>
                         </div>
-                      </div>
-                    )}
-                    {immobilie?.["Kontonr."] && (
-                      <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
+                      </div>}
+                    {immobilie?.["Kontonr."] && <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
                         <div className="flex items-center space-x-3">
                           <div className="p-2 bg-blue-100 rounded-lg">
                             <Info className="h-5 w-5 text-blue-600" />
@@ -322,10 +301,8 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
                             <p className="text-lg font-bold text-slate-900">{immobilie["Kontonr."]}</p>
                           </div>
                         </div>
-                      </div>
-                    )}
-                    {immobilie?.["Annuität"] && (
-                      <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
+                      </div>}
+                    {immobilie?.["Annuität"] && <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
                         <div className="flex items-center space-x-3">
                           <div className="p-2 bg-emerald-100 rounded-lg">
                             <Euro className="h-5 w-5 text-emerald-600" />
@@ -335,65 +312,46 @@ export const ImmobilienDetail = ({ immobilieId, onBack, scrollToEinheitId, openM
                             <p className="text-lg font-bold text-slate-900">€{immobilie["Annuität"]?.toLocaleString()}</p>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      </div>}
                   </div>
-                </div>
-              )}
+                </div>}
             </CardContent>
           </Card>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {einheiten?.map((einheit) => {
-            // Find the most current rental contract for this unit
-            // Priority: 1. Active contracts, 2. Most recent terminated, 3. Most recent by start date
-            const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
-            
-            let vertrag = null;
-            if (vertraegeForEinheit.length > 0) {
-              // First, try to find an active contract
-              const activeVertrag = vertraegeForEinheit.find(v => v.status === 'aktiv');
-              
-              if (activeVertrag) {
-                vertrag = activeVertrag;
-              } else {
-                // If no active contract, find the most recent one by start date
-                vertrag = vertraegeForEinheit.reduce((latest, current) => {
-                  const latestDate = latest.start_datum ? new Date(latest.start_datum) : new Date(0);
-                  const currentDate = current.start_datum ? new Date(current.start_datum) : new Date(0);
-                  return currentDate > latestDate ? current : latest;
-                });
-              }
+          {einheiten?.map(einheit => {
+          // Find the most current rental contract for this unit
+          // Priority: 1. Active contracts, 2. Most recent terminated, 3. Most recent by start date
+          const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
+          let vertrag = null;
+          if (vertraegeForEinheit.length > 0) {
+            // First, try to find an active contract
+            const activeVertrag = vertraegeForEinheit.find(v => v.status === 'aktiv');
+            if (activeVertrag) {
+              vertrag = activeVertrag;
+            } else {
+              // If no active contract, find the most recent one by start date
+              vertrag = vertraegeForEinheit.reduce((latest, current) => {
+                const latestDate = latest.start_datum ? new Date(latest.start_datum) : new Date(0);
+                const currentDate = current.start_datum ? new Date(current.start_datum) : new Date(0);
+                return currentDate > latestDate ? current : latest;
+              });
             }
-            
-            return (
-              <div 
-                key={einheit.id}
-                ref={(el) => einheitRefs.current[einheit.id] = el}
-                className="transition-transform duration-300"
-              >
-                <EinheitCard
-                  einheit={einheit}
-                  vertrag={vertrag}
-                  immobilie={immobilie}
-                  openMietvertragId={openMietvertragId}
-                />
-              </div>
-            );
-          })}
+          }
+          return <div key={einheit.id} ref={el => einheitRefs.current[einheit.id] = el} className="transition-transform duration-300">
+                <EinheitCard einheit={einheit} vertrag={vertrag} immobilie={immobilie} openMietvertragId={openMietvertragId} />
+              </div>;
+        })}
         </div>
 
-        {(!einheiten || einheiten.length === 0) && (
-          <div className="text-center py-12">
+        {(!einheiten || einheiten.length === 0) && <div className="text-center py-12">
             <div className="glass-card p-8 max-w-md mx-auto rounded-2xl">
               <p className="text-gray-500">
                 Keine Einheiten für diese Immobilie gefunden
               </p>
             </div>
-          </div>
-        )}
+          </div>}
       </div>
-    </div>
-  );
+    </div>;
 };
