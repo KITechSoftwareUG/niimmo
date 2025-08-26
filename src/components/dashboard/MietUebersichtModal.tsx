@@ -385,8 +385,11 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
   const organizedData = useMemo((): OrganizedPropertyGroup[] => {
     if (!mietvertraegeData) return [];
 
+    // Filtere nur aktive Mietverträge
+    const aktiveMietvertraege = mietvertraegeData.filter(vertrag => vertrag.status === 'aktiv');
+
     // Gruppiere nach Immobilien
-    const groupedByProperty: Record<string, OrganizedPropertyGroup> = mietvertraegeData.reduce((acc, vertrag) => {
+    const groupedByProperty: Record<string, OrganizedPropertyGroup> = aktiveMietvertraege.reduce((acc, vertrag) => {
       const immobilieId = vertrag.einheiten?.immobilie_id;
       const immobilieName = vertrag.einheiten?.immobilien?.name || 'Unbekannte Immobilie';
       
@@ -405,18 +408,33 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
       return acc;
     }, {} as Record<string, OrganizedPropertyGroup>);
 
-    // Sortiere Verträge innerhalb jeder Immobilie chronologisch
+    // Sortiere Verträge innerhalb jeder Immobilie basierend auf Einheits-ID-Struktur
     Object.values(groupedByProperty).forEach(group => {
       group.vertraege.sort((a, b) => {
-        // Primäre Sortierung: Einheit ID (numerisch)
-        const aEinheitId = parseInt(a.einheiten?.id || '0');
-        const bEinheitId = parseInt(b.einheiten?.id || '0');
+        // Extrahiere die Einheits-ID basierend auf der beschriebenen Struktur
+        const extractEinheitInfo = (id: string) => {
+          const idStr = id.toString();
+          // Letzten beiden Ziffern = Einheits-ID
+          const einheitId = parseInt(idStr.slice(-2)) || 0;
+          // Dritt- und viertletzte Ziffern = Immobilien-ID  
+          const immobilienId = idStr.length >= 4 ? parseInt(idStr.slice(-4, -2)) || 0 : 0;
+          return { einheitId, immobilienId };
+        };
+
+        const aInfo = extractEinheitInfo(a.einheiten?.id || '0');
+        const bInfo = extractEinheitInfo(b.einheiten?.id || '0');
         
-        if (aEinheitId !== bEinheitId) {
-          return aEinheitId - bEinheitId;
+        // Primäre Sortierung: Immobilien-ID (aus der Einheits-ID extrahiert)
+        if (aInfo.immobilienId !== bInfo.immobilienId) {
+          return aInfo.immobilienId - bInfo.immobilienId;
         }
         
-        // Sekundäre Sortierung: Mietbeginn (chronologisch)
+        // Sekundäre Sortierung: Einheits-ID (fortlaufend)
+        if (aInfo.einheitId !== bInfo.einheitId) {
+          return aInfo.einheitId - bInfo.einheitId;
+        }
+        
+        // Tertiäre Sortierung: Mietbeginn (chronologisch)
         const aStartDate = a.start_datum ? new Date(a.start_datum) : new Date(0);
         const bStartDate = b.start_datum ? new Date(b.start_datum) : new Date(0);
         
