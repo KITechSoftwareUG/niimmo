@@ -1,10 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Building2, User, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Building2, User, ArrowUpDown, ArrowUp, ArrowDown, Save, X, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo } from "react";
+import { useToast } from "@/hooks/use-toast";
 import React from "react";
 
 interface MietUebersichtModalProps {
@@ -21,10 +25,24 @@ interface OrganizedPropertyGroup {
   vertraege: any[];
 }
 
+interface EditingCell {
+  vertragId: string;
+  field: string;
+  value: any;
+}
+
 export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalProps) => {
   // Sorting state
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Editing state
+  const [editingCells, setEditingCells] = useState<EditingCell[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Hooks
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Handle sorting
   const handleSort = (field: string) => {
@@ -41,7 +59,214 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     if (sortField !== field) return <ArrowUpDown className="h-4 w-4" />;
     return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
-  // Erweitere Datenabfrage um fehlende Felder
+
+  // Handle editing
+  const startEditing = (vertragId: string, field: string, currentValue: any) => {
+    if (!isEditing) setIsEditing(true);
+    
+    const existingIndex = editingCells.findIndex(
+      cell => cell.vertragId === vertragId && cell.field === field
+    );
+    
+    if (existingIndex >= 0) {
+      // Already editing, do nothing
+      return;
+    }
+    
+    setEditingCells(prev => [
+      ...prev,
+      { vertragId, field, value: currentValue }
+    ]);
+  };
+
+  const updateEditingValue = (vertragId: string, field: string, value: any) => {
+    setEditingCells(prev =>
+      prev.map(cell =>
+        cell.vertragId === vertragId && cell.field === field
+          ? { ...cell, value }
+          : cell
+      )
+    );
+  };
+
+  const cancelEdit = (vertragId: string, field: string) => {
+    setEditingCells(prev =>
+      prev.filter(cell => !(cell.vertragId === vertragId && cell.field === field))
+    );
+    
+    if (editingCells.length === 1) {
+      setIsEditing(false);
+    }
+  };
+
+  const cancelAllEdits = () => {
+    setEditingCells([]);
+    setIsEditing(false);
+  };
+
+  const getEditingValue = (vertragId: string, field: string) => {
+    const cell = editingCells.find(
+      cell => cell.vertragId === vertragId && cell.field === field
+    );
+    return cell?.value;
+  };
+
+  const isFieldEditing = (vertragId: string, field: string) => {
+    return editingCells.some(
+      cell => cell.vertragId === vertragId && cell.field === field
+    );
+  };
+  // Save mutations
+  const saveMietvertragMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      const { error } = await supabase
+        .from('mietvertrag')
+        .update(updates)
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['miet-uebersicht'] });
+      toast({ title: "Mietvertrag aktualisiert" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Fehler beim Speichern", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const saveEinheitMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      const { error } = await supabase
+        .from('einheiten')
+        .update(updates)
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['miet-uebersicht'] });
+      toast({ title: "Einheit aktualisiert" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Fehler beim Speichern", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const saveMieterMutation = useMutation({
+    mutationFn: async ({ vertragId, mieterName }: { vertragId: string; mieterName: string }) => {
+      // First get existing tenant or create new one
+      const [vorname, ...nachnameArray] = mieterName.split(' ');
+      const nachname = nachnameArray.join(' ') || '';
+
+      // Try to find existing tenant first
+      const { data: existingMieter } = await supabase
+        .from('mieter')
+        .select('id')
+        .eq('vorname', vorname)
+        .eq('nachname', nachname)
+        .single();
+
+      let mieterId;
+      
+      if (existingMieter) {
+        mieterId = existingMieter.id;
+      } else {
+        // Create new tenant
+        const { data: newMieter, error: mieterError } = await supabase
+          .from('mieter')
+          .insert({ vorname, nachname })
+          .select('id')
+          .single();
+        
+        if (mieterError) throw mieterError;
+        mieterId = newMieter.id;
+      }
+
+      // Remove existing tenant connections for this contract
+      await supabase
+        .from('mietvertrag_mieter')
+        .delete()
+        .eq('mietvertrag_id', vertragId);
+
+      // Add new connection
+      const { error: connectionError } = await supabase
+        .from('mietvertrag_mieter')
+        .insert({ mietvertrag_id: vertragId, mieter_id: mieterId });
+      
+      if (connectionError) throw connectionError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['miet-uebersicht'] });
+      queryClient.invalidateQueries({ queryKey: ['mieter-uebersicht'] });
+      toast({ title: "Mieter aktualisiert" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Fehler beim Speichern", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Save all changes
+  const saveAllChanges = async () => {
+    try {
+      for (const cell of editingCells) {
+        const { vertragId, field, value } = cell;
+        
+        // Find the contract for updates
+        const vertrag = mietvertraegeData?.find(v => v.id === vertragId);
+        if (!vertrag) continue;
+
+        switch (field) {
+          case 'mieter':
+            await saveMieterMutation.mutateAsync({ vertragId, mieterName: value });
+            break;
+            
+          case 'kaltmiete':
+          case 'betriebskosten':
+          case 'kaution':
+          case 'startDatum':
+            await saveMietvertragMutation.mutateAsync({
+              id: vertragId,
+              updates: {
+                [field === 'startDatum' ? 'start_datum' : 
+                 field === 'kaution' ? 'kaution_betrag' : field]: value
+              }
+            });
+            break;
+            
+          case 'etage':
+          case 'qm':
+          case 'nutzung':
+            await saveEinheitMutation.mutateAsync({
+              id: vertrag.einheit_id,
+              updates: {
+                [field === 'nutzung' ? 'einheitentyp' : field]: value
+              }
+            });
+            break;
+        }
+      }
+      
+      setEditingCells([]);
+      setIsEditing(false);
+      toast({ title: "Alle Änderungen gespeichert" });
+      
+    } catch (error) {
+      console.error('Error saving changes:', error);
+    }
+  };
   const { data: mietvertraegeData, isLoading } = useQuery({
     queryKey: ['miet-uebersicht'],
     queryFn: async () => {
@@ -211,7 +436,39 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Mietübersicht - Alle Verträge</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-2xl font-bold">Mietübersicht - Alle Verträge</DialogTitle>
+            <div className="flex items-center gap-2">
+              {isEditing && (
+                <>
+                  <Button 
+                    onClick={saveAllChanges}
+                    disabled={editingCells.length === 0}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Speichern ({editingCells.length})
+                  </Button>
+                  <Button 
+                    onClick={cancelAllEdits}
+                    variant="outline"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Abbrechen
+                  </Button>
+                </>
+              )}
+              {!isEditing && (
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  variant="outline"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Bearbeiten
+                </Button>
+              )}
+            </div>
+          </div>
         </DialogHeader>
         
         <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
@@ -378,23 +635,91 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           </TableCell>
                           
                           {/* Mieter */}
-                          <TableCell className="text-xs border-r">
-                            {mieterNamen || '-'}
+                          <TableCell className="text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'mieter') ? (
+                              <Input
+                                value={getEditingValue(vertrag.id, 'mieter') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'mieter', e.target.value)}
+                                className="h-6 text-xs"
+                                onBlur={() => cancelEdit(vertrag.id, 'mieter')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'mieter', mieterNamen)}
+                              >
+                                {mieterNamen || '-'}
+                              </div>
+                            )}
                           </TableCell>
                           
                           {/* Lage */}
-                          <TableCell className="text-center text-xs border-r">
-                            {vertrag.einheiten?.etage || '-'}
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'etage') ? (
+                              <Input
+                                value={getEditingValue(vertrag.id, 'etage') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'etage', e.target.value)}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'etage')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'etage', vertrag.einheiten?.etage)}
+                              >
+                                {vertrag.einheiten?.etage || '-'}
+                              </div>
+                            )}
                           </TableCell>
                           
                           {/* Nutzung */}
-                          <TableCell className="text-center text-xs border-r">
-                            {vertrag.einheiten?.einheitentyp || 'Wohnung'}
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'nutzung') ? (
+                              <Select
+                                value={getEditingValue(vertrag.id, 'nutzung') || 'Wohnung'}
+                                onValueChange={(value) => updateEditingValue(vertrag.id, 'nutzung', value)}
+                              >
+                                <SelectTrigger className="h-6 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Wohnung">Wohnung</SelectItem>
+                                  <SelectItem value="Gewerbe">Gewerbe</SelectItem>
+                                  <SelectItem value="Büro">Büro</SelectItem>
+                                  <SelectItem value="Lager">Lager</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'nutzung', vertrag.einheiten?.einheitentyp)}
+                              >
+                                {vertrag.einheiten?.einheitentyp || 'Wohnung'}
+                              </div>
+                            )}
                           </TableCell>
                           
                           {/* Fläche */}
-                          <TableCell className="text-center text-xs border-r">
-                            {vertrag.einheiten?.qm ? `${vertrag.einheiten.qm}m²` : '-'}
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'qm') ? (
+                              <Input
+                                type="number"
+                                value={getEditingValue(vertrag.id, 'qm') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'qm', parseFloat(e.target.value))}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'qm')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'qm', vertrag.einheiten?.qm)}
+                              >
+                                {vertrag.einheiten?.qm ? `${vertrag.einheiten.qm}m²` : '-'}
+                              </div>
+                            )}
                           </TableCell>
                           
                           {/* €/m² */}
@@ -403,13 +728,45 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           </TableCell>
                           
                           {/* KM */}
-                          <TableCell className="text-center text-xs border-r">
-                            {(vertrag.kaltmiete || 0).toLocaleString()} €
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'kaltmiete') ? (
+                              <Input
+                                type="number"
+                                value={getEditingValue(vertrag.id, 'kaltmiete') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'kaltmiete', parseFloat(e.target.value))}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'kaltmiete')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'kaltmiete', vertrag.kaltmiete)}
+                              >
+                                {(vertrag.kaltmiete || 0).toLocaleString()} €
+                              </div>
+                            )}
                           </TableCell>
                           
                           {/* BKV */}
-                          <TableCell className="text-center text-xs border-r">
-                            {(vertrag.betriebskosten || 0).toLocaleString()} €
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'betriebskosten') ? (
+                              <Input
+                                type="number"
+                                value={getEditingValue(vertrag.id, 'betriebskosten') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'betriebskosten', parseFloat(e.target.value))}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'betriebskosten')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'betriebskosten', vertrag.betriebskosten)}
+                              >
+                                {(vertrag.betriebskosten || 0).toLocaleString()} €
+                              </div>
+                            )}
                           </TableCell>
                           
                           {/* Gesamtmiete */}
@@ -418,8 +775,24 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           </TableCell>
                           
                           {/* Mietbeginn */}
-                          <TableCell className="text-center text-xs border-r">
-                            {vertrag.start_datum ? new Date(vertrag.start_datum).toLocaleDateString('de-DE') : '-'}
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'startDatum') ? (
+                              <Input
+                                type="date"
+                                value={getEditingValue(vertrag.id, 'startDatum') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'startDatum', e.target.value)}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'startDatum')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'startDatum', vertrag.start_datum)}
+                              >
+                                {vertrag.start_datum ? new Date(vertrag.start_datum).toLocaleDateString('de-DE') : '-'}
+                              </div>
+                            )}
                           </TableCell>
                           
                           {/* letzte Mieterh. */}
@@ -438,8 +811,24 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           </TableCell>
                           
                           {/* Kaution */}
-                          <TableCell className="text-center text-xs">
-                            {vertrag.kaution_betrag ? `${vertrag.kaution_betrag.toLocaleString()} €` : '-'}
+                          <TableCell className="text-center text-xs p-1">
+                            {isFieldEditing(vertrag.id, 'kaution') ? (
+                              <Input
+                                type="number"
+                                value={getEditingValue(vertrag.id, 'kaution') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'kaution', parseFloat(e.target.value))}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'kaution')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'kaution', vertrag.kaution_betrag)}
+                              >
+                                {vertrag.kaution_betrag ? `${vertrag.kaution_betrag.toLocaleString()} €` : '-'}
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
