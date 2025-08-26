@@ -7,13 +7,13 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 0 8% 94%;
     --foreground: 222.2 84% 4.9%;
 
-    --card: 0 0% 100%;
+    --card: 0 5% 98%;
     --card-foreground: 222.2 84% 4.9%;
 
-    --popover: 0 0% 100%;
+    --popover: 0 5% 98%;
     --popover-foreground: 222.2 84% 4.9%;
 
     --primary: 0 70% 50%;
@@ -95,7 +95,7 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+    background: linear-gradient(135deg, #f5f2f2 0%, #eee6e6 50%, #e8dada 100%);
     min-height: 100vh;
     letter-spacing: -0.01em;
     font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
@@ -109,7 +109,7 @@
 
 @layer components {
   .modern-dashboard-bg {
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%, #f8fafc 100%);
+    background: linear-gradient(135deg, #f5f2f2 0%, #eee6e6 25%, #e8dada 50%, #eee6e6 75%, #f5f2f2 100%);
     position: relative;
   }
   
