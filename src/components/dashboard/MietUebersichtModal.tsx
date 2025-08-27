@@ -388,8 +388,10 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
   const organizedData = useMemo((): OrganizedPropertyGroup[] => {
     if (!mietvertraegeData) return [];
 
-    // Filtere nur aktive Mietverträge
-    const aktiveMietvertraege = mietvertraegeData.filter(vertrag => vertrag.status === 'aktiv');
+    // Filtere aktive und gekündigte Mietverträge
+    const aktiveMietvertraege = mietvertraegeData.filter(vertrag => 
+      vertrag.status === 'aktiv' || vertrag.status === 'gekuendigt'
+    );
 
     // Gruppiere nach Immobilien
     const groupedByProperty: Record<string, OrganizedPropertyGroup> = aktiveMietvertraege.reduce((acc, vertrag) => {
