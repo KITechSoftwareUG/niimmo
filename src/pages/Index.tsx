@@ -132,7 +132,7 @@ const Index = () => {
       zahlungsstatus: "all"
     }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} />;
   }
-  return <div className="min-h-screen modern-dashboard-bg">
+  return <div className="min-h-screen modern-dashboard-bg bg-slate-400">
       <div className="container mx-auto p-8 bg-slate-300">
         {/* Header */}
         <div className="mb-6">
@@ -161,11 +161,7 @@ const Index = () => {
             </div>
           </div>
           
-          <DashboardStats 
-            immobilien={immobilien} 
-            onNavigateToContract={handleNavigateToContract}
-            onShowMietUebersicht={() => setShowMietUebersicht(true)}
-          />
+          <DashboardStats immobilien={immobilien} onNavigateToContract={handleNavigateToContract} onShowMietUebersicht={() => setShowMietUebersicht(true)} />
         </div>
 
         {/* Fehlende Mietzahlungen Übersicht */}
@@ -206,10 +202,7 @@ const Index = () => {
           </div>}
       </div>
       
-      <MietUebersichtModal 
-        open={showMietUebersicht} 
-        onOpenChange={setShowMietUebersicht} 
-      />
+      <MietUebersichtModal open={showMietUebersicht} onOpenChange={setShowMietUebersicht} />
     </div>;
 };
 export default Index;
