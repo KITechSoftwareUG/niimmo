@@ -903,6 +903,11 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           {/* nächste mögl. Erhöh. */}
                           <TableCell className="text-center text-xs border-r">
                             {(() => {
+                              // Keine Mieterhöhung für gekündigte oder beendete Verträge
+                              if (vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') {
+                                return '-';
+                              }
+                              
                               const startDatum = vertrag.start_datum ? new Date(vertrag.start_datum) : null;
                               const letzteMieterhoehung = vertrag.letzte_mieterhoehung_am ? new Date(vertrag.letzte_mieterhoehung_am) : null;
                               
@@ -932,6 +937,11 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           {/* Aktion */}
                           <TableCell className="text-center text-xs">
                             {(() => {
+                              // Keine Mieterhöhungsaktionen für gekündigte oder beendete Verträge
+                              if (vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') {
+                                return null;
+                              }
+                              
                               const startDatum = vertrag.start_datum ? new Date(vertrag.start_datum) : null;
                               const letzteMieterhoehung = vertrag.letzte_mieterhoehung_am ? new Date(vertrag.letzte_mieterhoehung_am) : null;
                               
