@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { MahnstufeIndicator } from "./MahnstufeIndicator";
 import { 
   Euro, 
@@ -26,7 +27,10 @@ import {
   AlertTriangle,
   Plus,
   Minus,
-  Send
+  Send,
+  Edit2,
+  Check,
+  X
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +53,8 @@ export const MietvertragDetailsModal = ({
   const { toast } = useToast();
   const [selectedYear, setSelectedYear] = useState<string>("2025");
   const [selectedMonth, setSelectedMonth] = useState<string>("alle");
+  const [editingField, setEditingField] = useState<{mieterId: string, field: 'hauptmail' | 'telnr'} | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -64,6 +70,47 @@ export const MietvertragDetailsModal = ({
         variant: "destructive",
       });
     }
+  };
+
+  const handleEditField = (mieterId: string, field: 'hauptmail' | 'telnr', currentValue: string) => {
+    setEditingField({ mieterId, field });
+    setEditValue(currentValue || '');
+  };
+
+  const handleSaveField = async () => {
+    if (!editingField) return;
+    
+    try {
+      const { error } = await supabase
+        .from('mieter')
+        .update({ [editingField.field]: editValue })
+        .eq('id', editingField.mieterId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Aktualisiert",
+        description: `${editingField.field === 'hauptmail' ? 'E-Mail-Adresse' : 'Telefonnummer'} wurde erfolgreich aktualisiert.`,
+      });
+
+      setEditingField(null);
+      setEditValue('');
+      
+      // Refetch mieter data
+      window.location.reload();
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren:', error);
+      toast({
+        title: "Fehler",
+        description: "Daten konnten nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingField(null);
+    setEditValue('');
   };
   const { data: vertrag, isLoading: vertragLoading } = useQuery({
     queryKey: ['mietvertrag-detail', vertragId],
@@ -501,39 +548,101 @@ export const MietvertragDetailsModal = ({
                         <div className="space-y-2 mt-2">
                           {m.hauptmail && (
                             <div className="flex items-center justify-between group">
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-2 flex-1">
                                 <Mail className="h-4 w-4 text-gray-500" />
-                                <span className="text-sm text-gray-600">{m.hauptmail}</span>
+                                {editingField?.mieterId === m.id && editingField?.field === 'hauptmail' ? (
+                                  <div className="flex items-center space-x-2 flex-1">
+                                    <Input
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      className="h-8 text-sm"
+                                      placeholder="E-Mail-Adresse"
+                                    />
+                                    <Button onClick={handleSaveField} size="sm" className="h-8 px-2">
+                                      <Check className="h-3 w-3" />
+                                    </Button>
+                                    <Button onClick={handleCancelEdit} size="sm" variant="outline" className="h-8 px-2">
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-gray-600 flex-1">{m.hauptmail}</span>
+                                )}
                               </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyToClipboard(m.hauptmail, 'E-Mail-Adresse');
-                                }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                                title="E-Mail-Adresse kopieren"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </button>
+                              {!(editingField?.mieterId === m.id && editingField?.field === 'hauptmail') && (
+                                <div className="flex space-x-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditField(m.id, 'hauptmail', m.hauptmail);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                    title="E-Mail-Adresse bearbeiten"
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(m.hauptmail, 'E-Mail-Adresse');
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                    title="E-Mail-Adresse kopieren"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           )}
                           
                           {m.telnr && (
                             <div className="flex items-center justify-between group">
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-2 flex-1">
                                 <Phone className="h-4 w-4 text-gray-500" />
-                                <span className="text-sm text-gray-600">{m.telnr}</span>
+                                {editingField?.mieterId === m.id && editingField?.field === 'telnr' ? (
+                                  <div className="flex items-center space-x-2 flex-1">
+                                    <Input
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      className="h-8 text-sm"
+                                      placeholder="Telefonnummer"
+                                    />
+                                    <Button onClick={handleSaveField} size="sm" className="h-8 px-2">
+                                      <Check className="h-3 w-3" />
+                                    </Button>
+                                    <Button onClick={handleCancelEdit} size="sm" variant="outline" className="h-8 px-2">
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-gray-600 flex-1">{m.telnr}</span>
+                                )}
                               </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  copyToClipboard(m.telnr, 'Telefonnummer');
-                                }}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                                title="Telefonnummer kopieren"
-                              >
-                                <Copy className="h-3 w-3" />
-                              </button>
+                              {!(editingField?.mieterId === m.id && editingField?.field === 'telnr') && (
+                                <div className="flex space-x-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditField(m.id, 'telnr', m.telnr);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                    title="Telefonnummer bearbeiten"
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(m.telnr, 'Telefonnummer');
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                    title="Telefonnummer kopieren"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           )}
                           
