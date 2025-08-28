@@ -69,10 +69,12 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
         .from('mietvertrag_mieter')
         .select(`
           mieter:mieter_id (
+            id,
             vorname,
             nachname,
             hauptmail,
-            weitere_mails
+            weitere_mails,
+            telnr
           )
         `)
         .eq('mietvertrag_id', vertragId);
