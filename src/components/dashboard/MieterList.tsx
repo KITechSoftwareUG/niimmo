@@ -21,6 +21,9 @@ export const MieterList = ({ mieter }: MieterListProps) => {
     weitere_mails: string;
   }>({ hauptmail: '', telnr: '', weitere_mails: '' });
 
+  // Debug: Console log um die Datenstruktur zu sehen
+  console.log('MieterList mieter data:', mieter);
+
   const copyToClipboard = async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -38,6 +41,7 @@ export const MieterList = ({ mieter }: MieterListProps) => {
   };
 
   const startEditing = (mieter: any) => {
+    console.log('Starting edit for mieter:', mieter);
     setEditingMieter(mieter.mieter.id);
     setEditValues({
       hauptmail: mieter.mieter.hauptmail || '',
@@ -52,6 +56,7 @@ export const MieterList = ({ mieter }: MieterListProps) => {
   };
 
   const saveChanges = async (mieterId: string) => {
+    console.log('Saving changes for mieter ID:', mieterId, 'with values:', editValues);
     try {
       const { error } = await supabase
         .from('mieter')
@@ -62,7 +67,10 @@ export const MieterList = ({ mieter }: MieterListProps) => {
         })
         .eq('id', mieterId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast({
         title: "Erfolgreich gespeichert",
