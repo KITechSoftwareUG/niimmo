@@ -1,8 +1,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, UserCheck, Copy, Phone } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { User, Mail, UserCheck, Copy, Phone, Edit2, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 interface MieterListProps {
   mieter: any[];
@@ -10,6 +14,12 @@ interface MieterListProps {
 
 export const MieterList = ({ mieter }: MieterListProps) => {
   const { toast } = useToast();
+  const [editingMieter, setEditingMieter] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{
+    hauptmail: string;
+    telnr: string;
+    weitere_mails: string;
+  }>({ hauptmail: '', telnr: '', weitere_mails: '' });
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -22,6 +32,53 @@ export const MieterList = ({ mieter }: MieterListProps) => {
       toast({
         title: "Fehler",
         description: `${type} konnte nicht kopiert werden.`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startEditing = (mieter: any) => {
+    setEditingMieter(mieter.mieter.id);
+    setEditValues({
+      hauptmail: mieter.mieter.hauptmail || '',
+      telnr: mieter.mieter.telnr || '',
+      weitere_mails: mieter.mieter.weitere_mails || ''
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingMieter(null);
+    setEditValues({ hauptmail: '', telnr: '', weitere_mails: '' });
+  };
+
+  const saveChanges = async (mieterId: string) => {
+    try {
+      const { error } = await supabase
+        .from('mieter')
+        .update({
+          hauptmail: editValues.hauptmail || null,
+          telnr: editValues.telnr || null,
+          weitere_mails: editValues.weitere_mails || null
+        })
+        .eq('id', mieterId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Erfolgreich gespeichert",
+        description: "Die Kontaktdaten wurden aktualisiert.",
+      });
+
+      setEditingMieter(null);
+      setEditValues({ hauptmail: '', telnr: '', weitere_mails: '' });
+      
+      // Seite neu laden, um die Änderungen anzuzeigen
+      window.location.reload();
+    } catch (err) {
+      console.error('Fehler beim Speichern:', err);
+      toast({
+        title: "Fehler",
+        description: "Die Kontaktdaten konnten nicht gespeichert werden.",
         variant: "destructive",
       });
     }
@@ -63,68 +120,142 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                     </div>
                     
                     <div className="space-y-2">
-                      {m.mieter?.hauptmail && (
-                        <div className="flex items-center justify-between group">
-                          <div className="flex items-center space-x-2">
-                            <Mail className="h-4 w-4 text-gray-500" />
+                      {/* Hauptmail */}
+                      <div className="flex items-center justify-between group">
+                        <div className="flex items-center space-x-2 flex-1">
+                          <Mail className="h-4 w-4 text-gray-500" />
+                          {editingMieter === m.mieter.id ? (
+                            <Input
+                              value={editValues.hauptmail}
+                              onChange={(e) => setEditValues(prev => ({ ...prev, hauptmail: e.target.value }))}
+                              placeholder="E-Mail-Adresse"
+                              className="text-sm"
+                            />
+                          ) : (
                             <span className="text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-sm">
-                              {m.mieter.hauptmail}
+                              {m.mieter?.hauptmail || 'Keine E-Mail'}
                             </span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(m.mieter.hauptmail, 'E-Mail-Adresse');
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                            title="E-Mail-Adresse kopieren"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </button>
+                          )}
                         </div>
-                      )}
+                        <div className="flex items-center gap-1">
+                          {editingMieter === m.mieter.id ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => saveChanges(m.mieter.id)}
+                                className="h-6 w-6 p-0"
+                              >
+                                <Check className="h-3 w-3 text-green-600" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={cancelEditing}
+                                className="h-6 w-6 p-0"
+                              >
+                                <X className="h-3 w-3 text-red-600" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (m.mieter?.hauptmail) {
+                                    copyToClipboard(m.mieter.hauptmail, 'E-Mail-Adresse');
+                                  }
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                title="E-Mail-Adresse kopieren"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => startEditing(m)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                title="Bearbeiten"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
                       
-                      {m.mieter?.telnr && (
-                        <div className="flex items-center justify-between group">
-                          <div className="flex items-center space-x-2">
-                            <Phone className="h-4 w-4 text-gray-500" />
+                      {/* Telefonnummer */}
+                      <div className="flex items-center justify-between group">
+                        <div className="flex items-center space-x-2 flex-1">
+                          <Phone className="h-4 w-4 text-gray-500" />
+                          {editingMieter === m.mieter.id ? (
+                            <Input
+                              value={editValues.telnr}
+                              onChange={(e) => setEditValues(prev => ({ ...prev, telnr: e.target.value }))}
+                              placeholder="Telefonnummer"
+                              className="text-sm"
+                            />
+                          ) : (
                             <span className="text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-sm">
-                              {m.mieter.telnr}
+                              {m.mieter?.telnr || 'Keine Telefonnummer'}
                             </span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(m.mieter.telnr, 'Telefonnummer');
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                            title="Telefonnummer kopieren"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </button>
+                          )}
                         </div>
-                      )}
+                        <div className="flex items-center gap-1">
+                          {editingMieter !== m.mieter.id && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (m.mieter?.telnr) {
+                                    copyToClipboard(m.mieter.telnr, 'Telefonnummer');
+                                  }
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                title="Telefonnummer kopieren"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
                       
-                      {m.mieter?.weitere_mails && (
-                        <div className="flex items-center justify-between group">
-                          <div className="flex items-center space-x-2">
-                            <Mail className="h-4 w-4 text-gray-400" />
+                      {/* Weitere E-Mails */}
+                      <div className="flex items-center justify-between group">
+                        <div className="flex items-center space-x-2 flex-1">
+                          <Mail className="h-4 w-4 text-gray-400" />
+                          {editingMieter === m.mieter.id ? (
+                            <Input
+                              value={editValues.weitere_mails}
+                              onChange={(e) => setEditValues(prev => ({ ...prev, weitere_mails: e.target.value }))}
+                              placeholder="Weitere E-Mail-Adressen"
+                              className="text-sm"
+                            />
+                          ) : (
                             <span className="text-gray-600 bg-gray-50 px-3 py-1 rounded-full text-sm">
-                              {m.mieter.weitere_mails}
+                              {m.mieter?.weitere_mails || 'Keine weiteren E-Mails'}
                             </span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyToClipboard(m.mieter.weitere_mails, 'Alternative E-Mail-Adresse');
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                            title="Alternative E-Mail-Adresse kopieren"
-                          >
-                            <Copy className="h-3 w-3" />
-                          </button>
+                          )}
                         </div>
-                      )}
+                        <div className="flex items-center gap-1">
+                          {editingMieter !== m.mieter.id && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (m.mieter?.weitere_mails) {
+                                    copyToClipboard(m.mieter.weitere_mails, 'Alternative E-Mail-Adresse');
+                                  }
+                                }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                title="Alternative E-Mail-Adresse kopieren"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
