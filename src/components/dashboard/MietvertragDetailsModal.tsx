@@ -546,41 +546,45 @@ export const MietvertragDetailsModal = ({
                       <div key={index} className="p-3 border rounded-lg">
                         <p className="font-semibold">{m.vorname} {m.nachname}</p>
                         <div className="space-y-2 mt-2">
-                          {m.hauptmail && (
-                            <div className="flex items-center justify-between group">
-                              <div className="flex items-center space-x-2 flex-1">
-                                <Mail className="h-4 w-4 text-gray-500" />
-                                {editingField?.mieterId === m.id && editingField?.field === 'hauptmail' ? (
-                                  <div className="flex items-center space-x-2 flex-1">
-                                    <Input
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      className="h-8 text-sm"
-                                      placeholder="E-Mail-Adresse"
-                                    />
-                                    <Button onClick={handleSaveField} size="sm" className="h-8 px-2">
-                                      <Check className="h-3 w-3" />
-                                    </Button>
-                                    <Button onClick={handleCancelEdit} size="sm" variant="outline" className="h-8 px-2">
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-gray-600 flex-1">{m.hauptmail}</span>
-                                )}
-                              </div>
-                              {!(editingField?.mieterId === m.id && editingField?.field === 'hauptmail') && (
-                                <div className="flex space-x-1">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditField(m.id, 'hauptmail', m.hauptmail);
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                                    title="E-Mail-Adresse bearbeiten"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </button>
+                          {/* E-Mail-Adresse - immer anzeigen */}
+                          <div className="flex items-center justify-between group">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <Mail className="h-4 w-4 text-gray-500" />
+                              {editingField?.mieterId === m.id && editingField?.field === 'hauptmail' ? (
+                                <div className="flex items-center space-x-2 flex-1">
+                                  <Input
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    className="h-8 text-sm"
+                                    placeholder="E-Mail-Adresse eingeben"
+                                    type="email"
+                                  />
+                                  <Button onClick={handleSaveField} size="sm" className="h-8 px-2">
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                  <Button onClick={handleCancelEdit} size="sm" variant="outline" className="h-8 px-2">
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-600 flex-1">
+                                  {m.hauptmail || <span className="text-gray-400 italic">Keine E-Mail-Adresse</span>}
+                                </span>
+                              )}
+                            </div>
+                            {!(editingField?.mieterId === m.id && editingField?.field === 'hauptmail') && (
+                              <div className="flex space-x-1">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditField(m.id, 'hauptmail', m.hauptmail || '');
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                  title="E-Mail-Adresse bearbeiten"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </button>
+                                {m.hauptmail && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -591,46 +595,50 @@ export const MietvertragDetailsModal = ({
                                   >
                                     <Copy className="h-3 w-3" />
                                   </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          
-                          {m.telnr && (
-                            <div className="flex items-center justify-between group">
-                              <div className="flex items-center space-x-2 flex-1">
-                                <Phone className="h-4 w-4 text-gray-500" />
-                                {editingField?.mieterId === m.id && editingField?.field === 'telnr' ? (
-                                  <div className="flex items-center space-x-2 flex-1">
-                                    <Input
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      className="h-8 text-sm"
-                                      placeholder="Telefonnummer"
-                                    />
-                                    <Button onClick={handleSaveField} size="sm" className="h-8 px-2">
-                                      <Check className="h-3 w-3" />
-                                    </Button>
-                                    <Button onClick={handleCancelEdit} size="sm" variant="outline" className="h-8 px-2">
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-gray-600 flex-1">{m.telnr}</span>
                                 )}
                               </div>
-                              {!(editingField?.mieterId === m.id && editingField?.field === 'telnr') && (
-                                <div className="flex space-x-1">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditField(m.id, 'telnr', m.telnr);
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                                    title="Telefonnummer bearbeiten"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </button>
+                            )}
+                          </div>
+                          
+                          {/* Telefonnummer - immer anzeigen */}
+                          <div className="flex items-center justify-between group">
+                            <div className="flex items-center space-x-2 flex-1">
+                              <Phone className="h-4 w-4 text-gray-500" />
+                              {editingField?.mieterId === m.id && editingField?.field === 'telnr' ? (
+                                <div className="flex items-center space-x-2 flex-1">
+                                  <Input
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    className="h-8 text-sm"
+                                    placeholder="Telefonnummer eingeben"
+                                    type="tel"
+                                  />
+                                  <Button onClick={handleSaveField} size="sm" className="h-8 px-2">
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                  <Button onClick={handleCancelEdit} size="sm" variant="outline" className="h-8 px-2">
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span className="text-sm text-gray-600 flex-1">
+                                  {m.telnr || <span className="text-gray-400 italic">Keine Telefonnummer</span>}
+                                </span>
+                              )}
+                            </div>
+                            {!(editingField?.mieterId === m.id && editingField?.field === 'telnr') && (
+                              <div className="flex space-x-1">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditField(m.id, 'telnr', m.telnr || '');
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                  title="Telefonnummer bearbeiten"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </button>
+                                {m.telnr && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -641,10 +649,10 @@ export const MietvertragDetailsModal = ({
                                   >
                                     <Copy className="h-3 w-3" />
                                   </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                )}
+                              </div>
+                            )}
+                          </div>
                           
                           {m.geburtsdatum && (
                             <div className="flex items-center space-x-2">
