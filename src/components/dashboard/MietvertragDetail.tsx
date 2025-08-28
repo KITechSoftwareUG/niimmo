@@ -68,6 +68,7 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
       const { data, error } = await supabase
         .from('mietvertrag_mieter')
         .select(`
+          rolle:mieter_id,
           mieter:mieter_id (
             id,
             vorname,
@@ -80,7 +81,12 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
         .eq('mietvertrag_id', vertragId);
       
       if (error) throw error;
-      return data;
+      console.log('MietvertragDetail - mieter query result:', data);
+      // Add rolle information - for now just set as "Hauptmieter" 
+      return data?.map(item => ({
+        ...item,
+        rolle: 'Hauptmieter'
+      })) || [];
     }
   });
 

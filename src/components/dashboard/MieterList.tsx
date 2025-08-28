@@ -40,13 +40,22 @@ export const MieterList = ({ mieter }: MieterListProps) => {
     }
   };
 
-  const startEditing = (mieter: any) => {
-    console.log('Starting edit for mieter:', mieter);
-    setEditingMieter(mieter.mieter.id);
+  const startEditing = (mieterData: any) => {
+    console.log('Starting edit for mieter:', mieterData);
+    // Handle different data structures - either direct mieter object or nested mieter.mieter
+    const mieterObj = mieterData.mieter || mieterData;
+    const mieterId = mieterObj.id;
+    
+    if (!mieterId) {
+      console.error('No mieter ID found in:', mieterData);
+      return;
+    }
+    
+    setEditingMieter(mieterId);
     setEditValues({
-      hauptmail: mieter.mieter.hauptmail || '',
-      telnr: mieter.mieter.telnr || '',
-      weitere_mails: mieter.mieter.weitere_mails || ''
+      hauptmail: mieterObj.hauptmail || '',
+      telnr: mieterObj.telnr || '',
+      weitere_mails: mieterObj.weitere_mails || ''
     });
   };
 
@@ -108,31 +117,36 @@ export const MieterList = ({ mieter }: MieterListProps) => {
       </CardHeader>
       <CardContent className="p-8">
         <div className="grid gap-6">
-          {mieter.map((m, index) => (
-            <div key={index} className="p-6 bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200">
-              <div className="flex justify-between items-start">
-                <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full">
-                    <UserCheck className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-1">
-                        {m.mieter?.vorname} {m.mieter?.nachname}
-                      </h3>
-                      {m.rolle && (
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          {m.rolle}
-                        </Badge>
-                      )}
+          {mieter.map((m, index) => {
+            // Handle different data structures - either direct mieter object or nested mieter.mieter
+            const mieterObj = m.mieter || m;
+            const mieterId = mieterObj.id;
+            
+            return (
+              <div key={mieterId || index} className="p-6 bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-start space-x-4">
+                    <div className="p-3 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full">
+                      <UserCheck className="h-6 w-6 text-blue-600" />
                     </div>
+                    <div className="space-y-3">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">
+                          {mieterObj?.vorname} {mieterObj?.nachname}
+                        </h3>
+                        {m.rolle && (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {m.rolle}
+                          </Badge>
+                        )}
+                      </div>
                     
                     <div className="space-y-2">
                       {/* Hauptmail */}
                       <div className="flex items-center justify-between group">
                         <div className="flex items-center space-x-2 flex-1">
                           <Mail className="h-4 w-4 text-gray-500" />
-                          {editingMieter === m.mieter.id ? (
+                          {editingMieter === mieterId ? (
                             <Input
                               value={editValues.hauptmail}
                               onChange={(e) => setEditValues(prev => ({ ...prev, hauptmail: e.target.value }))}
@@ -141,17 +155,17 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                             />
                           ) : (
                             <span className="text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-sm">
-                              {m.mieter?.hauptmail || 'Keine E-Mail'}
+                              {mieterObj?.hauptmail || 'Keine E-Mail'}
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          {editingMieter === m.mieter.id ? (
+                          {editingMieter === mieterId ? (
                             <>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => saveChanges(m.mieter.id)}
+                                onClick={() => saveChanges(mieterId)}
                                 className="h-6 w-6 p-0"
                               >
                                 <Check className="h-3 w-3 text-green-600" />
@@ -170,8 +184,8 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (m.mieter?.hauptmail) {
-                                    copyToClipboard(m.mieter.hauptmail, 'E-Mail-Adresse');
+                                  if (mieterObj?.hauptmail) {
+                                    copyToClipboard(mieterObj.hauptmail, 'E-Mail-Adresse');
                                   }
                                 }}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
@@ -195,7 +209,7 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                       <div className="flex items-center justify-between group">
                         <div className="flex items-center space-x-2 flex-1">
                           <Phone className="h-4 w-4 text-gray-500" />
-                          {editingMieter === m.mieter.id ? (
+                          {editingMieter === mieterId ? (
                             <Input
                               value={editValues.telnr}
                               onChange={(e) => setEditValues(prev => ({ ...prev, telnr: e.target.value }))}
@@ -204,18 +218,18 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                             />
                           ) : (
                             <span className="text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-sm">
-                              {m.mieter?.telnr || 'Keine Telefonnummer'}
+                              {mieterObj?.telnr || 'Keine Telefonnummer'}
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          {editingMieter !== m.mieter.id && (
+                          {editingMieter !== mieterId && (
                             <>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (m.mieter?.telnr) {
-                                    copyToClipboard(m.mieter.telnr, 'Telefonnummer');
+                                  if (mieterObj?.telnr) {
+                                    copyToClipboard(mieterObj.telnr, 'Telefonnummer');
                                   }
                                 }}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
@@ -232,7 +246,7 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                       <div className="flex items-center justify-between group">
                         <div className="flex items-center space-x-2 flex-1">
                           <Mail className="h-4 w-4 text-gray-400" />
-                          {editingMieter === m.mieter.id ? (
+                          {editingMieter === mieterId ? (
                             <Input
                               value={editValues.weitere_mails}
                               onChange={(e) => setEditValues(prev => ({ ...prev, weitere_mails: e.target.value }))}
@@ -241,18 +255,18 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                             />
                           ) : (
                             <span className="text-gray-600 bg-gray-50 px-3 py-1 rounded-full text-sm">
-                              {m.mieter?.weitere_mails || 'Keine weiteren E-Mails'}
+                              {mieterObj?.weitere_mails || 'Keine weiteren E-Mails'}
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          {editingMieter !== m.mieter.id && (
+                          {editingMieter !== mieterId && (
                             <>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (m.mieter?.weitere_mails) {
-                                    copyToClipboard(m.mieter.weitere_mails, 'Alternative E-Mail-Adresse');
+                                  if (mieterObj?.weitere_mails) {
+                                    copyToClipboard(mieterObj.weitere_mails, 'Alternative E-Mail-Adresse');
                                   }
                                 }}
                                 className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
@@ -269,7 +283,8 @@ export const MieterList = ({ mieter }: MieterListProps) => {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
