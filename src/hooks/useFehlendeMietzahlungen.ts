@@ -152,7 +152,9 @@ export const useFehlendeMietzahlungen = () => {
         const mietvertragStart = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2025-01-01');
         const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
         
+        // Forderungen für diesen Mietvertrag filtern (IDENTISCH zum Modal)
         const mietvertragForderungen = forderungen?.filter(f => {
+          // Nur Forderungen für diesen Mietvertrag
           if (f.mietvertrag_id !== mietvertragId || !f.sollmonat) return false;
           
           const forderungsDatum = new Date(f.sollmonat + '-01');
