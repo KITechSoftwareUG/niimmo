@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Euro, CheckCircle, XCircle, Clock, Send, AlertTriangle, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { MahnstufeIndicator } from "./MahnstufeIndicator";
+import { MahnungVorschauModal } from "./MahnungVorschauModal";
 import { useToast } from "@/hooks/use-toast";
 
 interface PaymentHistoryProps {
@@ -17,6 +18,7 @@ interface PaymentHistoryProps {
 export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentHistoryProps) => {
   const [isSendingMahnung, setIsSendingMahnung] = useState(false);
   const [isCheckingMahnstufen, setIsCheckingMahnstufen] = useState(false);
+  const [showMahnungModal, setShowMahnungModal] = useState(false);
   const { toast } = useToast();
 
   // Lade Mietforderungen
@@ -119,6 +121,14 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
         title: "Mahnung versendet",
         description: `Mahnung Stufe ${vertrag.mahnstufe || currentMahnstufe} wurde erfolgreich versendet.`,
       });
+
+      // Refresh data
+      await Promise.all([
+        refetchForderungen(),
+        refetchZahlungen(),
+        refetchVertrag()
+      ]);
+
     } catch (error) {
       console.error('Fehler beim Versenden der Mahnung:', error);
       toast({
@@ -128,6 +138,7 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
       });
     } finally {
       setIsSendingMahnung(false);
+      setShowMahnungModal(false);
     }
   };
 
@@ -243,13 +254,13 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
                 </div>
               </div>
               <Button
-                onClick={handleSendMahnung}
+                onClick={() => setShowMahnungModal(true)}
                 disabled={isSendingMahnung}
                 size="sm"
                 className="bg-destructive hover:bg-destructive/90"
               >
                 <Send className="h-4 w-4 mr-2" />
-                {isSendingMahnung ? 'Sende...' : 'Mahnung verschicken'}
+                Mahnung verschicken
               </Button>
             </div>
           </div>
@@ -341,6 +352,19 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
           </div>
         </div>
       </CardContent>
+      
+      {/* Mahnung Vorschau Modal */}
+      <MahnungVorschauModal
+        isOpen={showMahnungModal}
+        onClose={() => setShowMahnungModal(false)}
+        onConfirm={handleSendMahnung}
+        vertragData={vertrag}
+        mieterData={[]} // TODO: Mieter-Daten laden
+        forderungen={forderungen?.filter(f => !getPaymentStatus(f).paid) || []}
+        currentMahnstufe={currentMahnstufeFromDB}
+        immobilieData={null} // TODO: Immobilien-Daten laden
+        isLoading={isSendingMahnung}
+      />
     </Card>
   );
 };

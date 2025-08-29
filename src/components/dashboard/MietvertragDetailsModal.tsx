@@ -65,6 +65,8 @@ export const MietvertragDetailsModal = ({
   const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie' | 'monat' | 'mietvertrag'} | null>(null);
   const [showDetailsExpanded, setShowDetailsExpanded] = useState(false);
   const [editPaymentValue, setEditPaymentValue] = useState<string>("");
+  const [showMahnungModal, setShowMahnungModal] = useState(false);
+  const [isLoadingSendMahnung, setIsLoadingSendMahnung] = useState(false);
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -593,6 +595,22 @@ export const MietvertragDetailsModal = ({
     return verarbeiteteZahlungen;
   };
 
+  const handleSendMahnungFromModal = async () => {
+    if (!vertrag) return;
+    setIsLoadingSendMahnung(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-mahnung', {
+        body: { mietvertragId: vertrag.id, mahnstufe: Math.max(vertrag.mahnstufe || 0, 1), vertragData: vertrag, forderungen: forderungen || [] }
+      });
+      if (error) throw error;
+      toast({ title: "Mahnung versendet", description: "Mahnung wurde erfolgreich versendet." });
+    } catch (error) {
+      toast({ title: "Fehler", description: "Mahnung konnte nicht versendet werden.", variant: "destructive" });
+    } finally {
+      setIsLoadingSendMahnung(false); setShowMahnungModal(false);
+    }
+  };
+
     // Filtere Zahlungen ab Startdatum und nach Kategorie (IDENTISCH zu useFehlendeMietzahlungen)
     const relevanteZahlungen = zahlungen.filter(z => {
       if (!z.buchungsdatum) return false;
@@ -1068,60 +1086,7 @@ export const MietvertragDetailsModal = ({
                       
                       <div className="flex items-center space-x-2">
                         <Button
-                          onClick={async () => {
-                            try {
-                              // Hole offene Forderungen
-                              const { data: forderungen } = await supabase
-                                .from('mietforderungen')
-                                .select('*')
-                                .eq('mietvertrag_id', vertrag.id);
-
-                              // Hole Mieter-Daten
-                              const { data: mieterData } = await supabase
-                                .from('mietvertrag_mieter')
-                                .select(`
-                                  mieter:mieter_id (
-                                    vorname,
-                                    nachname,
-                                    hauptmail
-                                  )
-                                `)
-                                .eq('mietvertrag_id', vertrag.id);
-
-                              const { data, error } = await supabase.functions.invoke('send-mahnung', {
-                                body: {
-                                  mietvertragId: vertrag.id,
-                                  mahnstufe: Math.max(vertrag.mahnstufe || 0, 1), // Mindestens Stufe 1
-                                  vertragData: {
-                                    ...vertrag,
-                                    mieter: mieterData,
-                                    einheit: einheit,
-                                    immobilie: immobilie
-                                  },
-                                  forderungen: forderungen || []
-                                }
-                              });
-
-                              if (error) throw error;
-
-                              toast({
-                                title: "Mahnung versendet",
-                                description: `Mahnung wurde erfolgreich versendet.`,
-                              });
-
-                              // Mahnstufe erhöhen falls nötig
-                              if ((vertrag.mahnstufe || 0) === 0) {
-                                await handleMahnstufeChange(1);
-                              }
-                            } catch (error) {
-                              console.error('Fehler beim Versenden der Mahnung:', error);
-                              toast({
-                                title: "Fehler",
-                                description: "Mahnung konnte nicht versendet werden.",
-                                variant: "destructive",
-                              });
-                            }
-                          }}
+                          onClick={() => setShowMahnungModal(true)}
                           size="sm"
                           variant="destructive"
                         >
@@ -1788,6 +1753,19 @@ export const MietvertragDetailsModal = ({
           </Tabs>
         </div>
       </DialogContent>
+      
+      {/* Mahnung Vorschau Modal */}
+      <MahnungVorschauModal
+        isOpen={showMahnungModal}
+        onClose={() => setShowMahnungModal(false)}
+        onConfirm={handleSendMahnungFromModal}
+        vertragData={vertrag}
+        mieterData={mieter || []}
+        forderungen={forderungen || []}
+        currentMahnstufe={vertrag?.mahnstufe || 0}
+        immobilieData={immobilie}
+        isLoading={isLoadingSendMahnung}
+      />
     </Dialog>
   );
 };
