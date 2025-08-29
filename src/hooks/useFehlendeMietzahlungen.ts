@@ -196,12 +196,11 @@ export const useFehlendeMietzahlungen = () => {
         // Wenn keine Forderungen existieren, überspringen
         if (mietvertragForderungen.length === 0) continue;
 
-        // BERECHNUNG WIE IM DETAIL-MODAL: Gesamtforderungen vs Gesamtzahlungen
+        // EXAKT IDENTISCHE BERECHNUNG WIE IM MODAL: calculateRueckstand()
         const gesamtForderungen = mietvertragForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+        
+        // Berechne Gesamtzahlungen mit 6-Tage-Wartezeit bei Lastschrift (IDENTISCH zum Modal)
         let gesamtZahlungen = 0;
-        let mieteZahlungen = 0; // Nur Kategorie "Miete"
-
-        // Nur gültige Zahlungen berücksichtigen (bei Lastschrift: 6 Tage Wartezeit)
         for (const zahlung of mietvertragZahlungen) {
           let zahlungGueltig = true;
           
