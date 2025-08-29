@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,10 @@ import {
   Send,
   Edit2,
   Check,
-  X
+  X,
+  ChevronDown,
+  Square,
+  Hash
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +62,7 @@ export const MietvertragDetailsModal = ({
   const [editingField, setEditingField] = useState<{mieterId: string, field: 'hauptmail' | 'telnr'} | null>(null);
   const [editValue, setEditValue] = useState<string>("");
   const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie' | 'monat'} | null>(null);
+  const [showDetailsExpanded, setShowDetailsExpanded] = useState(false);
   const [editPaymentValue, setEditPaymentValue] = useState<string>("");
 
   const copyToClipboard = async (text: string, type: string) => {
@@ -749,7 +754,7 @@ export const MietvertragDetailsModal = ({
                 <div>
                   <p className="text-sm text-gray-600">Einheit</p>
                   <p className="font-semibold">
-                    Einheit {vertrag?.einheit_id ? vertrag.einheit_id.slice(-2) : 'N/A'} • {einheit?.qm && `${einheit.qm} m²`}
+                    Einheit {vertrag?.einheit_id ? vertrag.einheit_id.slice(-2) : 'N/A'}
                   </p>
                 </div>
                 <div>
@@ -781,6 +786,61 @@ export const MietvertragDetailsModal = ({
                   </div>
                 </div>
               </div>
+
+              {/* Erweiterte Details - Collapsible */}
+              <Collapsible open={showDetailsExpanded} onOpenChange={setShowDetailsExpanded}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                  <span className="text-sm font-medium text-gray-700">Weitere Details</span>
+                  <ChevronDown className={`h-4 w-4 text-gray-600 transition-transform ${showDetailsExpanded ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent className="mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border">
+                    {einheit?.qm && (
+                      <div className="flex items-center space-x-2">
+                        <Square className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <p className="text-sm text-gray-600">Quadratmeter</p>
+                          <p className="font-semibold">{einheit.qm} m²</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {einheit?.zaehler && (
+                      <div className="flex items-center space-x-2">
+                        <Hash className="h-4 w-4 text-gray-500" />
+                        <div>
+                          <p className="text-sm text-gray-600">Zählernummer</p>
+                          <p className="font-semibold font-mono">{einheit.zaehler}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {einheit?.etage && (
+                      <div>
+                        <p className="text-sm text-gray-600">Etage</p>
+                        <p className="font-semibold">{einheit.etage}</p>
+                      </div>
+                    )}
+                    
+                    {einheit?.einheitentyp && (
+                      <div>
+                        <p className="text-sm text-gray-600">Einheitentyp</p>
+                        <p className="font-semibold capitalize">{einheit.einheitentyp}</p>
+                      </div>
+                    )}
+                    
+                    {vertrag?.einheit_id && (
+                      <div className="md:col-span-2">
+                        <p className="text-sm text-gray-600">Einheit ID (vollständig)</p>
+                        <p className="font-mono text-xs text-gray-700 break-all bg-white p-2 rounded border">
+                          {vertrag.einheit_id}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </CardContent>
           </Card>
 
