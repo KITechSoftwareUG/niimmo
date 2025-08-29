@@ -1185,9 +1185,8 @@ export const MietvertragDetailsModal = ({
                                                     </p>
                                                     <p className="text-sm text-green-700 mb-2 font-medium">
                                                       {formatDatum(zahlung.buchungsdatum)}
-                                                    </p>
-                                                    
-                                                    {/* Enhanced Status indicator */}
+                                                     </p>
+                                                     {/* Enhanced Status indicator */}
                                                     <div className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-bold shadow-md mb-2 ${
                                                       statusColor === 'green' ? 'bg-green-100 text-green-800 border border-green-300' :
                                                       statusColor === 'orange' ? 'bg-orange-100 text-orange-800 border border-orange-300' :
