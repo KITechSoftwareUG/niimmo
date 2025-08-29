@@ -161,7 +161,15 @@ export const useFehlendeMietzahlungen = () => {
           return forderungsDatum >= startDatum;
         }) || [];
         
-        // IDENTISCHE Filterung wie im Detail-Modal - zuerst nach Mietvertrag-ID
+        // EINFACHE BERECHNUNG: Alle "Miete"-Zahlungen für diesen Mietvertrag summieren
+        const alleMieteZahlungen = allZahlungenData?.filter(z => 
+          z.mietvertrag_id === mietvertragId && 
+          z.kategorie === 'Miete'
+        ) || [];
+        
+        const mieteZahlungenSumme = alleMieteZahlungen.reduce((sum, z) => sum + (Number(z.betrag) || 0), 0);
+
+        // Für Rückstandsberechnung: alle relevanten Zahlungen (wie bisher)
         const alleZahlungenFuerVertrag = allZahlungenData?.filter(z => z.mietvertrag_id === mietvertragId) || [];
         
         const mietvertragZahlungen = alleZahlungenFuerVertrag.filter(z => {
@@ -178,14 +186,11 @@ export const useFehlendeMietzahlungen = () => {
         });
 
         console.log(`Hook Debug für ${mietvertragId}:`, {
+          alleMieteZahlungen: alleMieteZahlungen.length,
+          mieteZahlungenSumme: mieteZahlungenSumme,
           alleZahlungenFuerVertrag: alleZahlungenFuerVertrag.length,
           relevanteZahlungen: mietvertragZahlungen.length,
-          startDatum: startDatum.toISOString(),
-          zahlungenDetails: mietvertragZahlungen.map(z => ({
-            betrag: z.betrag,
-            kategorie: z.kategorie,
-            buchungsdatum: z.buchungsdatum
-          }))
+          startDatum: startDatum.toISOString()
         });
 
         // Wenn keine Forderungen existieren, überspringen
@@ -211,11 +216,6 @@ export const useFehlendeMietzahlungen = () => {
           
           if (zahlungGueltig) {
             gesamtZahlungen += (Number(zahlung.betrag) || 0);
-            
-            // Separate Summe nur für Kategorie "Miete"
-            if (zahlung.kategorie === 'Miete') {
-              mieteZahlungen += (Number(zahlung.betrag) || 0);
-            }
           }
         }
 
@@ -247,7 +247,7 @@ export const useFehlendeMietzahlungen = () => {
             fehlend_betrag: rueckstand,
             gesamt_forderungen: gesamtForderungen,
             gesamt_zahlungen: gesamtZahlungen,
-            miete_zahlungen: mieteZahlungen, // Nur Kategorie "Miete"
+            miete_zahlungen: mieteZahlungenSumme, // EINFACH: Alle "Miete"-Zahlungen
             immobilie_name: immobilieName,
             immobilie_adresse: immobilie?.adresse || 'Unbekannt',
             einheit_typ: einheit?.einheitentyp || 'Unbekannt',
