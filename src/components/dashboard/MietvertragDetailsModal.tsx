@@ -57,7 +57,7 @@ export const MietvertragDetailsModal = ({
   const [selectedMonth, setSelectedMonth] = useState<string>("alle");
   const [editingField, setEditingField] = useState<{mieterId: string, field: 'hauptmail' | 'telnr'} | null>(null);
   const [editValue, setEditValue] = useState<string>("");
-  const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie'} | null>(null);
+  const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie' | 'monat'} | null>(null);
   const [editPaymentValue, setEditPaymentValue] = useState<string>("");
 
   const copyToClipboard = async (text: string, type: string) => {
@@ -117,7 +117,7 @@ export const MietvertragDetailsModal = ({
     setEditValue('');
   };
 
-  const handleEditPaymentField = (zahlungId: string, field: 'kategorie', currentValue: string) => {
+  const handleEditPaymentField = (zahlungId: string, field: 'kategorie' | 'monat', currentValue: string) => {
     setEditingPayment({ zahlungId, field });
     setEditPaymentValue(currentValue || '');
   };
@@ -157,6 +157,118 @@ export const MietvertragDetailsModal = ({
     setEditingPayment(null);
     setEditPaymentValue('');
   };
+
+  // Extract calculation logic for use in timeline and balance calculation
+  const getProcessedPayments = () => {
+    if (!forderungen || !zahlungen || !vertrag) return { processedZahlungen: [], relevanteForderungen: [] };
+    
+    const heute = new Date();
+    const istLastschrift = vertrag.lastschrift || false;
+    
+    // Bestimme Startdatum: später von Jan 2025 oder Mietvertragsbeginn
+    const mietvertragStart = vertrag.start_datum ? new Date(vertrag.start_datum) : new Date('2025-01-01');
+    const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
+    
+    // Filtere Forderungen ab Startdatum
+    const relevanteForderungen = forderungen.filter(f => {
+      if (!f.sollmonat) return false;
+      const forderungsDatum = new Date(f.sollmonat + '-01');
+      return forderungsDatum >= startDatum;
+    });
+    
+    // Intelligente Vorauszahlungs-Logik
+    const processVorauszahlungen = (zahlungen: any[], forderungen: any[]) => {
+      // Erst: Verschiebe Zahlungen die 2-3 Tage vor Monatsbeginn stattfinden zum nächsten Monat
+      const zahlungenMitMonatsverschiebung = zahlungen.map(zahlung => {
+        if (!zahlung.buchungsdatum) return zahlung;
+        
+        const zahlungsDatum = new Date(zahlung.buchungsdatum);
+        const tag = zahlungsDatum.getDate();
+        
+        // Wenn Zahlung am 28., 29., 30., oder 31. des Monats -> verschiebe zum nächsten Monat
+        if (tag >= 28) {
+          const naechsterMonat = new Date(zahlungsDatum);
+          naechsterMonat.setMonth(naechsterMonat.getMonth() + 1);
+          naechsterMonat.setDate(1); // 1. des nächsten Monats
+          
+          return {
+            ...zahlung,
+            buchungsdatum: naechsterMonat.toISOString().slice(0, 10),
+            _verschoben_monatsende: true // Für Debugging
+          };
+        }
+        
+        return zahlung;
+      });
+
+      // Gruppiere Zahlungen nach Monaten (mit bereits verschobenen Zahlungen)
+      const zahlungenByMonth = new Map<string, any[]>();
+      zahlungenMitMonatsverschiebung.forEach(z => {
+        if (!z.buchungsdatum) return;
+        const zahlungsmonat = z.buchungsdatum.slice(0, 7); // YYYY-MM
+        if (!zahlungenByMonth.has(zahlungsmonat)) {
+          zahlungenByMonth.set(zahlungsmonat, []);
+        }
+        zahlungenByMonth.get(zahlungsmonat)!.push(z);
+      });
+
+      // Sammle alle Forderungsmonate
+      const forderungsmonate = new Set(forderungen.map(f => f.sollmonat).filter(Boolean));
+      
+      // Verarbeite Vorauszahlungen (verwende bereits monatsweise verschobene Zahlungen)
+      const verarbeiteteZahlungen = [...zahlungenMitMonatsverschiebung];
+      
+      zahlungenByMonth.forEach((monthZahlungen, zahlungsmonat) => {
+        // Wenn es für diesen Monat keine Forderung gibt
+        if (!forderungsmonate.has(zahlungsmonat)) {
+          // Finde den nächsten Monat mit Forderung
+          const naechsterForderungsmonat = Array.from(forderungsmonate)
+            .filter(fm => fm > zahlungsmonat)
+            .sort()[0];
+          
+          if (naechsterForderungsmonat) {
+            // Verschiebe alle Zahlungen dieses Monats zum nächsten Forderungsmonat
+            monthZahlungen.forEach(zahlung => {
+              const zahlungsIndex = verarbeiteteZahlungen.findIndex(z => z.id === zahlung.id);
+              if (zahlungsIndex !== -1) {
+                // Erstelle neue Buchungsdatum im Zielmonat (1. des Monats)
+                const neuesDatum = naechsterForderungsmonat + '-01';
+                verarbeiteteZahlungen[zahlungsIndex] = {
+                  ...zahlung,
+                  buchungsdatum: neuesDatum,
+                  _verschoben_von: zahlungsmonat // Für Debugging
+                };
+              }
+            });
+          }
+        }
+      });
+      
+      return verarbeiteteZahlungen;
+    };
+
+    // Filtere Zahlungen ab Startdatum und nach Kategorie
+    const relevanteZahlungen = zahlungen.filter(z => {
+      if (!z.buchungsdatum) return false;
+      
+      // Zeitraum-Filter
+      const zahlungsDatum = new Date(z.buchungsdatum);
+      if (zahlungsDatum < startDatum) return false;
+      
+      // Kategorie-Filter
+      return z.kategorie === 'Miete' || 
+             z.kategorie === null || 
+             (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && String(z.kategorie) !== 'Ignorieren');
+    });
+
+    // Wende Vorauszahlungs-Intelligenz an
+    const processedZahlungen = processVorauszahlungen(relevanteZahlungen, relevanteForderungen);
+    
+    return { processedZahlungen, relevanteForderungen };
+  };
+
+  // Get processed payments for use in timeline and calculations
+  const { processedZahlungen, relevanteForderungen } = getProcessedPayments();
   const { data: vertrag, isLoading: vertragLoading } = useQuery({
     queryKey: ['mietvertrag-detail', vertragId],
     queryFn: async () => {
@@ -1102,232 +1214,279 @@ export const MietvertragDetailsModal = ({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {viewMode === 'timeline' ? (
-                    /* Enhanced Central Timeline View */
-                    <div className="relative max-h-[40rem] overflow-y-auto py-6">
-                      {(() => {
-                        // Group data by months for better display
-                        const monthlyData = new Map();
-                        
-                        // Add Forderungen to monthly data
-                        if (forderungen) {
-                          forderungen.forEach(forderung => {
-                            const month = forderung.sollmonat;
-                            if (!monthlyData.has(month)) {
-                              monthlyData.set(month, { forderung: null, zahlungen: [] });
-                            }
-                            monthlyData.get(month).forderung = forderung;
-                          });
-                        }
-                        
-                        // Add Zahlungen to monthly data
-                        if (zahlungen) {
-                          zahlungen.forEach(zahlung => {
-                            const zahlungsDatum = new Date(zahlung.buchungsdatum);
-                            const month = zahlungsDatum.getFullYear() + '-' + String(zahlungsDatum.getMonth() + 1).padStart(2, '0');
-                            
-                            if (!monthlyData.has(month)) {
-                              monthlyData.set(month, { forderung: null, zahlungen: [] });
-                            }
-                            monthlyData.get(month).zahlungen.push(zahlung);
-                          });
-                        }
-                        
-                        // Sort months chronologically (newest first)
-                        const sortedMonths = Array.from(monthlyData.keys()).sort().reverse();
-                        
-                        if (sortedMonths.length === 0) {
-                          return (
-                            <div className="text-center py-12">
-                              <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                              <p className="text-gray-600 text-lg">Keine Zahlungen oder Forderungen gefunden</p>
-                            </div>
-                          );
-                        }
-                        
-                        return (
-                          <div className="relative px-4">
-                            {/* Central Timeline - Enhanced */}
-                            <div className="absolute left-1/2 top-0 w-1 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500 h-full transform -translate-x-0.5 z-0 shadow-lg"></div>
-                            
-                            {sortedMonths.map((month, index) => {
-                              const data = monthlyData.get(month);
-                              const monthDate = new Date(month + '-01');
-                              const forderung = data.forderung;
-                              const zahlungen = data.zahlungen;
-                              
-                              // Calculate due date for forderung
-                              let faelligkeitsDatum = null;
-                              let toleranzEnde = null;
-                              if (forderung) {
-                                const forderungsDatum = new Date(forderung.sollmonat + '-01');
-                                faelligkeitsDatum = new Date(forderungsDatum.getFullYear(), forderungsDatum.getMonth() + 1, 1);
-                                toleranzEnde = new Date(faelligkeitsDatum);
-                                toleranzEnde.setDate(toleranzEnde.getDate() + 7);
-                              }
-                              
-                              return (
-                                <div key={month} className="relative mb-12 min-h-[140px] animate-fade-in">
-                                  {/* Enhanced Month marker on timeline */}
-                                  <div className="absolute left-1/2 w-6 h-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full border-4 border-white shadow-xl transform -translate-x-1/2 z-20">
-                                    <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                                      <div className="bg-white shadow-lg rounded-full px-4 py-2 border border-gray-200">
-                                        <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                                          {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="grid grid-cols-2 gap-12 pt-16">
-                                    {/* Left side - Forderungen (Enhanced) */}
-                                    <div className="text-right pr-6">
-                                      {forderung ? (
-                                        <div className="inline-block animate-scale-in">
-                                          <div className="p-5 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale">
-                                            <div className="text-right">
-                                              <div className="flex items-center justify-end mb-3">
-                                                <div className="bg-red-500 rounded-full p-2 mr-2">
-                                                  <span className="text-white text-sm">📋</span>
-                                                </div>
-                                                <p className="font-bold text-red-800 text-lg">
-                                                  Forderung
-                                                </p>
-                                              </div>
-                                              <p className="text-2xl font-black text-red-900 mb-2">
-                                                {formatBetrag(Number(forderung.sollbetrag))}
-                                              </p>
-                                              <p className="text-sm text-red-700 mb-3 font-medium">
-                                                Monat: {forderung.sollmonat}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="text-gray-400 text-lg italic font-medium">
-                                          Keine Forderung
-                                        </div>
-                                      )}
-                                    </div>
-                                    
-                                    {/* Right side - Zahlungen (Enhanced) */}
-                                    <div className="pl-6">
-                                      {zahlungen.length > 0 ? (
-                                        <div className="space-y-4">
-                                          {zahlungen.map((zahlung, zahlungIndex) => {
-                                            const zahlungsDatum = new Date(zahlung.buchungsdatum);
-                                            let statusColor = 'green';
-                                            let statusText = 'Pünktlich';
-                                            let statusIcon = '✅';
-                                            
-                                            // Determine if payment is late
-                                            if (forderung && faelligkeitsDatum) {
-                                              const daysDiff = Math.ceil((zahlungsDatum.getTime() - faelligkeitsDatum.getTime()) / (1000 * 60 * 60 * 24));
-                                              if (daysDiff > 7) {
-                                                statusColor = 'red';
-                                                statusText = `${daysDiff} Tage zu spät`;
-                                                statusIcon = '❌';
-                                              } else if (daysDiff > 0) {
-                                                statusColor = 'orange';
-                                                statusText = `${daysDiff} Tage nach Fälligkeit`;
-                                                statusIcon = '⚠️';
-                                              } else if (daysDiff < 0) {
-                                                statusColor = 'blue';
-                                                statusText = `${Math.abs(daysDiff)} Tage vor Fälligkeit`;
-                                                statusIcon = '🚀';
-                                              }
-                                            }
-                                            
-                                            return (
-                                              <div 
-                                                key={zahlung.id} 
-                                                className="bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale animate-fade-in"
-                                                style={{ animationDelay: `${zahlungIndex * 100}ms` }}
-                                              >
-                                                <div className="flex justify-between items-start mb-3">
-                                                  <div className="flex-1">
-                                                    <div className="flex items-center mb-2">
-                                                      <div className="bg-green-500 rounded-full p-2 mr-2">
-                                                        <span className="text-white text-sm">💰</span>
-                                                      </div>
-                                                      <p className="font-bold text-green-800 text-lg">
-                                                        Zahlung
-                                                      </p>
-                                                    </div>
-                                                    <p className="text-2xl font-black text-green-900 mb-2">
-                                                      {formatBetrag(Number(zahlung.betrag))}
-                                                    </p>
-                                                    <p className="text-sm text-green-700 mb-2 font-medium">
-                                                      {formatDatum(zahlung.buchungsdatum)}
+                   {viewMode === 'timeline' ? (
+                     /* Enhanced Central Timeline View with Payment Shifts */
+                     <div className="relative max-h-[40rem] overflow-y-auto py-6">
+                       {(() => {
+                          // Use processed payments that include month-end shifts and prepayment logic
+                          const timelineZahlungen = processedZahlungen;
+                         
+                         // Group data by months for better display
+                         const monthlyData = new Map();
+                         
+                         // Add Forderungen to monthly data
+                         if (forderungen) {
+                           forderungen.forEach(forderung => {
+                             const month = forderung.sollmonat;
+                             if (!monthlyData.has(month)) {
+                               monthlyData.set(month, { forderung: null, zahlungen: [] });
+                             }
+                             monthlyData.get(month).forderung = forderung;
+                           });
+                         }
+                         
+                          // Add processed payments to monthly data
+                          timelineZahlungen.forEach(zahlung => {
+                           const zahlungsDatum = new Date(zahlung.buchungsdatum);
+                           const month = zahlungsDatum.getFullYear() + '-' + String(zahlungsDatum.getMonth() + 1).padStart(2, '0');
+                           
+                           if (!monthlyData.has(month)) {
+                             monthlyData.set(month, { forderung: null, zahlungen: [] });
+                           }
+                           monthlyData.get(month).zahlungen.push(zahlung);
+                         });
+                         
+                         // Sort months chronologically (newest first)
+                         const sortedMonths = Array.from(monthlyData.keys()).sort().reverse();
+                         
+                         if (sortedMonths.length === 0) {
+                           return (
+                             <div className="text-center py-12">
+                               <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                               <p className="text-gray-600 text-lg">Keine Zahlungen oder Forderungen gefunden</p>
+                             </div>
+                           );
+                         }
+                         
+                         return (
+                           <div className="relative px-4">
+                             {/* Central Timeline - Enhanced */}
+                             <div className="absolute left-1/2 top-0 w-1 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500 h-full transform -translate-x-0.5 z-0 shadow-lg"></div>
+                             
+                             {sortedMonths.map((month, index) => {
+                               const data = monthlyData.get(month);
+                               const monthDate = new Date(month + '-01');
+                               const forderung = data.forderung;
+                               const zahlungen = data.zahlungen;
+                               
+                               // Calculate due date for forderung
+                               let faelligkeitsDatum = null;
+                               let toleranzEnde = null;
+                               if (forderung) {
+                                 const forderungsDatum = new Date(forderung.sollmonat + '-01');
+                                 faelligkeitsDatum = new Date(forderungsDatum.getFullYear(), forderungsDatum.getMonth() + 1, 1);
+                                 toleranzEnde = new Date(faelligkeitsDatum);
+                                 toleranzEnde.setDate(toleranzEnde.getDate() + 7);
+                               }
+                               
+                               return (
+                                 <div key={month} className="relative mb-12 min-h-[140px] animate-fade-in">
+                                   {/* Enhanced Month marker on timeline */}
+                                   <div className="absolute left-1/2 w-6 h-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full border-4 border-white shadow-xl transform -translate-x-1/2 z-20">
+                                     <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                       <div className="bg-white shadow-lg rounded-full px-4 py-2 border border-gray-200">
+                                         <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                                           {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                                         </span>
+                                       </div>
+                                     </div>
+                                   </div>
+                                   
+                                   <div className="grid grid-cols-2 gap-12 pt-16">
+                                     {/* Left side - Forderungen (Enhanced) */}
+                                     <div className="text-right pr-6">
+                                       {forderung ? (
+                                         <div className="inline-block animate-scale-in">
+                                           <div className="p-5 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale">
+                                             <div className="text-right">
+                                               <div className="flex items-center justify-end mb-3">
+                                                 <div className="bg-red-500 rounded-full p-2 mr-2">
+                                                   <span className="text-white text-sm">📋</span>
+                                                 </div>
+                                                 <p className="font-bold text-red-800 text-lg">
+                                                   Forderung
+                                                 </p>
+                                               </div>
+                                               <p className="text-2xl font-black text-red-900 mb-2">
+                                                 {formatBetrag(Number(forderung.sollbetrag))}
+                                               </p>
+                                               <p className="text-sm text-red-700 mb-3 font-medium">
+                                                 Monat: {forderung.sollmonat}
+                                               </p>
+                                             </div>
+                                           </div>
+                                         </div>
+                                       ) : (
+                                         <div className="text-gray-400 text-lg italic font-medium">
+                                           Keine Forderung
+                                         </div>
+                                       )}
+                                     </div>
+                                     
+                                     {/* Right side - Zahlungen (Enhanced with shift indicators) */}
+                                     <div className="pl-6">
+                                       {zahlungen.length > 0 ? (
+                                         <div className="space-y-4">
+                                           {zahlungen.map((zahlung, zahlungIndex) => {
+                                             const zahlungsDatum = new Date(zahlung.buchungsdatum);
+                                             let statusColor = 'green';
+                                             let statusText = 'Pünktlich';
+                                             let statusIcon = '✅';
+                                             
+                                             // Check if payment was shifted
+                                             const wasShifted = zahlung._verschoben_von || zahlung._verschoben_monatsende;
+                                             
+                                             // Determine if payment is late
+                                             if (forderung && faelligkeitsDatum) {
+                                               const daysDiff = Math.ceil((zahlungsDatum.getTime() - faelligkeitsDatum.getTime()) / (1000 * 60 * 60 * 24));
+                                               if (daysDiff > 7) {
+                                                 statusColor = 'red';
+                                                 statusText = `${daysDiff} Tage zu spät`;
+                                                 statusIcon = '❌';
+                                               } else if (daysDiff > 0) {
+                                                 statusColor = 'orange';
+                                                 statusText = `${daysDiff} Tage nach Fälligkeit`;
+                                                 statusIcon = '⚠️';
+                                               } else if (daysDiff < 0) {
+                                                 statusColor = 'blue';
+                                                 statusText = `${Math.abs(daysDiff)} Tage vor Fälligkeit`;
+                                                 statusIcon = '🚀';
+                                               }
+                                             }
+                                             
+                                             return (
+                                               <div 
+                                                 key={zahlung.id} 
+                                                 className={`bg-gradient-to-br from-green-50 to-emerald-100 border-2 ${wasShifted ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100' : 'border-green-200'} rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale animate-fade-in`}
+                                                 style={{ animationDelay: `${zahlungIndex * 100}ms` }}
+                                               >
+                                                 {wasShifted && (
+                                                   <div className="mb-3 p-2 bg-blue-100 border border-blue-300 rounded-lg">
+                                                     <div className="flex items-center text-blue-700 text-xs">
+                                                       <span className="mr-1">🔄</span>
+                                                       {zahlung._verschoben_monatsende ? 
+                                                         'Automatisch verschoben (Monatsende)' : 
+                                                         `Verschoben von ${zahlung._verschoben_von}`
+                                                       }
+                                                     </div>
+                                                   </div>
+                                                 )}
+                                                 
+                                                 <div className="flex justify-between items-start mb-3">
+                                                   <div className="flex-1">
+                                                     <div className="flex items-center mb-2">
+                                                       <div className={`${wasShifted ? 'bg-blue-500' : 'bg-green-500'} rounded-full p-2 mr-2`}>
+                                                         <span className="text-white text-sm">💰</span>
+                                                       </div>
+                                                       <p className={`font-bold ${wasShifted ? 'text-blue-800' : 'text-green-800'} text-lg`}>
+                                                         Zahlung
+                                                       </p>
+                                                     </div>
+                                                     <p className={`text-2xl font-black ${wasShifted ? 'text-blue-900' : 'text-green-900'} mb-2`}>
+                                                       {formatBetrag(Number(zahlung.betrag))}
                                                      </p>
-                                                     
-                                                    {zahlung.verwendungszweck && (
-                                                      <p className="text-sm text-green-600 bg-white p-2 rounded border border-green-200 break-words">
-                                                        {zahlung.verwendungszweck}
+                                                     <p className={`text-sm ${wasShifted ? 'text-blue-700' : 'text-green-700'} mb-2 font-medium`}>
+                                                       {formatDatum(zahlung.buchungsdatum)}
                                                       </p>
-                                                    )}
-                                                  </div>
-                                                  
-                                                  {/* Enhanced Edit controls */}
-                                                  <div className="flex flex-col space-y-2 ml-3">
-                                                    {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
-                                                      <div className="flex flex-col space-y-2">
-                                                        <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                                          <SelectTrigger className="h-8 text-xs w-24">
-                                                            <SelectValue />
-                                                          </SelectTrigger>
-                                                          <SelectContent className="bg-background border shadow-md z-50">
-                                                            <SelectItem value="Miete">Miete</SelectItem>
-                                                            <SelectItem value="Mietkaution">Mietkaution</SelectItem>
-                                                            <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
-                                                            <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                                                          </SelectContent>
-                                                        </Select>
-                                                        <div className="flex space-x-1">
-                                                          <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
-                                                            <Check className="h-3 w-3" />
-                                                          </Button>
-                                                          <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
-                                                            <X className="h-3 w-3" />
-                                                          </Button>
-                                                        </div>
-                                                      </div>
-                                                    ) : (
-                                                      <div className="flex flex-col items-end space-y-2">
-                                                        <Badge variant="outline" className="text-xs font-medium">
-                                                          {zahlung.kategorie || 'Sonstige'}
-                                                        </Badge>
-                                                        <Button
-                                                          onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
-                                                          variant="ghost"
-                                                          size="sm"
-                                                          className="h-6 w-6 p-0 hover:bg-green-200"
-                                                          title="Kategorie bearbeiten"
-                                                        >
-                                                          <Edit2 className="h-3 w-3" />
-                                                        </Button>
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : (
-                                        <div className="text-gray-400 text-lg italic font-medium">
-                                          Keine Zahlungen
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-                    </div>
+                                                      
+                                                     {zahlung.verwendungszweck && (
+                                                       <p className={`text-sm ${wasShifted ? 'text-blue-600 border-blue-200' : 'text-green-600 border-green-200'} bg-white p-2 rounded border break-words`}>
+                                                         {zahlung.verwendungszweck}
+                                                       </p>
+                                                     )}
+                                                   </div>
+                                                   
+                                                   {/* Enhanced Edit controls with month assignment */}
+                                                   <div className="flex flex-col space-y-2 ml-3">
+                                                     {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
+                                                       <div className="flex flex-col space-y-2">
+                                                         <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                                           <SelectTrigger className="h-8 text-xs w-24">
+                                                             <SelectValue />
+                                                           </SelectTrigger>
+                                                           <SelectContent className="bg-background border shadow-md z-50">
+                                                             <SelectItem value="Miete">Miete</SelectItem>
+                                                             <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                                             <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                                                             <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                                           </SelectContent>
+                                                         </Select>
+                                                         <div className="flex space-x-1">
+                                                           <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
+                                                             <Check className="h-3 w-3" />
+                                                           </Button>
+                                                           <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
+                                                             <X className="h-3 w-3" />
+                                                           </Button>
+                                                         </div>
+                                                       </div>
+                                                     ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
+                                                       <div className="flex flex-col space-y-2">
+                                                         <input 
+                                                           type="month"
+                                                           value={editPaymentValue}
+                                                           onChange={(e) => setEditPaymentValue(e.target.value)}
+                                                           className="h-8 text-xs w-28 px-2 border rounded"
+                                                         />
+                                                         <div className="flex space-x-1">
+                                                           <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
+                                                             <Check className="h-3 w-3" />
+                                                           </Button>
+                                                           <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
+                                                             <X className="h-3 w-3" />
+                                                           </Button>
+                                                         </div>
+                                                       </div>
+                                                     ) : (
+                                                       <div className="flex flex-col items-end space-y-2">
+                                                         <Badge variant="outline" className="text-xs font-medium">
+                                                           {zahlung.kategorie || 'Sonstige'}
+                                                         </Badge>
+                                                         <div className="flex space-x-1">
+                                                           <Button
+                                                             onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                                             variant="ghost"
+                                                             size="sm"
+                                                             className="h-6 w-6 p-0 hover:bg-green-200"
+                                                             title="Kategorie bearbeiten"
+                                                           >
+                                                             <Edit2 className="h-3 w-3" />
+                                                           </Button>
+                                                           <Button
+                                                             onClick={() => {
+                                                               const currentMonth = zahlung.buchungsdatum.slice(0, 7);
+                                                               handleEditPaymentField(zahlung.id, 'monat', currentMonth);
+                                                             }}
+                                                             variant="ghost"
+                                                             size="sm"
+                                                             className="h-6 w-6 p-0 hover:bg-blue-200"
+                                                             title="Monat zuordnen"
+                                                           >
+                                                             <Calendar className="h-3 w-3" />
+                                                           </Button>
+                                                         </div>
+                                                       </div>
+                                                     )}
+                                                   </div>
+                                                 </div>
+                                               </div>
+                                             );
+                                           })}
+                                         </div>
+                                       ) : (
+                                         <div className="text-gray-400 text-lg italic font-medium">
+                                           Keine Zahlungen
+                                         </div>
+                                       )}
+                                     </div>
+                                   </div>
+                                 </div>
+                               );
+                             })}
+                           </div>
+                         );
+                       })()}
+                     </div>
                   ) : (
                     /* Classic List View */
                     <div className="space-y-4 max-h-[32rem] overflow-y-auto">
