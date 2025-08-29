@@ -171,7 +171,12 @@ export const useFehlendeMietzahlungen = () => {
           if (z.mietvertrag_id !== mietvertragId || !z.buchungsdatum) return false;
           
           const zahlungsDatum = new Date(z.buchungsdatum);
-          return zahlungsDatum >= startDatum;
+          if (zahlungsDatum < startDatum) return false;
+          
+          // IDENTISCHE Kategorie-Filter wie im Detail-Modal
+          return z.kategorie === 'Miete' || 
+                 z.kategorie === null || 
+                 (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
         }) || [];
 
         // Wenn keine Forderungen existieren, überspringen
