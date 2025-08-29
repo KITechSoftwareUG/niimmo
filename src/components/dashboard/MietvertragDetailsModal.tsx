@@ -55,6 +55,8 @@ export const MietvertragDetailsModal = ({
   const [selectedMonth, setSelectedMonth] = useState<string>("alle");
   const [editingField, setEditingField] = useState<{mieterId: string, field: 'hauptmail' | 'telnr'} | null>(null);
   const [editValue, setEditValue] = useState<string>("");
+  const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie'} | null>(null);
+  const [editPaymentValue, setEditPaymentValue] = useState<string>("");
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -111,6 +113,47 @@ export const MietvertragDetailsModal = ({
   const handleCancelEdit = () => {
     setEditingField(null);
     setEditValue('');
+  };
+
+  const handleEditPaymentField = (zahlungId: string, field: 'kategorie', currentValue: string) => {
+    setEditingPayment({ zahlungId, field });
+    setEditPaymentValue(currentValue || '');
+  };
+
+  const handleSavePaymentField = async () => {
+    if (!editingPayment) return;
+    
+    try {
+      const { error } = await supabase
+        .from('zahlungen')
+        .update({ kategorie: editPaymentValue as any })
+        .eq('id', editingPayment.zahlungId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Aktualisiert",
+        description: "Kategorie wurde erfolgreich aktualisiert.",
+      });
+
+      setEditingPayment(null);
+      setEditPaymentValue('');
+      
+      // Refetch data
+      window.location.reload();
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren:', error);
+      toast({
+        title: "Fehler",
+        description: "Kategorie konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelPaymentEdit = () => {
+    setEditingPayment(null);
+    setEditPaymentValue('');
   };
   const { data: vertrag, isLoading: vertragLoading } = useQuery({
     queryKey: ['mietvertrag-detail', vertragId],
@@ -898,10 +941,41 @@ export const MietvertragDetailsModal = ({
                               <p className="text-xs text-gray-500 truncate max-w-xs">
                                 {zahlung.verwendungszweck || 'Kein Verwendungszweck'}
                               </p>
+                          </div>
+                            <div className="flex items-center space-x-2">
+                              {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
+                                <div className="flex items-center space-x-2">
+                                  <Input
+                                    value={editPaymentValue}
+                                    onChange={(e) => setEditPaymentValue(e.target.value)}
+                                    className="h-6 text-xs w-24"
+                                    placeholder="Kategorie"
+                                  />
+                                  <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                  <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-1 group">
+                                  <Badge variant="outline" className="text-xs">
+                                    {zahlung.kategorie || 'Sonstige'}
+                                  </Badge>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '');
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                                    title="Kategorie bearbeiten"
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                            <Badge variant="outline" className="text-xs">
-                              {zahlung.kategorie || 'Sonstige'}
-                            </Badge>
                           </div>
                         </div>
                       ))}
