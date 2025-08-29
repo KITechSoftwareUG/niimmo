@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +51,7 @@ export const MietvertragDetailsModal = ({
   immobilie 
 }: MietvertragDetailsModalProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedYear, setSelectedYear] = useState<string>("2025");
   const [selectedMonth, setSelectedMonth] = useState<string>("alle");
   const [editingField, setEditingField] = useState<{mieterId: string, field: 'hauptmail' | 'telnr'} | null>(null);
@@ -139,8 +140,8 @@ export const MietvertragDetailsModal = ({
       setEditingPayment(null);
       setEditPaymentValue('');
       
-      // Refetch data
-      window.location.reload();
+      // Refresh nur die relevanten Queries statt komplette Seite
+      queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] });
     } catch (error) {
       console.error('Fehler beim Aktualisieren:', error);
       toast({
@@ -953,6 +954,7 @@ export const MietvertragDetailsModal = ({
                                       <SelectItem value="Miete">Miete</SelectItem>
                                       <SelectItem value="Mietkaution">Mietkaution</SelectItem>
                                       <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                                      <SelectItem value="Ignorieren">Ignorieren</SelectItem>
                                     </SelectContent>
                                   </Select>
                                   <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
