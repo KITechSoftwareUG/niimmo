@@ -1046,7 +1046,7 @@ export const MietvertragDetailsModal = ({
                                                 {formatBetrag(Number(forderung.sollbetrag))}
                                               </p>
                                               <p className="text-sm text-red-700 mb-3 font-medium">
-                                                Fällig: {formatDatum(faelligkeitsDatum.toISOString().split('T')[0])}
+                                                Monat: {forderung.sollmonat}
                                               </p>
                                               
                                               {/* Enhanced Toleranzbereich */}
@@ -1054,7 +1054,7 @@ export const MietvertragDetailsModal = ({
                                                 <div className="flex items-center">
                                                   <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
                                                   <p className="text-sm text-green-800 font-semibold">
-                                                    Toleranz bis {formatDatum(toleranzEnde.toISOString().split('T')[0])}
+                                                    7 Tage Toleranzbereich
                                                   </p>
                                                 </div>
                                               </div>
