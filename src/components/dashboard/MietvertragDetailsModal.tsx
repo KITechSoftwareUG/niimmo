@@ -401,9 +401,32 @@ export const MietvertragDetailsModal = ({
     
   // Intelligente Vorauszahlungs-Logik
   const processVorauszahlungen = (zahlungen: any[], forderungen: any[]) => {
-    // Gruppiere Zahlungen nach Monaten
+    // Erst: Verschiebe Zahlungen die 2-3 Tage vor Monatsbeginn stattfinden zum nächsten Monat
+    const zahlungenMitMonatsverschiebung = zahlungen.map(zahlung => {
+      if (!zahlung.buchungsdatum) return zahlung;
+      
+      const zahlungsDatum = new Date(zahlung.buchungsdatum);
+      const tag = zahlungsDatum.getDate();
+      
+      // Wenn Zahlung am 28., 29., 30., oder 31. des Monats -> verschiebe zum nächsten Monat
+      if (tag >= 28) {
+        const naechsterMonat = new Date(zahlungsDatum);
+        naechsterMonat.setMonth(naechsterMonat.getMonth() + 1);
+        naechsterMonat.setDate(1); // 1. des nächsten Monats
+        
+        return {
+          ...zahlung,
+          buchungsdatum: naechsterMonat.toISOString().slice(0, 10),
+          _verschoben_monatsende: true // Für Debugging
+        };
+      }
+      
+      return zahlung;
+    });
+
+    // Gruppiere Zahlungen nach Monaten (mit bereits verschobenen Zahlungen)
     const zahlungenByMonth = new Map<string, any[]>();
-    zahlungen.forEach(z => {
+    zahlungenMitMonatsverschiebung.forEach(z => {
       if (!z.buchungsdatum) return;
       const zahlungsmonat = z.buchungsdatum.slice(0, 7); // YYYY-MM
       if (!zahlungenByMonth.has(zahlungsmonat)) {
@@ -415,8 +438,8 @@ export const MietvertragDetailsModal = ({
     // Sammle alle Forderungsmonate
     const forderungsmonate = new Set(forderungen.map(f => f.sollmonat).filter(Boolean));
     
-    // Verarbeite Vorauszahlungen
-    const verarbeiteteZahlungen = [...zahlungen];
+    // Verarbeite Vorauszahlungen (verwende bereits monatsweise verschobene Zahlungen)
+    const verarbeiteteZahlungen = [...zahlungenMitMonatsverschiebung];
     
     zahlungenByMonth.forEach((monthZahlungen, zahlungsmonat) => {
       // Wenn es für diesen Monat keine Forderung gibt
