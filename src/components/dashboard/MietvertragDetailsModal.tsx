@@ -926,72 +926,153 @@ export const MietvertragDetailsModal = ({
               {/* Zahlungsliste */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Alle Zahlungen</CardTitle>
+                  <CardTitle className="text-lg">Zahlungen & Forderungen Timeline ({selectedYear})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {zahlungen && zahlungen.length > 0 ? (
-                    <div className="space-y-2 max-h-[32rem] overflow-y-auto">
-                      {zahlungen.map((zahlung) => (
-                        <div key={zahlung.id} className="p-2 border rounded-lg">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium text-sm">{formatBetrag(Number(zahlung.betrag))}</p>
-                              <p className="text-xs text-gray-600">
-                                {zahlung.buchungsdatum ? formatDatum(zahlung.buchungsdatum) : 'N/A'}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate max-w-xs">
-                                {zahlung.verwendungszweck || 'Kein Verwendungszweck'}
-                              </p>
+                  {/* Timeline View */}
+                  <div className="space-y-6 max-h-[32rem] overflow-y-auto">
+                    {(() => {
+                      // Combine Zahlungen und Forderungen für Timeline
+                      const timelineItems = [];
+                      
+                      // Add Forderungen
+                      if (forderungen) {
+                        forderungen.forEach(forderung => {
+                          const forderungsDatum = new Date(forderung.sollmonat + '-01');
+                          const faelligkeitsDatum = new Date(forderungsDatum.getFullYear(), forderungsDatum.getMonth() + 1, 1);
+                          const toleranzEnde = new Date(faelligkeitsDatum);
+                          toleranzEnde.setDate(toleranzEnde.getDate() + 7);
+                          
+                          timelineItems.push({
+                            type: 'forderung',
+                            date: faelligkeitsDatum,
+                            toleranzEnde,
+                            data: forderung,
+                            sortDate: faelligkeitsDatum
+                          });
+                        });
+                      }
+                      
+                      // Add Zahlungen
+                      if (zahlungen) {
+                        zahlungen.forEach(zahlung => {
+                          timelineItems.push({
+                            type: 'zahlung',
+                            date: new Date(zahlung.buchungsdatum),
+                            data: zahlung,
+                            sortDate: new Date(zahlung.buchungsdatum)
+                          });
+                        });
+                      }
+                      
+                      // Sort by date
+                      timelineItems.sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
+                      
+                      if (timelineItems.length === 0) {
+                        return (
+                          <div className="text-center py-8">
+                            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-600">Keine Zahlungen oder Forderungen gefunden</p>
                           </div>
-                            <div className="flex items-center space-x-2">
-                              {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
-                                <div className="flex items-center space-x-2">
-                                  <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                    <SelectTrigger className="h-6 text-xs w-28">
-                                      <SelectValue placeholder="Kategorie" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-background border shadow-md z-50">
-                                      <SelectItem value="Miete">Miete</SelectItem>
-                                      <SelectItem value="Mietkaution">Mietkaution</SelectItem>
-                                      <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
-                                      <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                  <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
-                                    <X className="h-3 w-3" />
-                                  </Button>
+                        );
+                      }
+                      
+                      return timelineItems.map((item, index) => (
+                        <div key={`${item.type}-${item.data.id}-${index}`} className="relative">
+                          {/* Timeline line */}
+                          {index < timelineItems.length - 1 && (
+                            <div className="absolute left-6 top-8 w-0.5 h-full bg-gray-200 z-0"></div>
+                          )}
+                          
+                          <div className="flex items-start space-x-4 relative z-10">
+                            {/* Timeline dot */}
+                            <div className={`flex-shrink-0 w-3 h-3 rounded-full mt-2 border-2 border-white shadow-md ${
+                              item.type === 'forderung' ? 'bg-red-500' : 'bg-green-500'
+                            }`}></div>
+                            
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              {item.type === 'forderung' ? (
+                                <div className="p-4 border rounded-lg bg-red-50 border-red-200">
+                                  <div className="flex justify-between items-start mb-3">
+                                    <div className="flex-1">
+                                      <p className="font-medium text-sm text-red-800">
+                                        📋 Forderung: {formatBetrag(Number(item.data.sollbetrag))}
+                                      </p>
+                                      <p className="text-xs text-red-600 mb-2">
+                                        Monat: {item.data.sollmonat} | Fällig: {formatDatum(item.date.toISOString().split('T')[0])}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* 7-Tage Toleranzbereich */}
+                                  <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <p className="text-xs text-green-700 font-medium">
+                                      Toleranzbereich bis {formatDatum(item.toleranzEnde.toISOString().split('T')[0])} (7 Werktage)
+                                    </p>
+                                  </div>
                                 </div>
                               ) : (
-                                <div className="flex items-center space-x-1 group">
-                                  <Badge variant="outline" className="text-xs">
-                                    {zahlung.kategorie || 'Sonstige'}
-                                  </Badge>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '');
-                                    }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
-                                    title="Kategorie bearbeiten"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </button>
+                                <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <p className="font-medium text-sm text-green-800">
+                                        💰 Zahlung: {formatBetrag(Number(item.data.betrag))}
+                                      </p>
+                                      <p className="text-xs text-green-600 mb-1">
+                                        Datum: {formatDatum(item.data.buchungsdatum)}
+                                      </p>
+                                      <p className="text-xs text-green-500 truncate max-w-xs">
+                                        {item.data.verwendungszweck || 'Kein Verwendungszweck'}
+                                      </p>
+                                    </div>
+                                    
+                                    {/* Bearbeitungsmöglichkeiten für Zahlungen */}
+                                    <div className="flex items-center space-x-2">
+                                      {editingPayment?.zahlungId === item.data.id && editingPayment?.field === 'kategorie' ? (
+                                        <div className="flex items-center space-x-2">
+                                          <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                            <SelectTrigger className="h-6 text-xs w-28">
+                                              <SelectValue placeholder="Kategorie" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-background border shadow-md z-50">
+                                              <SelectItem value="Miete">Miete</SelectItem>
+                                              <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                              <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                                              <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                          <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
+                                            <Check className="h-3 w-3" />
+                                          </Button>
+                                          <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center space-x-1 group">
+                                          <Badge variant="outline" className="text-xs">
+                                            {item.data.kategorie || 'Sonstige'}
+                                          </Badge>
+                                          <button
+                                            onClick={() => handleEditPaymentField(item.data.id, 'kategorie', item.data.kategorie || '')}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
+                                          >
+                                            <Edit2 className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">Keine Zahlungen gefunden</p>
-                    </div>
-                  )}
+                      ));
+                    })()}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
