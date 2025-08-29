@@ -6,6 +6,7 @@ export interface FehlendeMietzahlung {
   fehlend_betrag: number;
   gesamt_forderungen: number;
   gesamt_zahlungen: number;
+  miete_zahlungen: number; // Nur Kategorie "Miete"
   immobilie_name: string;
   immobilie_adresse: string;
   einheit_typ: string;
@@ -185,6 +186,7 @@ export const useFehlendeMietzahlungen = () => {
         // BERECHNUNG WIE IM DETAIL-MODAL: Gesamtforderungen vs Gesamtzahlungen
         const gesamtForderungen = mietvertragForderungen.reduce((sum, f) => sum + (f.sollbetrag || 0), 0);
         let gesamtZahlungen = 0;
+        let mieteZahlungen = 0; // Nur Kategorie "Miete"
 
         // Nur gültige Zahlungen berücksichtigen (bei Lastschrift: 6 Tage Wartezeit)
         for (const zahlung of mietvertragZahlungen) {
@@ -201,6 +203,11 @@ export const useFehlendeMietzahlungen = () => {
           
           if (zahlungGueltig) {
             gesamtZahlungen += (zahlung.betrag || 0);
+            
+            // Separate Summe nur für Kategorie "Miete"
+            if (zahlung.kategorie === 'Miete') {
+              mieteZahlungen += (zahlung.betrag || 0);
+            }
           }
         }
 
@@ -232,6 +239,7 @@ export const useFehlendeMietzahlungen = () => {
             fehlend_betrag: rueckstand,
             gesamt_forderungen: gesamtForderungen,
             gesamt_zahlungen: gesamtZahlungen,
+            miete_zahlungen: mieteZahlungen, // Nur Kategorie "Miete"
             immobilie_name: immobilieName,
             immobilie_adresse: immobilie?.adresse || 'Unbekannt',
             einheit_typ: einheit?.einheitentyp || 'Unbekannt',

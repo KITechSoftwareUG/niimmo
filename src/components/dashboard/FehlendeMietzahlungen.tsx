@@ -114,8 +114,8 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                             <p className="font-medium">{formatBetrag(rueckstand.gesamt_forderungen)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-600">Zahlungen</p>
-                            <p className="font-medium text-green-600">{formatBetrag(rueckstand.gesamt_zahlungen)}</p>
+                            <p className="text-gray-600">Miete-Zahlungen</p>
+                            <p className="font-medium text-green-600">{formatBetrag(rueckstand.miete_zahlungen)}</p>
                           </div>
                           <div>
                             <p className="text-gray-600">Rückstand</p>
