@@ -51,7 +51,7 @@ export const useFehlendeMietzahlungen = () => {
         throw forderungenError;
       }
 
-        // Hole alle Zahlungen - einschließlich Mietzahlungen und unzugeordneter Zahlungen
+        // Hole alle Zahlungen - IDENTISCH zum Modal: Lade ALLE und filtere dann in JavaScript
         const { data: allZahlungen, error: zahlungenError } = await supabase
           .from('zahlungen')
           .select('*');
@@ -61,16 +61,8 @@ export const useFehlendeMietzahlungen = () => {
           throw zahlungenError;
         }
 
-        // Prüfe ob Zahlungen existieren, sonst leere Arrays
-        // Berücksichtige Mietzahlungen (kategorie='Miete') und unzugeordnete Zahlungen (kategorie=null)
-        // sowie positive Beträge (Eingänge) die potentiell Mietzahlungen sein könnten
-        const zahlungen = (allZahlungen && allZahlungen.length > 0) 
-          ? allZahlungen.filter(z => 
-              z.kategorie === 'Miete' || 
-              z.kategorie === null || 
-              (z.betrag > 0 && z.kategorie !== 'Nichtmiete')
-            )
-          : [];
+        // ALLE Zahlungen verwenden, Filterung erfolgt später pro Mietvertrag (wie im Modal)
+        const zahlungen = allZahlungen || [];
 
       // Hole alle Einheiten
       const { data: einheiten, error: einheitenError } = await supabase
@@ -167,14 +159,15 @@ export const useFehlendeMietzahlungen = () => {
           return forderungsDatum >= startDatum;
         }) || [];
         
-        // Alle Zahlungen für diesen Mietvertrag (ab dem gleichen Zeitraum)
+        // IDENTISCHE Filterung wie im Detail-Modal
         const mietvertragZahlungen = zahlungen?.filter(z => {
           if (z.mietvertrag_id !== mietvertragId || !z.buchungsdatum) return false;
           
+          // Zeitraum-Filter
           const zahlungsDatum = new Date(z.buchungsdatum);
           if (zahlungsDatum < startDatum) return false;
           
-          // IDENTISCHE Kategorie-Filter wie im Detail-Modal
+          // EXAKT IDENTISCHE Kategorie-Filter wie im Modal
           return z.kategorie === 'Miete' || 
                  z.kategorie === null || 
                  (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
