@@ -945,12 +945,16 @@ export const MietvertragDetailsModal = ({
                             <div className="flex items-center space-x-2">
                               {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
                                 <div className="flex items-center space-x-2">
-                                  <Input
-                                    value={editPaymentValue}
-                                    onChange={(e) => setEditPaymentValue(e.target.value)}
-                                    className="h-6 text-xs w-24"
-                                    placeholder="Kategorie"
-                                  />
+                                  <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                    <SelectTrigger className="h-6 text-xs w-28">
+                                      <SelectValue placeholder="Kategorie" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-background border shadow-md z-50">
+                                      <SelectItem value="Miete">Miete</SelectItem>
+                                      <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                      <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                   <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
                                     <Check className="h-3 w-3" />
                                   </Button>
