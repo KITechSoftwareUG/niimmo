@@ -1524,12 +1524,12 @@ export const MietvertragDetailsModal = ({
                                                             <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
                                                               {alleMietvertraege?.map((mv) => (
                                                                 <SelectItem key={mv.id} value={mv.id}>
-                                                                  <div className="text-xs">
-                                                                    <div className="font-medium">{mv.einheit?.immobilie?.name}</div>
-                                                                    <div className="text-gray-500">
-                                                                      Einheit {mv.einheit?.zaehler || mv.id.slice(-2)}
-                                                                    </div>
-                                                                  </div>
+                                                                   <div className="text-xs">
+                                                                     <div className="font-medium">{mv.einheit?.immobilie?.name}</div>
+                                                                     <div className="text-gray-500">
+                                                                       Einheit {mv.einheit?.id?.slice(-2) || mv.id.slice(-2)}
+                                                                     </div>
+                                                                   </div>
                                                                 </SelectItem>
                                                               ))}
                                                             </SelectContent>
@@ -1663,12 +1663,12 @@ export const MietvertragDetailsModal = ({
                                        <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
                                          {alleMietvertraege?.map((mv) => (
                                            <SelectItem key={mv.id} value={mv.id}>
-                                             <div className="text-sm">
-                                               <div className="font-medium">{mv.einheit?.immobilie?.name}</div>
-                                               <div className="text-gray-500">
-                                                 Einheit {mv.einheit?.zaehler || mv.id.slice(-2)}
-                                               </div>
-                                             </div>
+                                              <div className="text-sm">
+                                                <div className="font-medium">{mv.einheit?.immobilie?.name}</div>
+                                                <div className="text-gray-500">
+                                                  Einheit {mv.einheit?.id?.slice(-2) || mv.id.slice(-2)}
+                                                </div>
+                                              </div>
                                            </SelectItem>
                                          ))}
                                        </SelectContent>
