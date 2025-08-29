@@ -41,17 +41,6 @@ export const calculateMietvertragRueckstand = (
            z.kategorie === null || 
            (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
   });
-
-  console.log(`Utility Debug für ${mietvertrag.id}:`, {
-    alleZahlungenFuerVertrag: zahlungen.length, // Bereits nach mietvertrag_id gefiltert
-    relevanteZahlungen: relevanteZahlungen.length,
-    startDatum: startDatum.toISOString(),
-    zahlungenDetails: relevanteZahlungen.map(z => ({
-      betrag: z.betrag,
-      kategorie: z.kategorie,
-      buchungsdatum: z.buchungsdatum
-    }))
-  });
   
   // Berechne Gesamtforderungen
   const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
@@ -76,8 +65,6 @@ export const calculateMietvertragRueckstand = (
   }
   
   const rueckstand = gesamtForderungen - gesamtZahlungen;
-  
-  console.log(`Utility Final für ${mietvertrag.id}: Forderungen=${gesamtForderungen}, Zahlungen=${gesamtZahlungen}, Rückstand=${rueckstand}`);
   
   return { gesamtForderungen, gesamtZahlungen, rueckstand };
 };

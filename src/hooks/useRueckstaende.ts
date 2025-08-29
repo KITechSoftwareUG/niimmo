@@ -35,16 +35,12 @@ export const useRueckstaende = () => {
       // Lade alle notwendigen Daten parallel
       const [
         { data: mietvertraege, error: mietvertrageError },
-        { data: forderungen, error: forderungenError },
-        { data: zahlungen, error: zahlungenError },
         { data: einheiten, error: einheitenError },
         { data: immobilien, error: immobilienError },
         { data: mietvertragMieter, error: mmError },
         { data: dokumente, error: dokumenteError }
       ] = await Promise.all([
         supabase.from('mietvertrag').select('*'),
-        supabase.from('mietforderungen').select('*'),
-        supabase.from('zahlungen').select('*'),
         supabase.from('einheiten').select('*'),
         supabase.from('immobilien').select('*'),
         supabase.from('mietvertrag_mieter').select(`
@@ -63,8 +59,6 @@ export const useRueckstaende = () => {
       
       // Error handling
       if (mietvertrageError) throw mietvertrageError;
-      if (forderungenError) throw forderungenError;
-      if (zahlungenError) throw zahlungenError;
       if (einheitenError) throw einheitenError;
       if (immobilienError) throw immobilienError;
       if (mmError) throw mmError;
@@ -72,8 +66,6 @@ export const useRueckstaende = () => {
       
       console.log('Geladene Daten:', {
         mietvertraege: mietvertraege?.length,
-        forderungen: forderungen?.length,
-        zahlungen: zahlungen?.length,
         einheiten: einheiten?.length,
         immobilien: immobilien?.length,
         mietvertragMieter: mietvertragMieter?.length,
@@ -90,15 +82,22 @@ export const useRueckstaende = () => {
         // Skip wenn keine Miete definiert ist
         if ((mietvertrag.kaltmiete || 0) === 0 && (mietvertrag.betriebskosten || 0) === 0) continue;
         
-        // Filtere Daten für diesen Mietvertrag
-        const mietvertragForderungen = forderungen?.filter(f => f.mietvertrag_id === mietvertrag.id) || [];
-        const mietvertragZahlungen = zahlungen?.filter(z => z.mietvertrag_id === mietvertrag.id) || [];
+        // IDENTISCH ZUM MODAL: Lade Daten für diesen spezifischen Mietvertrag
+        const [
+          { data: mietvertragForderungen, error: forderungenError },
+          { data: mietvertragZahlungen, error: zahlungenError }
+        ] = await Promise.all([
+          supabase.from('mietforderungen').select('*').eq('mietvertrag_id', mietvertrag.id),
+          supabase.from('zahlungen').select('*').eq('mietvertrag_id', mietvertrag.id)
+        ]);
+        
+        if (forderungenError || zahlungenError) continue;
         
         // VERWENDE EXAKT DIE GLEICHE LOGIK WIE IM MODAL
         const { gesamtForderungen, gesamtZahlungen, rueckstand } = calculateMietvertragRueckstand(
           mietvertrag,
-          mietvertragForderungen,
-          mietvertragZahlungen
+          mietvertragForderungen || [],
+          mietvertragZahlungen || []
         );
         
         console.log(`Mietvertrag ${mietvertrag.id}: Forderungen=${gesamtForderungen}, Zahlungen=${gesamtZahlungen}, Rückstand=${rueckstand}`);
@@ -113,7 +112,7 @@ export const useRueckstaende = () => {
           const mietvertragDokumente = dokumente?.filter(dok => dok.mietvertrag_id === mietvertrag.id) || [];
           
           // Berechne Miete-Zahlungen separat
-          const mieteZahlungenSumme = calculateMieteZahlungen(mietvertragZahlungen);
+          const mieteZahlungenSumme = calculateMieteZahlungen(mietvertragZahlungen || []);
           
           rueckstaende.push({
             mietvertrag_id: mietvertrag.id,
