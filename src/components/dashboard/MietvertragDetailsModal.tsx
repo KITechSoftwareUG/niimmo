@@ -126,16 +126,24 @@ export const MietvertragDetailsModal = ({
     if (!editingPayment) return;
     
     try {
+      let updateData: any = {};
+      
+      if (editingPayment.field === 'kategorie') {
+        updateData.kategorie = editPaymentValue as any;
+      } else if (editingPayment.field === 'monat') {
+        updateData.zugeordneter_monat = editPaymentValue;
+      }
+
       const { error } = await supabase
         .from('zahlungen')
-        .update({ kategorie: editPaymentValue as any })
+        .update(updateData)
         .eq('id', editingPayment.zahlungId);
 
       if (error) throw error;
 
       toast({
         title: "Aktualisiert",
-        description: "Kategorie wurde erfolgreich aktualisiert.",
+        description: `${editingPayment.field === 'kategorie' ? 'Kategorie' : 'Zugeordneter Monat'} wurde erfolgreich aktualisiert.`,
       });
 
       setEditingPayment(null);
@@ -147,7 +155,7 @@ export const MietvertragDetailsModal = ({
       console.error('Fehler beim Aktualisieren:', error);
       toast({
         title: "Fehler",
-        description: "Kategorie konnte nicht aktualisiert werden.",
+        description: `${editingPayment.field === 'kategorie' ? 'Kategorie' : 'Zugeordneter Monat'} konnte nicht aktualisiert werden.`,
         variant: "destructive",
       });
     }
@@ -259,72 +267,34 @@ export const MietvertragDetailsModal = ({
       return forderungsDatum >= startDatum;
     });
     
-    // Intelligente Vorauszahlungs-Logik
+    // Vereinfachte Vorauszahlungs-Logik basierend auf zugeordneter_monat aus DB
     const processVorauszahlungen = (zahlungen: any[], forderungen: any[]) => {
-      // Erst: Verschiebe Zahlungen die 2-3 Tage vor Monatsbeginn stattfinden zum nächsten Monat
-      const zahlungenMitMonatsverschiebung = zahlungen.map(zahlung => {
-        if (!zahlung.buchungsdatum) return zahlung;
+      // Sammle alle Forderungsmonate
+      const forderungsmonate = new Set(forderungen.map(f => f.sollmonat).filter(Boolean));
+      
+      // Verarbeite Vorauszahlungen - verschiebe zu nächstem Forderungsmonat wenn kein passender existiert
+      const verarbeiteteZahlungen = zahlungen.map(zahlung => {
+        // Verwende zugeordneter_monat aus DB, fallback zu berechneter Wert
+        const zugeordneterMonat = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7);
         
-        const zahlungsDatum = new Date(zahlung.buchungsdatum);
-        const tag = zahlungsDatum.getDate();
+        if (!zugeordneterMonat || forderungsmonate.has(zugeordneterMonat)) {
+          return zahlung; // Keine Verschiebung notwendig
+        }
         
-        // Wenn Zahlung am 28., 29., 30., oder 31. des Monats -> verschiebe zum nächsten Monat
-        if (tag >= 28) {
-          const naechsterMonat = new Date(zahlungsDatum);
-          naechsterMonat.setMonth(naechsterMonat.getMonth() + 1);
-          naechsterMonat.setDate(1); // 1. des nächsten Monats
-          
+        // Finde den nächsten Monat mit Forderung
+        const naechsterForderungsmonat = Array.from(forderungsmonate)
+          .filter(fm => fm > zugeordneterMonat)
+          .sort()[0];
+        
+        if (naechsterForderungsmonat) {
           return {
             ...zahlung,
-            buchungsdatum: naechsterMonat.toISOString().slice(0, 10),
-            _verschoben_monatsende: true // Für Debugging
+            zugeordneter_monat: naechsterForderungsmonat,
+            _verschoben_von: zugeordneterMonat // Für Debugging
           };
         }
         
         return zahlung;
-      });
-
-      // Gruppiere Zahlungen nach Monaten (mit bereits verschobenen Zahlungen)
-      const zahlungenByMonth = new Map<string, any[]>();
-      zahlungenMitMonatsverschiebung.forEach(z => {
-        if (!z.buchungsdatum) return;
-        const zahlungsmonat = z.buchungsdatum.slice(0, 7); // YYYY-MM
-        if (!zahlungenByMonth.has(zahlungsmonat)) {
-          zahlungenByMonth.set(zahlungsmonat, []);
-        }
-        zahlungenByMonth.get(zahlungsmonat)!.push(z);
-      });
-
-      // Sammle alle Forderungsmonate
-      const forderungsmonate = new Set(forderungen.map(f => f.sollmonat).filter(Boolean));
-      
-      // Verarbeite Vorauszahlungen (verwende bereits monatsweise verschobene Zahlungen)
-      const verarbeiteteZahlungen = [...zahlungenMitMonatsverschiebung];
-      
-      zahlungenByMonth.forEach((monthZahlungen, zahlungsmonat) => {
-        // Wenn es für diesen Monat keine Forderung gibt
-        if (!forderungsmonate.has(zahlungsmonat)) {
-          // Finde den nächsten Monat mit Forderung
-          const naechsterForderungsmonat = Array.from(forderungsmonate)
-            .filter(fm => fm > zahlungsmonat)
-            .sort()[0];
-          
-          if (naechsterForderungsmonat) {
-            // Verschiebe alle Zahlungen dieses Monats zum nächsten Forderungsmonat
-            monthZahlungen.forEach(zahlung => {
-              const zahlungsIndex = verarbeiteteZahlungen.findIndex(z => z.id === zahlung.id);
-              if (zahlungsIndex !== -1) {
-                // Erstelle neue Buchungsdatum im Zielmonat (1. des Monats)
-                const neuesDatum = naechsterForderungsmonat + '-01';
-                verarbeiteteZahlungen[zahlungsIndex] = {
-                  ...zahlung,
-                  buchungsdatum: neuesDatum,
-                  _verschoben_von: zahlungsmonat // Für Debugging
-                };
-              }
-            });
-          }
-        }
       });
       
       return verarbeiteteZahlungen;
@@ -1232,16 +1202,18 @@ export const MietvertragDetailsModal = ({
                            });
                          }
                          
-                          // Add processed payments to monthly data
-                          timelineZahlungen.forEach(zahlung => {
-                           const zahlungsDatum = new Date(zahlung.buchungsdatum);
-                           const month = zahlungsDatum.getFullYear() + '-' + String(zahlungsDatum.getMonth() + 1).padStart(2, '0');
-                           
-                           if (!monthlyData.has(month)) {
-                             monthlyData.set(month, { forderung: null, zahlungen: [] });
-                           }
-                           monthlyData.get(month).zahlungen.push(zahlung);
-                         });
+                           // Add processed payments to monthly data using zugeordneter_monat
+                           timelineZahlungen.forEach(zahlung => {
+                            // Use zugeordneter_monat from DB, fallback to calculated month from buchungsdatum
+                            const assignedMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7);
+                            
+                            if (assignedMonth && !monthlyData.has(assignedMonth)) {
+                              monthlyData.set(assignedMonth, { forderung: null, zahlungen: [] });
+                            }
+                            if (assignedMonth) {
+                              monthlyData.get(assignedMonth).zahlungen.push(zahlung);
+                            }
+                          });
                          
                          // Sort months chronologically (newest first)
                          const sortedMonths = Array.from(monthlyData.keys()).sort().reverse();
@@ -1330,8 +1302,9 @@ export const MietvertragDetailsModal = ({
                                              let statusText = 'Pünktlich';
                                              let statusIcon = '✅';
                                              
-                                             // Check if payment was shifted
-                                             const wasShifted = zahlung._verschoben_von || zahlung._verschoben_monatsende;
+                                              // Check if payment was shifted or has custom assignment
+                                              const wasShifted = zahlung._verschoben_von || zahlung._verschoben_monatsende;
+                                              const hasCustomMonth = zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7);
                                              
                                              // Determine if payment is late
                                              if (forderung && faelligkeitsDatum) {
@@ -1352,45 +1325,54 @@ export const MietvertragDetailsModal = ({
                                              }
                                              
                                              return (
-                                               <div 
-                                                 key={zahlung.id} 
-                                                 className={`bg-gradient-to-br from-green-50 to-emerald-100 border-2 ${wasShifted ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100' : 'border-green-200'} rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale animate-fade-in`}
-                                                 style={{ animationDelay: `${zahlungIndex * 100}ms` }}
-                                               >
-                                                 {wasShifted && (
-                                                   <div className="mb-3 p-2 bg-blue-100 border border-blue-300 rounded-lg">
-                                                     <div className="flex items-center text-blue-700 text-xs">
-                                                       <span className="mr-1">🔄</span>
-                                                       {zahlung._verschoben_monatsende ? 
-                                                         'Automatisch verschoben (Monatsende)' : 
-                                                         `Verschoben von ${zahlung._verschoben_von}`
-                                                       }
-                                                     </div>
-                                                   </div>
-                                                 )}
+                                                <div 
+                                                  key={zahlung.id} 
+                                                  className={`bg-gradient-to-br from-green-50 to-emerald-100 border-2 ${wasShifted || hasCustomMonth ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100' : 'border-green-200'} rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale animate-fade-in`}
+                                                  style={{ animationDelay: `${zahlungIndex * 100}ms` }}
+                                                >
+                                                  {(wasShifted || hasCustomMonth) && (
+                                                    <div className="mb-3 p-2 bg-blue-100 border border-blue-300 rounded-lg">
+                                                      <div className="flex items-center text-blue-700 text-xs">
+                                                        <span className="mr-1">🔄</span>
+                                                        {zahlung._verschoben_monatsende ? 
+                                                          'Automatisch verschoben (Monatsende)' : 
+                                                          zahlung._verschoben_von ?
+                                                          `Verschoben von ${zahlung._verschoben_von}` :
+                                                          hasCustomMonth ? 
+                                                          `Zugeordnet zu Monat ${zahlung.zugeordneter_monat}` :
+                                                          'Automatisch verschoben'
+                                                        }
+                                                      </div>
+                                                    </div>
+                                                  )}
                                                  
                                                  <div className="flex justify-between items-start mb-3">
                                                    <div className="flex-1">
                                                      <div className="flex items-center mb-2">
-                                                       <div className={`${wasShifted ? 'bg-blue-500' : 'bg-green-500'} rounded-full p-2 mr-2`}>
-                                                         <span className="text-white text-sm">💰</span>
-                                                       </div>
-                                                       <p className={`font-bold ${wasShifted ? 'text-blue-800' : 'text-green-800'} text-lg`}>
-                                                         Zahlung
-                                                       </p>
+                                                        <div className={`${wasShifted || hasCustomMonth ? 'bg-blue-500' : 'bg-green-500'} rounded-full p-2 mr-2`}>
+                                                          <span className="text-white text-sm">💰</span>
+                                                        </div>
+                                                        <p className={`font-bold ${wasShifted || hasCustomMonth ? 'text-blue-800' : 'text-green-800'} text-lg`}>
+                                                          Zahlung
+                                                        </p>
                                                      </div>
-                                                     <p className={`text-2xl font-black ${wasShifted ? 'text-blue-900' : 'text-green-900'} mb-2`}>
-                                                       {formatBetrag(Number(zahlung.betrag))}
-                                                     </p>
-                                                     <p className={`text-sm ${wasShifted ? 'text-blue-700' : 'text-green-700'} mb-2 font-medium`}>
-                                                       {formatDatum(zahlung.buchungsdatum)}
+                                                      <p className={`text-2xl font-black ${wasShifted || hasCustomMonth ? 'text-blue-900' : 'text-green-900'} mb-2`}>
+                                                        {formatBetrag(Number(zahlung.betrag))}
                                                       </p>
+                                                      <p className={`text-sm ${wasShifted || hasCustomMonth ? 'text-blue-700' : 'text-green-700'} mb-2 font-medium`}>
+                                                        {formatDatum(zahlung.buchungsdatum)}
+                                                      </p>
+                                                      {zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7) && (
+                                                        <p className="text-xs text-blue-600 mb-2">
+                                                          Zugeordnet zu: {new Date(zahlung.zugeordneter_monat + '-01').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                                                        </p>
+                                                      )}
                                                       
-                                                     {zahlung.verwendungszweck && (
-                                                       <p className={`text-sm ${wasShifted ? 'text-blue-600 border-blue-200' : 'text-green-600 border-green-200'} bg-white p-2 rounded border break-words`}>
-                                                         {zahlung.verwendungszweck}
-                                                       </p>
-                                                     )}
+                                                      {zahlung.verwendungszweck && (
+                                                        <p className={`text-sm ${wasShifted || hasCustomMonth ? 'text-blue-600 border-blue-200' : 'text-green-600 border-green-200'} bg-white p-2 rounded border break-words`}>
+                                                          {zahlung.verwendungszweck}
+                                                        </p>
+                                                      )}
                                                    </div>
                                                    
                                                    {/* Enhanced Edit controls with month assignment */}
@@ -1449,18 +1431,18 @@ export const MietvertragDetailsModal = ({
                                                            >
                                                              <Edit2 className="h-3 w-3" />
                                                            </Button>
-                                                           <Button
-                                                             onClick={() => {
-                                                               const currentMonth = zahlung.buchungsdatum.slice(0, 7);
-                                                               handleEditPaymentField(zahlung.id, 'monat', currentMonth);
-                                                             }}
-                                                             variant="ghost"
-                                                             size="sm"
-                                                             className="h-6 w-6 p-0 hover:bg-blue-200"
-                                                             title="Monat zuordnen"
-                                                           >
-                                                             <Calendar className="h-3 w-3" />
-                                                           </Button>
+                                                            <Button
+                                                              onClick={() => {
+                                                                const currentMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
+                                                                handleEditPaymentField(zahlung.id, 'monat', currentMonth);
+                                                              }}
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              className="h-6 w-6 p-0 hover:bg-blue-200"
+                                                              title="Monat zuordnen"
+                                                            >
+                                                              <Calendar className="h-3 w-3" />
+                                                            </Button>
                                                          </div>
                                                        </div>
                                                      )}
