@@ -51,7 +51,7 @@ export const useFehlendeMietzahlungen = () => {
         throw forderungenError;
       }
 
-        // Hole alle Zahlungen - IDENTISCH zum Modal: Lade ALLE und filtere dann in JavaScript
+        // Hole alle Zahlungen - Pro Mietvertrag separat laden (IDENTISCH zum Modal)
         const { data: allZahlungen, error: zahlungenError } = await supabase
           .from('zahlungen')
           .select('*');
@@ -62,7 +62,7 @@ export const useFehlendeMietzahlungen = () => {
         }
 
         // ALLE Zahlungen verwenden, Filterung erfolgt später pro Mietvertrag (wie im Modal)
-        const zahlungen = allZahlungen || [];
+        const allZahlungenData = allZahlungen || [];
 
       // Hole alle Einheiten
       const { data: einheiten, error: einheitenError } = await supabase
@@ -117,7 +117,7 @@ export const useFehlendeMietzahlungen = () => {
       console.log('Geladene Daten:', { 
         mietvertraege: mietvertraege?.length,
         forderungen: forderungen?.length, 
-        zahlungen: zahlungen?.length,
+        zahlungen: allZahlungenData?.length,
         einheiten: einheiten?.length,
         immobilien: immobilien?.length,
         mietvertragMieter: mietvertragMieter?.length,
@@ -160,7 +160,7 @@ export const useFehlendeMietzahlungen = () => {
         }) || [];
         
         // IDENTISCHE Filterung wie im Detail-Modal - zuerst nach Mietvertrag-ID
-        const alleZahlungenFuerVertrag = zahlungen?.filter(z => z.mietvertrag_id === mietvertragId) || [];
+        const alleZahlungenFuerVertrag = allZahlungenData?.filter(z => z.mietvertrag_id === mietvertragId) || [];
         
         const mietvertragZahlungen = alleZahlungenFuerVertrag.filter(z => {
           if (!z.buchungsdatum) return false;
