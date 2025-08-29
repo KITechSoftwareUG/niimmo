@@ -1131,7 +1131,7 @@ export const MietvertragDetailsModal = ({
                                                     </div>
                                                     
                                                     {zahlung.verwendungszweck && (
-                                                      <p className="text-sm text-green-600 bg-white p-2 rounded border border-green-200 truncate">
+                                                      <p className="text-sm text-green-600 bg-white p-2 rounded border border-green-200 break-words">
                                                         {zahlung.verwendungszweck}
                                                       </p>
                                                     )}
@@ -1209,7 +1209,7 @@ export const MietvertragDetailsModal = ({
                                 <p className="text-sm text-gray-600">
                                   {zahlung.buchungsdatum ? formatDatum(zahlung.buchungsdatum) : 'N/A'}
                                 </p>
-                                <p className="text-sm text-gray-500 truncate max-w-xs">
+                                <p className="text-sm text-gray-500 break-words">
                                   {zahlung.verwendungszweck || 'Kein Verwendungszweck'}
                                 </p>
                               </div>
