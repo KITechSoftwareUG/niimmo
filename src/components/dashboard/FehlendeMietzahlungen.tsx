@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Eye, Euro, Calendar, User, ChevronDown, ChevronUp } from "lucide-react";
-import { useFehlendeMietzahlungen } from "@/hooks/useFehlendeMietzahlungen";
+import { useRueckstaende } from "@/hooks/useRueckstaende";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -13,9 +13,9 @@ interface FehlendeMietzahlungenProps {
 
 export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlungenProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { data: rueckstaende } = useFehlendeMietzahlungen();
+  const { data: fehlendeMietzahlungen, isLoading, error } = useRueckstaende();
 
-  const gesamtRueckstand = rueckstaende?.reduce((sum, item) => sum + item.fehlend_betrag, 0) || 0;
+  const gesamtRueckstand = fehlendeMietzahlungen?.reduce((sum, item) => sum + item.fehlend_betrag, 0) || 0;
 
   const formatBetrag = (betrag: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -45,7 +45,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
               <div className="text-left">
                 <h2 className="text-lg font-semibold text-gray-800">Rückstände</h2>
                 <p className="text-sm text-gray-600">
-                  {rueckstaende?.length || 0} Mietvertrag{(rueckstaende?.length || 0) !== 1 ? 'e' : ''} mit offenen Forderungen
+                  {fehlendeMietzahlungen?.length || 0} Mietvertrag{(fehlendeMietzahlungen?.length || 0) !== 1 ? 'e' : ''} mit offenen Forderungen
                 </p>
               </div>
             </div>
@@ -68,9 +68,9 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
 
         <CollapsibleContent>
           {/* Contract List */}
-          {rueckstaende && rueckstaende.length > 0 ? (
+          {fehlendeMietzahlungen && fehlendeMietzahlungen.length > 0 ? (
             <div className="space-y-4 animate-fade-in">
-              {rueckstaende.map((rueckstand) => (
+              {fehlendeMietzahlungen.map((rueckstand) => (
                 <Card 
                   key={rueckstand.mietvertrag_id} 
                   className="border border-red-200 bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer hover-scale"
@@ -153,7 +153,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
               <div className="pt-4 border-t border-red-200">
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-600">
-                    {rueckstaende.length} Mietvertrag{rueckstaende.length !== 1 ? 'e' : ''} mit Rückständen
+                    {fehlendeMietzahlungen.length} Mietvertrag{fehlendeMietzahlungen.length !== 1 ? 'e' : ''} mit Rückständen
                   </p>
                   <p className="font-semibold text-red-600">
                     Gesamtrückstand: {formatBetrag(gesamtRueckstand)}

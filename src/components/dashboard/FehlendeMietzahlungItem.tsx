@@ -1,6 +1,6 @@
 
 import { Euro } from "lucide-react";
-import { FehlendeMietzahlung } from "@/hooks/useFehlendeMietzahlungen";
+import { FehlendeMietzahlung } from "@/hooks/useRueckstaende";
 
 interface FehlendeMietzahlungItemProps {
   item: FehlendeMietzahlung;
