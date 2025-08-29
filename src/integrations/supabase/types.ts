@@ -247,6 +247,29 @@ export type Database = {
         }
         Relationships: []
       }
+      kuekencharge: {
+        Row: {
+          created_at: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kuekencharge_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "standort"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mieter: {
         Row: {
           aktualisiert_am: string | null
@@ -447,6 +470,24 @@ export type Database = {
         }
         Relationships: []
       }
+      standort: {
+        Row: {
+          adresse: string | null
+          created_at: string
+          id: number
+        }
+        Insert: {
+          adresse?: string | null
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          adresse?: string | null
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
+      }
       system_logs: {
         Row: {
           created_at: string | null
@@ -504,6 +545,47 @@ export type Database = {
         }
         Relationships: []
       }
+      wetterdaten_prognose: {
+        Row: {
+          created_at: string
+          id: number
+          "temperatur (+tag 1)": number | null
+          "temperatur (+tag 2)": number | null
+          "temperatur (+tag 3)": number | null
+          "windgeschwindigkeit (+tag 1)": number | null
+          "windgeschwindigkeit (+tag 2)": number | null
+          "windgeschwindigkeit (+tag 3)": number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          "temperatur (+tag 1)"?: number | null
+          "temperatur (+tag 2)"?: number | null
+          "temperatur (+tag 3)"?: number | null
+          "windgeschwindigkeit (+tag 1)"?: number | null
+          "windgeschwindigkeit (+tag 2)"?: number | null
+          "windgeschwindigkeit (+tag 3)"?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          "temperatur (+tag 1)"?: number | null
+          "temperatur (+tag 2)"?: number | null
+          "temperatur (+tag 3)"?: number | null
+          "windgeschwindigkeit (+tag 1)"?: number | null
+          "windgeschwindigkeit (+tag 2)"?: number | null
+          "windgeschwindigkeit (+tag 3)"?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wetterdaten_prognose_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "standort"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zahlungen: {
         Row: {
           betrag: number
@@ -515,6 +597,7 @@ export type Database = {
           kategorie: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id: string | null
           verwendungszweck: string | null
+          zugeordneter_monat: string | null
         }
         Insert: {
           betrag?: number
@@ -526,6 +609,7 @@ export type Database = {
           kategorie?: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id?: string | null
           verwendungszweck?: string | null
+          zugeordneter_monat?: string | null
         }
         Update: {
           betrag?: number
@@ -537,6 +621,7 @@ export type Database = {
           kategorie?: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id?: string | null
           verwendungszweck?: string | null
+          zugeordneter_monat?: string | null
         }
         Relationships: [
           {
@@ -556,6 +641,10 @@ export type Database = {
       binary_quantize: {
         Args: { "": string } | { "": unknown }
         Returns: unknown
+      }
+      calculate_zugeordneter_monat: {
+        Args: { buchungsdatum: string }
+        Returns: string
       }
       check_and_update_mahnstufen: {
         Args: Record<PropertyKey, never>
@@ -696,7 +785,7 @@ export type Database = {
       mieterrolle: "Hauptmieter" | "Zweitmieter" | "Drittmieter"
       mietstatus: "aktiv" | "gekuendigt" | "beendet"
       objekttyp: "Wohnhaus" | "Gewerbe" | "Mischnutzung"
-      zahlkategorien: "Miete" | "Nichtmiete" | "Mietkaution"
+      zahlkategorien: "Miete" | "Nichtmiete" | "Mietkaution" | "Ignorieren"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -845,7 +934,7 @@ export const Constants = {
       mieterrolle: ["Hauptmieter", "Zweitmieter", "Drittmieter"],
       mietstatus: ["aktiv", "gekuendigt", "beendet"],
       objekttyp: ["Wohnhaus", "Gewerbe", "Mischnutzung"],
-      zahlkategorien: ["Miete", "Nichtmiete", "Mietkaution"],
+      zahlkategorien: ["Miete", "Nichtmiete", "Mietkaution", "Ignorieren"],
     },
   },
 } as const
