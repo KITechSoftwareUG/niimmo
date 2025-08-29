@@ -53,6 +53,7 @@ export const MietvertragDetailsModal = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedYear, setSelectedYear] = useState<string>("2025");
+  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const [selectedMonth, setSelectedMonth] = useState<string>("alle");
   const [editingField, setEditingField] = useState<{mieterId: string, field: 'hauptmail' | 'telnr'} | null>(null);
   const [editValue, setEditValue] = useState<string>("");
@@ -926,225 +927,340 @@ export const MietvertragDetailsModal = ({
               {/* Zahlungsliste */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Zahlungen & Forderungen Timeline ({selectedYear})</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Zahlungen & Forderungen ({selectedYear})</CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant={viewMode === 'timeline' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('timeline')}
+                        className="h-8"
+                      >
+                        Timeline
+                      </Button>
+                      <Button
+                        variant={viewMode === 'list' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('list')}
+                        className="h-8"
+                      >
+                        Liste
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {/* Central Timeline View */}
-                  <div className="relative max-h-[32rem] overflow-y-auto py-4">
-                    {(() => {
-                      // Group data by months for better display
-                      const monthlyData = new Map();
-                      
-                      // Add Forderungen to monthly data
-                      if (forderungen) {
-                        forderungen.forEach(forderung => {
-                          const month = forderung.sollmonat;
-                          if (!monthlyData.has(month)) {
-                            monthlyData.set(month, { forderung: null, zahlungen: [] });
-                          }
-                          monthlyData.get(month).forderung = forderung;
-                        });
-                      }
-                      
-                      // Add Zahlungen to monthly data
-                      if (zahlungen) {
-                        zahlungen.forEach(zahlung => {
-                          const zahlungsDatum = new Date(zahlung.buchungsdatum);
-                          const month = zahlungsDatum.getFullYear() + '-' + String(zahlungsDatum.getMonth() + 1).padStart(2, '0');
-                          
-                          if (!monthlyData.has(month)) {
-                            monthlyData.set(month, { forderung: null, zahlungen: [] });
-                          }
-                          monthlyData.get(month).zahlungen.push(zahlung);
-                        });
-                      }
-                      
-                      // Sort months chronologically
-                      const sortedMonths = Array.from(monthlyData.keys()).sort();
-                      
-                      if (sortedMonths.length === 0) {
-                        return (
-                          <div className="text-center py-8">
-                            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                            <p className="text-gray-600">Keine Zahlungen oder Forderungen gefunden</p>
-                          </div>
-                        );
-                      }
-                      
-                      return (
-                        <div className="relative">
-                          {/* Central Timeline */}
-                          <div className="absolute left-1/2 top-0 w-1 bg-gray-300 h-full transform -translate-x-0.5 z-0"></div>
-                          
-                          {sortedMonths.map((month, index) => {
-                            const data = monthlyData.get(month);
-                            const monthDate = new Date(month + '-01');
-                            const forderung = data.forderung;
-                            const zahlungen = data.zahlungen;
-                            
-                            // Calculate due date for forderung
-                            let faelligkeitsDatum = null;
-                            let toleranzEnde = null;
-                            if (forderung) {
-                              const forderungsDatum = new Date(forderung.sollmonat + '-01');
-                              faelligkeitsDatum = new Date(forderungsDatum.getFullYear(), forderungsDatum.getMonth() + 1, 1);
-                              toleranzEnde = new Date(faelligkeitsDatum);
-                              toleranzEnde.setDate(toleranzEnde.getDate() + 7);
+                  {viewMode === 'timeline' ? (
+                    /* Enhanced Central Timeline View */
+                    <div className="relative max-h-[40rem] overflow-y-auto py-6">
+                      {(() => {
+                        // Group data by months for better display
+                        const monthlyData = new Map();
+                        
+                        // Add Forderungen to monthly data
+                        if (forderungen) {
+                          forderungen.forEach(forderung => {
+                            const month = forderung.sollmonat;
+                            if (!monthlyData.has(month)) {
+                              monthlyData.set(month, { forderung: null, zahlungen: [] });
                             }
+                            monthlyData.get(month).forderung = forderung;
+                          });
+                        }
+                        
+                        // Add Zahlungen to monthly data
+                        if (zahlungen) {
+                          zahlungen.forEach(zahlung => {
+                            const zahlungsDatum = new Date(zahlung.buchungsdatum);
+                            const month = zahlungsDatum.getFullYear() + '-' + String(zahlungsDatum.getMonth() + 1).padStart(2, '0');
                             
-                            return (
-                              <div key={month} className="relative mb-8 min-h-[120px]">
-                                {/* Month marker on timeline */}
-                                <div className="absolute left-1/2 w-4 h-4 bg-blue-500 rounded-full border-4 border-white shadow-md transform -translate-x-1/2 z-10">
-                                  <div className="absolute top-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                                    <span className="text-sm font-medium bg-blue-100 px-2 py-1 rounded text-blue-800">
-                                      {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                <div className="grid grid-cols-2 gap-8 pt-12">
-                                  {/* Left side - Forderungen */}
-                                  <div className="text-right pr-4">
-                                    {forderung ? (
-                                      <div className="inline-block">
-                                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg max-w-xs">
-                                          <div className="text-right">
-                                            <p className="font-medium text-sm text-red-800 mb-1">
-                                              📋 Forderung
-                                            </p>
-                                            <p className="text-lg font-bold text-red-900">
-                                              {formatBetrag(Number(forderung.sollbetrag))}
-                                            </p>
-                                            <p className="text-xs text-red-600 mb-2">
-                                              Fällig: {formatDatum(faelligkeitsDatum.toISOString().split('T')[0])}
-                                            </p>
-                                            
-                                            {/* Toleranzbereich */}
-                                            <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-left">
-                                              <p className="text-xs text-green-700">
-                                                ✓ Toleranz bis {formatDatum(toleranzEnde.toISOString().split('T')[0])}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </div>
+                            if (!monthlyData.has(month)) {
+                              monthlyData.set(month, { forderung: null, zahlungen: [] });
+                            }
+                            monthlyData.get(month).zahlungen.push(zahlung);
+                          });
+                        }
+                        
+                        // Sort months chronologically
+                        const sortedMonths = Array.from(monthlyData.keys()).sort();
+                        
+                        if (sortedMonths.length === 0) {
+                          return (
+                            <div className="text-center py-12">
+                              <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                              <p className="text-gray-600 text-lg">Keine Zahlungen oder Forderungen gefunden</p>
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <div className="relative px-4">
+                            {/* Central Timeline - Enhanced */}
+                            <div className="absolute left-1/2 top-0 w-1 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500 h-full transform -translate-x-0.5 z-0 shadow-lg"></div>
+                            
+                            {sortedMonths.map((month, index) => {
+                              const data = monthlyData.get(month);
+                              const monthDate = new Date(month + '-01');
+                              const forderung = data.forderung;
+                              const zahlungen = data.zahlungen;
+                              
+                              // Calculate due date for forderung
+                              let faelligkeitsDatum = null;
+                              let toleranzEnde = null;
+                              if (forderung) {
+                                const forderungsDatum = new Date(forderung.sollmonat + '-01');
+                                faelligkeitsDatum = new Date(forderungsDatum.getFullYear(), forderungsDatum.getMonth() + 1, 1);
+                                toleranzEnde = new Date(faelligkeitsDatum);
+                                toleranzEnde.setDate(toleranzEnde.getDate() + 7);
+                              }
+                              
+                              return (
+                                <div key={month} className="relative mb-12 min-h-[140px] animate-fade-in">
+                                  {/* Enhanced Month marker on timeline */}
+                                  <div className="absolute left-1/2 w-6 h-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full border-4 border-white shadow-xl transform -translate-x-1/2 z-20">
+                                    <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                      <div className="bg-white shadow-lg rounded-full px-4 py-2 border border-gray-200">
+                                        <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                                          {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                                        </span>
                                       </div>
-                                    ) : (
-                                      <div className="text-gray-400 text-sm italic">
-                                        Keine Forderung
-                                      </div>
-                                    )}
+                                    </div>
                                   </div>
                                   
-                                  {/* Right side - Zahlungen */}
-                                  <div className="pl-4">
-                                    {zahlungen.length > 0 ? (
-                                      <div className="space-y-2">
-                                        {zahlungen.map((zahlung) => {
-                                          const zahlungsDatum = new Date(zahlung.buchungsdatum);
-                                          let statusColor = 'green';
-                                          let statusText = 'Pünktlich';
-                                          
-                                          // Determine if payment is late
-                                          if (forderung && faelligkeitsDatum) {
-                                            const daysDiff = Math.ceil((zahlungsDatum.getTime() - faelligkeitsDatum.getTime()) / (1000 * 60 * 60 * 24));
-                                            if (daysDiff > 7) {
-                                              statusColor = 'red';
-                                              statusText = `${daysDiff} Tage zu spät`;
-                                            } else if (daysDiff > 0) {
-                                              statusColor = 'orange';
-                                              statusText = `${daysDiff} Tage nach Fälligkeit`;
-                                            } else if (daysDiff < 0) {
-                                              statusColor = 'blue';
-                                              statusText = `${Math.abs(daysDiff)} Tage vor Fälligkeit`;
-                                            }
-                                          }
-                                          
-                                          return (
-                                            <div key={zahlung.id} className="bg-green-50 border border-green-200 rounded-lg p-3 max-w-xs">
-                                              <div className="flex justify-between items-start mb-2">
-                                                <div className="flex-1">
-                                                  <p className="font-medium text-sm text-green-800">
-                                                    💰 Zahlung
-                                                  </p>
-                                                  <p className="text-lg font-bold text-green-900">
-                                                    {formatBetrag(Number(zahlung.betrag))}
-                                                  </p>
-                                                  <p className="text-xs text-green-600 mb-1">
-                                                    {formatDatum(zahlung.buchungsdatum)}
-                                                  </p>
-                                                  
-                                                  {/* Status indicator */}
-                                                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                                    statusColor === 'green' ? 'bg-green-100 text-green-800' :
-                                                    statusColor === 'orange' ? 'bg-orange-100 text-orange-800' :
-                                                    statusColor === 'red' ? 'bg-red-100 text-red-800' :
-                                                    'bg-blue-100 text-blue-800'
-                                                  }`}>
-                                                    {statusText}
-                                                  </div>
-                                                  
-                                                  <p className="text-xs text-green-500 mt-1 truncate">
-                                                    {zahlung.verwendungszweck || 'Kein Verwendungszweck'}
-                                                  </p>
+                                  <div className="grid grid-cols-2 gap-12 pt-16">
+                                    {/* Left side - Forderungen (Enhanced) */}
+                                    <div className="text-right pr-6">
+                                      {forderung ? (
+                                        <div className="inline-block animate-scale-in">
+                                          <div className="p-5 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale">
+                                            <div className="text-right">
+                                              <div className="flex items-center justify-end mb-3">
+                                                <div className="bg-red-500 rounded-full p-2 mr-2">
+                                                  <span className="text-white text-sm">📋</span>
                                                 </div>
-                                                
-                                                {/* Edit controls */}
-                                                <div className="flex items-center space-x-1 ml-2">
-                                                  {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
-                                                    <div className="flex items-center space-x-1">
-                                                      <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                                        <SelectTrigger className="h-6 text-xs w-20">
-                                                          <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="bg-background border shadow-md z-50">
-                                                          <SelectItem value="Miete">Miete</SelectItem>
-                                                          <SelectItem value="Mietkaution">Mietkaution</SelectItem>
-                                                          <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
-                                                          <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                                                        </SelectContent>
-                                                      </Select>
-                                                      <Button onClick={handleSavePaymentField} size="sm" className="h-5 px-1">
-                                                        <Check className="h-3 w-3" />
-                                                      </Button>
-                                                      <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-5 px-1">
-                                                        <X className="h-3 w-3" />
-                                                      </Button>
-                                                    </div>
-                                                  ) : (
-                                                    <div className="flex flex-col space-y-1">
-                                                      <Badge variant="outline" className="text-xs">
-                                                        {zahlung.kategorie || 'Sonstige'}
-                                                      </Badge>
-                                                      <button
-                                                        onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
-                                                        className="p-1 hover:bg-gray-200 rounded"
-                                                        title="Kategorie bearbeiten"
-                                                      >
-                                                        <Edit2 className="h-3 w-3" />
-                                                      </button>
-                                                    </div>
-                                                  )}
+                                                <p className="font-bold text-red-800 text-lg">
+                                                  Forderung
+                                                </p>
+                                              </div>
+                                              <p className="text-2xl font-black text-red-900 mb-2">
+                                                {formatBetrag(Number(forderung.sollbetrag))}
+                                              </p>
+                                              <p className="text-sm text-red-700 mb-3 font-medium">
+                                                Fällig: {formatDatum(faelligkeitsDatum.toISOString().split('T')[0])}
+                                              </p>
+                                              
+                                              {/* Enhanced Toleranzbereich */}
+                                              <div className="mt-3 p-3 bg-gradient-to-r from-green-100 to-emerald-100 border-2 border-green-300 rounded-lg text-left">
+                                                <div className="flex items-center">
+                                                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                                                  <p className="text-sm text-green-800 font-semibold">
+                                                    Toleranz bis {formatDatum(toleranzEnde.toISOString().split('T')[0])}
+                                                  </p>
                                                 </div>
                                               </div>
                                             </div>
-                                          );
-                                        })}
-                                      </div>
-                                    ) : (
-                                      <div className="text-gray-400 text-sm italic">
-                                        Keine Zahlungen
-                                      </div>
-                                    )}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="text-gray-400 text-lg italic font-medium">
+                                          Keine Forderung
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Right side - Zahlungen (Enhanced) */}
+                                    <div className="pl-6">
+                                      {zahlungen.length > 0 ? (
+                                        <div className="space-y-4">
+                                          {zahlungen.map((zahlung, zahlungIndex) => {
+                                            const zahlungsDatum = new Date(zahlung.buchungsdatum);
+                                            let statusColor = 'green';
+                                            let statusText = 'Pünktlich';
+                                            let statusIcon = '✅';
+                                            
+                                            // Determine if payment is late
+                                            if (forderung && faelligkeitsDatum) {
+                                              const daysDiff = Math.ceil((zahlungsDatum.getTime() - faelligkeitsDatum.getTime()) / (1000 * 60 * 60 * 24));
+                                              if (daysDiff > 7) {
+                                                statusColor = 'red';
+                                                statusText = `${daysDiff} Tage zu spät`;
+                                                statusIcon = '❌';
+                                              } else if (daysDiff > 0) {
+                                                statusColor = 'orange';
+                                                statusText = `${daysDiff} Tage nach Fälligkeit`;
+                                                statusIcon = '⚠️';
+                                              } else if (daysDiff < 0) {
+                                                statusColor = 'blue';
+                                                statusText = `${Math.abs(daysDiff)} Tage vor Fälligkeit`;
+                                                statusIcon = '🚀';
+                                              }
+                                            }
+                                            
+                                            return (
+                                              <div 
+                                                key={zahlung.id} 
+                                                className="bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale animate-fade-in"
+                                                style={{ animationDelay: `${zahlungIndex * 100}ms` }}
+                                              >
+                                                <div className="flex justify-between items-start mb-3">
+                                                  <div className="flex-1">
+                                                    <div className="flex items-center mb-2">
+                                                      <div className="bg-green-500 rounded-full p-2 mr-2">
+                                                        <span className="text-white text-sm">💰</span>
+                                                      </div>
+                                                      <p className="font-bold text-green-800 text-lg">
+                                                        Zahlung
+                                                      </p>
+                                                    </div>
+                                                    <p className="text-2xl font-black text-green-900 mb-2">
+                                                      {formatBetrag(Number(zahlung.betrag))}
+                                                    </p>
+                                                    <p className="text-sm text-green-700 mb-2 font-medium">
+                                                      {formatDatum(zahlung.buchungsdatum)}
+                                                    </p>
+                                                    
+                                                    {/* Enhanced Status indicator */}
+                                                    <div className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-bold shadow-md mb-2 ${
+                                                      statusColor === 'green' ? 'bg-green-100 text-green-800 border border-green-300' :
+                                                      statusColor === 'orange' ? 'bg-orange-100 text-orange-800 border border-orange-300' :
+                                                      statusColor === 'red' ? 'bg-red-100 text-red-800 border border-red-300' :
+                                                      'bg-blue-100 text-blue-800 border border-blue-300'
+                                                    }`}>
+                                                      <span className="mr-2">{statusIcon}</span>
+                                                      {statusText}
+                                                    </div>
+                                                    
+                                                    {zahlung.verwendungszweck && (
+                                                      <p className="text-sm text-green-600 bg-white p-2 rounded border border-green-200 truncate">
+                                                        {zahlung.verwendungszweck}
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                  
+                                                  {/* Enhanced Edit controls */}
+                                                  <div className="flex flex-col space-y-2 ml-3">
+                                                    {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
+                                                      <div className="flex flex-col space-y-2">
+                                                        <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                                          <SelectTrigger className="h-8 text-xs w-24">
+                                                            <SelectValue />
+                                                          </SelectTrigger>
+                                                          <SelectContent className="bg-background border shadow-md z-50">
+                                                            <SelectItem value="Miete">Miete</SelectItem>
+                                                            <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                                            <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                                                            <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                                          </SelectContent>
+                                                        </Select>
+                                                        <div className="flex space-x-1">
+                                                          <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
+                                                            <Check className="h-3 w-3" />
+                                                          </Button>
+                                                          <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
+                                                            <X className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      </div>
+                                                    ) : (
+                                                      <div className="flex flex-col items-end space-y-2">
+                                                        <Badge variant="outline" className="text-xs font-medium">
+                                                          {zahlung.kategorie || 'Sonstige'}
+                                                        </Badge>
+                                                        <Button
+                                                          onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-6 w-6 p-0 hover:bg-green-200"
+                                                          title="Kategorie bearbeiten"
+                                                        >
+                                                          <Edit2 className="h-3 w-3" />
+                                                        </Button>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <div className="text-gray-400 text-lg italic font-medium">
+                                          Keine Zahlungen
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    /* Classic List View */
+                    <div className="space-y-4 max-h-[32rem] overflow-y-auto">
+                      {zahlungen && zahlungen.length > 0 ? (
+                        zahlungen.map((zahlung) => (
+                          <div key={zahlung.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium text-lg">{formatBetrag(Number(zahlung.betrag))}</p>
+                                <p className="text-sm text-gray-600">
+                                  {zahlung.buchungsdatum ? formatDatum(zahlung.buchungsdatum) : 'N/A'}
+                                </p>
+                                <p className="text-sm text-gray-500 truncate max-w-xs">
+                                  {zahlung.verwendungszweck || 'Kein Verwendungszweck'}
+                                </p>
                               </div>
-                            );
-                          })}
+                              <div className="flex items-center space-x-2">
+                                {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
+                                  <div className="flex items-center space-x-2">
+                                    <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                      <SelectTrigger className="h-8 text-sm w-32">
+                                        <SelectValue placeholder="Kategorie" />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-background border shadow-md z-50">
+                                        <SelectItem value="Miete">Miete</SelectItem>
+                                        <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                        <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                                        <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
+                                      <Check className="h-4 w-4" />
+                                    </Button>
+                                    <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center space-x-2 group">
+                                    <Badge variant="outline" className="text-sm">
+                                      {zahlung.kategorie || 'Sonstige'}
+                                    </Badge>
+                                    <Button
+                                      onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                      variant="ghost"
+                                      size="sm"
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <Edit2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-12">
+                          <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600 text-lg">Keine Zahlungen gefunden</p>
                         </div>
-                      );
-                    })()}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
