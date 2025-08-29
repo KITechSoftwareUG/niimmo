@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 
 interface SearchPanelProps {
   onImmobilieSelect: (immobilieId: string, einheitId?: string) => void;
+  onMietvertragClick: (mietvertragId: string) => void;
 }
 
-export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
+export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPanelProps) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: searchResults } = useQuery({
@@ -30,6 +31,7 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
           mietvertrag_mieter!inner(
             mietvertrag_id,
             mietvertrag!inner(
+              id,
               einheit_id,
               einheiten!inner(
                 immobilie_id,
@@ -59,23 +61,29 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
     enabled: searchTerm.length >= 2
   });
 
+  const handleMieterClick = (mieter: any) => {
+    const mietvertragId = mieter.mietvertrag_mieter[0]?.mietvertrag?.id;
+    if (mietvertragId) {
+      onMietvertragClick(mietvertragId);
+      setSearchTerm("");
+    }
+  };
+
   const handleImmobilieClick = (immobilieId: string, einheitId?: string) => {
     onImmobilieSelect(immobilieId, einheitId);
     setSearchTerm("");
   };
-
   const getFirstResult = () => {
     if (!searchResults) return null;
-    if (searchResults.immobilien.length > 0) {
-      return { type: 'immobilie', id: searchResults.immobilien[0].id };
-    }
     if (searchResults.mieter.length > 0) {
       const mieter = searchResults.mieter[0];
-      const immobilie = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheiten?.immobilien;
-      const einheitId = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheit_id;
-      if (immobilie) {
-        return { type: 'mieter', id: immobilie.id, einheitId };
+      const mietvertragId = mieter.mietvertrag_mieter[0]?.mietvertrag?.id;
+      if (mietvertragId) {
+        return { type: 'mieter', mietvertragId };
       }
+    }
+    if (searchResults.immobilien.length > 0) {
+      return { type: 'immobilie', id: searchResults.immobilien[0].id };
     }
     return null;
   };
@@ -84,7 +92,12 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
     if (e.key === 'Enter' && searchTerm.length >= 2) {
       const firstResult = getFirstResult();
       if (firstResult) {
-        handleImmobilieClick(firstResult.id, firstResult.einheitId);
+        if (firstResult.type === 'mieter' && firstResult.mietvertragId) {
+          onMietvertragClick(firstResult.mietvertragId);
+          setSearchTerm("");
+        } else if (firstResult.type === 'immobilie') {
+          handleImmobilieClick(firstResult.id);
+        }
       }
     }
   };
@@ -124,13 +137,7 @@ export const SearchPanel = ({ onImmobilieSelect }: SearchPanelProps) => {
                     <div
                       key={mieter.id}
                       className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all cursor-pointer"
-                      onClick={() => {
-                        const immobilie = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheiten?.immobilien;
-                        const einheitId = mieter.mietvertrag_mieter[0]?.mietvertrag?.einheit_id;
-                        if (immobilie) {
-                          handleImmobilieClick(immobilie.id, einheitId);
-                        }
-                      }}
+                      onClick={() => handleMieterClick(mieter)}
                     >
                       <div className="flex items-center justify-between">
                         <div>

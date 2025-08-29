@@ -174,7 +174,10 @@ const Index = () => {
         </div>
 
         {/* Suchfunktion */}
-        <SearchPanel onImmobilieSelect={handleImmobilieClick} />
+        <SearchPanel 
+          onImmobilieSelect={handleImmobilieClick}
+          onMietvertragClick={handleMietvertragClick}
+        />
 
         {/* Immobilien Grid */}
         <div className="mb-6">
