@@ -70,11 +70,6 @@ export const useFehlendeMietzahlungen = () => {
               (z.betrag > 0 && z.kategorie !== 'Nichtmiete')
             )
           : [];
-        
-        // Sonstige Zahlungen für separate Anzeige (Nichtmiete)
-        const sonstigeZahlungen = (allZahlungen && allZahlungen.length > 0)
-          ? allZahlungen.filter(z => z.kategorie === 'Nichtmiete')
-          : [];
 
       // Hole alle Einheiten
       const { data: einheiten, error: einheitenError } = await supabase
@@ -159,24 +154,30 @@ export const useFehlendeMietzahlungen = () => {
           continue;
         }
 
-        // Alle Forderungen für diesen Mietvertrag im Jahr 2025
-        const mietvertragForderungen = forderungen?.filter(f => 
-          f.mietvertrag_id === mietvertragId && 
-          f.sollmonat && 
-          f.sollmonat.startsWith('2025')
-        ) || [];
+        // IDENTISCHE LOGIK WIE IM MIETVERTRAG-DETAIL:
+        // Alle Forderungen für diesen Mietvertrag (gesamter Zeitraum ab Januar 2025 UND ab Mietvertragsbeginn)
+        const mietvertragStart = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2025-01-01');
+        const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
         
-        // Alle Zahlungen für diesen Mietvertrag im Jahr 2025
-        const mietvertragZahlungen = zahlungen?.filter(z => 
-          z.mietvertrag_id === mietvertragId && 
-          z.buchungsdatum &&
-          new Date(z.buchungsdatum).getFullYear() === 2025
-        ) || [];
+        const mietvertragForderungen = forderungen?.filter(f => {
+          if (f.mietvertrag_id !== mietvertragId || !f.sollmonat) return false;
+          
+          const forderungsDatum = new Date(f.sollmonat + '-01');
+          return forderungsDatum >= startDatum;
+        }) || [];
+        
+        // Alle Zahlungen für diesen Mietvertrag (ab dem gleichen Zeitraum)
+        const mietvertragZahlungen = zahlungen?.filter(z => {
+          if (z.mietvertrag_id !== mietvertragId || !z.buchungsdatum) return false;
+          
+          const zahlungsDatum = new Date(z.buchungsdatum);
+          return zahlungsDatum >= startDatum;
+        }) || [];
 
         // Wenn keine Forderungen existieren, überspringen
         if (mietvertragForderungen.length === 0) continue;
 
-        // EINFACHE BERECHNUNG: Gesamtforderungen vs Gesamtzahlungen
+        // BERECHNUNG WIE IM DETAIL-MODAL: Gesamtforderungen vs Gesamtzahlungen
         const gesamtForderungen = mietvertragForderungen.reduce((sum, f) => sum + (f.sollbetrag || 0), 0);
         let gesamtZahlungen = 0;
 
@@ -198,14 +199,14 @@ export const useFehlendeMietzahlungen = () => {
           }
         }
 
-        // Fehlbetrag berechnen
-        const fehlbetrag = gesamtForderungen - gesamtZahlungen;
+        // Rückstand berechnen (identisch zum Detail-Modal)
+        const rueckstand = gesamtForderungen - gesamtZahlungen;
 
         // Debug für alle Mietverträge
-        console.log(`Mietvertrag ${mietvertragId}: Forderungen=${gesamtForderungen}, Zahlungen=${gesamtZahlungen}, Fehlbetrag=${fehlbetrag}`);
+        console.log(`Mietvertrag ${mietvertragId}: Forderungen=${gesamtForderungen}, Zahlungen=${gesamtZahlungen}, Rückstand=${rueckstand}`);
 
-        // Nur wenn ein positiver Fehlbetrag existiert, in die Liste aufnehmen
-        if (fehlbetrag > 0) {
+        // Nur wenn ein positiver Rückstand existiert, in die Liste aufnehmen
+        if (rueckstand > 0) {
           // Finde zugehörige Einheit und Immobilie
           const einheit = einheiten?.find(e => e.id === mietvertrag.einheit_id);
           const immobilie = immobilien?.find(i => i.id === einheit?.immobilie_id);
@@ -219,12 +220,11 @@ export const useFehlendeMietzahlungen = () => {
           const mieterName = ersteMieter?.mieter ? 
             `${ersteMieter.mieter.vorname} ${ersteMieter.mieter.nachname}` : 'Unbekannt';
 
-           // Status ist bereits aktiv, da wir nur aktive Mietverträge betrachten
-           const status = 'Aktiv';
+          const status = 'Aktiv';
 
           fehlendMap.set(mietvertragId, {
             mietvertrag_id: mietvertragId,
-            fehlend_betrag: fehlbetrag,
+            fehlend_betrag: rueckstand,
             gesamt_forderungen: gesamtForderungen,
             gesamt_zahlungen: gesamtZahlungen,
             immobilie_name: immobilieName,
@@ -246,12 +246,12 @@ export const useFehlendeMietzahlungen = () => {
       }
 
       const result = Array.from(fehlendMap.values()) as FehlendeMietzahlung[];
-      console.log('=== ENDERGEBNIS ===');
-      console.log('Berechnete fehlende Mietzahlungen:', result.length);
-      console.log('Gesamtfehlbetrag:', result.reduce((sum, item) => sum + item.fehlend_betrag, 0));
+      console.log('=== ENDERGEBNIS (IDENTISCH ZUM DETAIL-MODAL) ===');
+      console.log('Berechnete Rückstände:', result.length);
+      console.log('Gesamtrückstand:', result.reduce((sum, item) => sum + item.fehlend_betrag, 0));
       console.log('Beispiele:', result.slice(0, 3).map(item => ({
         mietvertrag_id: item.mietvertrag_id,
-        fehlend_betrag: item.fehlend_betrag,
+        rueckstand: item.fehlend_betrag,
         gesamt_forderungen: item.gesamt_forderungen,
         gesamt_zahlungen: item.gesamt_zahlungen
       })));
