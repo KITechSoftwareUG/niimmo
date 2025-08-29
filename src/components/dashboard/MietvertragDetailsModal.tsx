@@ -596,7 +596,7 @@ export const MietvertragDetailsModal = ({
                 <div>
                   <p className="text-sm text-gray-600">Einheit</p>
                   <p className="font-semibold">
-                    Einheit {einheit?.nummer || 'N/A'} • {einheit?.qm && `${einheit.qm} m²`}
+                    Einheit {vertrag?.einheit_id ? vertrag.einheit_id.slice(-2) : 'N/A'} • {einheit?.qm && `${einheit.qm} m²`}
                   </p>
                 </div>
                 <div>
