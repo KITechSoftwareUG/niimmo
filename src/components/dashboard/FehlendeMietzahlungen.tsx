@@ -19,11 +19,11 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className="glass-card p-6 rounded-2xl border border-red-100 bg-red-50/30">
         <CollapsibleTrigger className="w-full">
-          <FehlendeMietzahlungenHeader 
-            gesamtFehlend={gesamtFehlend}
-            isOpen={isOpen}
-            onToggle={() => setIsOpen(!isOpen)}
-          />
+        <FehlendeMietzahlungenHeader 
+          gesamtFehlend={gesamtFehlend}
+          isOpen={isOpen}
+          onToggle={() => setIsOpen(!isOpen)}
+        />
         </CollapsibleTrigger>
 
         <CollapsibleContent>
@@ -38,7 +38,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                 <div className="pt-4 border-t border-red-200">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-600">
-                      <p className="font-medium">Gesamt fehlend: <span className="text-red-600 font-bold">€{gesamtFehlend.toLocaleString()}</span></p>
+                      <p className="font-medium">Gesamtrückstand: <span className="text-red-600 font-bold">€{gesamtFehlend.toLocaleString()}</span></p>
                     </div>
                   </div>
                 </div>
@@ -46,7 +46,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
           ) : (
             <div className="text-center py-8">
               <div className="p-4 bg-green-50 rounded-lg border border-green-200 inline-block">
-                <p className="text-green-700 font-medium text-lg">✓ Alle Mietzahlungen sind vollständig</p>
+                <p className="text-green-700 font-medium text-lg">✓ Alle Rückstände sind beglichen</p>
                 <p className="text-green-600 text-sm mt-1">Keine offenen Forderungen gefunden</p>
               </div>
             </div>

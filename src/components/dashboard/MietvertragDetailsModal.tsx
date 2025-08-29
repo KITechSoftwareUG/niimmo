@@ -815,11 +815,34 @@ export const MietvertragDetailsModal = ({
                   
                   <Separator className="my-4" />
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Eingegangene Zahlungen</p>
-                      <p className="font-semibold text-lg text-green-600">{formatBetrag(gesamtZahlungen)}</p>
+                  {/* Rückstand für gesamten Zeitraum */}
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <h3 className="text-lg font-semibold text-blue-800 mb-3">Gesamtrückstand</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-blue-600">Gesamtforderungen (ab Jan 2025)</p>
+                        <p className="font-bold text-lg text-blue-800">{formatBetrag(gesamtForderungen)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-green-600">Eingegangene Zahlungen</p>
+                        <p className="font-bold text-lg text-green-700">{formatBetrag(gesamtZahlungen)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Rückstand</p>
+                        <p className={`font-bold text-xl ${
+                          (gesamtForderungen - gesamtZahlungen) > 0 
+                            ? 'text-red-600' 
+                            : (gesamtForderungen - gesamtZahlungen) < 0 
+                              ? 'text-green-600' 
+                              : 'text-gray-600'
+                        }`}>
+                          {formatBetrag(gesamtForderungen - gesamtZahlungen)}
+                        </p>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mt-4">
                     <div>
                       <p className="text-sm text-gray-600">Kaution</p>
                       <p className="font-semibold text-lg">{formatBetrag((() => {

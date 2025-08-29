@@ -19,8 +19,8 @@ export const FehlendeMietzahlungenHeader = ({
           <AlertTriangle className="h-5 w-5 text-red-600" />
         </div>
         <div className="text-left">
-          <h3 className="text-lg font-semibold text-gray-800">Fehlende Mietzahlungen</h3>
-          <p className="text-sm text-gray-600">Übersicht offener Forderungen</p>
+          <h3 className="text-lg font-semibold text-gray-800">Rückstände</h3>
+          <p className="text-sm text-gray-600">Mietverträge mit offenen Forderungen</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
