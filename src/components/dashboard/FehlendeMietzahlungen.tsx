@@ -1,19 +1,54 @@
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Eye, Euro, Calendar, User, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, Eye, Euro, Calendar, User, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useRueckstaende } from "@/hooks/useRueckstaende";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface FehlendeMietzahlungenProps {
   onMietvertragClick?: (mietvertragId: string) => void;
 }
 
+type SortOption = 'object' | 'amount' | 'mahnstufe' | 'tenant';
+type SortDirection = 'asc' | 'desc';
+
 export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlungenProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('amount');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const { data: fehlendeMietzahlungen, isLoading, error } = useRueckstaende();
+
+  const sortedFehlendeMietzahlungen = useMemo(() => {
+    if (!fehlendeMietzahlungen) return [];
+    
+    const sorted = [...fehlendeMietzahlungen].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'object':
+          comparison = a.immobilie_name.localeCompare(b.immobilie_name);
+          break;
+        case 'amount':
+          comparison = a.fehlend_betrag - b.fehlend_betrag;
+          break;
+        case 'mahnstufe':
+          comparison = (a.mahnstufe || 0) - (b.mahnstufe || 0);
+          break;
+        case 'tenant':
+          comparison = a.mieter_name.localeCompare(b.mieter_name);
+          break;
+        default:
+          return 0;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    
+    return sorted;
+  }, [fehlendeMietzahlungen, sortBy, sortDirection]);
 
   const gesamtRueckstand = fehlendeMietzahlungen?.reduce((sum, item) => sum + item.fehlend_betrag, 0) || 0;
 
@@ -30,6 +65,20 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
       event.stopPropagation();
     }
     onMietvertragClick?.(mietvertragId);
+  };
+
+  const handleSort = (newSortBy: SortOption) => {
+    if (sortBy === newSortBy) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortDirection(newSortBy === 'amount' || newSortBy === 'mahnstufe' ? 'desc' : 'asc');
+    }
+  };
+
+  const getSortIcon = (option: SortOption) => {
+    if (sortBy !== option) return <ArrowUpDown className="h-4 w-4" />;
+    return sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
 
   return (
@@ -67,10 +116,58 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
         </CollapsibleTrigger>
 
         <CollapsibleContent>
+          {/* Sorting Controls */}
+          {fehlendeMietzahlungen && fehlendeMietzahlungen.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2 items-center justify-between border-b border-red-200 pb-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={sortBy === 'object' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleSort('object')}
+                  className="gap-1"
+                >
+                  Objekt {getSortIcon('object')}
+                </Button>
+                <Button
+                  variant={sortBy === 'amount' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleSort('amount')}
+                  className="gap-1"
+                >
+                  Betrag {getSortIcon('amount')}
+                </Button>
+                <Button
+                  variant={sortBy === 'mahnstufe' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleSort('mahnstufe')}
+                  className="gap-1"
+                >
+                  Mahnstufe {getSortIcon('mahnstufe')}
+                </Button>
+                <Button
+                  variant={sortBy === 'tenant' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleSort('tenant')}
+                  className="gap-1"
+                >
+                  Mieter {getSortIcon('tenant')}
+                </Button>
+              </div>
+              <div className="text-xs text-gray-500">
+                {sortedFehlendeMietzahlungen.length} Einträge sortiert nach{' '}
+                {sortBy === 'object' && 'Objekt'}
+                {sortBy === 'amount' && 'Betrag'}
+                {sortBy === 'mahnstufe' && 'Mahnstufe'}
+                {sortBy === 'tenant' && 'Mieter'}
+                {' '}({sortDirection === 'asc' ? 'aufsteigend' : 'absteigend'})
+              </div>
+            </div>
+          )}
+          
           {/* Contract List */}
-          {fehlendeMietzahlungen && fehlendeMietzahlungen.length > 0 ? (
+          {sortedFehlendeMietzahlungen && sortedFehlendeMietzahlungen.length > 0 ? (
             <div className="space-y-4 animate-fade-in">
-              {fehlendeMietzahlungen.map((rueckstand) => (
+              {sortedFehlendeMietzahlungen.map((rueckstand) => (
                 <Card 
                   key={rueckstand.mietvertrag_id} 
                   className="border border-red-200 bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer hover-scale"
@@ -153,7 +250,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
               <div className="pt-4 border-t border-red-200">
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-600">
-                    {fehlendeMietzahlungen.length} Mietvertrag{fehlendeMietzahlungen.length !== 1 ? 'e' : ''} mit Rückständen
+                    {sortedFehlendeMietzahlungen.length} Mietvertrag{sortedFehlendeMietzahlungen.length !== 1 ? 'e' : ''} mit Rückständen
                   </p>
                   <p className="font-semibold text-red-600">
                     Gesamtrückstand: {formatBetrag(gesamtRueckstand)}
