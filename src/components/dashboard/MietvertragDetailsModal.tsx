@@ -412,6 +412,17 @@ export const MietvertragDetailsModal = ({
              z.kategorie === null || 
              (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
     });
+
+    console.log(`Modal Debug für ${vertragId}:`, {
+      alleZahlungen: zahlungen.length,
+      relevanteZahlungen: relevanteZahlungen.length,
+      startDatum: startDatum.toISOString(),
+      zahlungenDetails: relevanteZahlungen.map(z => ({
+        betrag: z.betrag,
+        kategorie: z.kategorie,
+        buchungsdatum: z.buchungsdatum
+      }))
+    });
     
     // Berechne Gesamtforderungen
     const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);

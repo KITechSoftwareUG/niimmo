@@ -159,9 +159,11 @@ export const useFehlendeMietzahlungen = () => {
           return forderungsDatum >= startDatum;
         }) || [];
         
-        // IDENTISCHE Filterung wie im Detail-Modal
-        const mietvertragZahlungen = zahlungen?.filter(z => {
-          if (z.mietvertrag_id !== mietvertragId || !z.buchungsdatum) return false;
+        // IDENTISCHE Filterung wie im Detail-Modal - zuerst nach Mietvertrag-ID
+        const alleZahlungenFuerVertrag = zahlungen?.filter(z => z.mietvertrag_id === mietvertragId) || [];
+        
+        const mietvertragZahlungen = alleZahlungenFuerVertrag.filter(z => {
+          if (!z.buchungsdatum) return false;
           
           // Zeitraum-Filter
           const zahlungsDatum = new Date(z.buchungsdatum);
@@ -171,7 +173,18 @@ export const useFehlendeMietzahlungen = () => {
           return z.kategorie === 'Miete' || 
                  z.kategorie === null || 
                  (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
-        }) || [];
+        });
+
+        console.log(`Hook Debug für ${mietvertragId}:`, {
+          alleZahlungenFuerVertrag: alleZahlungenFuerVertrag.length,
+          relevanteZahlungen: mietvertragZahlungen.length,
+          startDatum: startDatum.toISOString(),
+          zahlungenDetails: mietvertragZahlungen.map(z => ({
+            betrag: z.betrag,
+            kategorie: z.kategorie,
+            buchungsdatum: z.buchungsdatum
+          }))
+        });
 
         // Wenn keine Forderungen existieren, überspringen
         if (mietvertragForderungen.length === 0) continue;
