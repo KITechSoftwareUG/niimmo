@@ -69,14 +69,18 @@ Deno.serve(async (req) => {
     console.log('Mahnung würde versendet an:', mieter.hauptmail);
     console.log('Mahnungstext:', mahnungstext);
 
-    // Aktualisiere den Mietvertrag
+    // Erhöhe die Mahnstufe und aktualisiere den Mietvertrag
+    const neueMahnstufe = Math.min(mahnstufe + 1, 3); // Maximal Stufe 3
     await supabase
       .from('mietvertrag')
       .update({
+        mahnstufe: neueMahnstufe,
         letzte_mahnung_am: new Date().toISOString(),
         naechste_mahnung_am: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 Tage später
       })
       .eq('id', mietvertragId);
+
+    console.log(`Mahnstufe erhöht von ${mahnstufe} auf ${neueMahnstufe} für Mietvertrag ${mietvertragId}`);
 
     return new Response(
       JSON.stringify({
