@@ -981,8 +981,8 @@ export const MietvertragDetailsModal = ({
                           });
                         }
                         
-                        // Sort months chronologically
-                        const sortedMonths = Array.from(monthlyData.keys()).sort();
+                        // Sort months chronologically (newest first)
+                        const sortedMonths = Array.from(monthlyData.keys()).sort().reverse();
                         
                         if (sortedMonths.length === 0) {
                           return (
