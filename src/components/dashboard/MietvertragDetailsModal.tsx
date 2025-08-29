@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -157,9 +157,92 @@ export const MietvertragDetailsModal = ({
     setEditingPayment(null);
     setEditPaymentValue('');
   };
+  const { data: vertrag, isLoading: vertragLoading } = useQuery({
+    queryKey: ['mietvertrag-detail', vertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietvertrag')
+        .select('*')
+        .eq('id', vertragId)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: isOpen && !!vertragId
+  });
 
-  // Extract calculation logic for use in timeline and balance calculation
-  const getProcessedPayments = () => {
+  const { data: mieter } = useQuery({
+    queryKey: ['mietvertrag-mieter-detail', vertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietvertrag_mieter')
+        .select(`
+          mieter:mieter_id (
+            id,
+            vorname,
+            nachname,
+            hauptmail,
+            telnr,
+            geburtsdatum
+          )
+        `)
+        .eq('mietvertrag_id', vertragId);
+      
+      if (error) throw error;
+      return data?.map(mm => mm.mieter) || [];
+    },
+    enabled: isOpen && !!vertragId
+  });
+
+  const { data: zahlungen } = useQuery({
+    queryKey: ['zahlungen-detail', vertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('zahlungen')
+        .select('*')
+        .eq('mietvertrag_id', vertragId)
+        .order('buchungsdatum', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen && !!vertragId
+  });
+
+  // Hole alle Forderungen
+  const { data: forderungen } = useQuery({
+    queryKey: ['forderungen-detail', vertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietforderungen')
+        .select('*')
+        .eq('mietvertrag_id', vertragId)
+        .order('sollmonat', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen && !!vertragId
+  });
+
+  const { data: dokumente } = useQuery({
+    queryKey: ['dokumente-detail', vertragId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dokumente')
+        .select('*')
+        .eq('mietvertrag_id', vertragId)
+        .order('hochgeladen_am', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen && !!vertragId
+  });
+
+  // Calculate processed payments using useMemo for performance
+  const { processedZahlungen, relevanteForderungen } = useMemo(() => {
     if (!forderungen || !zahlungen || !vertrag) return { processedZahlungen: [], relevanteForderungen: [] };
     
     const heute = new Date();
@@ -265,93 +348,7 @@ export const MietvertragDetailsModal = ({
     const processedZahlungen = processVorauszahlungen(relevanteZahlungen, relevanteForderungen);
     
     return { processedZahlungen, relevanteForderungen };
-  };
-
-  // Get processed payments for use in timeline and calculations
-  const { processedZahlungen, relevanteForderungen } = getProcessedPayments();
-  const { data: vertrag, isLoading: vertragLoading } = useQuery({
-    queryKey: ['mietvertrag-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietvertrag')
-        .select('*')
-        .eq('id', vertragId)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: isOpen && !!vertragId
-  });
-
-  const { data: mieter } = useQuery({
-    queryKey: ['mietvertrag-mieter-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietvertrag_mieter')
-        .select(`
-          mieter:mieter_id (
-            id,
-            vorname,
-            nachname,
-            hauptmail,
-            telnr,
-            geburtsdatum
-          )
-        `)
-        .eq('mietvertrag_id', vertragId);
-      
-      if (error) throw error;
-      return data?.map(mm => mm.mieter) || [];
-    },
-    enabled: isOpen && !!vertragId
-  });
-
-  const { data: zahlungen } = useQuery({
-    queryKey: ['zahlungen-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('zahlungen')
-        .select('*')
-        .eq('mietvertrag_id', vertragId)
-        .order('buchungsdatum', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: isOpen && !!vertragId
-  });
-
-  // Hole alle Forderungen
-  const { data: forderungen } = useQuery({
-    queryKey: ['forderungen-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietforderungen')
-        .select('*')
-        .eq('mietvertrag_id', vertragId)
-        .order('sollmonat', { ascending: true });
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: isOpen && !!vertragId
-  });
-
-  const { data: dokumente } = useQuery({
-    queryKey: ['dokumente-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('dokumente')
-        .select('*')
-        .eq('mietvertrag_id', vertragId)
-        .order('hochgeladen_am', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: isOpen && !!vertragId
-  });
+  }, [forderungen, zahlungen, vertrag]);
 
   const formatDatum = (datum: string) => {
     return new Date(datum).toLocaleDateString('de-DE', {
