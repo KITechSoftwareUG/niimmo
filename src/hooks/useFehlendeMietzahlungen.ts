@@ -208,11 +208,11 @@ export const useFehlendeMietzahlungen = () => {
           }
           
           if (zahlungGueltig) {
-            gesamtZahlungen += (zahlung.betrag || 0);
+            gesamtZahlungen += (Number(zahlung.betrag) || 0);
             
             // Separate Summe nur für Kategorie "Miete"
             if (zahlung.kategorie === 'Miete') {
-              mieteZahlungen += (zahlung.betrag || 0);
+              mieteZahlungen += (Number(zahlung.betrag) || 0);
             }
           }
         }

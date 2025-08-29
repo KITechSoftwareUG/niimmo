@@ -414,7 +414,7 @@ export const MietvertragDetailsModal = ({
     });
 
     console.log(`Modal Debug für ${vertragId}:`, {
-      alleZahlungen: zahlungen.length,
+      alleZahlungenFuerVertrag: zahlungen.length, // Bereits nach mietvertrag_id gefiltert
       relevanteZahlungen: relevanteZahlungen.length,
       startDatum: startDatum.toISOString(),
       zahlungenDetails: relevanteZahlungen.map(z => ({
