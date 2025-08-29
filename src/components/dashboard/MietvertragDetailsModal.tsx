@@ -202,6 +202,8 @@ export const MietvertragDetailsModal = ({
         .from('zahlungen')
         .select('*')
         .eq('mietvertrag_id', vertragId)
+        // IDENTISCHE Kategoriefilterung wie im useFehlendeMietzahlungen Hook
+        .or(`kategorie.eq.Miete,kategorie.is.null,and(betrag.gt.0,not.kategorie.eq.Nichtmiete)`)
         .order('buchungsdatum', { ascending: false });
       
       if (error) throw error;
@@ -399,18 +401,13 @@ export const MietvertragDetailsModal = ({
       return forderungsDatum >= startDatum;
     });
     
-    // Filtere Zahlungen ab Startdatum und nach Kategorie (wie in useFehlendeMietzahlungen)
+    // Filtere Zahlungen ab Startdatum (Kategorie bereits in der Query gefiltert)
     const relevanteZahlungen = zahlungen.filter(z => {
       if (!z.buchungsdatum) return false;
       
       // Zeitraum-Filter
       const zahlungsDatum = new Date(z.buchungsdatum);
-      if (zahlungsDatum < startDatum) return false;
-      
-      // Kategorie-Filter (identisch zu useFehlendeMietzahlungen)
-      return z.kategorie === 'Miete' || 
-             z.kategorie === null || 
-             (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
+      return zahlungsDatum >= startDatum;
     });
     
     // Berechne Gesamtforderungen
