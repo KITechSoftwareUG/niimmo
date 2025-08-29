@@ -1048,16 +1048,6 @@ export const MietvertragDetailsModal = ({
                                               <p className="text-sm text-red-700 mb-3 font-medium">
                                                 Monat: {forderung.sollmonat}
                                               </p>
-                                              
-                                              {/* Enhanced Toleranzbereich */}
-                                              <div className="mt-3 p-3 bg-gradient-to-r from-green-100 to-emerald-100 border-2 border-green-300 rounded-lg text-left">
-                                                <div className="flex items-center">
-                                                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                                                  <p className="text-sm text-green-800 font-semibold">
-                                                    7 Tage Toleranzbereich
-                                                  </p>
-                                                </div>
-                                              </div>
                                             </div>
                                           </div>
                                         </div>
