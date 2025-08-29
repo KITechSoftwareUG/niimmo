@@ -381,9 +381,65 @@ export const MietvertragDetailsModal = ({
     }
   };
 
-  const gesamtZahlungen = zahlungen?.reduce((sum, zahlung) => sum + (Number(zahlung.betrag) || 0), 0) || 0;
+  // IDENTISCHE BERECHNUNG WIE IN useFehlendeMietzahlungen
+  const calculateRueckstand = () => {
+    if (!forderungen || !zahlungen || !vertrag) return { gesamtForderungen: 0, gesamtZahlungen: 0 };
+    
+    const heute = new Date();
+    const istLastschrift = vertrag.lastschrift || false;
+    
+    // Bestimme Startdatum: später von Jan 2025 oder Mietvertragsbeginn
+    const mietvertragStart = vertrag.start_datum ? new Date(vertrag.start_datum) : new Date('2025-01-01');
+    const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
+    
+    // Filtere Forderungen ab Startdatum
+    const relevanteForderungen = forderungen.filter(f => {
+      if (!f.sollmonat) return false;
+      const forderungsDatum = new Date(f.sollmonat + '-01');
+      return forderungsDatum >= startDatum;
+    });
+    
+    // Filtere Zahlungen ab Startdatum und nach Kategorie (wie in useFehlendeMietzahlungen)
+    const relevanteZahlungen = zahlungen.filter(z => {
+      if (!z.buchungsdatum) return false;
+      
+      // Zeitraum-Filter
+      const zahlungsDatum = new Date(z.buchungsdatum);
+      if (zahlungsDatum < startDatum) return false;
+      
+      // Kategorie-Filter (identisch zu useFehlendeMietzahlungen)
+      return z.kategorie === 'Miete' || 
+             z.kategorie === null || 
+             (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
+    });
+    
+    // Berechne Gesamtforderungen
+    const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+    
+    // Berechne Gesamtzahlungen mit 6-Tage-Wartezeit bei Lastschrift
+    let gesamtZahlungen = 0;
+    for (const zahlung of relevanteZahlungen) {
+      let zahlungGueltig = true;
+      
+      if (istLastschrift) {
+        const zahlungMitWartezeit = new Date(zahlung.buchungsdatum);
+        zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
+        
+        if (heute < zahlungMitWartezeit) {
+          zahlungGueltig = false; // Zahlung noch in 6-Tage-Wartezeit
+        }
+      }
+      
+      if (zahlungGueltig) {
+        gesamtZahlungen += (Number(zahlung.betrag) || 0);
+      }
+    }
+    
+    return { gesamtForderungen, gesamtZahlungen };
+  };
+
+  const { gesamtForderungen, gesamtZahlungen } = calculateRueckstand();
   const sollMiete = vertrag ? (Number(vertrag.kaltmiete) || 0) + (Number(vertrag.betriebskosten) || 0) : 0;
-  const gesamtForderungen = forderungen?.reduce((sum, forderung) => sum + (Number(forderung.sollbetrag) || 0), 0) || 0;
 
   // Erstelle eine Liste der Monate basierend auf vorhandenen Forderungen
   const generateMonthlyComparison = () => {
