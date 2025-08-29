@@ -39,7 +39,7 @@ export const calculateMietvertragRueckstand = (
     // Kategorie-Filter (exakt wie im Modal)
     return z.kategorie === 'Miete' || 
            z.kategorie === null || 
-           (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
+           (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && String(z.kategorie) !== 'Ignorieren');
   });
   
   // Berechne Gesamtforderungen

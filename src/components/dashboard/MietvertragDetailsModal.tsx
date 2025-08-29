@@ -407,10 +407,10 @@ export const MietvertragDetailsModal = ({
       const zahlungsDatum = new Date(z.buchungsdatum);
       if (zahlungsDatum < startDatum) return false;
       
-      // EXAKT IDENTISCHE Kategorie-Filter wie im Hook
+      // EXAKT IDENTISCHE Kategorie-Filter wie im Hook  
       return z.kategorie === 'Miete' || 
              z.kategorie === null || 
-             (z.betrag > 0 && z.kategorie !== 'Nichtmiete');
+             (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && String(z.kategorie) !== 'Ignorieren');
     });
 
     console.log(`Modal Debug für ${vertragId}:`, {
