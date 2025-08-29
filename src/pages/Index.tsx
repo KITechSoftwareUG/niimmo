@@ -133,7 +133,7 @@ const Index = () => {
     }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} />;
   }
   return <div className="min-h-screen modern-dashboard-bg">
-      <div className="container mx-auto p-8 bg-slate-300">
+      <div className="container mx-auto p-8">
         {/* Header */}
         <div className="mb-6">
           <div className="glass-card p-6 rounded-2xl mb-6">
