@@ -306,7 +306,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     enabled: open
   });
 
-  // Hole Zahlungen für alle Mietverträge
+  // Hole Zahlungen für alle Mietverträge (einschließlich Kaution)
   const { data: zahlungenData } = useQuery({
     queryKey: ['zahlungen-uebersicht'],
     queryFn: async () => {
@@ -316,15 +316,34 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
       
       const { data, error } = await supabase
         .from('zahlungen')
-        .select('mietvertrag_id, betrag, buchungsdatum')
-        .in('mietvertrag_id', mietvertragIds)
-        .eq('kategorie', 'Miete');
+        .select('mietvertrag_id, betrag, buchungsdatum, kategorie')
+        .in('mietvertrag_id', mietvertragIds);
       
       if (error) throw error;
       return data || [];
     },
     enabled: !!mietvertraegeData && open
   });
+
+  // Hilfsfunktion um Kaution zu berechnen
+  const getKaution = (vertrag: any) => {
+    // Hole alle Zahlungen mit Kategorie "Mietkaution" für diesen Vertrag
+    const alleZahlungen = zahlungenData || [];
+    const kautionZahlungen = alleZahlungen.filter(zahlung => 
+      zahlung.mietvertrag_id === vertrag.id && 
+      zahlung.kategorie === 'Mietkaution'
+    );
+    
+    const kautionAusZahlungen = kautionZahlungen.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0);
+    
+    // Verwende Kaution aus Zahlungen wenn vorhanden, sonst kaution_betrag wenn != 0
+    if (kautionZahlungen.length > 0) {
+      return kautionAusZahlungen;
+    } else if (vertrag.kaution_betrag && vertrag.kaution_betrag !== 0) {
+      return vertrag.kaution_betrag;
+    }
+    return 0;
+  };
 
   // Hole Mieter für alle Mietverträge
   const { data: mieterData } = useQuery({
@@ -358,7 +377,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     const aktuellerMonat = heute.getMonth();
     const aktuellesJahr = heute.getFullYear();
     
-    const zahlungenFuerVertrag = zahlungenData?.filter(z => z.mietvertrag_id === mietvertragId) || [];
+    const zahlungenFuerVertrag = zahlungenData?.filter(z => z.mietvertrag_id === mietvertragId && z.kategorie === 'Miete') || [];
     
     // Zahlungen für aktuellen Monat
     const aktuelleMonatZahlungen = zahlungenFuerVertrag.filter(z => {
@@ -893,9 +912,9 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                             ) : (
                               <div 
                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                onClick={() => isEditing && startEditing(vertrag.id, 'kaution', vertrag.kaution_betrag)}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'kaution', getKaution(vertrag))}
                               >
-                                {vertrag.kaution_betrag ? `${vertrag.kaution_betrag.toLocaleString()} €` : '-'}
+                                {getKaution(vertrag) ? `${getKaution(vertrag).toLocaleString()} €` : '-'}
                               </div>
                             )}
                           </TableCell>

@@ -789,7 +789,18 @@ export const MietvertragDetailsModal = ({
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Kaution</p>
-                      <p className="font-semibold text-lg">{formatBetrag(Number(vertrag?.kaution_betrag) || 0)}</p>
+                      <p className="font-semibold text-lg">{formatBetrag((() => {
+                        const kautionZahlungen = zahlungen?.filter(zahlung => zahlung.kategorie === 'Mietkaution') || [];
+                        const kautionAusZahlungen = kautionZahlungen.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0);
+                        
+                        // Verwende Kaution aus Zahlungen wenn vorhanden, sonst kaution_betrag wenn != 0
+                        if (kautionZahlungen.length > 0) {
+                          return kautionAusZahlungen;
+                        } else if (vertrag?.kaution_betrag && vertrag.kaution_betrag !== 0) {
+                          return vertrag.kaution_betrag;
+                        }
+                        return 0;
+                      })())}</p>
                     </div>
                   </div>
                 </CardContent>
