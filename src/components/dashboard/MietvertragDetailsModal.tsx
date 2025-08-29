@@ -34,7 +34,8 @@ import {
   X,
   ChevronDown,
   Square,
-  Hash
+  Hash,
+  ArrowRightLeft
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -61,7 +62,7 @@ export const MietvertragDetailsModal = ({
   const [selectedMonth, setSelectedMonth] = useState<string>("alle");
   const [editingField, setEditingField] = useState<{mieterId: string, field: 'hauptmail' | 'telnr'} | null>(null);
   const [editValue, setEditValue] = useState<string>("");
-  const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie' | 'monat'} | null>(null);
+  const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie' | 'monat' | 'mietvertrag'} | null>(null);
   const [showDetailsExpanded, setShowDetailsExpanded] = useState(false);
   const [editPaymentValue, setEditPaymentValue] = useState<string>("");
 
@@ -122,9 +123,15 @@ export const MietvertragDetailsModal = ({
     setEditValue('');
   };
 
-  const handleEditPaymentField = (zahlungId: string, field: 'kategorie' | 'monat', currentValue: string) => {
+  const handleEditPaymentField = (zahlungId: string, field: 'kategorie' | 'monat' | 'mietvertrag', currentValue: string) => {
     setEditingPayment({ zahlungId, field });
-    setEditPaymentValue(currentValue || '');
+    if (field === 'mietvertrag') {
+      // Für mietvertrag nehmen wir die aktuelle mietvertrag_id
+      const zahlung = zahlungen?.find(z => z.id === zahlungId);
+      setEditPaymentValue(zahlung?.mietvertrag_id || '');
+    } else {
+      setEditPaymentValue(currentValue || '');
+    }
   };
 
   const handleSavePaymentField = async () => {
@@ -137,6 +144,8 @@ export const MietvertragDetailsModal = ({
         updateData.kategorie = editPaymentValue as any;
       } else if (editingPayment.field === 'monat') {
         updateData.zugeordneter_monat = editPaymentValue;
+      } else if (editingPayment.field === 'mietvertrag') {
+        updateData.mietvertrag_id = editPaymentValue;
       }
 
       const { error } = await supabase
@@ -148,7 +157,9 @@ export const MietvertragDetailsModal = ({
 
       toast({
         title: "Aktualisiert",
-        description: `${editingPayment.field === 'kategorie' ? 'Kategorie' : 'Zugeordneter Monat'} wurde erfolgreich aktualisiert.`,
+        description: `${editingPayment.field === 'kategorie' ? 'Kategorie' : 
+                        editingPayment.field === 'monat' ? 'Zugeordneter Monat' : 
+                        'Mietvertrag'} wurde erfolgreich aktualisiert.`,
       });
 
       setEditingPayment(null);
@@ -160,7 +171,9 @@ export const MietvertragDetailsModal = ({
       console.error('Fehler beim Aktualisieren:', error);
       toast({
         title: "Fehler",
-        description: `${editingPayment.field === 'kategorie' ? 'Kategorie' : 'Zugeordneter Monat'} konnte nicht aktualisiert werden.`,
+        description: `${editingPayment.field === 'kategorie' ? 'Kategorie' : 
+                        editingPayment.field === 'monat' ? 'Zugeordneter Monat' : 
+                        'Mietvertrag'} konnte nicht aktualisiert werden.`,
         variant: "destructive",
       });
     }
@@ -221,6 +234,32 @@ export const MietvertragDetailsModal = ({
       return data || [];
     },
     enabled: isOpen && !!vertragId
+  });
+
+  // Hole alle Mietverträge für die Zuordnung
+  const { data: alleMietvertraege } = useQuery({
+    queryKey: ['alle-mietvertraege'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietvertrag')
+        .select(`
+          id,
+          einheit:einheit_id (
+            id,
+            zaehler,
+            immobilie:immobilie_id (
+              name,
+              adresse
+            )
+          )
+        `)
+        .eq('status', 'aktiv')
+        .order('id');
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen
   });
 
   // Hole alle Forderungen
@@ -1459,24 +1498,52 @@ export const MietvertragDetailsModal = ({
                                                            </Button>
                                                          </div>
                                                        </div>
-                                                     ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
-                                                       <div className="flex flex-col space-y-2">
-                                                         <input 
-                                                           type="month"
-                                                           value={editPaymentValue}
-                                                           onChange={(e) => setEditPaymentValue(e.target.value)}
-                                                           className="h-8 text-xs w-28 px-2 border rounded"
-                                                         />
-                                                         <div className="flex space-x-1">
-                                                           <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
-                                                             <Check className="h-3 w-3" />
-                                                           </Button>
-                                                           <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
-                                                             <X className="h-3 w-3" />
-                                                           </Button>
-                                                         </div>
-                                                       </div>
-                                                     ) : (
+                                                      ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
+                                                        <div className="flex flex-col space-y-2">
+                                                          <input 
+                                                            type="month"
+                                                            value={editPaymentValue}
+                                                            onChange={(e) => setEditPaymentValue(e.target.value)}
+                                                            className="h-8 text-xs w-28 px-2 border rounded"
+                                                          />
+                                                          <div className="flex space-x-1">
+                                                            <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
+                                                              <Check className="h-3 w-3" />
+                                                            </Button>
+                                                            <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
+                                                              <X className="h-3 w-3" />
+                                                            </Button>
+                                                          </div>
+                                                        </div>
+                                                      ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'mietvertrag' ? (
+                                                        <div className="flex flex-col space-y-2">
+                                                          <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                                            <SelectTrigger className="h-8 text-xs w-36">
+                                                              <SelectValue placeholder="Mietvertrag" />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
+                                                              {alleMietvertraege?.map((mv) => (
+                                                                <SelectItem key={mv.id} value={mv.id}>
+                                                                  <div className="text-xs">
+                                                                    <div className="font-medium">{mv.einheit?.immobilie?.name}</div>
+                                                                    <div className="text-gray-500">
+                                                                      Einheit {mv.einheit?.zaehler || mv.id.slice(-2)}
+                                                                    </div>
+                                                                  </div>
+                                                                </SelectItem>
+                                                              ))}
+                                                            </SelectContent>
+                                                          </Select>
+                                                          <div className="flex space-x-1">
+                                                            <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
+                                                              <Check className="h-3 w-3" />
+                                                            </Button>
+                                                            <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
+                                                              <X className="h-3 w-3" />
+                                                            </Button>
+                                                          </div>
+                                                        </div>
+                                                      ) : (
                                                        <div className="flex flex-col items-end space-y-2">
                                                          <Badge variant="outline" className="text-xs font-medium">
                                                            {zahlung.kategorie || 'Sonstige'}
@@ -1491,18 +1558,27 @@ export const MietvertragDetailsModal = ({
                                                            >
                                                              <Edit2 className="h-3 w-3" />
                                                            </Button>
-                                                            <Button
-                                                              onClick={() => {
-                                                                const currentMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
-                                                                handleEditPaymentField(zahlung.id, 'monat', currentMonth);
-                                                              }}
-                                                              variant="ghost"
-                                                              size="sm"
-                                                              className="h-6 w-6 p-0 hover:bg-blue-200"
-                                                              title="Monat zuordnen"
-                                                            >
-                                                              <Calendar className="h-3 w-3" />
-                                                            </Button>
+                                                             <Button
+                                                               onClick={() => {
+                                                                 const currentMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
+                                                                 handleEditPaymentField(zahlung.id, 'monat', currentMonth);
+                                                               }}
+                                                               variant="ghost"
+                                                               size="sm"
+                                                               className="h-6 w-6 p-0 hover:bg-blue-200"
+                                                               title="Monat zuordnen"
+                                                             >
+                                                               <Calendar className="h-3 w-3" />
+                                                             </Button>
+                                                             <Button
+                                                               onClick={() => handleEditPaymentField(zahlung.id, 'mietvertrag', '')}
+                                                               variant="ghost"
+                                                               size="sm"
+                                                               className="h-6 w-6 p-0 hover:bg-orange-200"
+                                                               title="Mietvertrag zuordnen"
+                                                             >
+                                                               <ArrowRightLeft className="h-3 w-3" />
+                                                             </Button>
                                                          </div>
                                                        </div>
                                                      )}
@@ -1543,41 +1619,104 @@ export const MietvertragDetailsModal = ({
                                 </p>
                               </div>
                               <div className="flex items-center space-x-2">
-                                {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
-                                  <div className="flex items-center space-x-2">
-                                    <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                      <SelectTrigger className="h-8 text-sm w-32">
-                                        <SelectValue placeholder="Kategorie" />
-                                      </SelectTrigger>
-                                      <SelectContent className="bg-background border shadow-md z-50">
-                                        <SelectItem value="Miete">Miete</SelectItem>
-                                        <SelectItem value="Mietkaution">Mietkaution</SelectItem>
-                                        <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
-                                        <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                    <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center space-x-2 group">
-                                    <Badge variant="outline" className="text-sm">
-                                      {zahlung.kategorie || 'Sonstige'}
-                                    </Badge>
-                                    <Button
-                                      onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
-                                      variant="ghost"
-                                      size="sm"
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Edit2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                )}
+                                 {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
+                                   <div className="flex items-center space-x-2">
+                                     <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                       <SelectTrigger className="h-8 text-sm w-32">
+                                         <SelectValue placeholder="Kategorie" />
+                                       </SelectTrigger>
+                                       <SelectContent className="bg-background border shadow-md z-50">
+                                         <SelectItem value="Miete">Miete</SelectItem>
+                                         <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                         <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                                         <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                       </SelectContent>
+                                     </Select>
+                                     <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
+                                       <Check className="h-4 w-4" />
+                                     </Button>
+                                     <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
+                                       <X className="h-4 w-4" />
+                                     </Button>
+                                   </div>
+                                 ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
+                                   <div className="flex items-center space-x-2">
+                                     <input 
+                                       type="month"
+                                       value={editPaymentValue}
+                                       onChange={(e) => setEditPaymentValue(e.target.value)}
+                                       className="h-8 text-sm w-36 px-2 border rounded"
+                                     />
+                                     <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
+                                       <Check className="h-4 w-4" />
+                                     </Button>
+                                     <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
+                                       <X className="h-4 w-4" />
+                                     </Button>
+                                   </div>
+                                 ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'mietvertrag' ? (
+                                   <div className="flex items-center space-x-2">
+                                     <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                       <SelectTrigger className="h-8 text-sm w-48">
+                                         <SelectValue placeholder="Mietvertrag auswählen" />
+                                       </SelectTrigger>
+                                       <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
+                                         {alleMietvertraege?.map((mv) => (
+                                           <SelectItem key={mv.id} value={mv.id}>
+                                             <div className="text-sm">
+                                               <div className="font-medium">{mv.einheit?.immobilie?.name}</div>
+                                               <div className="text-gray-500">
+                                                 Einheit {mv.einheit?.zaehler || mv.id.slice(-2)}
+                                               </div>
+                                             </div>
+                                           </SelectItem>
+                                         ))}
+                                       </SelectContent>
+                                     </Select>
+                                     <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
+                                       <Check className="h-4 w-4" />
+                                     </Button>
+                                     <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
+                                       <X className="h-4 w-4" />
+                                     </Button>
+                                   </div>
+                                 ) : (
+                                   <div className="flex items-center space-x-2 group">
+                                     <Badge variant="outline" className="text-sm">
+                                       {zahlung.kategorie || 'Sonstige'}
+                                     </Badge>
+                                     <Button
+                                       onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                       variant="ghost"
+                                       size="sm"
+                                       className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                       title="Kategorie bearbeiten"
+                                     >
+                                       <Edit2 className="h-4 w-4" />
+                                     </Button>
+                                     <Button
+                                       onClick={() => {
+                                         const currentMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
+                                         handleEditPaymentField(zahlung.id, 'monat', currentMonth);
+                                       }}
+                                       variant="ghost"
+                                       size="sm"
+                                       className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                       title="Monat zuordnen"
+                                     >
+                                       <Calendar className="h-4 w-4" />
+                                     </Button>
+                                     <Button
+                                       onClick={() => handleEditPaymentField(zahlung.id, 'mietvertrag', '')}
+                                       variant="ghost"
+                                       size="sm"
+                                       className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                       title="Mietvertrag zuordnen"
+                                     >
+                                       <ArrowRightLeft className="h-4 w-4" />
+                                     </Button>
+                                   </div>
+                                 )}
                               </div>
                             </div>
                           </div>
