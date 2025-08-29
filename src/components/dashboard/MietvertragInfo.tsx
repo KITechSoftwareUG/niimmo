@@ -1,6 +1,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Building, Home, Euro, Calendar, MapPin, AlertTriangle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { FileText, Building, Home, Euro, Calendar, MapPin, AlertTriangle, ChevronDown, Square, Hash, Layers } from "lucide-react";
+import { useState } from "react";
 
 interface MietvertragInfoProps {
   vertrag: any;
@@ -9,6 +11,9 @@ interface MietvertragInfoProps {
 }
 
 export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfoProps) => {
+  const [isEinheitExpanded, setIsEinheitExpanded] = useState(false);
+  const [isImmobilieExpanded, setIsImmobilieExpanded] = useState(false);
+
   return (
     <Card className="elegant-card border-0 shadow-lg rounded-2xl overflow-hidden">
       <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
@@ -24,48 +29,137 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
           {/* Immobilie & Einheit Section */}
           <div className="space-y-6">
             <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-              <div className="flex items-center space-x-3 mb-4">
-                <Building className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-800">Immobilie</h3>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-600 block mb-1">Name</label>
-                  <p className="text-lg font-semibold text-gray-900">{immobilie?.name || 'Nicht verfügbar'}</p>
-                </div>
-                <div className="flex items-start space-x-2">
-                  <MapPin className="h-4 w-4 text-gray-500 mt-1" />
+              <Collapsible open={isImmobilieExpanded} onOpenChange={setIsImmobilieExpanded}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full mb-4 hover:bg-blue-100/50 rounded-lg p-2 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <Building className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">Immobilie</h3>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-blue-600 transition-transform ${isImmobilieExpanded ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                
+                <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-600">Adresse</label>
-                    <p className="text-gray-700">{immobilie?.adresse || 'Nicht verfügbar'}</p>
+                    <label className="text-sm font-medium text-gray-600 block mb-1">Name</label>
+                    <p className="text-lg font-semibold text-gray-900">{immobilie?.name || 'Nicht verfügbar'}</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <MapPin className="h-4 w-4 text-gray-500 mt-1" />
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Adresse</label>
+                      <p className="text-gray-700">{immobilie?.adresse || 'Nicht verfügbar'}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                <CollapsibleContent className="mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-blue-200">
+                    {immobilie?.objekttyp && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Objekttyp</label>
+                        <p className="text-gray-900 capitalize">{immobilie.objekttyp}</p>
+                      </div>
+                    )}
+                    {immobilie?.baujahr && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Baujahr</label>
+                        <p className="text-gray-900">{immobilie.baujahr}</p>
+                      </div>
+                    )}
+                    {immobilie?.einheiten_anzahl && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Anzahl Einheiten</label>
+                        <p className="text-gray-900">{immobilie.einheiten_anzahl}</p>
+                      </div>
+                    )}
+                    {immobilie?.kaufpreis && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Kaufpreis</label>
+                        <p className="text-gray-900">€{immobilie.kaufpreis.toLocaleString()}</p>
+                      </div>
+                    )}
+                    {immobilie?.["Kontonr."] && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Kontonummer</label>
+                        <p className="text-gray-900 font-mono text-sm">{immobilie["Kontonr."]}</p>
+                      </div>
+                    )}
+                    {immobilie?.["Annuität"] && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Annuität</label>
+                        <p className="text-gray-900">€{immobilie["Annuität"].toLocaleString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             <div className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100">
-              <div className="flex items-center space-x-3 mb-4">
-                <Home className="h-5 w-5 text-green-600" />
-                <h3 className="text-lg font-semibold text-gray-800">Einheit</h3>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-600 block mb-1">Einheit ID</label>
-                  <p className="text-gray-900 font-mono text-sm bg-white px-3 py-2 rounded-lg border">
-                    {einheit?.id?.slice(0, 8) || 'Keine ID'}...
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600 block mb-1">Etage</label>
-                  <p className="text-gray-900">{einheit?.etage || 'Nicht angegeben'}</p>
-                </div>
-                {einheit?.qm && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-600 block mb-1">Größe</label>
-                    <p className="text-gray-900">{einheit.qm} m²</p>
+              <Collapsible open={isEinheitExpanded} onOpenChange={setIsEinheitExpanded}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full mb-4 hover:bg-green-100/50 rounded-lg p-2 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <Home className="h-5 w-5 text-green-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">Einheit</h3>
                   </div>
-                )}
-              </div>
+                  <ChevronDown className={`h-4 w-4 text-green-600 transition-transform ${isEinheitExpanded ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 block mb-1">Einheit ID</label>
+                    <p className="text-gray-900 font-mono text-sm bg-white px-3 py-2 rounded-lg border">
+                      {einheit?.id?.slice(0, 8) || 'Keine ID'}...
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 block mb-1">Etage</label>
+                    <p className="text-gray-900">{einheit?.etage || 'Nicht angegeben'}</p>
+                  </div>
+                  {einheit?.qm && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-600 block mb-1">Größe</label>
+                      <p className="text-gray-900">{einheit.qm} m²</p>
+                    </div>
+                  )}
+                </div>
+
+                <CollapsibleContent className="mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-green-200">
+                    {einheit?.zaehler && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <Hash className="h-4 w-4 text-green-600" />
+                          <label className="text-sm font-medium text-gray-600">Zählernummer</label>
+                        </div>
+                        <p className="text-gray-900 font-mono text-sm">{einheit.zaehler}</p>
+                      </div>
+                    )}
+                    {einheit?.einheitentyp && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <Layers className="h-4 w-4 text-green-600" />
+                          <label className="text-sm font-medium text-gray-600">Einheitentyp</label>
+                        </div>
+                        <p className="text-gray-900 capitalize">{einheit.einheitentyp}</p>
+                      </div>
+                    )}
+                    {einheit?.qm && (
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <Square className="h-4 w-4 text-green-600" />
+                          <label className="text-sm font-medium text-gray-600">Wohnfläche</label>
+                        </div>
+                        <p className="text-gray-900 font-semibold">{einheit.qm} m²</p>
+                      </div>
+                    )}
+                    <div className="bg-white/60 p-3 rounded-lg">
+                      <label className="text-sm font-medium text-gray-600 block mb-1">Vollständige ID</label>
+                      <p className="text-gray-900 font-mono text-xs break-all">{einheit?.id || 'Keine ID'}</p>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </div>
 

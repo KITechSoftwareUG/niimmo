@@ -1,8 +1,10 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Home, Square, Users, Calendar, Euro, User, Building, MapPin, Copy, Phone, Mail } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Home, Square, Users, Calendar, Euro, User, Building, MapPin, Copy, Phone, Mail, ChevronDown, Hash, Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface EinheitenDetailModalProps {
   isOpen: boolean;
@@ -12,6 +14,8 @@ interface EinheitenDetailModalProps {
     nummer?: string;
     etage?: string;
     qm?: number;
+    zaehler?: number;
+    einheitentyp?: string;
   };
   vertrag?: {
     id: string;
@@ -43,6 +47,7 @@ export const EinheitenDetailModal = ({
   immobilie 
 }: EinheitenDetailModalProps) => {
   const { toast } = useToast();
+  const [isEinheitDetailsExpanded, setIsEinheitDetailsExpanded] = useState(false);
   const getStatusColor = () => {
     if (!vertrag) return "bg-red-100 text-red-800";
     if (vertrag.status === 'aktiv') return "bg-green-100 text-green-800";
@@ -116,26 +121,58 @@ export const EinheitenDetailModal = ({
           {/* Einheit Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-3">
-              <h3 className="font-semibold text-gray-900">Einheitendetails</h3>
-              
-              {einheit.etage && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-600">Etage:</span>
-                  <span className="text-sm text-gray-900">{einheit.etage}</span>
-                </div>
-              )}
+              <Collapsible open={isEinheitDetailsExpanded} onOpenChange={setIsEinheitDetailsExpanded}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full hover:bg-gray-50 rounded-lg p-2 transition-colors">
+                  <h3 className="font-semibold text-gray-900">Einheitendetails</h3>
+                  <ChevronDown className={`h-4 w-4 text-gray-600 transition-transform ${isEinheitDetailsExpanded ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                
+                <div className="space-y-3 mt-2">
+                  {einheit.etage && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-600">Etage:</span>
+                      <span className="text-sm text-gray-900">{einheit.etage}</span>
+                    </div>
+                  )}
 
-              {einheit.qm && (
-                <div className="flex items-center space-x-2">
-                  <Square className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm text-gray-900">{einheit.qm} m²</span>
-                </div>
-              )}
+                  {einheit.qm && (
+                    <div className="flex items-center space-x-2">
+                      <Square className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-900">{einheit.qm} m²</span>
+                    </div>
+                  )}
 
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-gray-600">ID:</span>
-                <span className="text-xs text-gray-500 font-mono">{getShortId(einheit.id)}</span>
-              </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-600">ID:</span>
+                    <span className="text-xs text-gray-500 font-mono">{getShortId(einheit.id)}</span>
+                  </div>
+                </div>
+
+                <CollapsibleContent className="mt-4">
+                  <div className="space-y-3 pt-3 border-t border-gray-200">
+                    {einheit.zaehler && (
+                      <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg">
+                        <Hash className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-600">Zähler:</span>
+                        <span className="text-sm text-gray-900 font-mono">{einheit.zaehler}</span>
+                      </div>
+                    )}
+                    
+                    {einheit.einheitentyp && (
+                      <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg">
+                        <Layers className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-600">Typ:</span>
+                        <span className="text-sm text-gray-900 capitalize">{einheit.einheitentyp}</span>
+                      </div>
+                    )}
+                    
+                    <div className="bg-gray-50 p-2 rounded-lg">
+                      <span className="text-sm font-medium text-gray-600 block mb-1">Vollständige ID:</span>
+                      <span className="text-xs text-gray-500 font-mono break-all">{einheit.id}</span>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             {/* Mietvertrag Details */}
