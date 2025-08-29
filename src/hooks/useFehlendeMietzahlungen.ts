@@ -190,7 +190,7 @@ export const useFehlendeMietzahlungen = () => {
         if (mietvertragForderungen.length === 0) continue;
 
         // BERECHNUNG WIE IM DETAIL-MODAL: Gesamtforderungen vs Gesamtzahlungen
-        const gesamtForderungen = mietvertragForderungen.reduce((sum, f) => sum + (f.sollbetrag || 0), 0);
+        const gesamtForderungen = mietvertragForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
         let gesamtZahlungen = 0;
         let mieteZahlungen = 0; // Nur Kategorie "Miete"
 
