@@ -929,46 +929,40 @@ export const MietvertragDetailsModal = ({
                   <CardTitle className="text-lg">Zahlungen & Forderungen Timeline ({selectedYear})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {/* Timeline View */}
-                  <div className="space-y-6 max-h-[32rem] overflow-y-auto">
+                  {/* Central Timeline View */}
+                  <div className="relative max-h-[32rem] overflow-y-auto py-4">
                     {(() => {
-                      // Combine Zahlungen und Forderungen für Timeline
-                      const timelineItems = [];
+                      // Group data by months for better display
+                      const monthlyData = new Map();
                       
-                      // Add Forderungen
+                      // Add Forderungen to monthly data
                       if (forderungen) {
                         forderungen.forEach(forderung => {
-                          const forderungsDatum = new Date(forderung.sollmonat + '-01');
-                          const faelligkeitsDatum = new Date(forderungsDatum.getFullYear(), forderungsDatum.getMonth() + 1, 1);
-                          const toleranzEnde = new Date(faelligkeitsDatum);
-                          toleranzEnde.setDate(toleranzEnde.getDate() + 7);
-                          
-                          timelineItems.push({
-                            type: 'forderung',
-                            date: faelligkeitsDatum,
-                            toleranzEnde,
-                            data: forderung,
-                            sortDate: faelligkeitsDatum
-                          });
+                          const month = forderung.sollmonat;
+                          if (!monthlyData.has(month)) {
+                            monthlyData.set(month, { forderung: null, zahlungen: [] });
+                          }
+                          monthlyData.get(month).forderung = forderung;
                         });
                       }
                       
-                      // Add Zahlungen
+                      // Add Zahlungen to monthly data
                       if (zahlungen) {
                         zahlungen.forEach(zahlung => {
-                          timelineItems.push({
-                            type: 'zahlung',
-                            date: new Date(zahlung.buchungsdatum),
-                            data: zahlung,
-                            sortDate: new Date(zahlung.buchungsdatum)
-                          });
+                          const zahlungsDatum = new Date(zahlung.buchungsdatum);
+                          const month = zahlungsDatum.getFullYear() + '-' + String(zahlungsDatum.getMonth() + 1).padStart(2, '0');
+                          
+                          if (!monthlyData.has(month)) {
+                            monthlyData.set(month, { forderung: null, zahlungen: [] });
+                          }
+                          monthlyData.get(month).zahlungen.push(zahlung);
                         });
                       }
                       
-                      // Sort by date
-                      timelineItems.sort((a, b) => a.sortDate.getTime() - b.sortDate.getTime());
+                      // Sort months chronologically
+                      const sortedMonths = Array.from(monthlyData.keys()).sort();
                       
-                      if (timelineItems.length === 0) {
+                      if (sortedMonths.length === 0) {
                         return (
                           <div className="text-center py-8">
                             <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -977,100 +971,178 @@ export const MietvertragDetailsModal = ({
                         );
                       }
                       
-                      return timelineItems.map((item, index) => (
-                        <div key={`${item.type}-${item.data.id}-${index}`} className="relative">
-                          {/* Timeline line */}
-                          {index < timelineItems.length - 1 && (
-                            <div className="absolute left-6 top-8 w-0.5 h-full bg-gray-200 z-0"></div>
-                          )}
+                      return (
+                        <div className="relative">
+                          {/* Central Timeline */}
+                          <div className="absolute left-1/2 top-0 w-1 bg-gray-300 h-full transform -translate-x-0.5 z-0"></div>
                           
-                          <div className="flex items-start space-x-4 relative z-10">
-                            {/* Timeline dot */}
-                            <div className={`flex-shrink-0 w-3 h-3 rounded-full mt-2 border-2 border-white shadow-md ${
-                              item.type === 'forderung' ? 'bg-red-500' : 'bg-green-500'
-                            }`}></div>
+                          {sortedMonths.map((month, index) => {
+                            const data = monthlyData.get(month);
+                            const monthDate = new Date(month + '-01');
+                            const forderung = data.forderung;
+                            const zahlungen = data.zahlungen;
                             
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              {item.type === 'forderung' ? (
-                                <div className="p-4 border rounded-lg bg-red-50 border-red-200">
-                                  <div className="flex justify-between items-start mb-3">
-                                    <div className="flex-1">
-                                      <p className="font-medium text-sm text-red-800">
-                                        📋 Forderung: {formatBetrag(Number(item.data.sollbetrag))}
-                                      </p>
-                                      <p className="text-xs text-red-600 mb-2">
-                                        Monat: {item.data.sollmonat} | Fällig: {formatDatum(item.date.toISOString().split('T')[0])}
-                                      </p>
-                                    </div>
+                            // Calculate due date for forderung
+                            let faelligkeitsDatum = null;
+                            let toleranzEnde = null;
+                            if (forderung) {
+                              const forderungsDatum = new Date(forderung.sollmonat + '-01');
+                              faelligkeitsDatum = new Date(forderungsDatum.getFullYear(), forderungsDatum.getMonth() + 1, 1);
+                              toleranzEnde = new Date(faelligkeitsDatum);
+                              toleranzEnde.setDate(toleranzEnde.getDate() + 7);
+                            }
+                            
+                            return (
+                              <div key={month} className="relative mb-8 min-h-[120px]">
+                                {/* Month marker on timeline */}
+                                <div className="absolute left-1/2 w-4 h-4 bg-blue-500 rounded-full border-4 border-white shadow-md transform -translate-x-1/2 z-10">
+                                  <div className="absolute top-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                    <span className="text-sm font-medium bg-blue-100 px-2 py-1 rounded text-blue-800">
+                                      {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-8 pt-12">
+                                  {/* Left side - Forderungen */}
+                                  <div className="text-right pr-4">
+                                    {forderung ? (
+                                      <div className="inline-block">
+                                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg max-w-xs">
+                                          <div className="text-right">
+                                            <p className="font-medium text-sm text-red-800 mb-1">
+                                              📋 Forderung
+                                            </p>
+                                            <p className="text-lg font-bold text-red-900">
+                                              {formatBetrag(Number(forderung.sollbetrag))}
+                                            </p>
+                                            <p className="text-xs text-red-600 mb-2">
+                                              Fällig: {formatDatum(faelligkeitsDatum.toISOString().split('T')[0])}
+                                            </p>
+                                            
+                                            {/* Toleranzbereich */}
+                                            <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-left">
+                                              <p className="text-xs text-green-700">
+                                                ✓ Toleranz bis {formatDatum(toleranzEnde.toISOString().split('T')[0])}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-gray-400 text-sm italic">
+                                        Keine Forderung
+                                      </div>
+                                    )}
                                   </div>
                                   
-                                  {/* 7-Tage Toleranzbereich */}
-                                  <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded flex items-center space-x-2">
-                                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                    <p className="text-xs text-green-700 font-medium">
-                                      Toleranzbereich bis {formatDatum(item.toleranzEnde.toISOString().split('T')[0])} (7 Werktage)
-                                    </p>
+                                  {/* Right side - Zahlungen */}
+                                  <div className="pl-4">
+                                    {zahlungen.length > 0 ? (
+                                      <div className="space-y-2">
+                                        {zahlungen.map((zahlung) => {
+                                          const zahlungsDatum = new Date(zahlung.buchungsdatum);
+                                          let statusColor = 'green';
+                                          let statusText = 'Pünktlich';
+                                          
+                                          // Determine if payment is late
+                                          if (forderung && faelligkeitsDatum) {
+                                            const daysDiff = Math.ceil((zahlungsDatum.getTime() - faelligkeitsDatum.getTime()) / (1000 * 60 * 60 * 24));
+                                            if (daysDiff > 7) {
+                                              statusColor = 'red';
+                                              statusText = `${daysDiff} Tage zu spät`;
+                                            } else if (daysDiff > 0) {
+                                              statusColor = 'orange';
+                                              statusText = `${daysDiff} Tage nach Fälligkeit`;
+                                            } else if (daysDiff < 0) {
+                                              statusColor = 'blue';
+                                              statusText = `${Math.abs(daysDiff)} Tage vor Fälligkeit`;
+                                            }
+                                          }
+                                          
+                                          return (
+                                            <div key={zahlung.id} className="bg-green-50 border border-green-200 rounded-lg p-3 max-w-xs">
+                                              <div className="flex justify-between items-start mb-2">
+                                                <div className="flex-1">
+                                                  <p className="font-medium text-sm text-green-800">
+                                                    💰 Zahlung
+                                                  </p>
+                                                  <p className="text-lg font-bold text-green-900">
+                                                    {formatBetrag(Number(zahlung.betrag))}
+                                                  </p>
+                                                  <p className="text-xs text-green-600 mb-1">
+                                                    {formatDatum(zahlung.buchungsdatum)}
+                                                  </p>
+                                                  
+                                                  {/* Status indicator */}
+                                                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                    statusColor === 'green' ? 'bg-green-100 text-green-800' :
+                                                    statusColor === 'orange' ? 'bg-orange-100 text-orange-800' :
+                                                    statusColor === 'red' ? 'bg-red-100 text-red-800' :
+                                                    'bg-blue-100 text-blue-800'
+                                                  }`}>
+                                                    {statusText}
+                                                  </div>
+                                                  
+                                                  <p className="text-xs text-green-500 mt-1 truncate">
+                                                    {zahlung.verwendungszweck || 'Kein Verwendungszweck'}
+                                                  </p>
+                                                </div>
+                                                
+                                                {/* Edit controls */}
+                                                <div className="flex items-center space-x-1 ml-2">
+                                                  {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
+                                                    <div className="flex items-center space-x-1">
+                                                      <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                                        <SelectTrigger className="h-6 text-xs w-20">
+                                                          <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="bg-background border shadow-md z-50">
+                                                          <SelectItem value="Miete">Miete</SelectItem>
+                                                          <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                                          <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                                                          <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                                        </SelectContent>
+                                                      </Select>
+                                                      <Button onClick={handleSavePaymentField} size="sm" className="h-5 px-1">
+                                                        <Check className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-5 px-1">
+                                                        <X className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="flex flex-col space-y-1">
+                                                      <Badge variant="outline" className="text-xs">
+                                                        {zahlung.kategorie || 'Sonstige'}
+                                                      </Badge>
+                                                      <button
+                                                        onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                                        className="p-1 hover:bg-gray-200 rounded"
+                                                        title="Kategorie bearbeiten"
+                                                      >
+                                                        <Edit2 className="h-3 w-3" />
+                                                      </button>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <div className="text-gray-400 text-sm italic">
+                                        Keine Zahlungen
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                              ) : (
-                                <div className="p-4 border rounded-lg bg-green-50 border-green-200">
-                                  <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                      <p className="font-medium text-sm text-green-800">
-                                        💰 Zahlung: {formatBetrag(Number(item.data.betrag))}
-                                      </p>
-                                      <p className="text-xs text-green-600 mb-1">
-                                        Datum: {formatDatum(item.data.buchungsdatum)}
-                                      </p>
-                                      <p className="text-xs text-green-500 truncate max-w-xs">
-                                        {item.data.verwendungszweck || 'Kein Verwendungszweck'}
-                                      </p>
-                                    </div>
-                                    
-                                    {/* Bearbeitungsmöglichkeiten für Zahlungen */}
-                                    <div className="flex items-center space-x-2">
-                                      {editingPayment?.zahlungId === item.data.id && editingPayment?.field === 'kategorie' ? (
-                                        <div className="flex items-center space-x-2">
-                                          <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                            <SelectTrigger className="h-6 text-xs w-28">
-                                              <SelectValue placeholder="Kategorie" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-background border shadow-md z-50">
-                                              <SelectItem value="Miete">Miete</SelectItem>
-                                              <SelectItem value="Mietkaution">Mietkaution</SelectItem>
-                                              <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
-                                              <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                          <Button onClick={handleSavePaymentField} size="sm" className="h-6 px-2">
-                                            <Check className="h-3 w-3" />
-                                          </Button>
-                                          <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 px-2">
-                                            <X className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center space-x-1 group">
-                                          <Badge variant="outline" className="text-xs">
-                                            {item.data.kategorie || 'Sonstige'}
-                                          </Badge>
-                                          <button
-                                            onClick={() => handleEditPaymentField(item.data.id, 'kategorie', item.data.kategorie || '')}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
-                                          >
-                                            <Edit2 className="h-3 w-3" />
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ));
+                      );
                     })()}
                   </div>
                 </CardContent>
