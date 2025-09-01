@@ -29,7 +29,11 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
       
       switch (sortBy) {
         case 'object':
-          comparison = a.immobilie_name.localeCompare(b.immobilie_name);
+          // Use numeric sorting for object names (e.g., "Objekt 1", "Objekt 2", "Objekt 10")
+          comparison = a.immobilie_name.localeCompare(b.immobilie_name, undefined, {
+            numeric: true,
+            sensitivity: 'base'
+          });
           break;
         case 'amount':
           comparison = a.fehlend_betrag - b.fehlend_betrag;
