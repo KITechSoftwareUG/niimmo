@@ -1332,9 +1332,9 @@ export const MietvertragDetailsModal = ({
                          }
                          
                           return (
-                            <div className="relative px-6 py-4">
-                              {/* Central Timeline - Enhanced */}
-                              <div className="absolute left-1/2 top-0 w-2 bg-gradient-to-b from-blue-500 via-indigo-500 to-purple-500 h-full transform -translate-x-0.5 z-0 shadow-lg rounded-full"></div>
+                            <div className="relative px-8 py-8">
+                              {/* Central Timeline - Elegant thin line */}
+                              <div className="absolute left-1/2 top-0 w-0.5 bg-gradient-to-b from-blue-400 via-indigo-400 to-purple-400 h-full transform -translate-x-0.5 z-0 opacity-60"></div>
                               
                               {sortedMonths.map((month, index) => {
                                const data = monthlyData.get(month);
@@ -1353,24 +1353,24 @@ export const MietvertragDetailsModal = ({
                                }
                                
                                 return (
-                                  <div key={month} className="relative mb-16 min-h-[160px] animate-fade-in">
+                                  <div key={month} className="relative mb-20 min-h-[180px] animate-fade-in">
                                     {/* Enhanced Month marker on timeline */}
-                                    <div className="absolute left-1/2 w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full border-4 border-white shadow-xl transform -translate-x-1/2 z-20">
-                                      <div className="absolute top-10 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                                        <div className="bg-white shadow-lg rounded-full px-6 py-3 border border-gray-200">
-                                          <span className="text-base font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                                    <div className="absolute left-1/2 w-6 h-6 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full border-3 border-white shadow-lg transform -translate-x-1/2 z-20">
+                                      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                        <div className="bg-white shadow-md rounded-lg px-4 py-2 border border-gray-100">
+                                          <span className="text-sm font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                                             {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
                                           </span>
                                         </div>
                                       </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-2 gap-16 pt-20">
-                                      {/* Left side - Forderungen (Elegant with text coloring) */}
-                                      <div className="text-right pr-8">
+                                    <div className="grid grid-cols-2 gap-20 pt-16">
+                                      {/* Left side - Forderungen (Full width) */}
+                                      <div className="pr-10">
                                         {forderung ? (
-                                          <div className="inline-block animate-scale-in">
-                                            <div className="p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
+                                          <div className="w-full animate-scale-in">
+                                            <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
                                               <div className="text-right">
                                                 <div className="flex items-center justify-end mb-2">
                                                   <div className="bg-red-100 rounded-full p-1.5 mr-2">
@@ -1390,14 +1390,14 @@ export const MietvertragDetailsModal = ({
                                             </div>
                                           </div>
                                         ) : (
-                                          <div className="text-gray-400 text-sm italic font-medium">
+                                          <div className="text-gray-400 text-sm italic font-medium text-right">
                                             Keine Forderung
                                           </div>
                                         )}
                                       </div>
                                      
-                                      {/* Right side - Zahlungen (Elegant with text coloring) */}
-                                      <div className="pl-8">
+                                      {/* Right side - Zahlungen (Full width) */}
+                                      <div className="pl-10">
                                         {zahlungen.length > 0 ? (
                                           <div className="space-y-3">
                                             {zahlungen.map((zahlung, zahlungIndex) => {
