@@ -35,7 +35,8 @@ import {
   ChevronDown,
   Square,
   Hash,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Trash2
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -236,6 +237,36 @@ export const MietvertragDetailsModal = ({
   const handleCancelForderungEdit = () => {
     setEditingForderung(null);
     setEditForderungValue('');
+  };
+
+  const handleDeleteForderung = async (forderungId: string) => {
+    if (!confirm('Sind Sie sicher, dass Sie diese Forderung löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('mietforderungen')
+        .delete()
+        .eq('id', forderungId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Forderung gelöscht",
+        description: "Die Forderung wurde erfolgreich gelöscht.",
+      });
+
+      // Refresh die Forderungen
+      queryClient.invalidateQueries({ queryKey: ['forderungen-detail', vertragId] });
+    } catch (error) {
+      console.error('Fehler beim Löschen der Forderung:', error);
+      toast({
+        title: "Fehler",
+        description: "Die Forderung konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSendMahnungFromModal = async () => {
@@ -1451,20 +1482,29 @@ export const MietvertragDetailsModal = ({
                                                        </Button>
                                                      </div>
                                                    ) : (
-                                                     <div className="flex justify-end items-center space-x-2 mb-1">
-                                                       <p className="text-xl font-bold text-red-700">
-                                                         {formatBetrag(Number(forderung.sollbetrag))}
-                                                       </p>
-                                                       <Button
-                                                         onClick={() => handleEditForderungField(forderung.id, 'betrag', forderung.sollbetrag.toString())}
-                                                         variant="ghost"
-                                                         size="sm"
-                                                         className="h-6 w-6 p-0 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                         title="Betrag bearbeiten"
-                                                       >
-                                                         <Edit2 className="h-3 w-3" />
-                                                       </Button>
-                                                     </div>
+                                                      <div className="flex justify-end items-center space-x-2 mb-1">
+                                                        <p className="text-xl font-bold text-red-700">
+                                                          {formatBetrag(Number(forderung.sollbetrag))}
+                                                        </p>
+                                                        <Button
+                                                          onClick={() => handleEditForderungField(forderung.id, 'betrag', forderung.sollbetrag.toString())}
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-6 w-6 p-0 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                          title="Betrag bearbeiten"
+                                                        >
+                                                          <Edit2 className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                          onClick={() => handleDeleteForderung(forderung.id)}
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-6 w-6 p-0 hover:bg-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                          title="Forderung löschen"
+                                                        >
+                                                          <Trash2 className="h-3 w-3 text-red-600" />
+                                                        </Button>
+                                                      </div>
                                                    )}
                                                    
                                                    {/* Monat mit Edit-Funktionalität */}
@@ -1484,20 +1524,29 @@ export const MietvertragDetailsModal = ({
                                                        </Button>
                                                      </div>
                                                    ) : (
-                                                     <div className="flex justify-end items-center space-x-2">
-                                                       <p className="text-xs text-red-500 font-medium">
-                                                         Monat: {forderung.sollmonat}
-                                                       </p>
-                                                       <Button
-                                                         onClick={() => handleEditForderungField(forderung.id, 'monat', forderung.sollmonat)}
-                                                         variant="ghost"
-                                                         size="sm"
-                                                         className="h-6 w-6 p-0 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                         title="Monat bearbeiten"
-                                                       >
-                                                         <Calendar className="h-3 w-3" />
-                                                       </Button>
-                                                     </div>
+                                                      <div className="flex justify-end items-center space-x-2">
+                                                        <p className="text-xs text-red-500 font-medium">
+                                                          Monat: {forderung.sollmonat}
+                                                        </p>
+                                                        <Button
+                                                          onClick={() => handleEditForderungField(forderung.id, 'monat', forderung.sollmonat)}
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-6 w-6 p-0 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                          title="Monat bearbeiten"
+                                                        >
+                                                          <Calendar className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                          onClick={() => handleDeleteForderung(forderung.id)}
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          className="h-6 w-6 p-0 hover:bg-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                          title="Forderung löschen"
+                                                        >
+                                                          <Trash2 className="h-3 w-3 text-red-600" />
+                                                        </Button>
+                                                      </div>
                                                    )}
                                                  </div>
                                                </div>
