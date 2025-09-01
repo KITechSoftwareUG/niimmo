@@ -128,7 +128,7 @@ export const ImmobilienCard = ({ immobilie, onClick }: ImmobilienCardProps) => {
                 <div className="flex items-center justify-center mb-2">
                   <div className="w-3 h-3 bg-red-500 rounded-full modern-shadow"></div>
                 </div>
-                <div className="text-lg font-sans font-bold text-red-700">{einheitenStatus.beendet + einheitenStatus.leerstehend}</div>
+                <div className="text-lg font-sans font-bold text-red-700">{Math.max(0, einheitenStatus.beendet + einheitenStatus.leerstehend)}</div>
                 <div className="text-xs text-red-600 font-sans font-medium">Beendet/Leer</div>
               </div>
             </div>
