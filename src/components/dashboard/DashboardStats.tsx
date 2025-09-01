@@ -49,16 +49,16 @@ export const DashboardStats = ({ immobilien, onNavigateToContract, onShowMietUeb
     queryKey: ['erfasste-miete'],
     queryFn: async () => {
       // Berechne die tatsächlich erfassten Mietzahlungen für den aktuellen Monat
+      // basierend auf zugeordneter_monat, Kategorie 'Miete' und vorhandener mietvertrag_id
       const heute = new Date();
-      const monatBeginn = new Date(heute.getFullYear(), heute.getMonth(), 1);
-      const monatEnde = new Date(heute.getFullYear(), heute.getMonth() + 1, 0);
+      const aktuellerMonat = heute.toISOString().slice(0, 7); // YYYY-MM Format
       
       const { data: zahlungen, error } = await supabase
         .from('zahlungen')
         .select('betrag')
         .eq('kategorie', 'Miete')
-        .gte('buchungsdatum', monatBeginn.toISOString().split('T')[0])
-        .lte('buchungsdatum', monatEnde.toISOString().split('T')[0]);
+        .eq('zugeordneter_monat', aktuellerMonat)
+        .not('mietvertrag_id', 'is', null); // Nur Zahlungen mit mietvertrag_id
       
       if (error) {
         console.error('Fehler beim Laden der Zahlungen:', error);
