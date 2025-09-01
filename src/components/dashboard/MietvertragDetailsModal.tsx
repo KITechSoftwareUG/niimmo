@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { MahnungVorschauModal } from "./MahnungVorschauModal";
 
 interface MietvertragDetailsModalProps {
   isOpen: boolean;
@@ -184,6 +185,45 @@ export const MietvertragDetailsModal = ({
   const handleCancelPaymentEdit = () => {
     setEditingPayment(null);
     setEditPaymentValue('');
+  };
+
+  const handleSendMahnungFromModal = async () => {
+    if (!vertrag) return;
+    
+    setIsLoadingSendMahnung(true);
+    
+    try {
+      const newMahnstufe = Math.min((vertrag.mahnstufe || 0) + 1, 3);
+      
+      const { error } = await supabase
+        .from('mietvertrag')
+        .update({ 
+          mahnstufe: newMahnstufe,
+          letzte_mahnung_am: new Date().toISOString(),
+          naechste_mahnung_am: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .eq('id', vertragId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Mahnung verschickt",
+        description: `Mahnstufe wurde auf ${newMahnstufe} erhöht.`,
+      });
+
+      setShowMahnungModal(false);
+      queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+      
+    } catch (error) {
+      console.error('Fehler beim Versenden der Mahnung:', error);
+      toast({
+        title: "Fehler",
+        description: "Mahnung konnte nicht verschickt werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSendMahnung(false);
+    }
   };
   const { data: vertrag, isLoading: vertragLoading } = useQuery({
     queryKey: ['mietvertrag-detail', vertragId],
