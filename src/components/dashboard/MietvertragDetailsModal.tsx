@@ -1370,7 +1370,7 @@ export const MietvertragDetailsModal = ({
                                      <div className="text-right pr-6">
                                        {forderung ? (
                                          <div className="inline-block animate-scale-in">
-                                           <div className="p-5 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale">
+                                           <div className="p-5 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover-scale">
                                              <div className="text-right">
                                                <div className="flex items-center justify-end mb-3">
                                                  <div className="bg-red-500 rounded-full p-2 mr-2">
@@ -1431,7 +1431,7 @@ export const MietvertragDetailsModal = ({
                                              return (
                                                 <div 
                                                   key={zahlung.id} 
-                                                  className={`bg-gradient-to-br from-green-50 to-emerald-100 border-2 ${wasShifted || hasCustomMonth ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100' : 'border-green-200'} rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 max-w-sm hover-scale animate-fade-in`}
+                                                  className={`bg-gradient-to-br from-green-50 to-emerald-100 border-2 ${wasShifted || hasCustomMonth ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100' : 'border-green-200'} rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 hover-scale animate-fade-in`}
                                                   style={{ animationDelay: `${zahlungIndex * 100}ms` }}
                                                 >
                                                   {(wasShifted || hasCustomMonth) && (
