@@ -66,6 +66,8 @@ export const MietvertragDetailsModal = ({
   const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie' | 'monat' | 'mietvertrag'} | null>(null);
   const [showDetailsExpanded, setShowDetailsExpanded] = useState(false);
   const [editPaymentValue, setEditPaymentValue] = useState<string>("");
+  const [editingForderung, setEditingForderung] = useState<{forderungId: string, field: 'betrag' | 'monat'} | null>(null);
+  const [editForderungValue, setEditForderungValue] = useState<string>("");
   const [showMahnungModal, setShowMahnungModal] = useState(false);
   const [isLoadingSendMahnung, setIsLoadingSendMahnung] = useState(false);
 
@@ -185,6 +187,55 @@ export const MietvertragDetailsModal = ({
   const handleCancelPaymentEdit = () => {
     setEditingPayment(null);
     setEditPaymentValue('');
+  };
+
+  const handleEditForderungField = (forderungId: string, field: 'betrag' | 'monat', currentValue: string) => {
+    setEditingForderung({ forderungId, field });
+    setEditForderungValue(currentValue || '');
+  };
+
+  const handleSaveForderungField = async () => {
+    if (!editingForderung) return;
+    
+    try {
+      let updateData: any = {};
+      
+      if (editingForderung.field === 'betrag') {
+        updateData.sollbetrag = parseFloat(editForderungValue);
+      } else if (editingForderung.field === 'monat') {
+        updateData.sollmonat = editForderungValue;
+      }
+
+      const { error } = await supabase
+        .from('mietforderungen')
+        .update(updateData)
+        .eq('id', editingForderung.forderungId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Aktualisiert",
+        description: `${editingForderung.field === 'betrag' ? 'Forderungsbetrag' : 'Forderungsmonat'} wurde erfolgreich aktualisiert.`,
+      });
+
+      setEditingForderung(null);
+      setEditForderungValue('');
+      
+      // Refresh nur die relevanten Queries
+      queryClient.invalidateQueries({ queryKey: ['forderungen-detail', vertragId] });
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren:', error);
+      toast({
+        title: "Fehler",
+        description: `${editingForderung.field === 'betrag' ? 'Forderungsbetrag' : 'Forderungsmonat'} konnte nicht aktualisiert werden.`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelForderungEdit = () => {
+    setEditingForderung(null);
+    setEditForderungValue('');
   };
 
   const handleSendMahnungFromModal = async () => {
@@ -1366,35 +1417,98 @@ export const MietvertragDetailsModal = ({
                                     </div>
                                     
                                     <div className="grid grid-cols-2 gap-20 pt-16">
-                                      {/* Left side - Forderungen (Full width) */}
-                                      <div className="pr-10">
-                                        {forderung ? (
-                                          <div className="w-full animate-scale-in">
-                                            <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover-scale">
-                                              <div className="text-right">
-                                                <div className="flex items-center justify-end mb-2">
-                                                  <div className="bg-red-100 rounded-full p-1.5 mr-2">
-                                                    <span className="text-red-600 text-xs">📋</span>
-                                                  </div>
-                                                  <p className="font-semibold text-red-600 text-sm">
-                                                    Forderung
-                                                  </p>
-                                                </div>
-                                                <p className="text-xl font-bold text-red-700 mb-1">
-                                                  {formatBetrag(Number(forderung.sollbetrag))}
-                                                </p>
-                                                <p className="text-xs text-red-500 font-medium">
-                                                  Monat: {forderung.sollmonat}
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <div className="text-gray-400 text-sm italic font-medium text-right">
-                                            Keine Forderung
-                                          </div>
-                                        )}
-                                      </div>
+                                       {/* Left side - Forderungen (Full width) */}
+                                       <div className="pr-10">
+                                         {forderung ? (
+                                           <div className="w-full animate-scale-in">
+                                             <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover-scale group">
+                                               <div className="flex justify-between items-start">
+                                                 <div className="flex-1 text-right">
+                                                   <div className="flex items-center justify-end mb-2">
+                                                     <div className="bg-red-100 rounded-full p-1.5 mr-2">
+                                                       <span className="text-red-600 text-xs">📋</span>
+                                                     </div>
+                                                     <p className="font-semibold text-red-600 text-sm">
+                                                       Forderung
+                                                     </p>
+                                                   </div>
+                                                   
+                                                   {/* Betrag mit Edit-Funktionalität */}
+                                                   {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'betrag' ? (
+                                                     <div className="flex justify-end items-center space-x-2 mb-1">
+                                                       <Input 
+                                                         type="number"
+                                                         step="0.01"
+                                                         value={editForderungValue}
+                                                         onChange={(e) => setEditForderungValue(e.target.value)}
+                                                         className="h-8 text-right w-32"
+                                                       />
+                                                       <Button onClick={handleSaveForderungField} size="sm" className="h-8 px-2">
+                                                         <Check className="h-3 w-3" />
+                                                       </Button>
+                                                       <Button onClick={handleCancelForderungEdit} size="sm" variant="outline" className="h-8 px-2">
+                                                         <X className="h-3 w-3" />
+                                                       </Button>
+                                                     </div>
+                                                   ) : (
+                                                     <div className="flex justify-end items-center space-x-2 mb-1">
+                                                       <p className="text-xl font-bold text-red-700">
+                                                         {formatBetrag(Number(forderung.sollbetrag))}
+                                                       </p>
+                                                       <Button
+                                                         onClick={() => handleEditForderungField(forderung.id, 'betrag', forderung.sollbetrag.toString())}
+                                                         variant="ghost"
+                                                         size="sm"
+                                                         className="h-6 w-6 p-0 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                         title="Betrag bearbeiten"
+                                                       >
+                                                         <Edit2 className="h-3 w-3" />
+                                                       </Button>
+                                                     </div>
+                                                   )}
+                                                   
+                                                   {/* Monat mit Edit-Funktionalität */}
+                                                   {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'monat' ? (
+                                                     <div className="flex justify-end items-center space-x-2">
+                                                       <input 
+                                                         type="month"
+                                                         value={editForderungValue}
+                                                         onChange={(e) => setEditForderungValue(e.target.value)}
+                                                         className="h-8 text-xs w-32 px-2 border rounded text-right"
+                                                       />
+                                                       <Button onClick={handleSaveForderungField} size="sm" className="h-8 px-2">
+                                                         <Check className="h-3 w-3" />
+                                                       </Button>
+                                                       <Button onClick={handleCancelForderungEdit} size="sm" variant="outline" className="h-8 px-2">
+                                                         <X className="h-3 w-3" />
+                                                       </Button>
+                                                     </div>
+                                                   ) : (
+                                                     <div className="flex justify-end items-center space-x-2">
+                                                       <p className="text-xs text-red-500 font-medium">
+                                                         Monat: {forderung.sollmonat}
+                                                       </p>
+                                                       <Button
+                                                         onClick={() => handleEditForderungField(forderung.id, 'monat', forderung.sollmonat)}
+                                                         variant="ghost"
+                                                         size="sm"
+                                                         className="h-6 w-6 p-0 hover:bg-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                         title="Monat bearbeiten"
+                                                       >
+                                                         <Calendar className="h-3 w-3" />
+                                                       </Button>
+                                                     </div>
+                                                   )}
+                                                 </div>
+                                               </div>
+                                             </div>
+                                           </div>
+                                         ) : (
+                                           <div className="text-gray-400 text-sm italic font-medium text-right">
+                                             Keine Forderung
+                                           </div>
+                                         )}
+                                       </div>
                                      
                                       {/* Right side - Zahlungen (Full width) */}
                                       <div className="pl-10">
