@@ -1452,7 +1452,16 @@ export const MietvertragDetailsModal = ({
                                        <div className="pr-10">
                                          {forderung ? (
                                            <div className="w-full animate-scale-in">
-                                             <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover-scale group">
+                                             <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 hover-scale group relative">
+                                               <Button
+                                                 onClick={() => handleDeleteForderung(forderung.id)}
+                                                 variant="ghost"
+                                                 size="sm"
+                                                 className="absolute top-2 left-2 h-6 w-6 p-0 hover:bg-red-300 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                                 title="Forderung löschen"
+                                               >
+                                                 <Trash2 className="h-3 w-3 text-red-600" />
+                                               </Button>
                                                <div className="flex justify-between items-start">
                                                  <div className="flex-1 text-right">
                                                    <div className="flex items-center justify-end mb-2">
@@ -1495,15 +1504,6 @@ export const MietvertragDetailsModal = ({
                                                         >
                                                           <Edit2 className="h-3 w-3" />
                                                         </Button>
-                                                        <Button
-                                                          onClick={() => handleDeleteForderung(forderung.id)}
-                                                          variant="ghost"
-                                                          size="sm"
-                                                          className="h-6 w-6 p-0 hover:bg-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                          title="Forderung löschen"
-                                                        >
-                                                          <Trash2 className="h-3 w-3 text-red-600" />
-                                                        </Button>
                                                       </div>
                                                    )}
                                                    
@@ -1536,15 +1536,6 @@ export const MietvertragDetailsModal = ({
                                                           title="Monat bearbeiten"
                                                         >
                                                           <Calendar className="h-3 w-3" />
-                                                        </Button>
-                                                        <Button
-                                                          onClick={() => handleDeleteForderung(forderung.id)}
-                                                          variant="ghost"
-                                                          size="sm"
-                                                          className="h-6 w-6 p-0 hover:bg-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                          title="Forderung löschen"
-                                                        >
-                                                          <Trash2 className="h-3 w-3 text-red-600" />
                                                         </Button>
                                                       </div>
                                                    )}
