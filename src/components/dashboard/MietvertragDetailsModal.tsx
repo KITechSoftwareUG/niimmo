@@ -202,11 +202,13 @@ export const MietvertragDetailsModal = ({
       const searchLower = mietvertragSearchTerm.toLowerCase();
       const objektName = mv.einheit?.immobilie?.name?.toLowerCase() || '';
       const einheitNr = mv.einheit?.zaehler?.toString() || '';
+      const einheitIdNr = mv.einheit?.id?.slice(-2) || '';
       const mieterName = mv.mietvertrag_mieter?.[0]?.mieter ? 
         `${mv.mietvertrag_mieter[0].mieter.vorname} ${mv.mietvertrag_mieter[0].mieter.nachname}`.toLowerCase() : '';
       
       return objektName.includes(searchLower) || 
              einheitNr.includes(searchLower) || 
+             einheitIdNr.includes(searchLower) ||
              mieterName.includes(searchLower);
     });
   };
@@ -1737,12 +1739,12 @@ export const MietvertragDetailsModal = ({
                                                                   const mieter = mv.mietvertrag_mieter?.[0]?.mieter;
                                                                   const mieterName = mieter ? `${mieter.vorname} ${mieter.nachname}` : 'Kein Mieter';
                                                                   return (
-                                                                    <SelectItem key={mv.id} value={mv.id}>
-                                                                       <div className="text-xs py-1">
-                                                                         <div className="font-medium">{mv.einheit?.immobilie?.name} - Einheit {mv.einheit?.zaehler}</div>
-                                                                         <div className="text-gray-500">{mieterName}</div>
-                                                                       </div>
-                                                                    </SelectItem>
+                                                                     <SelectItem key={mv.id} value={mv.id}>
+                                                                        <div className="text-xs py-1">
+                                                                          <div className="font-medium">{mv.einheit?.immobilie?.name} - Einheit {mv.einheit?.zaehler} (Nr. {mv.einheit?.id?.slice(-2)})</div>
+                                                                          <div className="text-gray-500">{mieterName}</div>
+                                                                        </div>
+                                                                     </SelectItem>
                                                                   );
                                                                 })}
                                                               </SelectContent>
@@ -1888,12 +1890,12 @@ export const MietvertragDetailsModal = ({
                                             const mieter = mv.mietvertrag_mieter?.[0]?.mieter;
                                             const mieterName = mieter ? `${mieter.vorname} ${mieter.nachname}` : 'Kein Mieter';
                                             return (
-                                              <SelectItem key={mv.id} value={mv.id}>
-                                                 <div className="text-sm py-1">
-                                                   <div className="font-medium">{mv.einheit?.immobilie?.name} - Einheit {mv.einheit?.zaehler}</div>
-                                                   <div className="text-gray-500">{mieterName}</div>
-                                                 </div>
-                                              </SelectItem>
+                                               <SelectItem key={mv.id} value={mv.id}>
+                                                  <div className="text-sm py-1">
+                                                    <div className="font-medium">{mv.einheit?.immobilie?.name} - Einheit {mv.einheit?.zaehler} (Nr. {mv.einheit?.id?.slice(-2)})</div>
+                                                    <div className="text-gray-500">{mieterName}</div>
+                                                  </div>
+                                               </SelectItem>
                                             );
                                           })}
                                         </SelectContent>
