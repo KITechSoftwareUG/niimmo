@@ -239,12 +239,14 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
             case 'kaution':
             case 'startDatum':
             case 'letzteMieterhoehung':
+            case 'endeDatum':
               await saveMietvertragMutation.mutateAsync({
                 id: vertragId,
                 updates: {
                   [field === 'startDatum' ? 'start_datum' : 
                    field === 'kaution' ? 'kaution_betrag' :
-                   field === 'letzteMieterhoehung' ? 'letzte_mieterhoehung_am' : field]: value
+                   field === 'letzteMieterhoehung' ? 'letzte_mieterhoehung_am' :
+                   field === 'endeDatum' ? 'ende_datum' : field]: value
                 }
               });
               break;
@@ -890,15 +892,31 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                             )}
                           </TableCell>
                           
-                          {/* Laufzeit */}
-                          <TableCell className="text-center text-xs border-r">
-                            {vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum 
-                              ? new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')
-                              : vertrag.ende_datum 
-                                ? new Date(vertrag.ende_datum).toLocaleDateString('de-DE')
-                                : 'unbefristet'
-                            }
-                          </TableCell>
+          {/* Laufzeit */}
+          <TableCell className="text-center text-xs border-r p-1">
+            {isFieldEditing(vertrag.id, 'endeDatum') ? (
+              <Input
+                type="date"
+                value={getEditingValue(vertrag.id, 'endeDatum') || ''}
+                onChange={(e) => updateEditingValue(vertrag.id, 'endeDatum', e.target.value)}
+                className="h-6 text-xs text-center"
+                onBlur={() => cancelEdit(vertrag.id, 'endeDatum')}
+                autoFocus
+              />
+            ) : (
+              <div 
+                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                onClick={() => isEditing && startEditing(vertrag.id, 'endeDatum', vertrag.ende_datum)}
+              >
+                {vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum 
+                  ? new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')
+                  : vertrag.ende_datum 
+                    ? new Date(vertrag.ende_datum).toLocaleDateString('de-DE')
+                    : 'unbefristet'
+                }
+              </div>
+            )}
+          </TableCell>
                           
                           {/* Kaution */}
                           <TableCell className="text-center text-xs border-r p-1">
