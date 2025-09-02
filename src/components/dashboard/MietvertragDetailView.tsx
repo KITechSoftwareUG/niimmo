@@ -247,7 +247,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
               </div>
             </div>
             
-            <div className="max-h-64 overflow-y-auto space-y-2">
+            <div className="space-y-2">
               {zahlungshistorie.map((zahlung) => {
                 const sollbetrag = (vertrag?.kaltmiete || 0) + (vertrag?.betriebskosten || 0);
                 
@@ -325,7 +325,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
                 <Euro className="h-4 w-4" />
                 <span>Zugeordnete Überweisungen</span>
               </h5>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-2">
                 {zugeordneteZahlungen.map((zahlung) => (
                   <div key={zahlung.id} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
                     <div>
