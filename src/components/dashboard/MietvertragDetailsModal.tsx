@@ -67,6 +67,7 @@ export const MietvertragDetailsModal = ({
   const [editingPayment, setEditingPayment] = useState<{zahlungId: string, field: 'kategorie' | 'monat' | 'mietvertrag'} | null>(null);
   const [showDetailsExpanded, setShowDetailsExpanded] = useState(false);
   const [editPaymentValue, setEditPaymentValue] = useState<string>("");
+  const [mietvertragSearchTerm, setMietvertragSearchTerm] = useState<string>("");
   const [editingForderung, setEditingForderung] = useState<{forderungId: string, field: 'betrag' | 'monat'} | null>(null);
   const [editForderungValue, setEditForderungValue] = useState<string>("");
   const [showMahnungModal, setShowMahnungModal] = useState(false);
@@ -188,6 +189,26 @@ export const MietvertragDetailsModal = ({
   const handleCancelPaymentEdit = () => {
     setEditingPayment(null);
     setEditPaymentValue('');
+    setMietvertragSearchTerm('');
+  };
+
+  // Filtere und sortiere Mietverträge für die Auswahl
+  const getFilteredMietvertraege = () => {
+    if (!alleMietvertraege) return [];
+    
+    return alleMietvertraege.filter(mv => {
+      if (!mietvertragSearchTerm) return true;
+      
+      const searchLower = mietvertragSearchTerm.toLowerCase();
+      const objektName = mv.einheit?.immobilie?.name?.toLowerCase() || '';
+      const einheitNr = mv.einheit?.zaehler?.toString() || '';
+      const mieterName = mv.mietvertrag_mieter?.[0]?.mieter ? 
+        `${mv.mietvertrag_mieter[0].mieter.vorname} ${mv.mietvertrag_mieter[0].mieter.nachname}`.toLowerCase() : '';
+      
+      return objektName.includes(searchLower) || 
+             einheitNr.includes(searchLower) || 
+             mieterName.includes(searchLower);
+    });
   };
 
   const handleEditForderungField = (forderungId: string, field: 'betrag' | 'monat', currentValue: string) => {
@@ -375,13 +396,34 @@ export const MietvertragDetailsModal = ({
               name,
               adresse
             )
+          ),
+          mietvertrag_mieter!inner (
+            mieter:mieter_id (
+              id,
+              vorname,
+              nachname
+            )
           )
         `)
         .eq('status', 'aktiv')
         .order('id');
       
       if (error) throw error;
-      return data || [];
+      
+      // Sortiere nach Immobilienname und dann nach Einheitennummer
+      const sorted = (data || []).sort((a, b) => {
+        const aObjekt = a.einheit?.immobilie?.name || '';
+        const bObjekt = b.einheit?.immobilie?.name || '';
+        const aEinheit = Number(a.einheit?.zaehler) || 0;
+        const bEinheit = Number(b.einheit?.zaehler) || 0;
+        
+        if (aObjekt !== bObjekt) {
+          return aObjekt.localeCompare(bObjekt, 'de', { numeric: true });
+        }
+        return aEinheit - bEinheit;
+      });
+      
+      return sorted;
     },
     enabled: isOpen
   });
@@ -1674,25 +1716,37 @@ export const MietvertragDetailsModal = ({
                                                              </Button>
                                                            </div>
                                                          </div>
-                                                       ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'mietvertrag' ? (
-                                                         <div className="flex flex-col space-y-1">
-                                                           <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                                             <SelectTrigger className="h-6 text-xs w-32">
-                                                               <SelectValue placeholder="Mietvertrag" />
-                                                             </SelectTrigger>
-                                                             <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
-                                                               {alleMietvertraege?.map((mv) => (
-                                                                 <SelectItem key={mv.id} value={mv.id}>
-                                                                    <div className="text-xs">
-                                                                      <div className="font-medium">{mv.einheit?.immobilie?.name}</div>
-                                                                      <div className="text-gray-500">
-                                                                        Einheit {mv.einheit?.id?.slice(-2) || mv.id.slice(-2)}
-                                                                      </div>
-                                                                    </div>
-                                                                 </SelectItem>
-                                                               ))}
-                                                             </SelectContent>
-                                                           </Select>
+                                                        ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'mietvertrag' ? (
+                                                          <div className="flex flex-col space-y-1">
+                                                            <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                                              <SelectTrigger className="h-6 text-xs w-40">
+                                                                <SelectValue placeholder="Mietvertrag" />
+                                                              </SelectTrigger>
+                                                              <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
+                                                                <div className="px-2 py-1 border-b">
+                                                                  <input
+                                                                    type="text"
+                                                                    placeholder="Suchen..."
+                                                                    value={mietvertragSearchTerm}
+                                                                    onChange={(e) => setMietvertragSearchTerm(e.target.value)}
+                                                                    className="w-full h-6 px-2 text-xs border rounded focus:outline-none"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                  />
+                                                                </div>
+                                                                {getFilteredMietvertraege()?.map((mv) => {
+                                                                  const mieter = mv.mietvertrag_mieter?.[0]?.mieter;
+                                                                  const mieterName = mieter ? `${mieter.vorname} ${mieter.nachname}` : 'Kein Mieter';
+                                                                  return (
+                                                                    <SelectItem key={mv.id} value={mv.id}>
+                                                                       <div className="text-xs py-1">
+                                                                         <div className="font-medium">{mv.einheit?.immobilie?.name} - Einheit {mv.einheit?.zaehler}</div>
+                                                                         <div className="text-gray-500">{mieterName}</div>
+                                                                       </div>
+                                                                    </SelectItem>
+                                                                  );
+                                                                })}
+                                                              </SelectContent>
+                                                            </Select>
                                                            <div className="flex space-x-1">
                                                              <Button onClick={handleSavePaymentField} size="sm" className="h-5 px-1.5">
                                                                <Check className="h-2.5 w-2.5" />
@@ -1813,25 +1867,37 @@ export const MietvertragDetailsModal = ({
                                        <X className="h-4 w-4" />
                                      </Button>
                                    </div>
-                                 ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'mietvertrag' ? (
-                                   <div className="flex items-center space-x-2">
-                                     <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                       <SelectTrigger className="h-8 text-sm w-48">
-                                         <SelectValue placeholder="Mietvertrag auswählen" />
-                                       </SelectTrigger>
-                                       <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
-                                         {alleMietvertraege?.map((mv) => (
-                                           <SelectItem key={mv.id} value={mv.id}>
-                                              <div className="text-sm">
-                                                <div className="font-medium">{mv.einheit?.immobilie?.name}</div>
-                                                <div className="text-gray-500">
-                                                  Einheit {mv.einheit?.id?.slice(-2) || mv.id.slice(-2)}
-                                                </div>
-                                              </div>
-                                           </SelectItem>
-                                         ))}
-                                       </SelectContent>
-                                     </Select>
+                                  ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'mietvertrag' ? (
+                                    <div className="flex items-center space-x-2">
+                                      <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                        <SelectTrigger className="h-8 text-sm w-64">
+                                          <SelectValue placeholder="Mietvertrag auswählen" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-background border shadow-md z-50 max-h-60 overflow-y-auto">
+                                          <div className="px-3 py-2 border-b">
+                                            <input
+                                              type="text"
+                                              placeholder="Objekt, Einheit oder Mieter suchen..."
+                                              value={mietvertragSearchTerm}
+                                              onChange={(e) => setMietvertragSearchTerm(e.target.value)}
+                                              className="w-full h-8 px-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                              onClick={(e) => e.stopPropagation()}
+                                            />
+                                          </div>
+                                          {getFilteredMietvertraege()?.map((mv) => {
+                                            const mieter = mv.mietvertrag_mieter?.[0]?.mieter;
+                                            const mieterName = mieter ? `${mieter.vorname} ${mieter.nachname}` : 'Kein Mieter';
+                                            return (
+                                              <SelectItem key={mv.id} value={mv.id}>
+                                                 <div className="text-sm py-1">
+                                                   <div className="font-medium">{mv.einheit?.immobilie?.name} - Einheit {mv.einheit?.zaehler}</div>
+                                                   <div className="text-gray-500">{mieterName}</div>
+                                                 </div>
+                                              </SelectItem>
+                                            );
+                                          })}
+                                        </SelectContent>
+                                      </Select>
                                      <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
                                        <Check className="h-4 w-4" />
                                      </Button>
