@@ -532,9 +532,10 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
           </div>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[calc(90vh-120px)] w-full">
-          <div className="min-w-max">
-            <Table>
+        <div className="max-h-[calc(90vh-120px)] overflow-hidden">
+          <ScrollArea className="h-full w-full">
+            <div className="min-w-[1400px] pb-4">
+              <Table>
             <TableHeader>
               <TableRow className="bg-gray-100">
                 <TableHead 
@@ -1042,15 +1043,16 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                 );
               })}
             </TableBody>
-          </Table>
-          
-          {organizedData?.length === 0 && (
-            <div className="text-center py-10">
-              <p className="text-gray-500">Keine Mietverträge gefunden</p>
+            </Table>
+            
+            {organizedData?.length === 0 && (
+              <div className="text-center py-10">
+                <p className="text-gray-500">Keine Mietverträge gefunden</p>
+              </div>
+            )}
             </div>
-          )}
-          </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
