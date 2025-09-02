@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Building2, User, ArrowUpDown, ArrowUp, ArrowDown, Save, X, Edit } from "lucide-react";
@@ -529,8 +530,9 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
           </div>
         </DialogHeader>
         
-        <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
-          <Table>
+        <ScrollArea className="max-h-[calc(90vh-120px)] w-full">
+          <div className="min-w-max">
+            <Table>
             <TableHeader>
               <TableRow className="bg-gray-100">
                 <TableHead 
@@ -1029,7 +1031,8 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
               <p className="text-gray-500">Keine Mietverträge gefunden</p>
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
