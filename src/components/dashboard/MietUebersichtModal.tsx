@@ -538,144 +538,52 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
               <Table>
             <TableHeader>
               <TableRow className="bg-gray-100">
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('lfdNr')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    lfd. Nr
-                    <SortIcon field="lfdNr" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  lfd. Nr
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('einheit')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Einh.
-                    <SortIcon field="einheit" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Einh.
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('mieter')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Mieter
-                    <SortIcon field="mieter" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Mieter
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('lage')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Lage
-                    <SortIcon field="lage" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Lage
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('nutzung')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Nutzung
-                    <SortIcon field="nutzung" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Nutzung
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('flaeche')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Fläche
-                    <SortIcon field="flaeche" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Fläche
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('preisProQm')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    €/m²
-                    <SortIcon field="preisProQm" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  €/m²
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('kaltmiete')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    KM
-                    <SortIcon field="kaltmiete" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  KM
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('betriebskosten')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    BKV
-                    <SortIcon field="betriebskosten" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  BKV
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('gesamtmiete')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Gesamtmiete
-                    <SortIcon field="gesamtmiete" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Gesamtmiete
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('mietbeginn')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Mietbeginn
-                    <SortIcon field="mietbeginn" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Mietbeginn
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('letzteMieterhoehung')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    letzte Mieterh.
-                    <SortIcon field="letzteMieterhoehung" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  letzte Mieterh.
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('laufzeit')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Laufzeit
-                    <SortIcon field="laufzeit" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Laufzeit
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('kaution')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    Kaution
-                    <SortIcon field="kaution" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  Kaution
                 </TableHead>
-                <TableHead 
-                  className="cursor-pointer hover:bg-gray-150 select-none border-r text-center font-bold text-xs"
-                  onClick={() => handleSort('naechsteMietErhoehung')}
-                >
-                  <div className="flex items-center justify-center gap-1">
-                    nächste mögl. Erhöh.
-                    <SortIcon field="naechsteMietErhoehung" />
-                  </div>
+                <TableHead className="border-r text-center font-bold text-xs">
+                  nächste mögl. Erhöh.
                 </TableHead>
-                <TableHead 
-                  className="text-center font-bold text-xs"
-                >
+                <TableHead className="text-center font-bold text-xs">
                   Aktion
                 </TableHead>
               </TableRow>
@@ -708,7 +616,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           
                           {/* Einh. */}
                           <TableCell className="text-center text-xs border-r">
-                            {vertrag.einheiten?.id || '-'}
+                            {vertrag.einheiten?.id?.slice(-2) || '-'}
                           </TableCell>
                           
                           {/* Mieter */}
