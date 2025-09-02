@@ -533,7 +533,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
         </DialogHeader>
         
         <div className="max-h-[calc(90vh-120px)] overflow-hidden">
-          <ScrollArea className="h-full w-full">
+          <div className="overflow-x-auto overflow-y-auto max-h-[calc(90vh-120px)]">
             <div className="min-w-[1400px] pb-4">
               <Table>
             <TableHeader>
@@ -1051,7 +1051,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
               </div>
             )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
