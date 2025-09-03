@@ -498,6 +498,19 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     });
   }, [mietvertraegeData]);
 
+  // Prüfe ob Kaution-Spalten angezeigt werden sollen
+  const shouldShowKaution = useMemo(() => {
+    if (!organizedData || organizedData.length === 0) return false;
+    
+    return organizedData.some(propertyGroup => 
+      propertyGroup.vertraege.some(vertrag => {
+        const sollKaution = getKautionSoll(vertrag);
+        const istKaution = getKautionIst(vertrag);
+        return sollKaution > 0 || istKaution > 0;
+      })
+    );
+  }, [organizedData, zahlungenData]);
+
   if (isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>

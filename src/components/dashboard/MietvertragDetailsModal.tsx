@@ -1318,21 +1318,33 @@ export const MietvertragDetailsModal = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                    <div>
-                      <p className="text-sm text-gray-600">Kaution SOLL (Vertrag)</p>
-                      <p className="font-semibold text-lg text-blue-600">
-                        {formatBetrag(vertrag?.kaution_betrag || 0)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Kaution IST (Zahlungen)</p>
-                      <p className="font-semibold text-lg text-green-600">{formatBetrag((() => {
-                        const kautionZahlungen = zahlungen?.filter(zahlung => zahlung.kategorie === 'Mietkaution') || [];
-                        return kautionZahlungen.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0);
-                      })())}</p>
-                    </div>
-                  </div>
+                  {/* Kaution section - only show if either SOLL or IST > 0 */}
+                  {(() => {
+                    const kautionSoll = vertrag?.kaution_betrag || 0;
+                    const kautionIst = (() => {
+                      const kautionZahlungen = zahlungen?.filter(zahlung => zahlung.kategorie === 'Mietkaution') || [];
+                      return kautionZahlungen.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0);
+                    })();
+                    
+                    if (kautionSoll === 0 && kautionIst === 0) return null;
+                    
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Kaution SOLL (Vertrag)</p>
+                          <p className="font-semibold text-lg text-blue-600">
+                            {formatBetrag(kautionSoll)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Kaution IST (Zahlungen)</p>
+                          <p className="font-semibold text-lg text-green-600">
+                            {formatBetrag(kautionIst)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
