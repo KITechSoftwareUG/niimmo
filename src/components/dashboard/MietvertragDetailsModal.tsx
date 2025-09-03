@@ -1310,7 +1310,7 @@ export const MietvertragDetailsModal = ({
                           {formatBetrag(rueckstand)}
                           {nichtFaelligeForderungen && nichtFaelligeForderungen.length > 0 && (
                             <span className="text-orange-600 text-sm ml-1 font-normal">
-                              ({nichtFaelligeForderungen.length} offen)
+                              ({formatBetrag(nichtFaelligeForderungenBetrag)} offen)
                             </span>
                           )}
                         </p>
