@@ -1875,46 +1875,52 @@ export const MietvertragDetailsModal = ({
                                                             </Button>
                                                           </div>
                                                         </div>
-                                                        ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
-                                                          <div className="flex flex-col space-y-1">
-                                                            <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                                              <SelectTrigger className="h-6 text-xs w-28 px-1">
-                                                                <SelectValue placeholder="Monat wählen" />
-                                                              </SelectTrigger>
-                                                              <SelectContent>
-                                                                {/* Nur Monate seit 2025-01 bis heute */}
-                                                                {(() => {
-                                                                  const months = [];
-                                                                  const start = new Date(2025, 0, 1); // Januar 2025
-                                                                  const now = new Date();
-                                                                  const current = new Date(start);
-                                                                  
-                                                                  while (current <= now) {
-                                                                    const monthValue = current.toISOString().slice(0, 7);
-                                                                    const monthLabel = current.toLocaleDateString('de-DE', { 
-                                                                      month: 'long', 
-                                                                      year: 'numeric' 
-                                                                    });
-                                                                    months.push(
-                                                                      <SelectItem key={monthValue} value={monthValue}>
-                                                                        {monthLabel}
-                                                                      </SelectItem>
-                                                                    );
-                                                                    current.setMonth(current.getMonth() + 1);
-                                                                  }
-                                                                  return months;
-                                                                })()}
-                                                              </SelectContent>
-                                                            </Select>
-                                                            <div className="flex space-x-1">
-                                                              <Button onClick={handleSavePaymentField} size="sm" className="h-5 px-1.5">
-                                                                <Check className="h-2.5 w-2.5" />
-                                                              </Button>
-                                                              <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-5 px-1.5">
-                                                                <X className="h-2.5 w-2.5" />
-                                                              </Button>
-                                                            </div>
-                                                          </div>
+                                                         ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
+                                                           <div className="flex flex-col space-y-1">
+                                                             <Select 
+                                                               value={editPaymentValue} 
+                                                               onValueChange={(value) => {
+                                                                 setEditPaymentValue(value);
+                                                                 // Auto-save when month is selected
+                                                                 setTimeout(() => {
+                                                                   handleSavePaymentField();
+                                                                 }, 100);
+                                                               }}
+                                                             >
+                                                               <SelectTrigger className="h-6 text-xs w-28 px-1">
+                                                                 <SelectValue placeholder="Monat wählen" />
+                                                               </SelectTrigger>
+                                                               <SelectContent>
+                                                                 {/* Nur Monate seit 2025-01 bis heute */}
+                                                                 {(() => {
+                                                                   const months = [];
+                                                                   const start = new Date(2025, 0, 1); // Januar 2025
+                                                                   const now = new Date();
+                                                                   const current = new Date(start);
+                                                                   
+                                                                   while (current <= now) {
+                                                                     const monthValue = current.toISOString().slice(0, 7);
+                                                                     const monthLabel = current.toLocaleDateString('de-DE', { 
+                                                                       month: 'long', 
+                                                                       year: 'numeric' 
+                                                                     });
+                                                                     months.push(
+                                                                       <SelectItem key={monthValue} value={monthValue}>
+                                                                         {monthLabel}
+                                                                       </SelectItem>
+                                                                     );
+                                                                     current.setMonth(current.getMonth() + 1);
+                                                                   }
+                                                                   return months;
+                                                                 })()}
+                                                               </SelectContent>
+                                                             </Select>
+                                                             <div className="flex space-x-1">
+                                                               <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-5 px-1.5">
+                                                                 <X className="h-2.5 w-2.5" />
+                                                               </Button>
+                                                             </div>
+                                                           </div>
                                                         ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'mietvertrag' ? (
                                                           <div className="flex flex-col space-y-1">
                                                             <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
@@ -2051,44 +2057,50 @@ export const MietvertragDetailsModal = ({
                                        <X className="h-4 w-4" />
                                      </Button>
                                    </div>
-                                  ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
-                                    <div className="flex items-center space-x-2">
-                                      <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
-                                        <SelectTrigger className="h-8 text-sm w-40 px-2">
-                                          <SelectValue placeholder="Monat wählen" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {/* Nur Monate seit 2025-01 bis heute */}
-                                          {(() => {
-                                            const months = [];
-                                            const start = new Date(2025, 0, 1); // Januar 2025
-                                            const now = new Date();
-                                            const current = new Date(start);
-                                            
-                                            while (current <= now) {
-                                              const monthValue = current.toISOString().slice(0, 7);
-                                              const monthLabel = current.toLocaleDateString('de-DE', { 
-                                                month: 'long', 
-                                                year: 'numeric' 
-                                              });
-                                              months.push(
-                                                <SelectItem key={monthValue} value={monthValue}>
-                                                  {monthLabel}
-                                                </SelectItem>
-                                              );
-                                              current.setMonth(current.getMonth() + 1);
-                                            }
-                                            return months;
-                                          })()}
-                                        </SelectContent>
-                                      </Select>
-                                      <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </div>
+                                   ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
+                                     <div className="flex items-center space-x-2">
+                                       <Select 
+                                         value={editPaymentValue} 
+                                         onValueChange={(value) => {
+                                           setEditPaymentValue(value);
+                                           // Auto-save when month is selected
+                                           setTimeout(() => {
+                                             handleSavePaymentField();
+                                           }, 100);
+                                         }}
+                                       >
+                                         <SelectTrigger className="h-8 text-sm w-40 px-2">
+                                           <SelectValue placeholder="Monat wählen" />
+                                         </SelectTrigger>
+                                         <SelectContent>
+                                           {/* Nur Monate seit 2025-01 bis heute */}
+                                           {(() => {
+                                             const months = [];
+                                             const start = new Date(2025, 0, 1); // Januar 2025
+                                             const now = new Date();
+                                             const current = new Date(start);
+                                             
+                                             while (current <= now) {
+                                               const monthValue = current.toISOString().slice(0, 7);
+                                               const monthLabel = current.toLocaleDateString('de-DE', { 
+                                                 month: 'long', 
+                                                 year: 'numeric' 
+                                               });
+                                               months.push(
+                                                 <SelectItem key={monthValue} value={monthValue}>
+                                                   {monthLabel}
+                                                 </SelectItem>
+                                               );
+                                               current.setMonth(current.getMonth() + 1);
+                                             }
+                                             return months;
+                                           })()}
+                                         </SelectContent>
+                                       </Select>
+                                       <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
+                                         <X className="h-4 w-4" />
+                                       </Button>
+                                     </div>
                                   ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'mietvertrag' ? (
                                     <div className="flex items-center space-x-2">
                                       <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
