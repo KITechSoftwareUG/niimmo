@@ -151,6 +151,13 @@ export const MietvertragDetailsModal = ({
   const handleSavePaymentField = async () => {
     if (!editingPayment) return;
     
+    console.log('🔧 Speichere Zahlung:', {
+      zahlungId: editingPayment.zahlungId,
+      field: editingPayment.field,
+      newValue: editPaymentValue,
+      originalValue: zahlungen?.find(z => z.id === editingPayment.zahlungId)?.[editingPayment.field === 'monat' ? 'zugeordneter_monat' : editingPayment.field]
+    });
+    
     try {
       let updateData: any = {};
       
@@ -162,12 +169,20 @@ export const MietvertragDetailsModal = ({
         updateData.mietvertrag_id = editPaymentValue;
       }
 
-      const { error } = await supabase
+      console.log('🔧 Update-Daten:', updateData);
+
+      const { error, data } = await supabase
         .from('zahlungen')
         .update(updateData)
-        .eq('id', editingPayment.zahlungId);
+        .eq('id', editingPayment.zahlungId)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('🚨 Supabase Fehler:', error);
+        throw error;
+      }
+
+      console.log('✅ Update erfolgreich:', data);
 
       toast({
         title: "Aktualisiert",
@@ -180,9 +195,10 @@ export const MietvertragDetailsModal = ({
       setEditPaymentValue('');
       
       // Refresh nur die relevanten Queries statt komplette Seite
+      console.log('🔄 Invalidiere Queries für vertragId:', vertragId);
       queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] });
     } catch (error) {
-      console.error('Fehler beim Aktualisieren:', error);
+      console.error('🚨 Fehler beim Aktualisieren:', error);
       toast({
         title: "Fehler",
         description: `${editingPayment.field === 'kategorie' ? 'Kategorie' : 
