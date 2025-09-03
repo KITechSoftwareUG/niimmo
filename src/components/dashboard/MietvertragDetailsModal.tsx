@@ -37,13 +37,11 @@ import {
   Square,
   Hash,
   ArrowRightLeft,
-  Split,
   Trash2
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { MahnungVorschauModal } from "./MahnungVorschauModal";
-import { PaymentSplitModal } from "./PaymentSplitModal";
 
 interface MietvertragDetailsModalProps {
   isOpen: boolean;
@@ -77,8 +75,6 @@ export const MietvertragDetailsModal = ({
   const [isLoadingSendMahnung, setIsLoadingSendMahnung] = useState(false);
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
   const [kautionValue, setKautionValue] = useState<string>("");
-  const [splitModalOpen, setSplitModalOpen] = useState(false);
-  const [selectedPaymentForSplit, setSelectedPaymentForSplit] = useState<any>(null);
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -2174,18 +2170,6 @@ export const MietvertragDetailsModal = ({
                                       >
                                         <ArrowRightLeft className="h-4 w-4" />
                                       </Button>
-                                      <Button
-                                        onClick={() => {
-                                          setSelectedPaymentForSplit(zahlung);
-                                          setSplitModalOpen(true);
-                                        }}
-                                        variant="ghost"
-                                        size="sm"
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Zahlung aufteilen"
-                                      >
-                                        <Split className="h-4 w-4" />
-                                      </Button>
                                    </div>
                                  )}
                               </div>
@@ -2271,23 +2255,6 @@ export const MietvertragDetailsModal = ({
         currentMahnstufe={vertrag?.mahnstufe || 0}
         immobilieData={immobilie}
         isLoading={isLoadingSendMahnung}
-      />
-      
-      {/* Payment Split Modal */}
-      <PaymentSplitModal
-        isOpen={splitModalOpen}
-        onClose={() => {
-          setSplitModalOpen(false);
-          setSelectedPaymentForSplit(null);
-        }}
-        payment={selectedPaymentForSplit}
-        onSplitComplete={() => {
-          // Refresh the data after successful split
-          queryClient.invalidateQueries({ queryKey: ['zahlungen-by-vertrag'] });
-          queryClient.invalidateQueries({ queryKey: ['mietvertrag-details', vertragId] });
-          setSplitModalOpen(false);
-          setSelectedPaymentForSplit(null);
-        }}
       />
     </Dialog>
   );
