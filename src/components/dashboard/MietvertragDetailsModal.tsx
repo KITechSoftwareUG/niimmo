@@ -436,7 +436,7 @@ export const MietvertragDetailsModal = ({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('mietforderungen')
-        .select('*')
+        .select('*, ist_faellig, faelligkeitsdatum, faellig_seit')
         .eq('mietvertrag_id', vertragId)
         .order('sollmonat', { ascending: true });
       

@@ -87,7 +87,7 @@ export const useRueckstaende = () => {
           { data: mietvertragForderungen, error: forderungenError },
           { data: mietvertragZahlungen, error: zahlungenError }
         ] = await Promise.all([
-          supabase.from('mietforderungen').select('*').eq('mietvertrag_id', mietvertrag.id),
+          supabase.from('mietforderungen').select('*, ist_faellig, faelligkeitsdatum, faellig_seit').eq('mietvertrag_id', mietvertrag.id),
           supabase.from('zahlungen').select('*').eq('mietvertrag_id', mietvertrag.id)
         ]);
         
