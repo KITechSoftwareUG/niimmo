@@ -431,7 +431,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
             <div className="border rounded-lg bg-white overflow-hidden">
               <Table>
                 {/* Fixed Header */}
-                <TableHeader className="sticky top-0 z-10 bg-white border-b-2 shadow-sm">
+                <TableHeader className="sticky top-0 z-20 bg-white border-b-2 shadow-sm">
                   <TableRow>
                     <TableHead className="text-center text-xs w-32 border-r bg-white">
                       Objekt
