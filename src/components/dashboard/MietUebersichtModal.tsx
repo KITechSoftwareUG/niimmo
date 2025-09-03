@@ -498,17 +498,10 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     });
   }, [mietvertraegeData]);
 
-  // Prüfe ob Kaution-Spalten angezeigt werden sollen
+  // Prüfe ob Kaution-Spalten angezeigt werden sollen - zeige immer an für bessere UX
   const shouldShowKaution = useMemo(() => {
-    if (!organizedData || organizedData.length === 0) return false;
-    
-    return organizedData.some(propertyGroup => 
-      propertyGroup.vertraege.some(vertrag => {
-        const sollKaution = getKautionSoll(vertrag);
-        const istKaution = getKautionIst(vertrag);
-        return sollKaution > 0 || istKaution > 0;
-      })
-    );
+    // Immer anzeigen damit Benutzer Kautionen hinzufügen können
+    return true;
   }, [organizedData, zahlungenData]);
 
   if (isLoading) {
@@ -866,9 +859,14 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                               />
                             ) : (
                               <div 
-                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                onClick={() => isEditing && startEditing(vertrag.id, 'kautionSoll', getKautionSoll(vertrag))}
-                                title="SOLL-Kaution aus Vertrag"
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded text-xs ${isEditing ? 'border border-dashed border-blue-300 bg-blue-50' : 'border border-transparent'}`}
+                                onClick={() => {
+                                  if (!isEditing) {
+                                    setIsEditing(true);
+                                  }
+                                  startEditing(vertrag.id, 'kautionSoll', getKautionSoll(vertrag));
+                                }}
+                                title="SOLL-Kaution aus Vertrag - Klicken zum Bearbeiten"
                               >
                                 {getKautionSoll(vertrag) ? `${getKautionSoll(vertrag).toLocaleString()} €` : '0 €'}
                               </div>
@@ -888,9 +886,14 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                               />
                             ) : (
                               <div 
-                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                onClick={() => isEditing && startEditing(vertrag.id, 'kautionIst', getKautionIst(vertrag))}
-                                title="IST-Kaution aus Zahlungen"
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded text-xs ${isEditing ? 'border border-dashed border-green-300 bg-green-50' : 'border border-transparent'}`}
+                                onClick={() => {
+                                  if (!isEditing) {
+                                    setIsEditing(true);
+                                  }
+                                  startEditing(vertrag.id, 'kautionIst', getKautionIst(vertrag));
+                                }}
+                                title="IST-Kaution aus Zahlungen - Klicken zum Bearbeiten"
                               >
                                 {getKautionIst(vertrag) ? `${getKautionIst(vertrag).toLocaleString()} €` : '0 €'}
                               </div>
