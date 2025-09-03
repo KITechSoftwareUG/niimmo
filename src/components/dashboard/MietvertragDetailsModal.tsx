@@ -190,9 +190,18 @@ export const MietvertragDetailsModal = ({
       setEditingPayment(null);
       setEditPaymentValue('');
       
-      // Refresh nur die relevanten Queries statt komplette Seite
+      // Invalidiere alle relevanten Queries für sofortige UI-Aktualisierung
       console.log('🔄 Invalidiere Queries für vertragId:', vertragId);
-      queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['zahlungen-by-vertrag', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['mietvertrag-details', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
+      ]);
+      
+      // Force refetch für sofortige Aktualisierung
+      queryClient.refetchQueries({ queryKey: ['zahlungen-detail', vertragId] });
+      
     } catch (error) {
       console.error('🚨 Fehler beim Aktualisieren:', error);
       toast({
@@ -1875,13 +1884,13 @@ export const MietvertragDetailsModal = ({
                                                            <div className="flex flex-col space-y-1">
                                                              <Select 
                                                                value={editPaymentValue} 
-                                                               onValueChange={(value) => {
-                                                                 setEditPaymentValue(value);
-                                                                 // Auto-save when month is selected
-                                                                 setTimeout(() => {
-                                                                   handleSavePaymentField();
-                                                                 }, 100);
-                                                               }}
+                                                                onValueChange={async (value) => {
+                                                                  setEditPaymentValue(value);
+                                                                  // Direkt speichern ohne Timeout
+                                                                  if (editingPayment) {
+                                                                    await handleSavePaymentField();
+                                                                  }
+                                                                }}
                                                              >
                                                                <SelectTrigger className="h-6 text-xs w-28 px-1">
                                                                  <SelectValue placeholder="Monat wählen" />
@@ -2055,15 +2064,18 @@ export const MietvertragDetailsModal = ({
                                    </div>
                                    ) : editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'monat' ? (
                                      <div className="flex items-center space-x-2">
-                                       <Select 
-                                         value={editPaymentValue} 
-                                         onValueChange={(value) => {
-                                           setEditPaymentValue(value);
-                                           // Auto-save when month is selected
-                                           setTimeout(() => {
-                                             handleSavePaymentField();
-                                           }, 100);
-                                         }}
+                                        <Select 
+                                          value={editPaymentValue} 
+                                          onValueChange={async (value) => {
+                                            setEditPaymentValue(value);
+                                            // Direkt speichern ohne Timeout
+                                            const tempEditingPayment = editingPayment;
+                                            const tempEditPaymentValue = value;
+                                            
+                                            if (tempEditingPayment) {
+                                              await handleSavePaymentField();
+                                            }
+                                          }}
                                        >
                                          <SelectTrigger className="h-8 text-sm w-40 px-2">
                                            <SelectValue placeholder="Monat wählen" />
