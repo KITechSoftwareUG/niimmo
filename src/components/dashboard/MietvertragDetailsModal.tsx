@@ -1320,15 +1320,13 @@ export const MietvertragDetailsModal = ({
                     </div>
                   </div>
 
-                  {/* Kaution section - only show if either SOLL or IST > 0 */}
+                  {/* Kaution section - always show */}
                   {(() => {
                     const kautionSoll = vertrag?.kaution_betrag || 0;
                     const kautionIst = (() => {
                       const kautionZahlungen = zahlungen?.filter(zahlung => zahlung.kategorie === 'Mietkaution') || [];
                       return kautionZahlungen.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0);
                     })();
-                    
-                    if (kautionSoll === 0 && kautionIst === 0) return null;
                     
                     return (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
@@ -1370,9 +1368,51 @@ export const MietvertragDetailsModal = ({
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Kaution IST (Zahlungen)</p>
-                          <p className="font-semibold text-lg text-green-600">
-                            {formatBetrag(kautionIst)}
-                          </p>
+                          <input 
+                            type="number" 
+                            value={kautionIst} 
+                            onChange={(e) => {
+                              // This is just for visual feedback, actual save happens on blur
+                            }}
+                            onBlur={async (e) => {
+                              if (!vertrag) return;
+                              const newValue = parseFloat(e.target.value) || 0;
+                              const currentSum = kautionIst;
+                              const difference = newValue - currentSum;
+                              
+                              if (difference !== 0) {
+                                try {
+                                  const { error } = await supabase
+                                    .from('zahlungen')
+                                    .insert({
+                                      mietvertrag_id: vertrag.id,
+                                      betrag: difference,
+                                      buchungsdatum: new Date().toISOString().slice(0, 10),
+                                      kategorie: 'Mietkaution',
+                                      verwendungszweck: `Kaution Anpassung: ${difference > 0 ? '+' : ''}${difference.toFixed(2)}€`
+                                    });
+                                  
+                                  if (error) throw error;
+                                  
+                                  toast({
+                                    title: "Gespeichert",
+                                    description: `Kaution IST wurde um ${difference.toFixed(2)}€ angepasst.`,
+                                  });
+                                  
+                                  // Reload to refresh data
+                                  window.location.reload();
+                                } catch (error) {
+                                  console.error('Fehler beim Speichern der Kaution IST:', error);
+                                  toast({
+                                    title: "Fehler",
+                                    description: "Kaution IST konnte nicht gespeichert werden.",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }
+                            }}
+                            className="font-semibold text-lg text-green-600 bg-transparent border-2 border-transparent hover:border-green-200 px-2 py-1 rounded w-full"
+                          />
                         </div>
                       </div>
                     );
