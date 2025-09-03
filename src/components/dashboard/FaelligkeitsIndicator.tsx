@@ -12,7 +12,10 @@ interface FaelligkeitsIndicatorProps {
 
 export const FaelligkeitsIndicator = ({ forderung }: FaelligkeitsIndicatorProps) => {
   const heute = new Date();
-  const faelligkeitsdatum = new Date(forderung.faelligkeitsdatum);
+  // Parse date safely to avoid timezone issues
+  const dateString = forderung.faelligkeitsdatum.split('T')[0]; // Extract just the date part
+  const [year, month, day] = dateString.split('-').map(Number);
+  const faelligkeitsdatum = new Date(year, month - 1, day); // month is 0-indexed
   const tagebisFaellig = Math.ceil((faelligkeitsdatum.getTime() - heute.getTime()) / (1000 * 60 * 60 * 24));
 
   if (forderung.ist_faellig) {
