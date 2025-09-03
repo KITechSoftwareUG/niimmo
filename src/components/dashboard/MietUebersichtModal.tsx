@@ -549,12 +549,12 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
           </div>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 max-h-[calc(90vh-100px)]">
-          <div className="space-y-6">
+        <div className="flex-1 max-h-[calc(90vh-100px)] overflow-y-auto">
+          <div className="space-y-6 p-4">
             {organizedData.map((propertyGroup, index) => (
-              <div key={propertyGroup.immobilie.id || index} className="border rounded-lg overflow-hidden">
-                {/* Property Header */}
-                <div className="bg-gray-50 p-3 border-b sticky top-0 z-20">
+              <div key={propertyGroup.immobilie.id || index} className="border rounded-lg bg-white">
+                {/* Property Header - Sticky */}
+                <div className="bg-gray-50 p-3 border-b sticky top-0 z-20 rounded-t-lg">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-sm">{propertyGroup.immobilie.name}</h3>
@@ -567,10 +567,10 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                 </div>
 
                 {/* Table with Sticky Headers */}
-                <div className="relative">
+                <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader className="sticky top-[60px] z-10 bg-white border-b shadow-sm">
-                      <TableRow>
+                    <TableHeader>
+                      <TableRow className="sticky top-[73px] z-10 bg-white shadow-sm border-b-2">
                       <TableHead className="text-center text-xs w-12 border-r">
                         Einheit
                       </TableHead>
@@ -1005,7 +1005,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
