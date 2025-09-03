@@ -73,6 +73,8 @@ export const MietvertragDetailsModal = ({
   const [editForderungValue, setEditForderungValue] = useState<string>("");
   const [showMahnungModal, setShowMahnungModal] = useState(false);
   const [isLoadingSendMahnung, setIsLoadingSendMahnung] = useState(false);
+  const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
+  const [kautionValue, setKautionValue] = useState<string>("");
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -261,6 +263,59 @@ export const MietvertragDetailsModal = ({
   const handleCancelForderungEdit = () => {
     setEditingForderung(null);
     setEditForderungValue('');
+  };
+
+  // Kaution editing functions
+  const handleEditKaution = (type: 'soll' | 'ist') => {
+    setEditingKaution(type);
+    const currentValue = type === 'soll' ? (vertrag?.kaution_betrag || 0) : (vertrag?.kaution_ist || 0);
+    setKautionValue(currentValue.toString());
+  };
+
+  const handleSaveKaution = async () => {
+    if (!editingKaution || !vertrag) return;
+    
+    const numValue = parseFloat(kautionValue) || 0;
+    const field = editingKaution === 'soll' ? 'kaution_betrag' : 'kaution_ist';
+    
+    try {
+      const { error } = await supabase
+        .from('mietvertrag')
+        .update({ [field]: numValue })
+        .eq('id', vertrag.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Gespeichert",
+        description: `Kaution ${editingKaution === 'soll' ? 'SOLL' : 'IST'} wurde erfolgreich aktualisiert.`,
+      });
+      
+      setEditingKaution(null);
+      setKautionValue("");
+      queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+      
+    } catch (error) {
+      console.error('Fehler beim Speichern:', error);
+      toast({
+        title: "Fehler",
+        description: "Kaution konnte nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelKautionEdit = () => {
+    setEditingKaution(null);
+    setKautionValue("");
+  };
+
+  const handleKautionKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveKaution();
+    } else if (e.key === 'Escape') {
+      handleCancelKautionEdit();
+    }
   };
 
   const handleDeleteForderung = async (forderungId: string) => {
@@ -1320,88 +1375,65 @@ export const MietvertragDetailsModal = ({
                     </div>
                   </div>
 
-                  {/* Kaution section - always show */}
-                  {(() => {
-                    const kautionSoll = vertrag?.kaution_betrag || 0;
-                    const kautionIst = vertrag?.kaution_ist || 0;
-                    
-                    return (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                        <div>
-                          <p className="text-sm text-gray-600">Kaution SOLL (Vertrag)</p>
-                          <input 
-                            type="number" 
-                            value={kautionSoll} 
-                            onChange={(e) => {
-                              const newValue = parseFloat(e.target.value) || 0;
-                              if (vertrag) {
-                                vertrag.kaution_betrag = newValue;
-                              }
-                            }}
-                            onBlur={async () => {
-                              if (!vertrag) return;
-                              try {
-                                const { error } = await supabase
-                                  .from('mietvertrag')
-                                  .update({ kaution_betrag: vertrag.kaution_betrag })
-                                  .eq('id', vertrag.id);
-                                
-                                if (error) throw error;
-                                
-                                toast({
-                                  title: "Gespeichert",
-                                  description: "Kaution SOLL wurde erfolgreich aktualisiert.",
-                                });
-                              } catch (error) {
-                                toast({
-                                  title: "Fehler", 
-                                  description: "Kaution konnte nicht gespeichert werden.",
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
-                            className="font-semibold text-lg text-blue-600 bg-transparent border-2 border-transparent hover:border-blue-200 px-2 py-1 rounded w-full"
+                  {/* Kaution section - simplified editing */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Kaution SOLL (Vertrag)</p>
+                      {editingKaution === 'soll' ? (
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            value={kautionValue}
+                            onChange={(e) => setKautionValue(e.target.value)}
+                            onKeyDown={handleKautionKeyPress}
+                            className="font-semibold text-lg text-blue-600"
+                            autoFocus
                           />
+                          <Button size="sm" onClick={handleSaveKaution}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={handleCancelKautionEdit}>
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Kaution IST (Zahlungen)</p>
-                          <input 
-                            type="number" 
-                            value={kautionIst} 
-                            onChange={(e) => {
-                              const newValue = parseFloat(e.target.value) || 0;
-                              if (vertrag) {
-                                vertrag.kaution_ist = newValue;
-                              }
-                            }}
-                            onBlur={async () => {
-                              if (!vertrag) return;
-                              try {
-                                const { error } = await supabase
-                                  .from('mietvertrag')
-                                  .update({ kaution_ist: vertrag.kaution_ist })
-                                  .eq('id', vertrag.id);
-                                
-                                if (error) throw error;
-                                
-                                toast({
-                                  title: "Gespeichert",
-                                  description: "Kaution IST wurde erfolgreich aktualisiert.",
-                                });
-                              } catch (error) {
-                                toast({
-                                  title: "Fehler",
-                                  description: "Kaution IST konnte nicht gespeichert werden.",
-                                  variant: "destructive",
-                                });
-                              }
-                            }}
-                            className="font-semibold text-lg text-green-600 bg-transparent border-2 border-transparent hover:border-green-200 px-2 py-1 rounded w-full"
+                      ) : (
+                        <div 
+                          className="font-semibold text-lg text-blue-600 cursor-pointer hover:bg-blue-50 px-2 py-1 rounded border-2 border-transparent hover:border-blue-200"
+                          onClick={() => handleEditKaution('soll')}
+                        >
+                          {formatBetrag(vertrag?.kaution_betrag || 0)}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Kaution IST (Zahlungen)</p>
+                      {editingKaution === 'ist' ? (
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            value={kautionValue}
+                            onChange={(e) => setKautionValue(e.target.value)}
+                            onKeyDown={handleKautionKeyPress}
+                            className="font-semibold text-lg text-green-600"
+                            autoFocus
                           />
+                          <Button size="sm" onClick={handleSaveKaution}>
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={handleCancelKautionEdit}>
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                      </div>
-                    );
-                  })()}
+                      ) : (
+                        <div 
+                          className="font-semibold text-lg text-green-600 cursor-pointer hover:bg-green-50 px-2 py-1 rounded border-2 border-transparent hover:border-green-200"
+                          onClick={() => handleEditKaution('ist')}
+                        >
+                          {formatBetrag(vertrag?.kaution_ist || 0)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
