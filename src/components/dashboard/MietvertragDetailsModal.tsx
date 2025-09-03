@@ -1413,7 +1413,7 @@ export const MietvertragDetailsModal = ({
                 <CardContent>
                    {viewMode === 'timeline' ? (
                      /* Enhanced Central Timeline View with Payment Shifts */
-                     <div className="relative max-h-[40rem] overflow-y-auto py-6">
+                     <div className="relative py-6">
                        {(() => {
                           // Use processed payments that include month-end shifts and prepayment logic
                           const timelineZahlungen = processedZahlungen;
