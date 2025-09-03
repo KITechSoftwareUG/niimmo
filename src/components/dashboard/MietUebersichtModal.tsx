@@ -70,7 +70,6 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     );
     
     if (existingIndex >= 0) {
-      // Already editing, do nothing
       return;
     }
     
@@ -106,347 +105,230 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
   };
 
   const getEditingValue = (vertragId: string, field: string) => {
-    const cell = editingCells.find(
-      cell => cell.vertragId === vertragId && cell.field === field
-    );
-    return cell?.value;
+    const cell = editingCells.find(c => c.vertragId === vertragId && c.field === field);
+    return cell ? cell.value : null;
   };
 
   const isFieldEditing = (vertragId: string, field: string) => {
-    return editingCells.some(
-      cell => cell.vertragId === vertragId && cell.field === field
-    );
+    return editingCells.some(cell => cell.vertragId === vertragId && cell.field === field);
   };
-  // Save mutations
-  const saveMietvertragMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+
+  // Mutations for saving changes
+  const mietvertragMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: any }) => {
       const { error } = await supabase
         .from('mietvertrag')
-        .update(updates)
-        .eq('id', id);
-      
+        .update(data.updates)
+        .eq('id', data.id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['miet-uebersicht'] });
-      toast({ title: "Mietvertrag aktualisiert" });
-    },
-    onError: (error) => {
-      toast({ 
-        title: "Fehler beim Speichern", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
   });
 
-  const saveEinheitMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+  const einheitenMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: any }) => {
       const { error } = await supabase
         .from('einheiten')
-        .update(updates)
-        .eq('id', id);
-      
+        .update(data.updates)
+        .eq('id', data.id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['miet-uebersicht'] });
-      toast({ title: "Einheit aktualisiert" });
-    },
-    onError: (error) => {
-      toast({ 
-        title: "Fehler beim Speichern", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
   });
 
-  const saveMieterMutation = useMutation({
-    mutationFn: async ({ vertragId, mieterName }: { vertragId: string; mieterName: string }) => {
-      // First get existing tenant or create new one
-      const [vorname, ...nachnameArray] = mieterName.split(' ');
-      const nachname = nachnameArray.join(' ') || '';
-
-      // Try to find existing tenant first
-      const { data: existingMieter } = await supabase
+  const mieterMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: any }) => {
+      const { error } = await supabase
         .from('mieter')
-        .select('id')
-        .eq('vorname', vorname)
-        .eq('nachname', nachname)
-        .single();
-
-      let mieterId;
-      
-      if (existingMieter) {
-        mieterId = existingMieter.id;
-      } else {
-        // Create new tenant
-        const { data: newMieter, error: mieterError } = await supabase
-          .from('mieter')
-          .insert({ vorname, nachname })
-          .select('id')
-          .single();
-        
-        if (mieterError) throw mieterError;
-        mieterId = newMieter.id;
-      }
-
-      // Remove existing tenant connections for this contract
-      await supabase
-        .from('mietvertrag_mieter')
-        .delete()
-        .eq('mietvertrag_id', vertragId);
-
-      // Add new connection
-      const { error: connectionError } = await supabase
-        .from('mietvertrag_mieter')
-        .insert({ mietvertrag_id: vertragId, mieter_id: mieterId });
-      
-      if (connectionError) throw connectionError;
+        .update(data.updates)
+        .eq('id', data.id);
+      if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['miet-uebersicht'] });
-      queryClient.invalidateQueries({ queryKey: ['mieter-uebersicht'] });
-      toast({ title: "Mieter aktualisiert" });
-    },
-    onError: (error) => {
-      toast({ 
-        title: "Fehler beim Speichern", 
-        description: error.message,
-        variant: "destructive" 
-      });
-    }
   });
 
   // Save all changes
   const saveAllChanges = async () => {
     try {
-      for (const cell of editingCells) {
-          const { vertragId, field, value } = cell;
+      const mietvertragUpdates = new Map();
+      const einheitenUpdates = new Map();
+      const mieterUpdates = new Map();
+
+      editingCells.forEach(cell => {
+        const { vertragId, field, value } = cell;
+        
+        if (['kaltmiete', 'betriebskosten', 'startDatum', 'endeDatum', 'letzteMieterhoehung'].includes(field)) {
+          if (!mietvertragUpdates.has(vertragId)) {
+            mietvertragUpdates.set(vertragId, {});
+          }
           
-          // Find the contract for updates
-          const vertrag = mietvertraegeData?.find(v => v.id === vertragId);
-          if (!vertrag) continue;
-
-          switch (field) {
-            case 'mieter':
-              await saveMieterMutation.mutateAsync({ vertragId, mieterName: value });
-              break;
-              
-            case 'kaltmiete':
-            case 'betriebskosten':
-            case 'kautionSoll':
-            case 'startDatum':
-            case 'letzteMieterhoehung':
-            case 'endeDatum':
-              await saveMietvertragMutation.mutateAsync({
-                id: vertragId,
-                updates: {
-                  [field === 'startDatum' ? 'start_datum' : 
-                   field === 'kautionSoll' ? 'kaution_betrag' :
-                   field === 'letzteMieterhoehung' ? 'letzte_mieterhoehung_am' :
-                   field === 'endeDatum' ? 'ende_datum' : field]: value
-                }
-              });
-              break;
-
-            case 'kautionIst':
-              // Für IST-Kaution: Aktualisiere direkt die kaution_ist Spalte
-              await supabase
-                .from('mietvertrag')
-                .update({ kaution_ist: value })
-                .eq('id', vertragId);
-              break;
-            
-          case 'etage':
-          case 'qm':
-          case 'nutzung':
-            await saveEinheitMutation.mutateAsync({
-              id: vertrag.einheit_id,
-              updates: {
-                [field === 'nutzung' ? 'einheitentyp' : field]: value
-              }
-            });
-            break;
+          let dbField = field;
+          if (field === 'startDatum') dbField = 'start_datum';
+          if (field === 'endeDatum') dbField = 'ende_datum';
+          if (field === 'letzteMieterhoehung') dbField = 'letzte_mieterhoehung_am';
+          
+          mietvertragUpdates.get(vertragId)[dbField] = value;
         }
+      });
+
+      // Execute all mutations
+      for (const [vertragId, updates] of mietvertragUpdates) {
+        await mietvertragMutation.mutateAsync({ id: vertragId, updates });
       }
       
+      for (const [einheitId, updates] of einheitenUpdates) {
+        await einheitenMutation.mutateAsync({ id: einheitId, updates });
+      }
+      
+      for (const [mieterId, updates] of mieterUpdates) {
+        await mieterMutation.mutateAsync({ id: mieterId, updates });
+      }
+
+      // Clear editing state
       setEditingCells([]);
       setIsEditing(false);
-      toast({ title: "Alle Änderungen gespeichert" });
-      
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['miet-uebersicht'] });
+      queryClient.invalidateQueries({ queryKey: ['zahlungen-uebersicht'] });
+      queryClient.invalidateQueries({ queryKey: ['mieter-uebersicht'] });
+
+      toast({
+        title: "Änderungen gespeichert",
+        description: "Alle Änderungen wurden erfolgreich gespeichert.",
+      });
+
     } catch (error) {
-      console.error('Error saving changes:', error);
+      console.error('Fehler beim Speichern:', error);
+      toast({
+        title: "Fehler beim Speichern",
+        description: "Die Änderungen konnten nicht gespeichert werden.",
+        variant: "destructive",
+      });
     }
   };
+
+  // Fetch rental contracts with relations
   const { data: mietvertraegeData, isLoading } = useQuery({
     queryKey: ['miet-uebersicht'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('mietvertrag')
         .select(`
-          id,
-          kaltmiete,
-          betriebskosten,
-          status,
-          start_datum,
-          ende_datum,
-          kuendigungsdatum,
-          kaution_betrag,
-          letzte_mieterhoehung_am,
-          einheit_id,
-          einheiten (
-            id,
-            etage,
-            qm,
-            einheitentyp,
-            immobilie_id,
-            immobilien (
-              id,
-              name,
-              adresse
-            )
+          *,
+          einheiten:einheit_id (
+            *,
+            immobilien:immobilie_id (*)
+          ),
+          mietvertrag_mieter (
+            mieter (*)
           )
         `)
         .order('start_datum', { ascending: false });
       
       if (error) throw error;
-      return data || [];
-    },
-    enabled: open
+      return data;
+    }
   });
 
-  // Hole Zahlungen für alle Mietverträge (einschließlich Kaution)
+  // Fetch payments overview
   const { data: zahlungenData } = useQuery({
     queryKey: ['zahlungen-uebersicht'],
     queryFn: async () => {
-      if (!mietvertraegeData) return [];
-      
-      const mietvertragIds = mietvertraegeData.map(mv => mv.id);
-      
       const { data, error } = await supabase
         .from('zahlungen')
-        .select('mietvertrag_id, betrag, buchungsdatum, kategorie')
-        .in('mietvertrag_id', mietvertragIds);
+        .select('*')
+        .order('buchungsdatum', { ascending: false });
       
       if (error) throw error;
-      return data || [];
-    },
-    enabled: !!mietvertraegeData && open
+      return data;
+    }
   });
 
-  // Hilfsfunktionen für SOLL und IST Kaution
-  const getKautionSoll = (vertrag: any) => {
-    return vertrag.kaution_betrag || 0;
-  };
-
-  const getKautionIst = (vertrag: any) => {
-    const alleZahlungen = zahlungenData || [];
-    const kautionZahlungen = alleZahlungen.filter(zahlung => 
-      zahlung.mietvertrag_id === vertrag.id && 
-      zahlung.kategorie === 'Mietkaution'
-    );
-    
-    return kautionZahlungen.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0);
-  };
-
-  // Hole Mieter für alle Mietverträge
+  // Fetch tenants overview
   const { data: mieterData } = useQuery({
     queryKey: ['mieter-uebersicht'],
     queryFn: async () => {
-      if (!mietvertraegeData) return [];
-      
-      const mietvertragIds = mietvertraegeData.map(mv => mv.id);
-      
       const { data, error } = await supabase
-        .from('mietvertrag_mieter')
-        .select(`
-          mietvertrag_id,
-          mieter (
-            id,
-            vorname,
-            nachname
-          )
-        `)
-        .in('mietvertrag_id', mietvertragIds);
+        .from('mieter')
+        .select('*');
       
       if (error) throw error;
-      return data || [];
-    },
-    enabled: !!mietvertraegeData && open
+      return data;
+    }
   });
 
-  // Berechne Zahlungsstatistiken pro Mietvertrag
-  const getZahlungenFuerVertrag = (mietvertragId: string) => {
-    const heute = new Date();
-    const aktuellerMonat = heute.getMonth();
-    const aktuellesJahr = heute.getFullYear();
+  // Helper functions
+  const getKautionSoll = (vertrag: any) => {
+    return vertrag.kaution_betrag 
+      ? `${Number(vertrag.kaution_betrag).toLocaleString('de-DE')} €`
+      : '-';
+  };
+
+  const getKautionIst = (vertrag: any) => {
+    return vertrag.kaution_ist 
+      ? `${Number(vertrag.kaution_ist).toLocaleString('de-DE')} €`
+      : '0 €';
+  };
+
+  const getZahlungenFuerVertrag = (vertragId: string) => {
+    if (!zahlungenData) return { aktuellerMonat: 0, gesamt: 0, anzahlZahlungen: 0 };
     
-    const zahlungenFuerVertrag = zahlungenData?.filter(z => z.mietvertrag_id === mietvertragId && z.kategorie === 'Miete') || [];
+    const vertragsZahlungen = zahlungenData.filter(z => z.mietvertrag_id === vertragId);
+    const currentMonth = new Date().toISOString().slice(0, 7);
     
-    // Zahlungen für aktuellen Monat
-    const aktuelleMonatZahlungen = zahlungenFuerVertrag.filter(z => {
-      const buchungsdatum = new Date(z.buchungsdatum);
-      return buchungsdatum.getMonth() === aktuellerMonat && buchungsdatum.getFullYear() === aktuellesJahr;
-    });
+    const aktuellerMonat = vertragsZahlungen
+      .filter(z => z.zugeordneter_monat === currentMonth || z.buchungsdatum?.startsWith(currentMonth))
+      .reduce((sum, z) => sum + Number(z.betrag), 0);
     
-    const summeAktuellerMonat = aktuelleMonatZahlungen.reduce((sum, z) => sum + (z.betrag || 0), 0);
-    const gesamtZahlungen = zahlungenFuerVertrag.reduce((sum, z) => sum + (z.betrag || 0), 0);
+    const gesamt = vertragsZahlungen.reduce((sum, z) => sum + Number(z.betrag), 0);
     
     return {
-      aktuellerMonat: summeAktuellerMonat,
-      gesamt: gesamtZahlungen,
-      anzahlZahlungen: zahlungenFuerVertrag.length
+      aktuellerMonat,
+      gesamt,
+      anzahlZahlungen: vertragsZahlungen.length
     };
   };
 
-  // Hole Mieternamen für Vertrag
-  const getMieterNamen = (mietvertragId: string) => {
-    const mieterFuerVertrag = mieterData?.filter(m => m.mietvertrag_id === mietvertragId) || [];
-    return mieterFuerVertrag
-      .map(m => `${m.mieter.vorname} ${m.mieter.nachname}`)
+  const getMieterNamen = (vertragId: string) => {
+    const vertrag = mietvertraegeData?.find(v => v.id === vertragId);
+    if (!vertrag?.mietvertrag_mieter?.length) return '-';
+    
+    return vertrag.mietvertrag_mieter
+      .map((mm: any) => `${mm.mieter.vorname} ${mm.mieter.nachname}`)
       .join(', ');
   };
 
-  // Sortiere die Daten und organisiere sie nach Immobilien
-  const organizedData = useMemo((): OrganizedPropertyGroup[] => {
+  // Organize data by property with sorting
+  const organizedData: OrganizedPropertyGroup[] = useMemo(() => {
     if (!mietvertraegeData) return [];
 
-    // Filtere aktive und gekündigte Mietverträge
-    const aktiveMietvertraege = mietvertraegeData.filter(vertrag => 
-      vertrag.status === 'aktiv' || vertrag.status === 'gekuendigt'
-    );
-
-    // Gruppiere nach Immobilien
-    const groupedByProperty: Record<string, OrganizedPropertyGroup> = aktiveMietvertraege.reduce((acc, vertrag) => {
-      const immobilieId = vertrag.einheiten?.immobilie_id;
-      const immobilieName = vertrag.einheiten?.immobilien?.name || 'Unbekannte Immobilie';
+    // Group contracts by property
+    const groupedByProperty: { [key: string]: OrganizedPropertyGroup } = {};
+    
+    mietvertraegeData.forEach(vertrag => {
+      const immobilie = vertrag.einheiten?.immobilien;
+      if (!immobilie) return;
       
-      if (!acc[immobilieId]) {
-        acc[immobilieId] = {
+      const propertyKey = immobilie.id;
+      
+      if (!groupedByProperty[propertyKey]) {
+        groupedByProperty[propertyKey] = {
           immobilie: {
-            id: immobilieId,
-            name: immobilieName,
-            adresse: vertrag.einheiten?.immobilien?.adresse || ''
+            id: immobilie.id,
+            name: immobilie.name,
+            adresse: immobilie.adresse
           },
           vertraege: []
         };
       }
       
-      acc[immobilieId].vertraege.push(vertrag);
-      return acc;
-    }, {} as Record<string, OrganizedPropertyGroup>);
+      groupedByProperty[propertyKey].vertraege.push(vertrag);
+    });
 
-    // Sortiere Verträge innerhalb jeder Immobilie basierend auf Einheits-ID-Struktur  
+    // Sort contracts within each property group
     Object.values(groupedByProperty).forEach(group => {
       group.vertraege.sort((a, b) => {
-        // Extrahiere die Einheits-ID basierend auf der beschriebenen Struktur
-        const extractEinheitInfo = (id: string) => {
-          const idStr = id.toString();
-          // Letzten beiden Ziffern = Einheits-ID
+        // Helper function to extract unit and property info from the unit id
+        const extractEinheitInfo = (idStr: string) => {
           const einheitId = parseInt(idStr.slice(-2)) || 0;
-          // Dritt- und viertletzte Ziffern = Immobilien-ID  
           const immobilienId = idStr.length >= 4 ? parseInt(idStr.slice(-4, -2)) || 0 : 0;
           return { einheitId, immobilienId };
         };
@@ -454,17 +336,17 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
         const aInfo = extractEinheitInfo(a.einheiten?.id || '0');
         const bInfo = extractEinheitInfo(b.einheiten?.id || '0');
         
-        // Primäre Sortierung: Immobilien-ID (aus der Einheits-ID extrahiert)
+        // Primary sort: Property ID (extracted from unit ID)
         if (aInfo.immobilienId !== bInfo.immobilienId) {
           return aInfo.immobilienId - bInfo.immobilienId;
         }
         
-        // Sekundäre Sortierung: Einheits-ID (fortlaufend)
+        // Secondary sort: Unit ID (sequential)
         if (aInfo.einheitId !== bInfo.einheitId) {
           return aInfo.einheitId - bInfo.einheitId;
         }
         
-        // Tertiäre Sortierung: Mietbeginn (chronologisch)
+        // Tertiary sort: Rental start date (chronological)
         const aStartDate = a.start_datum ? new Date(a.start_datum) : new Date(0);
         const bStartDate = b.start_datum ? new Date(b.start_datum) : new Date(0);
         
@@ -472,20 +354,14 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
       });
     });
 
-    // Sortiere Immobilien alphabetisch nach Namen
+    // Sort properties alphabetically by name
     return Object.values(groupedByProperty).sort((a, b) => {
       return a.immobilie.name.localeCompare(b.immobilie.name, 'de', { 
         numeric: true, 
         sensitivity: 'base' 
       });
     });
-  }, [mietvertraegeData]);
-
-  // Prüfe ob Kaution-Spalten angezeigt werden sollen - zeige immer an für bessere UX
-  const shouldShowKaution = useMemo(() => {
-    // Immer anzeigen damit Benutzer Kautionen hinzufügen können
-    return true;
-  }, [organizedData, zahlungenData]);
+  }, [mietvertraegeData, sortField, sortDirection]);
 
   if (isLoading) {
     return (
@@ -550,90 +426,97 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
         </DialogHeader>
         
         <div className="flex-1 max-h-[calc(90vh-100px)] overflow-y-auto">
-          <div className="space-y-6 p-4">
-            {organizedData.map((propertyGroup, index) => (
-              <div key={propertyGroup.immobilie.id || index} className="border rounded-lg bg-white">
-                {/* Property Header - Sticky */}
-                <div className="bg-gray-50 p-3 border-b sticky top-0 z-20 rounded-t-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-sm">{propertyGroup.immobilie.name}</h3>
-                      <p className="text-xs text-gray-600">{propertyGroup.immobilie.adresse}</p>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {propertyGroup.vertraege.length} Verträge
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Table with Sticky Headers */}
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="sticky top-[73px] z-10 bg-white shadow-sm border-b-2">
-                      <TableHead className="text-center text-xs w-12 border-r">
-                        Einheit
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-16 border-r">
-                        Etage
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-16 border-r">
-                        qm
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-20 border-r">
-                        Nutzung
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-32 border-r">
-                        <button onClick={() => handleSort('mieter')} className="flex items-center gap-1 w-full justify-center">
-                          Mieter
-                          <SortIcon field="mieter" />
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-20 border-r">
-                        <button onClick={() => handleSort('kaltmiete')} className="flex items-center gap-1 w-full justify-center">
-                          Kaltmiete
-                          <SortIcon field="kaltmiete" />
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-20 border-r">
-                        <button onClick={() => handleSort('betriebskosten')} className="flex items-center gap-1 w-full justify-center">
-                          BK
-                          <SortIcon field="betriebskosten" />
-                        </button>
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-16 border-r">
-                        Status
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-24 border-r">
-                        Mietbeginn
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-24 border-r">
-                        Mietende
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-20 border-r">
-                        Kaution (S/I)
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-24 border-r">
-                        nächste mögl. Erhöh.
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-20 border-r">
-                        letzte Erhöhung
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-24 border-r">
-                        Zahlung aktueller Monat
-                      </TableHead>
-                      <TableHead className="text-center text-xs w-20">
-                        Zahlungen gesamt
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {propertyGroup.vertraege.map((vertrag) => {
+          <div className="p-4">
+            {/* Single Table with All Data and Sticky Headers */}
+            <div className="border rounded-lg bg-white overflow-hidden">
+              <Table>
+                {/* Fixed Header */}
+                <TableHeader className="sticky top-0 z-10 bg-white border-b-2 shadow-sm">
+                  <TableRow>
+                    <TableHead className="text-center text-xs w-32 border-r bg-white">
+                      Objekt
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-12 border-r bg-white">
+                      Einheit
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-16 border-r bg-white">
+                      Etage
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-16 border-r bg-white">
+                      qm
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                      Nutzung
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-32 border-r bg-white">
+                      <button onClick={() => handleSort('mieter')} className="flex items-center gap-1 w-full justify-center">
+                        Mieter
+                        <SortIcon field="mieter" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                      <button onClick={() => handleSort('kaltmiete')} className="flex items-center gap-1 w-full justify-center">
+                        Kaltmiete
+                        <SortIcon field="kaltmiete" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                      <button onClick={() => handleSort('betriebskosten')} className="flex items-center gap-1 w-full justify-center">
+                        BK
+                        <SortIcon field="betriebskosten" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-16 border-r bg-white">
+                      Status
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-24 border-r bg-white">
+                      Mietbeginn
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-24 border-r bg-white">
+                      Mietende
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                      Kaution (S/I)
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-24 border-r bg-white">
+                      nächste mögl. Erhöh.
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                      letzte Erhöhung
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-24 border-r bg-white">
+                      Zahlung aktueller Monat
+                    </TableHead>
+                    <TableHead className="text-center text-xs w-20 bg-white">
+                      Zahlungen gesamt
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                
+                <TableBody>
+                  {organizedData.map((propertyGroup, groupIndex) => (
+                    propertyGroup.vertraege.map((vertrag, vertragIndex) => {
                       const zahlungen = getZahlungenFuerVertrag(vertrag.id);
                       const mieterName = getMieterNamen(vertrag.id);
+                      const isFirstInGroup = vertragIndex === 0;
 
                       return (
-                        <TableRow key={vertrag.id} className="hover:bg-gray-50">
+                        <TableRow 
+                          key={vertrag.id} 
+                          className={`hover:bg-gray-50 ${isFirstInGroup ? 'border-t-2 border-t-gray-300' : ''}`}
+                        >
+                          {/* Objekt Name - only show for first contract in group */}
+                          <TableCell className="text-center text-xs border-r p-1 bg-gray-50/50">
+                            {isFirstInGroup ? (
+                              <div className="font-medium">
+                                <div className="text-xs font-semibold">{propertyGroup.immobilie.name}</div>
+                                <div className="text-xs text-gray-600">{propertyGroup.immobilie.adresse}</div>
+                              </div>
+                            ) : (
+                              <div className="text-gray-300">↑</div>
+                            )}
+                          </TableCell>
+                          
                           {/* Einheit */}
                           <TableCell className="text-center text-xs border-r p-1">
                             {vertrag.einheiten?.id?.toString()?.slice(-2) || '-'}
@@ -665,8 +548,9 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                             {isFieldEditing(vertrag.id, 'qm') ? (
                               <Input
                                 type="number"
+                                step="0.1"
                                 value={getEditingValue(vertrag.id, 'qm') || ''}
-                                onChange={(e) => updateEditingValue(vertrag.id, 'qm', parseFloat(e.target.value))}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'qm', e.target.value)}
                                 className="h-6 text-xs text-center"
                                 onBlur={() => cancelEdit(vertrag.id, 'qm')}
                                 autoFocus
@@ -683,27 +567,26 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           
                           {/* Nutzung */}
                           <TableCell className="text-center text-xs border-r p-1">
-                            {isFieldEditing(vertrag.id, 'nutzung') ? (
+                            {isFieldEditing(vertrag.id, 'einheitentyp') ? (
                               <Select 
-                                value={getEditingValue(vertrag.id, 'nutzung') || ''} 
-                                onValueChange={(value) => updateEditingValue(vertrag.id, 'nutzung', value)}
+                                value={getEditingValue(vertrag.id, 'einheitentyp') || ''} 
+                                onValueChange={(value) => updateEditingValue(vertrag.id, 'einheitentyp', value)}
                               >
                                 <SelectTrigger className="h-6 text-xs">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="Wohnung">Wohnung</SelectItem>
-                                  <SelectItem value="Büro">Büro</SelectItem>
                                   <SelectItem value="Gewerbe">Gewerbe</SelectItem>
-                                  <SelectItem value="Lager">Lager</SelectItem>
-                                  <SelectItem value="Praxis">Praxis</SelectItem>
-                                  <SelectItem value="Stellplatz">Stellplatz</SelectItem>
+                                  <SelectItem value="Garage">Garage</SelectItem>
+                                  <SelectItem value="Keller">Keller</SelectItem>
+                                  <SelectItem value="Dachboden">Dachboden</SelectItem>
                                 </SelectContent>
                               </Select>
                             ) : (
                               <div 
                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                onClick={() => isEditing && startEditing(vertrag.id, 'nutzung', vertrag.einheiten?.einheitentyp)}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'einheitentyp', vertrag.einheiten?.einheitentyp)}
                               >
                                 {vertrag.einheiten?.einheitentyp || '-'}
                               </div>
@@ -712,23 +595,9 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           
                           {/* Mieter */}
                           <TableCell className="text-center text-xs border-r p-1">
-                            {isFieldEditing(vertrag.id, 'mieter') ? (
-                              <Input
-                                type="text"
-                                value={getEditingValue(vertrag.id, 'mieter') || ''}
-                                onChange={(e) => updateEditingValue(vertrag.id, 'mieter', e.target.value)}
-                                className="h-6 text-xs text-center"
-                                onBlur={() => cancelEdit(vertrag.id, 'mieter')}
-                                autoFocus
-                              />
-                            ) : (
-                              <div 
-                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                onClick={() => isEditing && startEditing(vertrag.id, 'mieter', mieterName)}
-                              >
-                                {mieterName || 'Kein Mieter'}
-                              </div>
-                            )}
+                            <div className="text-xs max-w-32 truncate" title={mieterName}>
+                              {mieterName}
+                            </div>
                           </TableCell>
                           
                           {/* Kaltmiete */}
@@ -736,8 +605,9 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                             {isFieldEditing(vertrag.id, 'kaltmiete') ? (
                               <Input
                                 type="number"
+                                step="0.01"
                                 value={getEditingValue(vertrag.id, 'kaltmiete') || ''}
-                                onChange={(e) => updateEditingValue(vertrag.id, 'kaltmiete', parseFloat(e.target.value))}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'kaltmiete', e.target.value)}
                                 className="h-6 text-xs text-center"
                                 onBlur={() => cancelEdit(vertrag.id, 'kaltmiete')}
                                 autoFocus
@@ -747,7 +617,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
                                 onClick={() => isEditing && startEditing(vertrag.id, 'kaltmiete', vertrag.kaltmiete)}
                               >
-                                {vertrag.kaltmiete ? `${vertrag.kaltmiete.toLocaleString('de-DE')} €` : '-'}
+                                {vertrag.kaltmiete ? `${Number(vertrag.kaltmiete).toLocaleString('de-DE')} €` : '-'}
                               </div>
                             )}
                           </TableCell>
@@ -757,8 +627,9 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                             {isFieldEditing(vertrag.id, 'betriebskosten') ? (
                               <Input
                                 type="number"
+                                step="0.01"
                                 value={getEditingValue(vertrag.id, 'betriebskosten') || ''}
-                                onChange={(e) => updateEditingValue(vertrag.id, 'betriebskosten', parseFloat(e.target.value))}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'betriebskosten', e.target.value)}
                                 className="h-6 text-xs text-center"
                                 onBlur={() => cancelEdit(vertrag.id, 'betriebskosten')}
                                 autoFocus
@@ -768,13 +639,13 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
                                 onClick={() => isEditing && startEditing(vertrag.id, 'betriebskosten', vertrag.betriebskosten)}
                               >
-                                {vertrag.betriebskosten ? `${vertrag.betriebskosten.toLocaleString('de-DE')} €` : '-'}
+                                {vertrag.betriebskosten ? `${Number(vertrag.betriebskosten).toLocaleString('de-DE')} €` : '-'}
                               </div>
                             )}
                           </TableCell>
                           
                           {/* Status */}
-                          <TableCell className="text-center text-xs border-r">
+                          <TableCell className="text-center text-xs border-r p-1">
                             <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-xs">
                               {vertrag.status}
                             </Badge>
@@ -806,146 +677,58 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           
                           {/* Mietende */}
                           <TableCell className="text-center text-xs border-r p-1">
-            {isFieldEditing(vertrag.id, 'endeDatum') ? (
-              <Input
-                type="date"
-                value={getEditingValue(vertrag.id, 'endeDatum') || ''}
-                onChange={(e) => updateEditingValue(vertrag.id, 'endeDatum', e.target.value)}
-                className="h-6 text-xs text-center"
-                onBlur={() => cancelEdit(vertrag.id, 'endeDatum')}
-                autoFocus
-              />
-            ) : (
-              <div 
-                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                onClick={() => isEditing && startEditing(vertrag.id, 'endeDatum', vertrag.ende_datum)}
-              >
-                {vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum 
-                  ? new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')
-                  : vertrag.ende_datum 
-                    ? new Date(vertrag.ende_datum).toLocaleDateString('de-DE')
-                    : 'unbefristet'
-                }
-              </div>
-            )}
-          </TableCell>
-                          
-                          {/* Kaution SOLL */}
-                          <TableCell className="text-center text-xs border-r p-1">
-                            {isFieldEditing(vertrag.id, 'kautionSoll') ? (
+                            {isFieldEditing(vertrag.id, 'endeDatum') ? (
                               <Input
-                                type="number"
-                                value={getEditingValue(vertrag.id, 'kautionSoll') || ''}
-                                onChange={(e) => {
-                                  const newValue = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                  updateEditingValue(vertrag.id, 'kautionSoll', newValue);
-                                }}
-                                className="h-8 text-xs text-center w-full"
-                                onBlur={() => cancelEdit(vertrag.id, 'kautionSoll')}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    cancelEdit(vertrag.id, 'kautionSoll');
-                                  }
-                                  if (e.key === 'Escape') {
-                                    cancelEdit(vertrag.id, 'kautionSoll');
-                                  }
-                                }}
+                                type="date"
+                                value={getEditingValue(vertrag.id, 'endeDatum') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'endeDatum', e.target.value)}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'endeDatum')}
                                 autoFocus
                               />
                             ) : (
                               <div 
-                                className={`cursor-pointer hover:bg-blue-50 p-2 rounded-lg text-xs transition-all ${isEditing ? 'border-2 border-dashed border-blue-300 bg-blue-50' : 'border border-gray-200 hover:border-blue-300'}`}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log('Kaution SOLL clicked');
-                                  if (!isEditing) {
-                                    setIsEditing(true);
-                                  }
-                                  startEditing(vertrag.id, 'kautionSoll', getKautionSoll(vertrag));
-                                }}
-                                title="SOLL-Kaution aus Vertrag - Klicken zum Bearbeiten"
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'endeDatum', vertrag.ende_datum)}
                               >
-                                <div className="text-center">
-                                  <div className="text-blue-600 font-bold text-sm">
-                                    {getKautionSoll(vertrag) ? `${getKautionSoll(vertrag).toLocaleString()} €` : '0 €'}
-                                  </div>
-                                  <div className="text-xs text-gray-500">SOLL</div>
-                                </div>
+                                {vertrag.ende_datum 
+                                  ? new Date(vertrag.ende_datum).toLocaleDateString('de-DE')
+                                  : '-'
+                                }
                               </div>
                             )}
                           </TableCell>
                           
-                          {/* Kaution IST */}
+                          {/* Kaution (S/I) */}
                           <TableCell className="text-center text-xs border-r p-1">
-                            {isFieldEditing(vertrag.id, 'kautionIst') ? (
-                              <Input
-                                type="number"
-                                value={getEditingValue(vertrag.id, 'kautionIst') || ''}
-                                onChange={(e) => {
-                                  const newValue = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                  updateEditingValue(vertrag.id, 'kautionIst', newValue);
-                                }}
-                                className="h-8 text-xs text-center w-full"
-                                onBlur={() => cancelEdit(vertrag.id, 'kautionIst')}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    cancelEdit(vertrag.id, 'kautionIst');
-                                  }
-                                  if (e.key === 'Escape') {
-                                    cancelEdit(vertrag.id, 'kautionIst');
-                                  }
-                                }}
-                                autoFocus
-                              />
-                            ) : (
-                              <div 
-                                className={`cursor-pointer hover:bg-green-50 p-2 rounded-lg text-xs transition-all ${isEditing ? 'border-2 border-dashed border-green-300 bg-green-50' : 'border border-gray-200 hover:border-green-300'}`}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  console.log('Kaution IST clicked');
-                                  if (!isEditing) {
-                                    setIsEditing(true);
-                                  }
-                                  startEditing(vertrag.id, 'kautionIst', getKautionIst(vertrag));
-                                }}
-                                title="IST-Kaution aus Zahlungen - Klicken zum Bearbeiten"
-                              >
-                                <div className="text-center">
-                                  <div className="text-green-600 font-bold text-sm">
-                                    {getKautionIst(vertrag) ? `${getKautionIst(vertrag).toLocaleString()} €` : '0 €'}
-                                  </div>
-                                  <div className="text-xs text-gray-500">IST</div>
-                                </div>
+                            <div className="text-xs">
+                              <div>
+                                S: {getKautionSoll(vertrag)}
                               </div>
-                            )}
+                              <div>
+                                I: {getKautionIst(vertrag)}
+                              </div>
+                            </div>
                           </TableCell>
                           
-                          {/* nächste mögl. Erhöh. */}
-                          <TableCell className="text-center text-xs border-r">
-                            {(() => {
-                              // Keine Mieterhöhung für gekündigte oder beendete Verträge
-                              if (vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') {
-                                return '-';
-                              }
-                              
-                              const startDatum = vertrag.start_datum ? new Date(vertrag.start_datum) : null;
-                              const letzteMieterhoehung = vertrag.letzte_mieterhoehung_am ? new Date(vertrag.letzte_mieterhoehung_am) : null;
-                              
-                              // Verwende das spätere der beiden Daten als Basis
-                              const basisDatum = letzteMieterhoehung && startDatum 
-                                ? (letzteMieterhoehung > startDatum ? letzteMieterhoehung : startDatum)
-                                : (letzteMieterhoehung || startDatum);
-                              
-                              if (!basisDatum) return '-';
-                              
-                              // 15 Monate zum Basisdatum addieren
-                              const naechsteMoeglicheErhoehung = new Date(basisDatum);
-                              naechsteMoeglicheErhoehung.setMonth(naechsteMoeglicheErhoehung.getMonth() + 15);
-                              
-                              return naechsteMoeglicheErhoehung.toLocaleDateString('de-DE');
-                            })()}
+                          {/* nächste mögl. Erhöhung */}
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {vertrag.letzte_mieterhoehung_am 
+                              ? (() => {
+                                  const letzteErhoehung = new Date(vertrag.letzte_mieterhoehung_am);
+                                  letzteErhoehung.setFullYear(letzteErhoehung.getFullYear() + 1);
+                                  letzteErhoehung.setDate(letzteErhoehung.getDate() + 1);
+                                  return letzteErhoehung.toLocaleDateString('de-DE');
+                                })()
+                              : vertrag.start_datum 
+                                ? (() => {
+                                    const startDatum = new Date(vertrag.start_datum);
+                                    startDatum.setFullYear(startDatum.getFullYear() + 1);
+                                    startDatum.setDate(startDatum.getDate() + 1);
+                                    return startDatum.toLocaleDateString('de-DE');
+                                  })()
+                                : '-'
+                            }
                           </TableCell>
                           
                           {/* letzte Erhöhung */}
@@ -973,7 +756,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           </TableCell>
                           
                           {/* Zahlung aktueller Monat */}
-                          <TableCell className="text-center text-xs border-r">
+                          <TableCell className="text-center text-xs border-r p-1">
                             <div className="text-xs">
                               {zahlungen.aktuellerMonat > 0 
                                 ? `${zahlungen.aktuellerMonat.toLocaleString('de-DE')} €`
@@ -998,12 +781,11 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                           </TableCell>
                         </TableRow>
                       );
-                    })}
-                  </TableBody>
-                </Table>
-                </div>
-              </div>
-            ))}
+                    })
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
       </DialogContent>
