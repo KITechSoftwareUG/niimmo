@@ -568,7 +568,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
 
                 {/* Contracts Table */}
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-white shadow-sm">
                     <TableRow>
                       <TableHead className="text-center text-xs w-12 border-r">
                         Einheit
