@@ -252,28 +252,11 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
               break;
 
             case 'kautionIst':
-              // Für IST-Kaution: Erstelle eine Anpassungszahlung
-              const alleZahlungen = zahlungenData || [];
-              const kautionZahlungen = alleZahlungen.filter(zahlung => 
-                zahlung.mietvertrag_id === vertragId && 
-                zahlung.kategorie === 'Mietkaution'
-              );
-              
-              const istSumme = kautionZahlungen.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0);
-              const differenz = value - istSumme;
-              
-              if (differenz !== 0) {
-                // Erstelle Anpassungszahlung
-                await supabase
-                  .from('zahlungen')
-                  .insert({
-                    mietvertrag_id: vertragId,
-                    betrag: differenz,
-                    kategorie: 'Mietkaution',
-                    buchungsdatum: new Date().toISOString().split('T')[0],
-                    verwendungszweck: `Kautionsanpassung (${differenz > 0 ? 'Nachzahlung' : 'Korrektur'})`
-                  });
-              }
+              // Für IST-Kaution: Aktualisiere direkt die kaution_ist Spalte
+              await supabase
+                .from('mietvertrag')
+                .update({ kaution_ist: value })
+                .eq('id', vertragId);
               break;
             
           case 'etage':

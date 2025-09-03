@@ -333,7 +333,6 @@ export type Database = {
       }
       mietvertrag: {
         Row: {
-          "2025 voll": boolean | null
           aktualisiert_am: string | null
           bankkonto_mieter: string | null
           betriebskosten: number | null
@@ -344,7 +343,7 @@ export type Database = {
           kaltmiete: number | null
           kaution_betrag: number | null
           kaution_gezahlt_am: string | null
-          kaution_status: string | null
+          kaution_ist: number | null
           kuendigungsdatum: string | null
           lastschrift: boolean
           letzte_mahnung_am: string | null
@@ -357,7 +356,6 @@ export type Database = {
           weitere_bankkonten: string | null
         }
         Insert: {
-          "2025 voll"?: boolean | null
           aktualisiert_am?: string | null
           bankkonto_mieter?: string | null
           betriebskosten?: number | null
@@ -368,7 +366,7 @@ export type Database = {
           kaltmiete?: number | null
           kaution_betrag?: number | null
           kaution_gezahlt_am?: string | null
-          kaution_status?: string | null
+          kaution_ist?: number | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
           letzte_mahnung_am?: string | null
@@ -381,7 +379,6 @@ export type Database = {
           weitere_bankkonten?: string | null
         }
         Update: {
-          "2025 voll"?: boolean | null
           aktualisiert_am?: string | null
           bankkonto_mieter?: string | null
           betriebskosten?: number | null
@@ -392,7 +389,7 @@ export type Database = {
           kaltmiete?: number | null
           kaution_betrag?: number | null
           kaution_gezahlt_am?: string | null
-          kaution_status?: string | null
+          kaution_ist?: number | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
           letzte_mahnung_am?: string | null
