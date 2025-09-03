@@ -66,9 +66,9 @@ export const FaelligkeitsIndicator = ({ forderung }: FaelligkeitsIndicatorProps)
 
   return (
     <div className="flex items-center space-x-2">
-      <Badge variant="outline" className="flex items-center space-x-1 border-green-500 text-green-600">
+      <Badge variant="outline" className="flex items-center space-x-1 border-orange-500 text-orange-600">
         <CheckCircle className="h-3 w-3" />
-        <span>Noch nicht fällig</span>
+        <span>Offen</span>
       </Badge>
       <span className="text-xs text-gray-500">
         Fällig am 10.{forderungsMonat.toString().padStart(2, '0')}
