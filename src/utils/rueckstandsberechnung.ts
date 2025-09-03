@@ -21,11 +21,11 @@ export const calculateMietvertragRueckstand = (
   const mietvertragStart = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2025-01-01');
   const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
   
-  // Filtere Forderungen ab Startdatum - nur fällige Forderungen berücksichtigen
+  // Filtere Forderungen ab Startdatum - nur fällige Forderungen für Rückstandsberechnung
   const relevanteForderungen = forderungen.filter(f => {
     if (!f.sollmonat) return false;
     const forderungsDatum = new Date(f.sollmonat + '-01');
-    // Nur fällige Forderungen berücksichtigen für Rückstandsberechnung
+    // Nur fällige Forderungen (nach 7 Tagen) in Rückstand einrechnen
     return forderungsDatum >= startDatum && f.ist_faellig === true;
   });
   

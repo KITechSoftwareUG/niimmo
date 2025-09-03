@@ -684,12 +684,15 @@ export const MietvertragDetailsModal = ({
     const mietvertragStart = vertrag.start_datum ? new Date(vertrag.start_datum) : new Date('2025-01-01');
     const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
     
-    // Filtere Forderungen ab Startdatum
-    const relevanteForderungen = forderungen.filter(f => {
+    // Alle Forderungen ab Startdatum (für Anzeige)
+    const alleForderungenAbStart = forderungen.filter(f => {
       if (!f.sollmonat) return false;
       const forderungsDatum = new Date(f.sollmonat + '-01');
       return forderungsDatum >= startDatum;
     });
+    
+    // Nur fällige Forderungen für Rückstandsberechnung
+    const relevanteForderungen = alleForderungenAbStart.filter(f => f.ist_faellig === true);
     
   // Intelligente Vorauszahlungs-Logik
   const processVorauszahlungen = (zahlungen: any[], forderungen: any[]) => {
@@ -829,13 +832,14 @@ export const MietvertragDetailsModal = ({
     }
     
     return { 
-      gesamtForderungen, 
+      gesamtForderungen: alleForderungenAbStart.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0), // Alle Forderungen für Anzeige
       gesamtZahlungen,
-      // Fälligkeitsinformationen hinzufügen
-      faelligeForderungen: relevanteForderungen.filter(f => f.ist_faellig === true),
-      nichtFaelligeForderungen: relevanteForderungen.filter(f => f.ist_faellig !== true),
-      faelligeForderungenBetrag: relevanteForderungen.filter(f => f.ist_faellig === true).reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0),
-      nichtFaelligeForderungenBetrag: relevanteForderungen.filter(f => f.ist_faellig !== true).reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0)
+      // Fälligkeitsinformationen basierend auf allen Forderungen ab Startdatum
+      faelligeForderungen: alleForderungenAbStart.filter(f => f.ist_faellig === true),
+      nichtFaelligeForderungen: alleForderungenAbStart.filter(f => f.ist_faellig !== true),
+      faelligeForderungenBetrag: alleForderungenAbStart.filter(f => f.ist_faellig === true).reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0),
+      nichtFaelligeForderungenBetrag: alleForderungenAbStart.filter(f => f.ist_faellig !== true).reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0),
+      rueckstand: gesamtForderungen - gesamtZahlungen // Nur fällige Forderungen minus Zahlungen
     };
   };
 
@@ -845,7 +849,8 @@ export const MietvertragDetailsModal = ({
     faelligeForderungen, 
     nichtFaelligeForderungen, 
     faelligeForderungenBetrag, 
-    nichtFaelligeForderungenBetrag 
+    nichtFaelligeForderungenBetrag,
+    rueckstand 
   } = calculateRueckstand();
   const sollMiete = vertrag ? (Number(vertrag.kaltmiete) || 0) + (Number(vertrag.betriebskosten) || 0) : 0;
 
@@ -1303,13 +1308,13 @@ export const MietvertragDetailsModal = ({
                       <div>
                         <p className="text-sm text-gray-600">Rückstand</p>
                         <p className={`font-bold text-xl ${
-                          (gesamtForderungen - gesamtZahlungen) > 0 
+                          rueckstand > 0 
                             ? 'text-red-600' 
-                            : (gesamtForderungen - gesamtZahlungen) < 0 
+                            : rueckstand < 0 
                               ? 'text-green-600' 
                               : 'text-gray-600'
                         }`}>
-                          {formatBetrag(gesamtForderungen - gesamtZahlungen)}
+                          {formatBetrag(rueckstand)}
                         </p>
                       </div>
                     </div>

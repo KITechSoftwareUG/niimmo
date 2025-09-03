@@ -120,18 +120,24 @@ export const useRueckstaende = () => {
           // Berechne Miete-Zahlungen separat
           const mieteZahlungenSumme = calculateMieteZahlungen(mietvertragZahlungen || []);
           
-          // Berechne Fälligkeitsinformationen
-          const alleForderungen = mietvertragForderungen || [];
-          const faelligeForderungen = alleForderungen.filter(f => f.ist_faellig === true);
-          const nichtFaelligeForderungen = alleForderungen.filter(f => f.ist_faellig !== true);
-          
-          const faelligeForderungenBetrag = faelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
-          const nichtFaelligeForderungenBetrag = nichtFaelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
-          
-          // Finde nächste Fälligkeit
-          const naechsteFaelligkeit = nichtFaelligeForderungen
-            .filter(f => f.faelligkeitsdatum)
-            .sort((a, b) => new Date(a.faelligkeitsdatum).getTime() - new Date(b.faelligkeitsdatum).getTime())[0]?.faelligkeitsdatum;
+        // Berechne Fälligkeitsinformationen - nur offene Forderungen anzeigen
+        const alleForderungen = mietvertragForderungen || [];
+        const heute = new Date();
+        const mietvertragStart = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2025-01-01');
+        const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
+        
+        // Alle Forderungen ab Startdatum (für Anzeige)
+        const alleForderungenAbStart = alleForderungen.filter(f => {
+          if (!f.sollmonat) return false;
+          const forderungsDatum = new Date(f.sollmonat + '-01');
+          return forderungsDatum >= startDatum;
+        });
+        
+        const faelligeForderungen = alleForderungenAbStart.filter(f => f.ist_faellig === true);
+        const nichtFaelligeForderungen = alleForderungenAbStart.filter(f => f.ist_faellig !== true);
+        
+        const faelligeForderungenBetrag = faelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+        const nichtFaelligeForderungenBetrag = nichtFaelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
           
           rueckstaende.push({
             mietvertrag_id: mietvertrag.id,
@@ -158,8 +164,7 @@ export const useRueckstaende = () => {
             faellige_forderungen: faelligeForderungen.length,
             noch_nicht_faellige_forderungen: nichtFaelligeForderungen.length,
             faellige_forderungen_betrag: faelligeForderungenBetrag,
-            noch_nicht_faellige_forderungen_betrag: nichtFaelligeForderungenBetrag,
-            naechste_faelligkeit: naechsteFaelligkeit
+            noch_nicht_faellige_forderungen_betrag: nichtFaelligeForderungenBetrag
           });
         }
       }
