@@ -134,10 +134,22 @@ export const MietvertragDetailsModal = ({
   };
 
   const handleEditPaymentField = (zahlungId: string, field: 'kategorie' | 'monat' | 'mietvertrag', currentValue: string) => {
+    const zahlung = zahlungen?.find(z => z.id === zahlungId);
+    const wasShifted = (zahlung as any)?._verschoben_von || (zahlung as any)?._verschoben_monatsende;
+    const hasCustomMonth = zahlung?.zugeordneter_monat && zahlung?.zugeordneter_monat !== zahlung?.buchungsdatum?.slice(0, 7);
+    
+    console.log('🔧 Edit Payment Field aufgerufen:', { 
+      zahlungId, 
+      field, 
+      currentValue,
+      wasShifted,
+      hasCustomMonth,
+      isBlueMarked: wasShifted || hasCustomMonth
+    });
+    
     setEditingPayment({ zahlungId, field });
     if (field === 'mietvertrag') {
       // Für mietvertrag nehmen wir die aktuelle mietvertrag_id
-      const zahlung = zahlungen?.find(z => z.id === zahlungId);
       setEditPaymentValue(zahlung?.mietvertrag_id || '');
     } else {
       setEditPaymentValue(currentValue || '');
@@ -1983,8 +1995,15 @@ export const MietvertragDetailsModal = ({
                                                             </Button>
                                                               <Button
                                                                 onClick={() => {
-                                                                  const currentMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
-                                                                  handleEditPaymentField(zahlung.id, 'monat', currentMonth);
+                                                                  console.log('🎯 Timeline Monat-Edit geklickt für Zahlung:', {
+                                                                    zahlungId: zahlung.id,
+                                                                    wasShifted: (zahlung as any)._verschoben_von || (zahlung as any)._verschoben_monatsende,
+                                                                    hasCustomMonth: zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7),
+                                                                    isBlueMarked: ((zahlung as any)._verschoben_von || (zahlung as any)._verschoben_monatsende) || (zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7)),
+                                                                    currentMonth: zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || ''
+                                                                  });
+                                                                  const current_Month = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
+                                                                  handleEditPaymentField(zahlung.id, 'monat', current_Month);
                                                                 }}
                                                                 variant="ghost"
                                                                 size="sm"
@@ -2161,18 +2180,27 @@ export const MietvertragDetailsModal = ({
                                      >
                                        <Edit2 className="h-4 w-4" />
                                      </Button>
-                                     <Button
-                                       onClick={() => {
-                                         const currentMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
-                                         handleEditPaymentField(zahlung.id, 'monat', currentMonth);
-                                       }}
-                                       variant="ghost"
-                                       size="sm"
-                                       className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                       title="Monat zuordnen"
-                                     >
-                                       <Calendar className="h-4 w-4" />
-                                     </Button>
+                                      <Button
+                                        onClick={() => {
+                                          const wasShifted = (zahlung as any)._verschoben_von || (zahlung as any)._verschoben_monatsende;
+                                          const hasCustomMonth = zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7);
+                                          console.log('🎯 Liste Monat-Edit geklickt für Zahlung:', {
+                                            zahlungId: zahlung.id,
+                                            wasShifted,
+                                            hasCustomMonth,
+                                            isBlueMarked: wasShifted || hasCustomMonth,
+                                            currentMonth: zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || ''
+                                          });
+                                          const currentMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
+                                          handleEditPaymentField(zahlung.id, 'monat', currentMonth);
+                                        }}
+                                        variant="ghost"
+                                        size="sm"
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title="Monat zuordnen"
+                                      >
+                                        <Calendar className="h-4 w-4" />
+                                      </Button>
                                       <Button
                                         onClick={() => handleEditPaymentField(zahlung.id, 'mietvertrag', '')}
                                         variant="ghost"
