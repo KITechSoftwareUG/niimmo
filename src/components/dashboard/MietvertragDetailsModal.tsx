@@ -42,6 +42,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { MahnungVorschauModal } from "./MahnungVorschauModal";
+import { PaymentSplitModal } from "./PaymentSplitModal";
 
 interface MietvertragDetailsModalProps {
   isOpen: boolean;
