@@ -343,6 +343,8 @@ export type Database = {
           id: string
           kaltmiete: number | null
           kaution_betrag: number | null
+          kaution_gezahlt_am: string | null
+          kaution_status: string | null
           kuendigungsdatum: string | null
           lastschrift: boolean
           letzte_mahnung_am: string | null
@@ -365,6 +367,8 @@ export type Database = {
           id?: string
           kaltmiete?: number | null
           kaution_betrag?: number | null
+          kaution_gezahlt_am?: string | null
+          kaution_status?: string | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
           letzte_mahnung_am?: string | null
@@ -387,6 +391,8 @@ export type Database = {
           id?: string
           kaltmiete?: number | null
           kaution_betrag?: number | null
+          kaution_gezahlt_am?: string | null
+          kaution_status?: string | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
           letzte_mahnung_am?: string | null
