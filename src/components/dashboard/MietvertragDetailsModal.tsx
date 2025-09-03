@@ -1292,14 +1292,7 @@ export const MietvertragDetailsModal = ({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <p className="text-sm text-blue-600">Forderungen (ab Jan 2025)</p>
-                        <p className="font-bold text-lg text-blue-800">
-                          {formatBetrag(gesamtForderungen)}
-                          {nichtFaelligeForderungen && nichtFaelligeForderungen.length > 0 && (
-                            <span className="text-orange-600 text-sm ml-1">
-                              ({nichtFaelligeForderungen.length} offen)
-                            </span>
-                          )}
-                        </p>
+                        <p className="font-bold text-lg text-blue-800">{formatBetrag(gesamtForderungen)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-green-600">Eingegangene Zahlungen</p>
@@ -1315,6 +1308,11 @@ export const MietvertragDetailsModal = ({
                               : 'text-gray-600'
                         }`}>
                           {formatBetrag(rueckstand)}
+                          {nichtFaelligeForderungen && nichtFaelligeForderungen.length > 0 && (
+                            <span className="text-orange-600 text-sm ml-1 font-normal">
+                              ({nichtFaelligeForderungen.length} offen)
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>

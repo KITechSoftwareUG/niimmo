@@ -208,18 +208,10 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                           )}
                         </div>
 
-                        {/* Simplified Payment Summary */}
                         <div className="grid grid-cols-3 gap-4 pt-2 text-sm">
                           <div>
                             <p className="text-gray-600">Forderungen</p>
-                            <p className="font-medium">
-                              {formatBetrag(rueckstand.gesamt_forderungen)}
-                              {rueckstand.noch_nicht_faellige_forderungen > 0 && (
-                                <span className="text-orange-600 ml-1">
-                                  ({rueckstand.noch_nicht_faellige_forderungen} offen)
-                                </span>
-                              )}
-                            </p>
+                            <p className="font-medium">{formatBetrag(rueckstand.gesamt_forderungen)}</p>
                           </div>
                           <div>
                             <p className="text-gray-600">Zahlungen</p>
@@ -227,7 +219,14 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                           </div>
                           <div>
                             <p className="text-gray-600">Rückstand</p>
-                            <p className="font-bold text-red-600">{formatBetrag(rueckstand.fehlend_betrag)}</p>
+                            <p className="font-bold text-red-600">
+                              {formatBetrag(rueckstand.fehlend_betrag)}
+                              {rueckstand.noch_nicht_faellige_forderungen > 0 && (
+                                <span className="text-orange-600 ml-1 font-normal">
+                                  ({rueckstand.noch_nicht_faellige_forderungen} offen)
+                                </span>
+                              )}
+                            </p>
                           </div>
                         </div>
                       </div>
