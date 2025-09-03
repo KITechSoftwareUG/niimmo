@@ -247,29 +247,6 @@ export type Database = {
         }
         Relationships: []
       }
-      kuekencharge: {
-        Row: {
-          created_at: string
-          id: number
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-        }
-        Update: {
-          created_at?: string
-          id?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "kuekencharge_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "standort"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mieter: {
         Row: {
           aktualisiert_am: string | null
@@ -309,21 +286,30 @@ export type Database = {
       mietforderungen: {
         Row: {
           erzeugt_am: string | null
+          faellig_seit: string | null
+          faelligkeitsdatum: string | null
           id: string
+          ist_faellig: boolean | null
           mietvertrag_id: string | null
           sollbetrag: number | null
           sollmonat: string
         }
         Insert: {
           erzeugt_am?: string | null
+          faellig_seit?: string | null
+          faelligkeitsdatum?: string | null
           id?: string
+          ist_faellig?: boolean | null
           mietvertrag_id?: string | null
           sollbetrag?: number | null
           sollmonat: string
         }
         Update: {
           erzeugt_am?: string | null
+          faellig_seit?: string | null
+          faelligkeitsdatum?: string | null
           id?: string
+          ist_faellig?: boolean | null
           mietvertrag_id?: string | null
           sollbetrag?: number | null
           sollmonat?: string
@@ -470,24 +456,6 @@ export type Database = {
         }
         Relationships: []
       }
-      standort: {
-        Row: {
-          adresse: string | null
-          created_at: string
-          id: number
-        }
-        Insert: {
-          adresse?: string | null
-          created_at?: string
-          id?: number
-        }
-        Update: {
-          adresse?: string | null
-          created_at?: string
-          id?: number
-        }
-        Relationships: []
-      }
       system_logs: {
         Row: {
           created_at: string | null
@@ -544,47 +512,6 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
-      }
-      wetterdaten_prognose: {
-        Row: {
-          created_at: string
-          id: number
-          "temperatur (+tag 1)": number | null
-          "temperatur (+tag 2)": number | null
-          "temperatur (+tag 3)": number | null
-          "windgeschwindigkeit (+tag 1)": number | null
-          "windgeschwindigkeit (+tag 2)": number | null
-          "windgeschwindigkeit (+tag 3)": number | null
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          "temperatur (+tag 1)"?: number | null
-          "temperatur (+tag 2)"?: number | null
-          "temperatur (+tag 3)"?: number | null
-          "windgeschwindigkeit (+tag 1)"?: number | null
-          "windgeschwindigkeit (+tag 2)"?: number | null
-          "windgeschwindigkeit (+tag 3)"?: number | null
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          "temperatur (+tag 1)"?: number | null
-          "temperatur (+tag 2)"?: number | null
-          "temperatur (+tag 3)"?: number | null
-          "windgeschwindigkeit (+tag 1)"?: number | null
-          "windgeschwindigkeit (+tag 2)"?: number | null
-          "windgeschwindigkeit (+tag 3)"?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wetterdaten_prognose_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "standort"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       zahlungen: {
         Row: {
@@ -739,6 +666,16 @@ export type Database = {
       update_expired_terminated_contracts: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      update_faellige_forderungen: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          faelligkeitsdatum: string
+          forderung_id: string
+          mietvertrag_id: string
+          sollbetrag: number
+          sollmonat: string
+        }[]
       }
       vector_avg: {
         Args: { "": number[] }
