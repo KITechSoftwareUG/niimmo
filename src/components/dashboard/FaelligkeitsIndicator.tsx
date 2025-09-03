@@ -67,7 +67,7 @@ export const FaelligkeitsIndicator = ({ forderung }: FaelligkeitsIndicatorProps)
         <span>Noch nicht fällig</span>
       </Badge>
       <span className="text-xs text-gray-500">
-        Fällig am {faelligkeitsdatum.toLocaleDateString('de-DE')}
+        Fällig am {day.toString().padStart(2, '0')}.{month.toString().padStart(2, '0')}
       </span>
     </div>
   );
