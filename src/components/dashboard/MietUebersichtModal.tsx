@@ -840,53 +840,48 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
             )}
           </TableCell>
                           
-                          {/* Kaution SOLL/IST */}
+                          {/* Kaution SOLL */}
                           <TableCell className="text-center text-xs border-r p-1">
-                            <div className="space-y-1">
-                              {/* SOLL Kaution */}
-                              <div>
-                                {isFieldEditing(vertrag.id, 'kautionSoll') ? (
-                                  <Input
-                                    type="number"
-                                    value={getEditingValue(vertrag.id, 'kautionSoll') || ''}
-                                    onChange={(e) => updateEditingValue(vertrag.id, 'kautionSoll', parseFloat(e.target.value))}
-                                    className="h-5 text-xs text-center"
-                                    onBlur={() => cancelEdit(vertrag.id, 'kautionSoll')}
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <div 
-                                    className={`cursor-pointer hover:bg-gray-100 p-1 rounded text-xs ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                    onClick={() => isEditing && startEditing(vertrag.id, 'kautionSoll', getKautionSoll(vertrag))}
-                                    title="SOLL-Kaution"
-                                  >
-                                    <span className="text-blue-600 font-medium">S:</span> {getKautionSoll(vertrag) ? `${getKautionSoll(vertrag).toLocaleString()} €` : '0 €'}
-                                  </div>
-                                )}
+                            {isFieldEditing(vertrag.id, 'kautionSoll') ? (
+                              <Input
+                                type="number"
+                                value={getEditingValue(vertrag.id, 'kautionSoll') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'kautionSoll', parseFloat(e.target.value))}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'kautionSoll')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'kautionSoll', getKautionSoll(vertrag))}
+                                title="SOLL-Kaution aus Vertrag"
+                              >
+                                {getKautionSoll(vertrag) ? `${getKautionSoll(vertrag).toLocaleString()} €` : '0 €'}
                               </div>
-                              
-                              {/* IST Kaution */}
-                              <div>
-                                {isFieldEditing(vertrag.id, 'kautionIst') ? (
-                                  <Input
-                                    type="number"
-                                    value={getEditingValue(vertrag.id, 'kautionIst') || ''}
-                                    onChange={(e) => updateEditingValue(vertrag.id, 'kautionIst', parseFloat(e.target.value))}
-                                    className="h-5 text-xs text-center"
-                                    onBlur={() => cancelEdit(vertrag.id, 'kautionIst')}
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <div 
-                                    className={`cursor-pointer hover:bg-gray-100 p-1 rounded text-xs ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                    onClick={() => isEditing && startEditing(vertrag.id, 'kautionIst', getKautionIst(vertrag))}
-                                    title="IST-Kaution"
-                                  >
-                                    <span className="text-green-600 font-medium">I:</span> {getKautionIst(vertrag) ? `${getKautionIst(vertrag).toLocaleString()} €` : '0 €'}
-                                  </div>
-                                )}
+                            )}
+                          </TableCell>
+                          
+                          {/* Kaution IST */}
+                          <TableCell className="text-center text-xs border-r p-1">
+                            {isFieldEditing(vertrag.id, 'kautionIst') ? (
+                              <Input
+                                type="number"
+                                value={getEditingValue(vertrag.id, 'kautionIst') || ''}
+                                onChange={(e) => updateEditingValue(vertrag.id, 'kautionIst', parseFloat(e.target.value))}
+                                className="h-6 text-xs text-center"
+                                onBlur={() => cancelEdit(vertrag.id, 'kautionIst')}
+                                autoFocus
+                              />
+                            ) : (
+                              <div 
+                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                                onClick={() => isEditing && startEditing(vertrag.id, 'kautionIst', getKautionIst(vertrag))}
+                                title="IST-Kaution aus Zahlungen"
+                              >
+                                {getKautionIst(vertrag) ? `${getKautionIst(vertrag).toLocaleString()} €` : '0 €'}
                               </div>
-                            </div>
+                            )}
                           </TableCell>
                           
                           {/* nächste mögl. Erhöh. */}

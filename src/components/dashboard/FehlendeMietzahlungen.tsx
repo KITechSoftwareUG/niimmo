@@ -221,9 +221,9 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                             <p className="text-gray-600">Rückstand</p>
                             <p className="font-bold text-red-600">
                               {formatBetrag(rueckstand.fehlend_betrag)}
-                              {rueckstand.noch_nicht_faellige_forderungen > 0 && (
+                              {rueckstand.noch_nicht_faellige_forderungen_betrag > 0 && (
                                 <span className="text-orange-600 ml-1 font-normal">
-                                  ({rueckstand.noch_nicht_faellige_forderungen} offen)
+                                  ({formatBetrag(rueckstand.noch_nicht_faellige_forderungen_betrag)} offen)
                                 </span>
                               )}
                             </p>
