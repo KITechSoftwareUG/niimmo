@@ -1334,9 +1334,18 @@ export const MietvertragDetailsModal = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         <div>
                           <p className="text-sm text-gray-600">Kaution SOLL (Vertrag)</p>
-                          <p className="font-semibold text-lg text-blue-600">
-                            {formatBetrag(kautionSoll)}
-                          </p>
+                          <input 
+                            type="number" 
+                            value={kautionSoll} 
+                            onChange={(e) => {
+                              const newValue = parseFloat(e.target.value) || 0;
+                              if (vertrag) {
+                                vertrag.kaution_betrag = newValue;
+                              }
+                            }}
+                            onBlur={handleKautionSollChange}
+                            className="font-semibold text-lg text-blue-600 bg-transparent border-2 border-transparent hover:border-blue-200 px-2 py-1 rounded w-full"
+                          />
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Kaution IST (Zahlungen)</p>
