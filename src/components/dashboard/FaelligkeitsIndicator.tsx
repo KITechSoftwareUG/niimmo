@@ -12,10 +12,14 @@ interface FaelligkeitsIndicatorProps {
 
 export const FaelligkeitsIndicator = ({ forderung }: FaelligkeitsIndicatorProps) => {
   const heute = new Date();
-  // Parse date safely to avoid timezone issues
-  const dateString = forderung.faelligkeitsdatum.split('T')[0]; // Extract just the date part
-  const [year, month, day] = dateString.split('-').map(Number);
-  const faelligkeitsdatum = new Date(year, month - 1, day); // month is 0-indexed
+  
+  // Extract the month from sollmonat (e.g., "2025-08" -> August)
+  const [year, month] = forderung.sollmonat.split('-');
+  const forderungsMonat = parseInt(month);
+  const forderungsJahr = parseInt(year);
+  
+  // Due date is always the 10th of the demand month
+  const faelligkeitsdatum = new Date(forderungsJahr, forderungsMonat - 1, 10);
   const tagebisFaellig = Math.ceil((faelligkeitsdatum.getTime() - heute.getTime()) / (1000 * 60 * 60 * 24));
 
   if (forderung.ist_faellig) {
@@ -67,7 +71,7 @@ export const FaelligkeitsIndicator = ({ forderung }: FaelligkeitsIndicatorProps)
         <span>Noch nicht fällig</span>
       </Badge>
       <span className="text-xs text-gray-500">
-        Fällig am {day.toString().padStart(2, '0')}.{month.toString().padStart(2, '0')}
+        Fällig am 10.{forderungsMonat.toString().padStart(2, '0')}
       </span>
     </div>
   );
