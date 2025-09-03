@@ -552,9 +552,9 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
         <ScrollArea className="flex-1 max-h-[calc(90vh-100px)]">
           <div className="space-y-6">
             {organizedData.map((propertyGroup, index) => (
-              <div key={propertyGroup.immobilie.id || index} className="border rounded-lg">
+              <div key={propertyGroup.immobilie.id || index} className="border rounded-lg overflow-hidden">
                 {/* Property Header */}
-                <div className="bg-gray-50 p-3 border-b">
+                <div className="bg-gray-50 p-3 border-b sticky top-0 z-20">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-sm">{propertyGroup.immobilie.name}</h3>
@@ -566,10 +566,11 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                   </div>
                 </div>
 
-                {/* Contracts Table */}
-                <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-white shadow-sm">
-                    <TableRow>
+                {/* Table with Sticky Headers */}
+                <div className="relative">
+                  <Table>
+                    <TableHeader className="sticky top-[60px] z-10 bg-white border-b shadow-sm">
+                      <TableRow>
                       <TableHead className="text-center text-xs w-12 border-r">
                         Einheit
                       </TableHead>
@@ -1000,6 +1001,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             ))}
           </div>
