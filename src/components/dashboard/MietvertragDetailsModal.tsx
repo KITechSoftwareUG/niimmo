@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MahnstufeIndicator } from "./MahnstufeIndicator";
+import { FaelligkeitsIndicator } from "./FaelligkeitsIndicator";
 import { 
   Euro, 
   Calendar, 
@@ -827,10 +828,25 @@ export const MietvertragDetailsModal = ({
       }
     }
     
-    return { gesamtForderungen, gesamtZahlungen };
+    return { 
+      gesamtForderungen, 
+      gesamtZahlungen,
+      // Fälligkeitsinformationen hinzufügen
+      faelligeForderungen: relevanteForderungen.filter(f => f.ist_faellig === true),
+      nichtFaelligeForderungen: relevanteForderungen.filter(f => f.ist_faellig !== true),
+      faelligeForderungenBetrag: relevanteForderungen.filter(f => f.ist_faellig === true).reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0),
+      nichtFaelligeForderungenBetrag: relevanteForderungen.filter(f => f.ist_faellig !== true).reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0)
+    };
   };
 
-  const { gesamtForderungen, gesamtZahlungen } = calculateRueckstand();
+  const { 
+    gesamtForderungen, 
+    gesamtZahlungen, 
+    faelligeForderungen, 
+    nichtFaelligeForderungen, 
+    faelligeForderungenBetrag, 
+    nichtFaelligeForderungenBetrag 
+  } = calculateRueckstand();
   const sollMiete = vertrag ? (Number(vertrag.kaltmiete) || 0) + (Number(vertrag.betriebskosten) || 0) : 0;
 
   // Erstelle eine Liste der Monate basierend auf vorhandenen Forderungen
@@ -1265,13 +1281,23 @@ export const MietvertragDetailsModal = ({
                   
                   <Separator className="my-4" />
                   
-                  {/* Rückstand für gesamten Zeitraum */}
+                   {/* Rückstand für gesamten Zeitraum */}
                   <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
                     <h3 className="text-lg font-semibold text-blue-800 mb-3">Gesamtrückstand</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <p className="text-sm text-blue-600">Gesamtforderungen (ab Jan 2025)</p>
                         <p className="font-bold text-lg text-blue-800">{formatBetrag(gesamtForderungen)}</p>
+                        <div className="text-xs text-gray-600 mt-1 space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-red-600">Fällig: {faelligeForderungen?.length || 0}</span>
+                            <span className="text-orange-600">Offen: {nichtFaelligeForderungen?.length || 0}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-red-600">{formatBetrag(faelligeForderungenBetrag || 0)}</span>
+                            <span className="text-orange-600">{formatBetrag(nichtFaelligeForderungenBetrag || 0)}</span>
+                          </div>
+                        </div>
                       </div>
                       <div>
                         <p className="text-sm text-green-600">Eingegangene Zahlungen</p>
@@ -1288,6 +1314,11 @@ export const MietvertragDetailsModal = ({
                         }`}>
                           {formatBetrag(gesamtForderungen - gesamtZahlungen)}
                         </p>
+                        {faelligeForderungenBetrag > 0 && (
+                          <div className="text-xs text-red-600 mt-1">
+                            Davon fällig: {formatBetrag(faelligeForderungenBetrag)}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1549,9 +1580,19 @@ export const MietvertragDetailsModal = ({
                                                           <Edit2 className="h-3 w-3" />
                                                         </Button>
                                                       </div>
-                                                   )}
-                                                   
-                                                   {/* Monat mit Edit-Funktionalität */}
+                                                    )}
+                                                    
+                                                    {/* Fälligkeitsstatus */}
+                                                    <div className="flex justify-end mb-2">
+                                                      <FaelligkeitsIndicator forderung={{
+                                                        ist_faellig: forderung.ist_faellig || false,
+                                                        faelligkeitsdatum: forderung.faelligkeitsdatum || '',
+                                                        faellig_seit: forderung.faellig_seit || '',
+                                                        sollmonat: forderung.sollmonat
+                                                      }} />
+                                                    </div>
+                                                    
+                                                    {/* Monat mit Edit-Funktionalität */}
                                                    {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'monat' ? (
                                                      <div className="flex justify-end items-center space-x-2">
                                                        <input 

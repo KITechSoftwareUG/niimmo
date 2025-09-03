@@ -213,6 +213,16 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                           <div>
                             <p className="text-gray-600">Forderungen</p>
                             <p className="font-medium">{formatBetrag(rueckstand.gesamt_forderungen)}</p>
+                            <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                              <div className="flex justify-between">
+                                <span className="text-red-600">Fällig: {rueckstand.faellige_forderungen}</span>
+                                <span className="text-orange-600">Offen: {rueckstand.noch_nicht_faellige_forderungen}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-red-600">{formatBetrag(rueckstand.faellige_forderungen_betrag)}</span>
+                                <span className="text-orange-600">{formatBetrag(rueckstand.noch_nicht_faellige_forderungen_betrag)}</span>
+                              </div>
+                            </div>
                           </div>
                           <div>
                             <p className="text-gray-600">Miete-Zahlungen</p>
@@ -221,6 +231,11 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                           <div>
                             <p className="text-gray-600">Rückstand</p>
                             <p className="font-bold text-red-600">{formatBetrag(rueckstand.fehlend_betrag)}</p>
+                            {rueckstand.naechste_faelligkeit && (
+                              <div className="text-xs text-orange-600 mt-1">
+                                Nächste Fälligkeit: {new Date(rueckstand.naechste_faelligkeit).toLocaleDateString('de-DE')}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

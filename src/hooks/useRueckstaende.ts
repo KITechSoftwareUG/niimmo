@@ -22,6 +22,12 @@ export interface FehlendeMietzahlung {
   betriebskosten: number;
   mietvertrag_status: string;
   mahnstufe: number;
+  // Neue Fälligkeitsinformationen
+  faellige_forderungen: number;
+  noch_nicht_faellige_forderungen: number;
+  faellige_forderungen_betrag: number;
+  noch_nicht_faellige_forderungen_betrag: number;
+  naechste_faelligkeit?: string;
 }
 
 export const useRueckstaende = () => {
@@ -114,6 +120,19 @@ export const useRueckstaende = () => {
           // Berechne Miete-Zahlungen separat
           const mieteZahlungenSumme = calculateMieteZahlungen(mietvertragZahlungen || []);
           
+          // Berechne Fälligkeitsinformationen
+          const alleForderungen = mietvertragForderungen || [];
+          const faelligeForderungen = alleForderungen.filter(f => f.ist_faellig === true);
+          const nichtFaelligeForderungen = alleForderungen.filter(f => f.ist_faellig !== true);
+          
+          const faelligeForderungenBetrag = faelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+          const nichtFaelligeForderungenBetrag = nichtFaelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+          
+          // Finde nächste Fälligkeit
+          const naechsteFaelligkeit = nichtFaelligeForderungen
+            .filter(f => f.faelligkeitsdatum)
+            .sort((a, b) => new Date(a.faelligkeitsdatum).getTime() - new Date(b.faelligkeitsdatum).getTime())[0]?.faelligkeitsdatum;
+          
           rueckstaende.push({
             mietvertrag_id: mietvertrag.id,
             fehlend_betrag: rueckstand,
@@ -134,7 +153,13 @@ export const useRueckstaende = () => {
             kaltmiete: mietvertrag.kaltmiete || 0,
             betriebskosten: mietvertrag.betriebskosten || 0,
             mietvertrag_status: 'Aktiv',
-            mahnstufe: mietvertrag.mahnstufe || 0
+            mahnstufe: mietvertrag.mahnstufe || 0,
+            // Fälligkeitsinformationen
+            faellige_forderungen: faelligeForderungen.length,
+            noch_nicht_faellige_forderungen: nichtFaelligeForderungen.length,
+            faellige_forderungen_betrag: faelligeForderungenBetrag,
+            noch_nicht_faellige_forderungen_betrag: nichtFaelligeForderungenBetrag,
+            naechste_faelligkeit: naechsteFaelligkeit
           });
         }
       }
