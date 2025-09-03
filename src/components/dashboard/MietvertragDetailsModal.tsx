@@ -1343,7 +1343,28 @@ export const MietvertragDetailsModal = ({
                                 vertrag.kaution_betrag = newValue;
                               }
                             }}
-                            onBlur={handleKautionSollChange}
+                            onBlur={async () => {
+                              if (!vertrag) return;
+                              try {
+                                const { error } = await supabase
+                                  .from('mietvertrag')
+                                  .update({ kaution_betrag: vertrag.kaution_betrag })
+                                  .eq('id', vertrag.id);
+                                
+                                if (error) throw error;
+                                
+                                toast({
+                                  title: "Gespeichert",
+                                  description: "Kaution SOLL wurde erfolgreich aktualisiert.",
+                                });
+                              } catch (error) {
+                                toast({
+                                  title: "Fehler", 
+                                  description: "Kaution konnte nicht gespeichert werden.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
                             className="font-semibold text-lg text-blue-600 bg-transparent border-2 border-transparent hover:border-blue-200 px-2 py-1 rounded w-full"
                           />
                         </div>
