@@ -521,8 +521,9 @@ export const MietvertragDetailsModal = ({
       const zahlungsDatum = new Date(z.buchungsdatum);
       if (zahlungsDatum < startDatum) return false;
       
-      // Kategorie-Filter
+      // Kategorie-Filter - auch Mietkaution einschließen
       return z.kategorie === 'Miete' || 
+             z.kategorie === 'Mietkaution' ||
              z.kategorie === null || 
              (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && String(z.kategorie) !== 'Ignorieren');
     });
@@ -789,8 +790,9 @@ export const MietvertragDetailsModal = ({
       const zahlungsDatum = new Date(z.buchungsdatum);
       if (zahlungsDatum < startDatum) return false;
       
-      // EXAKT IDENTISCHE Kategorie-Filter wie im Hook  
+      // EXAKT IDENTISCHE Kategorie-Filter wie im Hook - auch Mietkaution einschließen
       return z.kategorie === 'Miete' || 
+             z.kategorie === 'Mietkaution' ||
              z.kategorie === null || 
              (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && String(z.kategorie) !== 'Ignorieren');
     });
@@ -1698,20 +1700,37 @@ export const MietvertragDetailsModal = ({
                                                   
                                                   <div className="flex justify-between items-start mb-2">
                                                     <div className="flex-1">
-                                                      <div className="flex items-center mb-1">
-                                                         <div className={`${wasShifted || hasCustomMonth ? 'bg-blue-100' : 'bg-green-100'} rounded-full p-1.5 mr-2`}>
-                                                           <span className={`${wasShifted || hasCustomMonth ? 'text-blue-600' : 'text-green-600'} text-xs`}>💰</span>
-                                                         </div>
-                                                         <p className={`font-semibold ${wasShifted || hasCustomMonth ? 'text-blue-600' : 'text-green-600'} text-sm`}>
-                                                           Zahlung
-                                                         </p>
-                                                      </div>
-                                                       <p className={`text-xl font-bold ${wasShifted || hasCustomMonth ? 'text-blue-700' : 'text-green-700'} mb-1`}>
-                                                         {formatBetrag(Number(zahlung.betrag))}
-                                                       </p>
-                                                       <p className={`text-xs ${wasShifted || hasCustomMonth ? 'text-blue-500' : 'text-green-500'} mb-1 font-medium`}>
-                                                         {formatDatum(zahlung.buchungsdatum)}
-                                                       </p>
+                                                       <div className="flex items-center mb-1">
+                                                          <div className={`${
+                                                            zahlung.kategorie === 'Mietkaution' ? 'bg-purple-100' :
+                                                            wasShifted || hasCustomMonth ? 'bg-blue-100' : 'bg-green-100'
+                                                          } rounded-full p-1.5 mr-2`}>
+                                                            <span className={`${
+                                                              zahlung.kategorie === 'Mietkaution' ? 'text-purple-600' :
+                                                              wasShifted || hasCustomMonth ? 'text-blue-600' : 'text-green-600'
+                                                            } text-xs`}>
+                                                              {zahlung.kategorie === 'Mietkaution' ? '🏠' : '💰'}
+                                                            </span>
+                                                          </div>
+                                                          <p className={`font-semibold ${
+                                                            zahlung.kategorie === 'Mietkaution' ? 'text-purple-600' :
+                                                            wasShifted || hasCustomMonth ? 'text-blue-600' : 'text-green-600'
+                                                          } text-sm`}>
+                                                            {zahlung.kategorie === 'Mietkaution' ? 'Kaution' : 'Zahlung'}
+                                                          </p>
+                                                       </div>
+                        <p className={`text-xl font-bold ${
+                          zahlung.kategorie === 'Mietkaution' ? 'text-purple-700' :
+                          wasShifted || hasCustomMonth ? 'text-blue-700' : 'text-green-700'
+                        } mb-1`}>
+                          {formatBetrag(Number(zahlung.betrag))}
+                        </p>
+                        <p className={`text-xs ${
+                          zahlung.kategorie === 'Mietkaution' ? 'text-purple-500' :
+                          wasShifted || hasCustomMonth ? 'text-blue-500' : 'text-green-500'
+                        } mb-1 font-medium`}>
+                          {formatDatum(zahlung.buchungsdatum)}
+                        </p>
                                                        {zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7) && (
                                                          <p className="text-xs text-blue-500 mb-1">
                                                            Zugeordnet zu: {new Date(zahlung.zugeordneter_monat + '-01').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}

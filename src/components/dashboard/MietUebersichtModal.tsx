@@ -852,15 +852,29 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                               <Input
                                 type="number"
                                 value={getEditingValue(vertrag.id, 'kautionSoll') || ''}
-                                onChange={(e) => updateEditingValue(vertrag.id, 'kautionSoll', parseFloat(e.target.value))}
-                                className="h-6 text-xs text-center"
+                                onChange={(e) => {
+                                  const newValue = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                  updateEditingValue(vertrag.id, 'kautionSoll', newValue);
+                                }}
+                                className="h-8 text-xs text-center w-full"
                                 onBlur={() => cancelEdit(vertrag.id, 'kautionSoll')}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    cancelEdit(vertrag.id, 'kautionSoll');
+                                  }
+                                  if (e.key === 'Escape') {
+                                    cancelEdit(vertrag.id, 'kautionSoll');
+                                  }
+                                }}
                                 autoFocus
                               />
                             ) : (
                               <div 
-                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded text-xs ${isEditing ? 'border border-dashed border-blue-300 bg-blue-50' : 'border border-transparent'}`}
-                                onClick={() => {
+                                className={`cursor-pointer hover:bg-blue-50 p-2 rounded-lg text-xs transition-all ${isEditing ? 'border-2 border-dashed border-blue-300 bg-blue-50' : 'border border-gray-200 hover:border-blue-300'}`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('Kaution SOLL clicked');
                                   if (!isEditing) {
                                     setIsEditing(true);
                                   }
@@ -868,7 +882,12 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                                 }}
                                 title="SOLL-Kaution aus Vertrag - Klicken zum Bearbeiten"
                               >
-                                {getKautionSoll(vertrag) ? `${getKautionSoll(vertrag).toLocaleString()} €` : '0 €'}
+                                <div className="text-center">
+                                  <div className="text-blue-600 font-bold text-sm">
+                                    {getKautionSoll(vertrag) ? `${getKautionSoll(vertrag).toLocaleString()} €` : '0 €'}
+                                  </div>
+                                  <div className="text-xs text-gray-500">SOLL</div>
+                                </div>
                               </div>
                             )}
                           </TableCell>
@@ -879,15 +898,29 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                               <Input
                                 type="number"
                                 value={getEditingValue(vertrag.id, 'kautionIst') || ''}
-                                onChange={(e) => updateEditingValue(vertrag.id, 'kautionIst', parseFloat(e.target.value))}
-                                className="h-6 text-xs text-center"
+                                onChange={(e) => {
+                                  const newValue = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                                  updateEditingValue(vertrag.id, 'kautionIst', newValue);
+                                }}
+                                className="h-8 text-xs text-center w-full"
                                 onBlur={() => cancelEdit(vertrag.id, 'kautionIst')}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    cancelEdit(vertrag.id, 'kautionIst');
+                                  }
+                                  if (e.key === 'Escape') {
+                                    cancelEdit(vertrag.id, 'kautionIst');
+                                  }
+                                }}
                                 autoFocus
                               />
                             ) : (
                               <div 
-                                className={`cursor-pointer hover:bg-gray-100 p-1 rounded text-xs ${isEditing ? 'border border-dashed border-green-300 bg-green-50' : 'border border-transparent'}`}
-                                onClick={() => {
+                                className={`cursor-pointer hover:bg-green-50 p-2 rounded-lg text-xs transition-all ${isEditing ? 'border-2 border-dashed border-green-300 bg-green-50' : 'border border-gray-200 hover:border-green-300'}`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('Kaution IST clicked');
                                   if (!isEditing) {
                                     setIsEditing(true);
                                   }
@@ -895,7 +928,12 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                                 }}
                                 title="IST-Kaution aus Zahlungen - Klicken zum Bearbeiten"
                               >
-                                {getKautionIst(vertrag) ? `${getKautionIst(vertrag).toLocaleString()} €` : '0 €'}
+                                <div className="text-center">
+                                  <div className="text-green-600 font-bold text-sm">
+                                    {getKautionIst(vertrag) ? `${getKautionIst(vertrag).toLocaleString()} €` : '0 €'}
+                                  </div>
+                                  <div className="text-xs text-gray-500">IST</div>
+                                </div>
                               </div>
                             )}
                           </TableCell>
