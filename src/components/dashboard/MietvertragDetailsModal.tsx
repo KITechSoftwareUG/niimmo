@@ -198,6 +198,36 @@ export default function MietvertragDetailsModal({
     setMietvertragSearchTerm('');
   };
 
+  const handleDeleteForderung = async (forderungId: string) => {
+    try {
+      const { error } = await supabase
+        .from('mietforderungen')
+        .delete()
+        .eq('id', forderungId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Gelöscht",
+        description: "Forderung wurde erfolgreich gelöscht.",
+      });
+
+      // Invalidate queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
+      ]);
+
+    } catch (error) {
+      console.error('Fehler beim Löschen:', error);
+      toast({
+        title: "Fehler",
+        description: "Forderung konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const { data: vertrag, isLoading: vertragLoading } = useQuery({
     queryKey: ['mietvertrag-detail', vertragId],
     queryFn: async () => {
@@ -389,9 +419,8 @@ export default function MietvertragDetailsModal({
 
         <div className="space-y-6">
           <Tabs defaultValue="uebersicht" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-              <TabsTrigger value="zahlungen">Zahlungen & Forderungen</TabsTrigger>
               <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
             </TabsList>
 
@@ -461,9 +490,8 @@ export default function MietvertragDetailsModal({
                   </CardContent>
                 </Card>
               </div>
-            </TabsContent>
 
-            <TabsContent value="zahlungen" className="space-y-4">
+              {/* Zahlungen & Forderungen Section */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -571,7 +599,7 @@ export default function MietvertragDetailsModal({
                                       <div className="pr-10">
                                         {forderung ? (
                                           <div className="w-full">
-                                            <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                            <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm group">
                                               <div className="flex justify-between items-start">
                                                 <div className="flex-1 text-right">
                                                   <div className="flex items-center justify-end mb-2">
@@ -583,6 +611,17 @@ export default function MietvertragDetailsModal({
                                                   <p className="text-xl font-bold text-red-700 mb-1">
                                                     {formatBetrag(Number(forderung.sollbetrag))}
                                                   </p>
+                                                </div>
+                                                <div className="flex items-center space-x-1 ml-2">
+                                                  <Button
+                                                    onClick={() => handleDeleteForderung(forderung.id)}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                                    title="Forderung löschen"
+                                                  >
+                                                    <Trash2 className="h-3 w-3" />
+                                                  </Button>
                                                 </div>
                                               </div>
                                             </div>
