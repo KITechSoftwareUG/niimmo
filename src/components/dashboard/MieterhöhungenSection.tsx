@@ -110,8 +110,8 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
   }
 
   return (
-    <Card>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card>
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
             <CardTitle className="flex items-center justify-between">
@@ -181,7 +181,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
             </div>
           </CardContent>
         </CollapsibleContent>
-      </Collapsible>
-    </Card>
+      </Card>
+    </Collapsible>
   );
 }
