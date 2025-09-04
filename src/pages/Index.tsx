@@ -8,6 +8,7 @@ import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { MietUebersichtModal } from "@/components/dashboard/MietUebersichtModal";
+import { MieterhöhungenSection } from "@/components/dashboard/MieterhöhungenSection";
 import { useState, useMemo } from "react";
 import { Loader2, Building2, BarChart3, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -113,6 +114,10 @@ const Index = () => {
       setSelectedMietvertrag(mietvertragId); // Set contract ID to open modal
     }
   };
+
+  const handleRentIncreaseContractClick = (contractId: string) => {
+    handleMietvertragClick(contractId);
+  };
   if (isLoading) {
     return <div className="min-h-screen modern-dashboard-bg flex items-center justify-center">
         <div className="glass-card p-12 rounded-3xl">
@@ -171,6 +176,11 @@ const Index = () => {
         {/* Fehlende Mietzahlungen Übersicht */}
         <div className="mb-6">
           <FehlendeMietzahlungen onMietvertragClick={handleMietvertragClick} />
+        </div>
+
+        {/* Mögliche Mieterhöhungen */}
+        <div className="mb-6">
+          <MieterhöhungenSection onContractClick={handleRentIncreaseContractClick} />
         </div>
 
         {/* Suchfunktion */}
