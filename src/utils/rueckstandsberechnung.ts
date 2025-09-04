@@ -21,12 +21,11 @@ export const calculateMietvertragRueckstand = (
   const mietvertragStart = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2025-01-01');
   const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
   
-  // Filtere Forderungen ab Startdatum - nur fällige Forderungen für Rückstandsberechnung
-  const relevanteForderungen = forderungen.filter(f => {
+  // Filtere Forderungen ab Startdatum - alle Forderungen im Zeitraum
+  const alleForderungenAbStart = forderungen.filter(f => {
     if (!f.sollmonat) return false;
     const forderungsDatum = new Date(f.sollmonat + '-01');
-    // Nur fällige Forderungen (nach 7 Tagen) in Rückstand einrechnen
-    return forderungsDatum >= startDatum && f.ist_faellig === true;
+    return forderungsDatum >= startDatum;
   });
   
   // Vereinfachte Vorauszahlungs-Logik basierend auf zugeordneter_monat aus DB
@@ -94,7 +93,47 @@ export const calculateMietvertragRueckstand = (
   });
 
   // Wende Vorauszahlungs-Intelligenz an (jetzt basierend auf DB-Feld zugeordneter_monat)
-  const verarbeiteteZahlungen = processVorauszahlungen(relevanteZahlungen, relevanteForderungen);
+  const verarbeiteteZahlungen = processVorauszahlungen(relevanteZahlungen, alleForderungenAbStart);
+  
+  // Gruppiere Zahlungen nach zugeordnetem Monat
+  const zahlungenByMonth = new Map<string, any[]>();
+  verarbeiteteZahlungen.forEach(z => {
+    if (!z.zugeordneter_monat) return;
+    const monat = z.zugeordneter_monat;
+    if (!zahlungenByMonth.has(monat)) {
+      zahlungenByMonth.set(monat, []);
+    }
+    zahlungenByMonth.get(monat)!.push(z);
+  });
+  
+  // Filtere Forderungen: Nur die mit passenden Zahlungen, die sie vollständig abdecken
+  const relevanteForderungen = alleForderungenAbStart.filter(forderung => {
+    const monat = forderung.sollmonat;
+    const zahlungenFuerMonat = zahlungenByMonth.get(monat) || [];
+    
+    if (zahlungenFuerMonat.length === 0) {
+      // Keine Zahlung für diesen Monat - Forderung nicht einbeziehen
+      return false;
+    }
+    
+    // Berechne Gesamtsumme der Zahlungen für diesen Monat
+    const gesamtZahlungenFuerMonat = zahlungenFuerMonat.reduce((sum, z) => {
+      // Prüfe 6-Tage-Wartezeit bei Lastschrift
+      if (istLastschrift) {
+        const zahlungMitWartezeit = new Date(z.buchungsdatum);
+        zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
+        if (heute < zahlungMitWartezeit) {
+          return sum; // Zahlung noch in Wartezeit - nicht mitzählen
+        }
+      }
+      return sum + (Number(z.betrag) || 0);
+    }, 0);
+    
+    const sollbetrag = Number(forderung.sollbetrag) || 0;
+    
+    // Forderung nur einbeziehen, wenn Zahlungen die Forderung vollständig abdecken
+    return gesamtZahlungenFuerMonat >= sollbetrag;
+  });
   
   // Berechne Gesamtforderungen
   const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
