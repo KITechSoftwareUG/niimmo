@@ -1647,64 +1647,11 @@ export const MietvertragDetailsModal = ({
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  {viewMode === 'timeline' ? (
-                    <div className="space-y-8">
-                      {/* Kaution Section - at the beginning of contract */}
-                      {(() => {
-                        const kautionZahlungen = zahlungen?.filter(z => 
-                          z.mietvertrag_id === vertragId && z.kategorie === 'Mietkaution'
-                        ) || [];
-                        
-                        if (kautionZahlungen.length === 0) return null;
-                        
-                        return (
-                          <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-8">
-                            <div className="flex items-center mb-4">
-                              <div className="bg-purple-100 rounded-full p-2 mr-3">
-                                <span className="text-purple-600 text-lg">🏠</span>
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-semibold text-purple-800">Mietkaution</h3>
-                                <p className="text-sm text-purple-600">Gezahlt bei Mietbeginn</p>
-                              </div>
-                            </div>
-                            
-                            <div className="grid gap-3">
-                              {kautionZahlungen.map((zahlung) => (
-                                <div 
-                                  key={zahlung.id}
-                                  className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm"
-                                >
-                                  <div className="flex justify-between items-center">
-                                    <div>
-                                      <p className="font-bold text-xl text-purple-700">
-                                        {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                                      </p>
-                                      <p className="text-sm text-purple-600">
-                                        {formatDatum(zahlung.buchungsdatum)}
-                                      </p>
-                                      {zahlung.verwendungszweck && (
-                                        <p className="text-xs text-purple-500 mt-1">
-                                          {zahlung.verwendungszweck}
-                                        </p>
-                                      )}
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                        Kaution
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                        
-                        {/* Timeline Section */}
-                        <div className="relative py-6">
+                 <CardContent>
+                   {viewMode === 'timeline' ? (
+                     <div className="space-y-8">
+                       {/* Timeline Section */}
+                       <div className="relative py-6">
                         {(() => {
                            // Use processed payments that include month-end shifts and prepayment logic
                            const timelineZahlungen = processedZahlungen;
@@ -2383,8 +2330,96 @@ export const MietvertragDetailsModal = ({
                          </div>
                        )}
                      </div>
-                   )}
-                 </CardContent>
+                    )}
+                    
+                    {/* Kaution Section - at the bottom */}
+                    {(() => {
+                      const kautionZahlungen = zahlungen?.filter(z => 
+                        z.mietvertrag_id === vertragId && z.kategorie === 'Mietkaution'
+                      ) || [];
+                      
+                      if (kautionZahlungen.length === 0) return null;
+                      
+                      return (
+                        <div className="mt-8 bg-purple-50 border border-purple-200 rounded-lg p-6">
+                          <div className="flex items-center mb-4">
+                            <div className="bg-purple-100 rounded-full p-2 mr-3">
+                              <span className="text-purple-600 text-lg">🏠</span>
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-purple-800">Mietkaution</h3>
+                              <p className="text-sm text-purple-600">Gezahlt bei Mietbeginn</p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid gap-3">
+                            {kautionZahlungen.map((zahlung) => (
+                              <div 
+                                key={zahlung.id}
+                                className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm group"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <div>
+                                    <p className="font-bold text-xl text-purple-700">
+                                      {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                    </p>
+                                    <p className="text-sm text-purple-600">
+                                      {formatDatum(zahlung.buchungsdatum)}
+                                    </p>
+                                    {zahlung.verwendungszweck && (
+                                      <p className="text-xs text-purple-500 mt-1">
+                                        {zahlung.verwendungszweck}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right flex items-center space-x-2">
+                                    {editingPayment?.zahlungId === zahlung.id && editingPayment?.field === 'kategorie' ? (
+                                      <div className="flex items-center space-x-2">
+                                        <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                                          <SelectTrigger className="h-8 text-sm w-32">
+                                            <SelectValue placeholder="Kategorie" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="Miete">Miete</SelectItem>
+                                            <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
+                                            <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                            <SelectItem value="Nachzahlung">Nachzahlung</SelectItem>
+                                            <SelectItem value="Rückzahlung">Rückzahlung</SelectItem>
+                                            <SelectItem value="Sonstige">Sonstige</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <Button onClick={() => handleSavePaymentField()} size="sm" className="h-8 px-3">
+                                          <Check className="h-4 w-4" />
+                                        </Button>
+                                        <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                          Kaution
+                                        </span>
+                                        <Button
+                                          onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                          variant="ghost"
+                                          size="sm"
+                                          className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                                          title="Kategorie ändern"
+                                        >
+                                          <Edit2 className="h-3 w-3" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
               </Card>
             </TabsContent>
 
