@@ -106,43 +106,38 @@ export const calculateMietvertragRueckstand = (
     zahlungenByMonth.get(monat)!.push(z);
   });
   
-  // Filtere Forderungen: Nur die mit passenden Zahlungen, die sie vollständig abdecken
-  const relevanteForderungen = alleForderungenAbStart.filter(forderung => {
+  // Prüfe bei offenen Forderungen, ob Zahlungen vorhanden sind und setze sie ggf. auf fällig
+  alleForderungenAbStart.forEach(forderung => {
     const monat = forderung.sollmonat;
     const zahlungenFuerMonat = zahlungenByMonth.get(monat) || [];
     
-    if (zahlungenFuerMonat.length === 0) {
-      // Keine Zahlung für diesen Monat - Forderung nicht einbeziehen
-      return false;
-    }
-    
-    // Berechne Gesamtsumme der Zahlungen für diesen Monat
-    const gesamtZahlungenFuerMonat = zahlungenFuerMonat.reduce((sum, z) => {
-      // Prüfe 6-Tage-Wartezeit bei Lastschrift
-      if (istLastschrift) {
-        const zahlungMitWartezeit = new Date(z.buchungsdatum);
-        zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
-        if (heute < zahlungMitWartezeit) {
-          return sum; // Zahlung noch in Wartezeit - nicht mitzählen
+    // Wenn Forderung noch nicht fällig ist, prüfe ob Zahlungen sie abdecken
+    if (!forderung.ist_faellig && zahlungenFuerMonat.length > 0) {
+      // Berechne Gesamtsumme der Zahlungen für diesen Monat
+      const gesamtZahlungenFuerMonat = zahlungenFuerMonat.reduce((sum, z) => {
+        // Prüfe 6-Tage-Wartezeit bei Lastschrift
+        if (istLastschrift) {
+          const zahlungMitWartezeit = new Date(z.buchungsdatum);
+          zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
+          if (heute < zahlungMitWartezeit) {
+            return sum; // Zahlung noch in Wartezeit - nicht mitzählen
+          }
         }
+        return sum + (Number(z.betrag) || 0);
+      }, 0);
+      
+      const sollbetrag = Number(forderung.sollbetrag) || 0;
+      
+      // Wenn Zahlungen die Forderung vollständig abdecken, setze auf fällig
+      if (gesamtZahlungenFuerMonat >= sollbetrag) {
+        forderung.ist_faellig = true;
+        forderung.faellig_seit = new Date().toISOString();
       }
-      return sum + (Number(z.betrag) || 0);
-    }, 0);
-    
-    const sollbetrag = Number(forderung.sollbetrag) || 0;
-    
-    // Wenn Zahlungen die Forderung vollständig abdecken
-    const istVollAbgedeckt = gesamtZahlungenFuerMonat >= sollbetrag;
-    
-    if (istVollAbgedeckt && !forderung.ist_faellig) {
-      // Markiere Forderung als fällig, da sie bezahlt wurde
-      forderung.ist_faellig = true;
-      forderung.faellig_seit = new Date().toISOString();
     }
-    
-    // Forderung nur einbeziehen, wenn Zahlungen die Forderung vollständig abdecken
-    return istVollAbgedeckt;
   });
+  
+  // ALLE Forderungen einbeziehen (nicht nur die mit Zahlungen)
+  const relevanteForderungen = alleForderungenAbStart;
   
   // Berechne Gesamtforderungen
   const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
