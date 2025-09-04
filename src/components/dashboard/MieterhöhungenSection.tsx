@@ -112,11 +112,9 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
   return (
     <Card>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <CardHeader 
-            className="cursor-pointer hover:bg-muted/50 transition-colors"
-          >
-            <CardTitle className="flex items-center justify-between">
+        <CardHeader>
+          <CollapsibleTrigger className="w-full cursor-pointer hover:bg-muted/50 transition-colors p-0 border-none bg-transparent">
+            <CardTitle className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
                 Mögliche Mieterhöhungen
@@ -130,8 +128,8 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
                 <ChevronRight className="h-4 w-4" />
               )}
             </CardTitle>
-          </CardHeader>
-        </CollapsibleTrigger>
+          </CollapsibleTrigger>
+        </CardHeader>
         
         <CollapsibleContent>
           <CardContent className="pt-0">
