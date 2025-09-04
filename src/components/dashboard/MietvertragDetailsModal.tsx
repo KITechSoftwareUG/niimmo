@@ -198,6 +198,40 @@ export default function MietvertragDetailsModal({
     setMietvertragSearchTerm('');
   };
 
+  const handleEditKaution = async (field: 'soll' | 'ist', value: string) => {
+    try {
+      const updateData = field === 'soll' 
+        ? { kaution_betrag: parseFloat(value) }
+        : { kaution_ist: parseFloat(value) };
+
+      const { error } = await supabase
+        .from('mietvertrag')
+        .update(updateData)
+        .eq('id', vertragId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Aktualisiert",
+        description: `Kaution ${field === 'soll' ? 'Soll' : 'Ist'} wurde erfolgreich aktualisiert.`,
+      });
+
+      setEditingKaution(null);
+      setKautionValue('');
+
+      // Invalidate queries
+      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren:', error);
+      toast({
+        title: "Fehler",
+        description: "Kaution konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteForderung = async (forderungId: string) => {
     try {
       const { error } = await supabase
@@ -309,6 +343,29 @@ export default function MietvertragDetailsModal({
       return data || [];
     },
     enabled: isOpen && !!vertragId
+  });
+
+  const { data: allMietvertraege } = useQuery({
+    queryKey: ['all-mietvertraege'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietvertrag')
+        .select(`
+          id,
+          einheit_id,
+          einheiten (
+            immobilie_id,
+            immobilien (
+              name,
+              adresse
+            )
+          )
+        `);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen
   });
 
   // Drag and drop handlers
@@ -491,6 +548,129 @@ export default function MietvertragDetailsModal({
                 </Card>
               </div>
 
+              {/* Kaution Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Euro className="h-5 w-5" />
+                    <span>Kaution Übersicht</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-medium text-blue-600">Kaution Soll</p>
+                          {editingKaution === 'soll' ? (
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Input
+                                type="number"
+                                value={kautionValue}
+                                onChange={(e) => setKautionValue(e.target.value)}
+                                className="w-32 h-8"
+                                placeholder="Betrag"
+                              />
+                              <Button
+                                onClick={() => handleEditKaution('soll', kautionValue)}
+                                size="sm"
+                                variant="outline"
+                                className="h-8 w-8 p-0"
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setEditingKaution(null);
+                                  setKautionValue('');
+                                }}
+                                size="sm"
+                                variant="outline"
+                                className="h-8 w-8 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2 mt-1">
+                              <p className="text-lg font-semibold text-blue-800">
+                                {formatBetrag(Number(vertrag.kaution_betrag || 0))}
+                              </p>
+                              <Button
+                                onClick={() => {
+                                  setEditingKaution('soll');
+                                  setKautionValue(String(vertrag.kaution_betrag || 0));
+                                }}
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-medium text-green-600">Kaution Ist</p>
+                          {editingKaution === 'ist' ? (
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Input
+                                type="number"
+                                value={kautionValue}
+                                onChange={(e) => setKautionValue(e.target.value)}
+                                className="w-32 h-8"
+                                placeholder="Betrag"
+                              />
+                              <Button
+                                onClick={() => handleEditKaution('ist', kautionValue)}
+                                size="sm"
+                                variant="outline"
+                                className="h-8 w-8 p-0"
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setEditingKaution(null);
+                                  setKautionValue('');
+                                }}
+                                size="sm"
+                                variant="outline"
+                                className="h-8 w-8 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2 mt-1">
+                              <p className="text-lg font-semibold text-green-800">
+                                {formatBetrag(Number(vertrag.kaution_ist || 0))}
+                              </p>
+                              <Button
+                                onClick={() => {
+                                  setEditingKaution('ist');
+                                  setKautionValue(String(vertrag.kaution_ist || 0));
+                                }}
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Zahlungen & Forderungen Section */}
               <Card>
                 <CardHeader>
@@ -669,9 +849,126 @@ export default function MietvertragDetailsModal({
                                                     )}
 
                                                     <div className="flex items-center space-x-2">
-                                                      <Badge variant="outline" className="text-sm">
-                                                        {zahlung.kategorie || 'Sonstige'}
-                                                      </Badge>
+                                                      {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'kategorie' ? (
+                                                        <div className="flex items-center space-x-1">
+                                                          <Select
+                                                            value={editPaymentValue}
+                                                            onValueChange={setEditPaymentValue}
+                                                          >
+                                                            <SelectTrigger className="w-32 h-6 text-xs">
+                                                              <SelectValue placeholder="Kategorie" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                              <SelectItem value="Miete">Miete</SelectItem>
+                                                              <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
+                                                              <SelectItem value="Kaution">Kaution</SelectItem>
+                                                              <SelectItem value="Sonstige">Sonstige</SelectItem>
+                                                            </SelectContent>
+                                                          </Select>
+                                                          <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                                                            <Check className="h-3 w-3" />
+                                                          </Button>
+                                                          <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                                                            <X className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      ) : (
+                                                        <div className="flex items-center space-x-1">
+                                                          <Badge variant="outline" className="text-sm">
+                                                            {zahlung.kategorie || 'Sonstige'}
+                                                          </Badge>
+                                                          <Button
+                                                            onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                                          >
+                                                            <Edit2 className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      )}
+                                                    </div>
+
+                                                    {/* Month Edit */}
+                                                    <div className="mt-2">
+                                                      {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'monat' ? (
+                                                        <div className="flex items-center space-x-1">
+                                                          <Input
+                                                            type="month"
+                                                            value={editPaymentValue}
+                                                            onChange={(e) => setEditPaymentValue(e.target.value)}
+                                                            className="w-32 h-6 text-xs"
+                                                          />
+                                                          <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                                                            <Check className="h-3 w-3" />
+                                                          </Button>
+                                                          <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                                                            <X className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      ) : (
+                                                        <div className="flex items-center space-x-1">
+                                                          <Badge variant="secondary" className="text-xs">
+                                                            {zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || 'Unzugeordnet'}
+                                                          </Badge>
+                                                          <Button
+                                                            onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || '')}
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                                          >
+                                                            <Calendar className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      )}
+                                                    </div>
+
+                                                    {/* Mietvertrag Edit */}
+                                                    <div className="mt-2">
+                                                      {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'mietvertrag' ? (
+                                                        <div className="space-y-2">
+                                                          <Input
+                                                            placeholder="Suche Mietvertrag..."
+                                                            value={mietvertragSearchTerm}
+                                                            onChange={(e) => setMietvertragSearchTerm(e.target.value)}
+                                                            className="w-full h-6 text-xs"
+                                                          />
+                                                          <div className="max-h-32 overflow-y-auto space-y-1">
+                                                            {allMietvertraege?.filter(mv => 
+                                                              mv.einheiten?.immobilien?.name?.toLowerCase().includes(mietvertragSearchTerm.toLowerCase()) ||
+                                                              mv.einheiten?.immobilien?.adresse?.toLowerCase().includes(mietvertragSearchTerm.toLowerCase())
+                                                            ).slice(0, 5).map(mv => (
+                                                              <button
+                                                                key={mv.id}
+                                                                onClick={() => handleSavePaymentField(mv.id)}
+                                                                className="w-full text-left p-2 text-xs bg-gray-50 hover:bg-gray-100 rounded"
+                                                              >
+                                                                {mv.einheiten?.immobilien?.name} - {mv.einheiten?.immobilien?.adresse}
+                                                              </button>
+                                                            ))}
+                                                          </div>
+                                                          <div className="flex items-center space-x-1">
+                                                            <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 text-xs">
+                                                              Abbrechen
+                                                            </Button>
+                                                          </div>
+                                                        </div>
+                                                      ) : (
+                                                        <div className="flex items-center space-x-1">
+                                                          <Badge variant="outline" className="text-xs">
+                                                            <ArrowRightLeft className="h-3 w-3 mr-1" />
+                                                            Objekt
+                                                          </Badge>
+                                                          <Button
+                                                            onClick={() => handleEditPaymentField(zahlung.id, 'mietvertrag', zahlung.mietvertrag_id || '')}
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                                          >
+                                                            <Edit2 className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      )}
                                                     </div>
                                                   </div>
                                                 </div>
@@ -716,10 +1013,76 @@ export default function MietvertragDetailsModal({
                                       {zahlung.verwendungszweck}
                                     </p>
                                   )}
-                                  <div className="flex items-center mt-2">
-                                    <Badge variant="outline" className="text-xs font-medium">
-                                      {zahlung.kategorie || 'Sonstige'}
-                                    </Badge>
+                                  <div className="flex items-center mt-2 space-x-4">
+                                    {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'kategorie' ? (
+                                      <div className="flex items-center space-x-1">
+                                        <Select
+                                          value={editPaymentValue}
+                                          onValueChange={setEditPaymentValue}
+                                        >
+                                          <SelectTrigger className="w-32 h-6 text-xs">
+                                            <SelectValue placeholder="Kategorie" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="Miete">Miete</SelectItem>
+                                            <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
+                                            <SelectItem value="Kaution">Kaution</SelectItem>
+                                            <SelectItem value="Sonstige">Sonstige</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                        <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                                          <Check className="h-3 w-3" />
+                                        </Button>
+                                        <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center space-x-1">
+                                        <Badge variant="outline" className="text-xs font-medium">
+                                          {zahlung.kategorie || 'Sonstige'}
+                                        </Badge>
+                                        <Button
+                                          onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                        >
+                                          <Edit2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                    {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'monat' ? (
+                                      <div className="flex items-center space-x-1">
+                                        <Input
+                                          type="month"
+                                          value={editPaymentValue}
+                                          onChange={(e) => setEditPaymentValue(e.target.value)}
+                                          className="w-32 h-6 text-xs"
+                                        />
+                                        <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                                          <Check className="h-3 w-3" />
+                                        </Button>
+                                        <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center space-x-1">
+                                        <Badge variant="secondary" className="text-xs">
+                                          {zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || 'Unzugeordnet'}
+                                        </Badge>
+                                        <Button
+                                          onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || '')}
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                        >
+                                          <Calendar className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>
