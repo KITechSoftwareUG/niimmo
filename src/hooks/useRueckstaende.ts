@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateMietvertragRueckstand, calculateMieteZahlungen } from "@/utils/rueckstandsberechnung";
+import { useEffect } from "react";
 
 export interface FehlendeMietzahlung {
   mietvertrag_id: string;
@@ -31,6 +32,63 @@ export interface FehlendeMietzahlung {
 }
 
 export const useRueckstaende = () => {
+  const queryClient = useQueryClient();
+
+  // Set up real-time subscriptions for instant updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('rueckstaende-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'mietforderungen'
+        },
+        (payload) => {
+          console.log('Forderungen changed:', payload);
+          // Invalidate the rueckstaende query to trigger recalculation
+          queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+          // Also invalidate specific contract queries if we know the contract ID
+          if ((payload.new as any)?.mietvertrag_id) {
+            queryClient.invalidateQueries({ queryKey: ['mietforderungen', (payload.new as any).mietvertrag_id] });
+            queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', (payload.new as any).mietvertrag_id] });
+          }
+          if ((payload.old as any)?.mietvertrag_id) {
+            queryClient.invalidateQueries({ queryKey: ['mietforderungen', (payload.old as any).mietvertrag_id] });
+            queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', (payload.old as any).mietvertrag_id] });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'zahlungen'
+        },
+        (payload) => {
+          console.log('Zahlungen changed:', payload);
+          // Invalidate the rueckstaende query to trigger recalculation
+          queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+          // Also invalidate specific contract queries if we know the contract ID
+          if ((payload.new as any)?.mietvertrag_id) {
+            queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', (payload.new as any).mietvertrag_id] });
+            queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', (payload.new as any).mietvertrag_id] });
+          }
+          if ((payload.old as any)?.mietvertrag_id) {
+            queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', (payload.old as any).mietvertrag_id] });
+            queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', (payload.old as any).mietvertrag_id] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ['rueckstaende'],
     staleTime: 0,

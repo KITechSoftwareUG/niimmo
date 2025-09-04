@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -53,6 +53,67 @@ export default function MietvertragDetailsModal({
 }: MietvertragDetailsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Set up real-time subscriptions for instant updates when this modal is open
+  useEffect(() => {
+    if (!isOpen || !vertragId) return;
+
+    const channel = supabase
+      .channel(`mietvertrag-details-${vertragId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'mietforderungen',
+          filter: `mietvertrag_id=eq.${vertragId}`
+        },
+        (payload) => {
+          console.log('Contract forderungen changed:', payload);
+          // Invalidate all relevant queries for this contract
+          queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] });
+          queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+          queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'zahlungen',
+          filter: `mietvertrag_id=eq.${vertragId}`
+        },
+        (payload) => {
+          console.log('Contract zahlungen changed:', payload);
+          // Invalidate all relevant queries for this contract
+          queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] });
+          queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+          queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'mietvertrag',
+          filter: `id=eq.${vertragId}`
+        },
+        (payload) => {
+          console.log('Contract details changed:', payload);
+          // Invalidate contract detail queries
+          queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+          queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOpen, vertragId, queryClient]);
+
   const [selectedYear, setSelectedYear] = useState<string>("2025");
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
   const [selectedMonth, setSelectedMonth] = useState<string>("alle");
