@@ -235,13 +235,19 @@ export const MietvertragDetailsModal = ({
       console.log('🔄 SAVE PAYMENT - Invalidiere Queries für vertragId:', vertragId);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['zahlungen-by-vertrag', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['zahlungen-by-vertrag', vertragId] }),  
         queryClient.invalidateQueries({ queryKey: ['mietvertrag-details', vertragId] }),
         queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
+        queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] }),
       ]);
       
       // Force refetch für sofortige Aktualisierung
-      queryClient.refetchQueries({ queryKey: ['zahlungen-detail', vertragId] });
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['zahlungen-detail', vertragId] }),
+        queryClient.refetchQueries({ queryKey: ['mietforderungen', vertragId] }),
+      ]);
+      
+      console.log('✅ SAVE PAYMENT - Timeline sollte jetzt aktualisiert werden');
       
     } catch (error) {
       console.error('🚨 SAVE PAYMENT - Fehler beim Aktualisieren:', error);
