@@ -975,11 +975,7 @@ export default function MietvertragDetailsModal({
                                                </div>
                                              </div>
                                            </div>
-                                         ) : (
-                                           <div className="w-full p-4 text-center text-gray-500">
-                                             <p className="text-sm italic">Keine Forderung</p>
-                                           </div>
-                                         )}
+                                          ) : null}
                                        </div>
 
                                       {/* Right side - Zahlungen */}
@@ -996,16 +992,32 @@ export default function MietvertragDetailsModal({
                                               >
                                                 <div className="flex justify-between items-start">
                                                   <div className="flex-1">
-                                                    <div className="flex items-center mb-2">
-                                                      <div className="bg-green-100 rounded-full p-1.5 mr-2">
-                                                        <span className="text-green-600 text-xs">💰</span>
-                                                      </div>
-                                                      <p className="font-semibold text-green-600 text-sm">Zahlung</p>
-                                                    </div>
+                                                     <div className="flex items-center mb-2">
+                                                       <div className={`rounded-full p-1.5 mr-2 ${
+                                                         zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
+                                                           ? 'bg-blue-100' 
+                                                           : 'bg-green-100'
+                                                       }`}>
+                                                         <span className={`text-xs ${
+                                                           zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
+                                                             ? 'text-blue-600' 
+                                                             : 'text-green-600'
+                                                         }`}>💰</span>
+                                                       </div>
+                                                       <p className={`font-semibold text-sm ${
+                                                         zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
+                                                           ? 'text-blue-600' 
+                                                           : 'text-green-600'
+                                                       }`}>Zahlung</p>
+                                                     </div>
 
-                                                    <p className="text-xl font-bold text-green-700 mb-1">
-                                                      {formatBetrag(Number(zahlung.betrag))}
-                                                    </p>
+                                                     <p className={`text-xl font-bold mb-1 ${
+                                                       zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
+                                                         ? 'text-blue-700' 
+                                                         : 'text-green-700'
+                                                     }`}>
+                                                       {formatBetrag(Number(zahlung.betrag))}
+                                                     </p>
 
                                                     <p className="text-sm text-gray-600 mb-1">
                                                       {formatDatum(zahlung.buchungsdatum)}
