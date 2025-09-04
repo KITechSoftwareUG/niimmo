@@ -27,13 +27,13 @@ import {
   X,
   ChevronDown,
   Square,
-  Hash,
+  Plus,
   ArrowRightLeft,
   Trash2
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { MahnungVorschauModal } from "./MahnungVorschauModal";
+import { CreateForderungModal } from "./CreateForderungModal";
 import { calculateMietvertragRueckstand } from "@/utils/rueckstandsberechnung";
 
 interface MietvertragDetailsModalProps {
@@ -70,6 +70,7 @@ export default function MietvertragDetailsModal({
   const [kautionValue, setKautionValue] = useState<string>("");
   const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | null>(null);
   const [mietvertragValue, setMietvertragValue] = useState<string>("");
+  const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -996,6 +997,15 @@ export default function MietvertragDetailsModal({
                     <CardTitle className="text-lg">Zahlungen & Forderungen</CardTitle>
                     <div className="flex items-center space-x-2">
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCreateForderungModal(true)}
+                        className="h-8"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Forderung erstellen
+                      </Button>
+                      <Button
                         variant={viewMode === 'timeline' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setViewMode('timeline')}
@@ -1613,6 +1623,15 @@ export default function MietvertragDetailsModal({
           </Tabs>
         </div>
       </DialogContent>
+
+      {/* Create Forderung Modal */}
+      <CreateForderungModal
+        isOpen={showCreateForderungModal}
+        onClose={() => setShowCreateForderungModal(false)}
+        mietvertragId={vertragId}
+        currentKaltmiete={vertrag?.kaltmiete || 0}
+        currentBetriebskosten={vertrag?.betriebskosten || 0}
+      />
     </Dialog>
   );
 }
