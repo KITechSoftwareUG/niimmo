@@ -1653,54 +1653,65 @@ export const MietvertragDetailsModal = ({
                        {/* Timeline Section */}
                        <div className="relative py-6">
                         {(() => {
-                           // Use processed payments that include month-end shifts and prepayment logic
-                           const timelineZahlungen = processedZahlungen;
-                          
-                          // Group data by months for better display
-                          const monthlyData = new Map();
-                          
-                          // Add Forderungen to monthly data (only months with Forderungen)
-                          if (forderungen) {
-                            forderungen.forEach(forderung => {
-                              const month = forderung.sollmonat;
-                              if (!monthlyData.has(month)) {
-                                monthlyData.set(month, { forderung: null, zahlungen: [] });
-                              }
-                              monthlyData.get(month).forderung = forderung;
-                            });
-                          }
-                          
-                          // Add processed payments ONLY to months that already have a Forderung
-                          timelineZahlungen.forEach(zahlung => {
-                            // Use zugeordneter_monat from DB, fallback to calculated month from buchungsdatum
-                            const assignedMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7);
-                            
-                            // Only add payment if this month already has a Forderung
-                            if (assignedMonth && monthlyData.has(assignedMonth)) {
-                              monthlyData.get(assignedMonth).zahlungen.push(zahlung);
-                            }
-                          });
-                          
-                          // Filter months to only include those within contract period
-                          const contractStart = vertrag?.start_datum ? new Date(vertrag.start_datum) : null;
-                          const contractEnd = vertrag?.ende_datum ? new Date(vertrag.ende_datum) : null;
-                          
-                          // Remove months outside contract period
-                          for (const [month] of monthlyData) {
-                            const monthDate = new Date(month + '-01');
-                            
-                            // Check if month is before contract start
-                            if (contractStart && monthDate < contractStart) {
-                              monthlyData.delete(month);
-                              continue;
-                            }
-                            
-                            // Check if month is after contract end
-                            if (contractEnd && monthDate > contractEnd) {
-                              monthlyData.delete(month);
-                              continue;
-                            }
-                          }
+                            // Use processed payments that include month-end shifts and prepayment logic
+                            const timelineZahlungen = processedZahlungen;
+                           
+                           // Group data by months for better display
+                           const monthlyData = new Map();
+                           
+                           // Add ALL months with Forderungen
+                           if (forderungen) {
+                             forderungen.forEach(forderung => {
+                               const month = forderung.sollmonat;
+                               if (!monthlyData.has(month)) {
+                                 monthlyData.set(month, { forderung: null, zahlungen: [] });
+                               }
+                               monthlyData.get(month).forderung = forderung;
+                             });
+                           }
+                           
+                           // Add ALL payments and create months for them if they don't exist
+                           timelineZahlungen.forEach(zahlung => {
+                             // Use zugeordneter_monat from DB, fallback to calculated month from buchungsdatum
+                             const assignedMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7);
+                             
+                             if (assignedMonth) {
+                               // Create month entry if it doesn't exist
+                               if (!monthlyData.has(assignedMonth)) {
+                                 monthlyData.set(assignedMonth, { forderung: null, zahlungen: [] });
+                               }
+                               monthlyData.get(assignedMonth).zahlungen.push(zahlung);
+                             }
+                           });
+                           
+                           // Filter months to only include those within reasonable contract period
+                           const contractStart = vertrag?.start_datum ? new Date(vertrag.start_datum) : null;
+                           const contractEnd = vertrag?.ende_datum ? new Date(vertrag.ende_datum) : null;
+                           
+                           // Remove months that are clearly outside contract period (with some tolerance)
+                           for (const [month] of monthlyData) {
+                             const monthDate = new Date(month + '-01');
+                             
+                             // Be more lenient - allow 3 months before contract start for security deposits etc.
+                             if (contractStart) {
+                               const tolerantStart = new Date(contractStart);
+                               tolerantStart.setMonth(tolerantStart.getMonth() - 3);
+                               if (monthDate < tolerantStart) {
+                                 monthlyData.delete(month);
+                                 continue;
+                               }
+                             }
+                             
+                             // Be more lenient - allow 3 months after contract end for final payments
+                             if (contractEnd) {
+                               const tolerantEnd = new Date(contractEnd);
+                               tolerantEnd.setMonth(tolerantEnd.getMonth() + 3);
+                               if (monthDate > tolerantEnd) {
+                                 monthlyData.delete(month);
+                                 continue;
+                               }
+                             }
+                           }
                           
                           // Sort months chronologically (newest first)
                           const sortedMonths = Array.from(monthlyData.keys()).sort().reverse();
