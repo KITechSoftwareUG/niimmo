@@ -936,12 +936,13 @@ export default function MietvertragDetailsModal({
                                                             <SelectTrigger className="w-32 h-6 text-xs">
                                                               <SelectValue placeholder="Kategorie" />
                                                             </SelectTrigger>
-                                                            <SelectContent>
-                                                              <SelectItem value="Miete">Miete</SelectItem>
-                                                              <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
-                                                              <SelectItem value="Kaution">Kaution</SelectItem>
-                                                              <SelectItem value="Sonstige">Sonstige</SelectItem>
-                                                            </SelectContent>
+                                                             <SelectContent>
+                                                               <SelectItem value="Miete">Miete</SelectItem>
+                                                               <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
+                                                               <SelectItem value="Kaution">Kaution</SelectItem>
+                                                               <SelectItem value="Sonstige">Sonstige</SelectItem>
+                                                               <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                                             </SelectContent>
                                                           </Select>
                                                           <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
                                                             <Check className="h-3 w-3" />
@@ -989,14 +990,22 @@ export default function MietvertragDetailsModal({
                                                           <Badge variant="secondary" className="text-xs">
                                                             {zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || 'Unzugeordnet'}
                                                           </Badge>
-                                                          <Button
-                                                            onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || '')}
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                                                          >
-                                                            <Calendar className="h-3 w-3" />
-                                                          </Button>
+                                                           {(() => {
+                                                             const zahlungsJahr = new Date(zahlung.buchungsdatum).getFullYear();
+                                                             const hasForderung = forderung !== undefined;
+                                                             const canEditMonth = zahlungsJahr >= 2025 && hasForderung;
+                                                             
+                                                             return canEditMonth ? (
+                                                               <Button
+                                                                 onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || '')}
+                                                                 size="sm"
+                                                                 variant="ghost"
+                                                                 className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                                               >
+                                                                 <Calendar className="h-3 w-3" />
+                                                               </Button>
+                                                             ) : null;
+                                                           })()}
                                                         </div>
                                                       )}
                                                     </div>
