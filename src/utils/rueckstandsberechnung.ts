@@ -131,8 +131,17 @@ export const calculateMietvertragRueckstand = (
     
     const sollbetrag = Number(forderung.sollbetrag) || 0;
     
+    // Wenn Zahlungen die Forderung vollständig abdecken
+    const istVollAbgedeckt = gesamtZahlungenFuerMonat >= sollbetrag;
+    
+    if (istVollAbgedeckt && !forderung.ist_faellig) {
+      // Markiere Forderung als fällig, da sie bezahlt wurde
+      forderung.ist_faellig = true;
+      forderung.faellig_seit = new Date().toISOString();
+    }
+    
     // Forderung nur einbeziehen, wenn Zahlungen die Forderung vollständig abdecken
-    return gesamtZahlungenFuerMonat >= sollbetrag;
+    return istVollAbgedeckt;
   });
   
   // Berechne Gesamtforderungen
