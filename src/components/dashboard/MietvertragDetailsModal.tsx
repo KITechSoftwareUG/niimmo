@@ -1020,8 +1020,21 @@ export default function MietvertragDetailsModal({
                                                             onChange={(e) => setMietvertragSearchTerm(e.target.value)}
                                                             className="w-full h-6 text-xs"
                                                           />
-                                                          <div className="max-h-32 overflow-y-auto space-y-1">
-                                                            {allMietvertraege?.map(mv => {
+                                                           <div className="max-h-32 overflow-y-auto space-y-1">
+                                                             {allMietvertraege?.filter(mv => {
+                                                               if (!mietvertragSearchTerm) return true;
+                                                               
+                                                               const searchTerm = mietvertragSearchTerm.toLowerCase();
+                                                               const mieterNames = mv.mietvertrag_mieter?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || '';
+                                                               const immobilieName = mv.einheiten?.immobilien?.name || '';
+                                                               const adresse = mv.einheiten?.immobilien?.adresse || '';
+                                                               const einheitId = mv.einheit_id || '';
+                                                               
+                                                               return mieterNames.toLowerCase().includes(searchTerm) ||
+                                                                      immobilieName.toLowerCase().includes(searchTerm) ||
+                                                                      adresse.toLowerCase().includes(searchTerm) ||
+                                                                      einheitId.toLowerCase().includes(searchTerm);
+                                                             }).map(mv => {
                                                               const mieterNames = mv.mietvertrag_mieter?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || 'Keine Mieter';
                                                               const einheitId = mv.einheit_id?.slice(-2) || 'XX';
                                                               return (
