@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, Users, Euro, Building2, Clock, FileText } from "lucide-react";
 import { Loader2 } from "lucide-react";
-import { MietvertragDetailsModal } from "./MietvertragDetailsModal";
+import MietvertragDetailsModal from "./MietvertragDetailsModal";
 
 interface EinheitHistorieViewProps {
   einheitId: string;
