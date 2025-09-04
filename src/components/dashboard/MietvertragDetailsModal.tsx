@@ -1060,12 +1060,51 @@ export default function MietvertragDetailsModal({
                                                     <div className="mt-2">
                                                       {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'monat' ? (
                                                         <div className="flex items-center space-x-1">
-                                                          <Input
-                                                            type="month"
+                                                          <Select
                                                             value={editPaymentValue}
-                                                            onChange={(e) => setEditPaymentValue(e.target.value)}
-                                                            className="w-32 h-6 text-xs"
-                                                          />
+                                                            onValueChange={(value) => setEditPaymentValue(value)}
+                                                          >
+                                                            <SelectTrigger className="w-32 h-6 text-xs">
+                                                              <SelectValue placeholder="Monat wählen" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                              {(() => {
+                                                                // Generate available months from Forderungen
+                                                                const availableMonths = new Set<string>();
+                                                                
+                                                                // Add months from Forderungen
+                                                                (forderungen || []).forEach(forderung => {
+                                                                  if (forderung.sollmonat) {
+                                                                    availableMonths.add(forderung.sollmonat);
+                                                                  }
+                                                                });
+                                                                
+                                                                // Add current and next 12 months
+                                                                const now = new Date();
+                                                                for (let i = -6; i <= 12; i++) {
+                                                                  const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                                                                  const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                                                                  availableMonths.add(monthStr);
+                                                                }
+                                                                
+                                                                // Convert to sorted array
+                                                                return Array.from(availableMonths)
+                                                                  .sort()
+                                                                  .map(month => {
+                                                                    const [year, monthNum] = month.split('-');
+                                                                    const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('de-DE', { 
+                                                                      year: 'numeric', 
+                                                                      month: 'long' 
+                                                                    });
+                                                                    return (
+                                                                      <SelectItem key={month} value={month}>
+                                                                        {monthName}
+                                                                      </SelectItem>
+                                                                    );
+                                                                  });
+                                                              })()}
+                                                            </SelectContent>
+                                                          </Select>
                                                           <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
                                                             <Check className="h-3 w-3" />
                                                           </Button>
