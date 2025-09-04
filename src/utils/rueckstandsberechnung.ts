@@ -84,10 +84,12 @@ export const calculateMietvertragRueckstand = (
     const zahlungsDatum = new Date(z.buchungsdatum);
     if (zahlungsDatum < startDatum) return false;
     
-    // Kategorie-Filter (exakt wie im Modal)
+    // Kategorie-Filter (exakt wie im Modal) - Mietkaution ausschließen
     return z.kategorie === 'Miete' || 
            z.kategorie === null || 
-           (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && String(z.kategorie) !== 'Ignorieren');
+           (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && 
+            String(z.kategorie) !== 'Ignorieren' && 
+            String(z.kategorie) !== 'Mietkaution');
   });
 
   // Wende Vorauszahlungs-Intelligenz an (jetzt basierend auf DB-Feld zugeordneter_monat)
