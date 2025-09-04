@@ -168,6 +168,29 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
         }
       });
 
+      // Check for rent increases and automatically set the date
+      for (const [vertragId, updates] of mietvertragUpdates) {
+        const originalVertrag = mietvertraegeData?.find(v => v.id === vertragId);
+        
+        if (originalVertrag && (updates.kaltmiete || updates.betriebskosten)) {
+          const oldKaltmiete = originalVertrag.kaltmiete || 0;
+          const oldBetriebskosten = originalVertrag.betriebskosten || 0;
+          const newKaltmiete = updates.kaltmiete !== undefined ? parseFloat(updates.kaltmiete) : oldKaltmiete;
+          const newBetriebskosten = updates.betriebskosten !== undefined ? parseFloat(updates.betriebskosten) : oldBetriebskosten;
+          
+          // Check if there's an increase in rent (Kaltmiete or Betriebskosten)
+          if (newKaltmiete > oldKaltmiete || newBetriebskosten > oldBetriebskosten) {
+            // Automatically set the date of last rent increase to today
+            updates.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
+            
+            toast({
+              title: "Mieterhöhung erkannt",
+              description: `Datum der letzten Mieterhöhung wurde automatisch auf heute gesetzt für Vertrag ${vertragId.slice(-8)}.`,
+            });
+          }
+        }
+      }
+
       // Execute all mutations
       for (const [vertragId, updates] of mietvertragUpdates) {
         await mietvertragMutation.mutateAsync({ id: vertragId, updates });
