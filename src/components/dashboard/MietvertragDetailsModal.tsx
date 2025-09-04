@@ -262,6 +262,57 @@ export default function MietvertragDetailsModal({
     }
   };
 
+  const handleEditForderung = (forderungId: string, field: 'betrag' | 'monat', currentValue: string) => {
+    setEditingForderung({ forderungId, field });
+    setEditForderungValue(currentValue);
+  };
+
+  const handleSaveForderung = async (newValue: string) => {
+    if (!editingForderung) return;
+
+    try {
+      const updateData: any = {};
+      if (editingForderung.field === 'betrag') {
+        updateData.sollbetrag = parseFloat(newValue) || 0;
+      }
+
+      const { error } = await supabase
+        .from('mietforderungen')
+        .update(updateData)
+        .eq('id', editingForderung.forderungId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Erfolg",
+        description: "Forderung wurde erfolgreich aktualisiert.",
+        duration: 3000,
+      });
+
+      // Invalidate queries to refresh data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
+      ]);
+
+      setEditingForderung(null);
+      setEditForderungValue("");
+    } catch (error) {
+      console.error('Error updating forderung:', error);
+      toast({
+        title: "Fehler",
+        description: "Forderung konnte nicht aktualisiert werden.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleCancelForderungEdit = () => {
+    setEditingForderung(null);
+    setEditForderungValue("");
+  };
+
   const { data: vertrag, isLoading: vertragLoading } = useQuery({
     queryKey: ['mietvertrag-detail', vertragId],
     queryFn: async () => {
@@ -781,43 +832,64 @@ export default function MietvertragDetailsModal({
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-20 pt-16">
-                                      {/* Left side - Forderungen */}
-                                      <div className="pr-10">
-                                        {forderung ? (
-                                          <div className="w-full">
-                                            <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm group">
-                                              <div className="flex justify-between items-start">
-                                                <div className="flex-1 text-right">
-                                                  <div className="flex items-center justify-end mb-2">
-                                                    <div className="bg-red-100 rounded-full p-1.5 mr-2">
-                                                      <span className="text-red-600 text-xs">📋</span>
-                                                    </div>
-                                                    <p className="font-semibold text-red-600 text-sm">Forderung</p>
-                                                  </div>
-                                                  <p className="text-xl font-bold text-red-700 mb-1">
-                                                    {formatBetrag(Number(forderung.sollbetrag))}
-                                                  </p>
-                                                </div>
-                                                <div className="flex items-center space-x-1 ml-2">
-                                                  <Button
-                                                    onClick={() => handleDeleteForderung(forderung.id)}
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                                    title="Forderung löschen"
-                                                  >
-                                                    <Trash2 className="h-3 w-3" />
-                                                  </Button>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <div className="w-full p-4 text-center text-gray-500">
-                                            <p className="text-sm italic">Keine Forderung</p>
-                                          </div>
-                                        )}
-                                      </div>
+                                       {/* Left side - Forderungen */}
+                                       <div className="pr-10">
+                                         {forderung ? (
+                                           <div className="w-full">
+                                             <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm group relative">
+                                               {/* Delete icon in top left */}
+                                               <Button
+                                                 onClick={() => handleDeleteForderung(forderung.id)}
+                                                 variant="ghost"
+                                                 size="sm"
+                                                 className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                                 title="Forderung löschen"
+                                               >
+                                                 <Trash2 className="h-3 w-3" />
+                                               </Button>
+                                               
+                                               <div className="flex justify-center items-center flex-col text-center pt-2">
+                                                 <div className="flex items-center justify-center mb-2">
+                                                   <div className="bg-red-100 rounded-full p-1.5 mr-2">
+                                                     <span className="text-red-600 text-xs">📋</span>
+                                                   </div>
+                                                   <p className="font-semibold text-red-600 text-sm">Forderung</p>
+                                                 </div>
+                                                 
+                                                 {/* Editable amount */}
+                                                 {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'betrag' ? (
+                                                   <div className="flex items-center space-x-2">
+                                                     <Input
+                                                       type="number"
+                                                       value={editForderungValue}
+                                                       onChange={(e) => setEditForderungValue(e.target.value)}
+                                                       className="w-24 h-8 text-center"
+                                                       step="0.01"
+                                                     />
+                                                     <Button onClick={() => handleSaveForderung(editForderungValue)} size="sm" className="h-6 text-xs">
+                                                       ✓
+                                                     </Button>
+                                                     <Button onClick={handleCancelForderungEdit} size="sm" variant="outline" className="h-6 text-xs">
+                                                       ✕
+                                                     </Button>
+                                                   </div>
+                                                 ) : (
+                                                   <p 
+                                                     className="text-xl font-bold text-red-700 mb-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
+                                                     onClick={() => handleEditForderung(forderung.id, 'betrag', forderung.sollbetrag.toString())}
+                                                   >
+                                                     {formatBetrag(Number(forderung.sollbetrag))}
+                                                   </p>
+                                                 )}
+                                               </div>
+                                             </div>
+                                           </div>
+                                         ) : (
+                                           <div className="w-full p-4 text-center text-gray-500">
+                                             <p className="text-sm italic">Keine Forderung</p>
+                                           </div>
+                                         )}
+                                       </div>
 
                                       {/* Right side - Zahlungen */}
                                       <div className="pl-10">
@@ -940,13 +1012,7 @@ export default function MietvertragDetailsModal({
                                                             className="w-full h-6 text-xs"
                                                           />
                                                           <div className="max-h-32 overflow-y-auto space-y-1">
-                                                            {allMietvertraege?.filter(mv => {
-                                                              const searchLower = mietvertragSearchTerm.toLowerCase();
-                                                              const mieterNames = mv.mietvertrag_mieter?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(' ') || '';
-                                                              return mv.einheiten?.immobilien?.name?.toLowerCase().includes(searchLower) ||
-                                                                     mv.einheiten?.immobilien?.adresse?.toLowerCase().includes(searchLower) ||
-                                                                     mieterNames.toLowerCase().includes(searchLower);
-                                                            }).slice(0, 5).map(mv => {
+                                                            {allMietvertraege?.slice(0, 10).map(mv => {
                                                               const mieterNames = mv.mietvertrag_mieter?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || 'Keine Mieter';
                                                               const einheitId = mv.einheit_id?.slice(-2) || 'XX';
                                                               return (
