@@ -938,9 +938,7 @@ export default function MietvertragDetailsModal({
                                                             </SelectTrigger>
                                                              <SelectContent>
                                                                <SelectItem value="Miete">Miete</SelectItem>
-                                                               <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
                                                                <SelectItem value="Kaution">Kaution</SelectItem>
-                                                               <SelectItem value="Sonstige">Sonstige</SelectItem>
                                                                <SelectItem value="Ignorieren">Ignorieren</SelectItem>
                                                              </SelectContent>
                                                           </Select>
