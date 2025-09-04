@@ -31,7 +31,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Checking rent increase eligibility...');
 
-    // Fetch all active rental contracts with property and unit information
+    // Fetch all active rental contracts
     const { data: contracts, error } = await supabase
       .from('mietvertrag')
       .select(`
@@ -40,14 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
         betriebskosten,
         letzte_mieterhoehung_am,
         start_datum,
-        status,
-        einheiten!inner(
-          id,
-          einheitentyp,
-          immobilien!inner(
-            name
-          )
-        )
+        status
       `)
       .eq('status', 'aktiv');
 
