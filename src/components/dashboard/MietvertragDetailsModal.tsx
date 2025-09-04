@@ -135,26 +135,15 @@ export const MietvertragDetailsModal = ({
 
   const handleEditPaymentField = (zahlungId: string, field: 'kategorie' | 'monat' | 'mietvertrag', currentValue: string) => {
     const zahlung = zahlungen?.find(z => z.id === zahlungId);
-    const wasShifted = (zahlung as any)?._verschoben_von || (zahlung as any)?._verschoben_monatsende;
-    const hasCustomMonth = zahlung?.zugeordneter_monat && zahlung?.zugeordneter_monat !== zahlung?.buchungsdatum?.slice(0, 7);
-    const isBlueMarked = wasShifted || hasCustomMonth;
     
     console.log('🔧 EDIT PAYMENT - Start Editing:', { 
       zahlungId, 
       field, 
       currentValue,
-      wasShifted,
-      hasCustomMonth,
-      isBlueMarked,
       zugeordneterMonat: zahlung?.zugeordneter_monat,
       buchungsdatum: zahlung?.buchungsdatum,
       mietvertragId: zahlung?.mietvertrag_id
     });
-    
-    // Für blaue Zahlungen explizit erlauben
-    if (isBlueMarked && field === 'monat') {
-      console.log('🔵 BLUE PAYMENT - Editing zugeordneter Monat für bereits zugeordnete Zahlung erlaubt');
-    }
     
     setEditingPayment({ zahlungId, field });
     if (field === 'mietvertrag') {
@@ -176,15 +165,11 @@ export const MietvertragDetailsModal = ({
     const valueToSave = customValue !== undefined ? customValue : editPaymentValue;
     
     const zahlung = zahlungen?.find(z => z.id === editingPayment.zahlungId);
-    const wasShifted = (zahlung as any)?._verschoben_von || (zahlung as any)?._verschoben_monatsende;
-    const hasCustomMonth = zahlung?.zugeordneter_monat && zahlung?.zugeordneter_monat !== zahlung?.buchungsdatum?.slice(0, 7);
-    const isBlueMarked = wasShifted || hasCustomMonth;
     
     console.log('💾 SAVE PAYMENT - Speichere Zahlung:', {
       zahlungId: editingPayment.zahlungId,
       field: editingPayment.field,
       newValue: valueToSave,
-      isBlueMarked,
       originalZugeordneterMonat: zahlung?.zugeordneter_monat,
       originalBuchungsdatum: zahlung?.buchungsdatum,
       originalValue: zahlung?.[editingPayment.field === 'monat' ? 'zugeordneter_monat' : editingPayment.field]
@@ -198,10 +183,6 @@ export const MietvertragDetailsModal = ({
       } else if (editingPayment.field === 'monat') {
         updateData.zugeordneter_monat = valueToSave;
         console.log('💾 SAVE PAYMENT - Updating zugeordneter_monat to:', valueToSave);
-        
-        if (isBlueMarked) {
-          console.log('🔵 BLUE PAYMENT - Erlaubing update von zugeordneter_monat für bereits zugeordnete Zahlung');
-        }
       } else if (editingPayment.field === 'mietvertrag') {
         updateData.mietvertrag_id = valueToSave;
       }
@@ -589,7 +570,66 @@ export const MietvertragDetailsModal = ({
     enabled: isOpen && !!vertragId
   });
 
-  // Calculate processed payments using useMemo for performance
+  // Calculate processed payments using useMemo for performance - simplified without shift logic
+  const [draggedPayment, setDraggedPayment] = useState<string | null>(null);
+
+  const handleDragStart = (event: React.DragEvent<HTMLDivElement>, zahlungId: string) => {
+    setDraggedPayment(zahlungId);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', zahlungId);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>, targetMonth: string) => {
+    event.preventDefault();
+    const zahlungId = event.dataTransfer.getData('text/plain');
+    
+    if (!zahlungId || !targetMonth) return;
+
+    try {
+      console.log('🎯 DRAG DROP - Moving payment:', { zahlungId, targetMonth });
+      
+      const { error } = await supabase  
+        .from('zahlungen')
+        .update({ zugeordneter_monat: targetMonth })
+        .eq('id', zahlungId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Zahlung verschoben",
+        description: `Zahlung wurde zu ${new Date(targetMonth + '-01').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })} verschoben.`,
+      });
+
+      // Refresh data
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] }),
+      ]);
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['zahlungen-detail', vertragId] }),
+        queryClient.refetchQueries({ queryKey: ['mietforderungen', vertragId] }),
+      ]);
+
+    } catch (error) {
+      console.error('Error moving payment:', error);
+      toast({
+        title: "Fehler",
+        description: "Zahlung konnte nicht verschoben werden.",
+        variant: "destructive",
+      });
+    }
+
+    setDraggedPayment(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPayment(null);
+  };
   const { processedZahlungen, relevanteForderungen } = useMemo(() => {
     if (!forderungen || !zahlungen || !vertrag) return { processedZahlungen: [], relevanteForderungen: [] };
     
@@ -1694,8 +1734,13 @@ export const MietvertragDetailsModal = ({
                                  toleranzEnde.setDate(toleranzEnde.getDate() + 7);
                                }
                                
-                                return (
-                                  <div key={month} className="relative mb-20 min-h-[180px] animate-fade-in">
+                                 return (
+                                   <div 
+                                     key={month} 
+                                     className="relative mb-20 min-h-[180px] animate-fade-in"
+                                     onDragOver={handleDragOver}
+                                     onDrop={(e) => handleDrop(e, month)}
+                                   >
                                     {/* Enhanced Month marker on timeline */}
                                     <div className="absolute left-1/2 w-6 h-6 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full border-3 border-white shadow-lg transform -translate-x-1/2 z-20">
                                       <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
@@ -1826,94 +1871,67 @@ export const MietvertragDetailsModal = ({
                                       <div className="pl-10">
                                         {zahlungen.length > 0 ? (
                                           <div className="space-y-3">
-                                            {zahlungen.map((zahlung, zahlungIndex) => {
-                                              const zahlungsDatum = new Date(zahlung.buchungsdatum);
-                                              let statusColor = 'green';
-                                              let statusText = 'Pünktlich';
-                                              let statusIcon = '✅';
-                                              
-                                               // Check if payment was shifted or has custom assignment
-                                               const wasShifted = zahlung._verschoben_von || zahlung._verschoben_monatsende;
-                                               const hasCustomMonth = zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7);
-                                              
-                                              // Determine if payment is late
-                                              if (forderung && faelligkeitsDatum) {
-                                                const daysDiff = Math.ceil((zahlungsDatum.getTime() - faelligkeitsDatum.getTime()) / (1000 * 60 * 60 * 24));
-                                                if (daysDiff > 7) {
-                                                  statusColor = 'red';
-                                                  statusText = `${daysDiff} Tage zu spät`;
-                                                  statusIcon = '❌';
-                                                } else if (daysDiff > 0) {
-                                                  statusColor = 'orange';
-                                                  statusText = `${daysDiff} Tage nach Fälligkeit`;
-                                                  statusIcon = '⚠️';
-                                                } else if (daysDiff < 0) {
-                                                  statusColor = 'blue';
-                                                  statusText = `${Math.abs(daysDiff)} Tage vor Fälligkeit`;
-                                                  statusIcon = '🚀';
-                                                }
-                                              }
-                                              
-                                              return (
-                                                 <div 
-                                                   key={zahlung.id} 
-                                                   className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-300 hover-scale animate-fade-in"
-                                                   style={{ animationDelay: `${zahlungIndex * 100}ms` }}
-                                                 >
-                                                   {(wasShifted || hasCustomMonth) && (
-                                                     <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                                                       <div className="flex items-center text-blue-600 text-xs">
-                                                         <span className="mr-1">🔄</span>
-                                                         {zahlung._verschoben_monatsende ? 
-                                                           'Automatisch verschoben (Monatsende)' : 
-                                                           zahlung._verschoben_von ?
-                                                           `Verschoben von ${zahlung._verschoben_von}` :
-                                                           hasCustomMonth ? 
-                                                           `Zugeordnet zu Monat ${zahlung.zugeordneter_monat}` :
-                                                           'Automatisch verschoben'
-                                                         }
-                                                       </div>
-                                                     </div>
-                                                   )}
-                                                  
-                                                  <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex-1">
-                                                       <div className="flex items-center mb-1">
-                                                          <div className={`${
-                                                            zahlung.kategorie === 'Mietkaution' ? 'bg-purple-100' :
-                                                            wasShifted || hasCustomMonth ? 'bg-blue-100' : 'bg-green-100'
-                                                          } rounded-full p-1.5 mr-2`}>
-                                                            <span className={`${
-                                                              zahlung.kategorie === 'Mietkaution' ? 'text-purple-600' :
-                                                              wasShifted || hasCustomMonth ? 'text-blue-600' : 'text-green-600'
-                                                            } text-xs`}>
-                                                              {zahlung.kategorie === 'Mietkaution' ? '🏠' : '💰'}
-                                                            </span>
-                                                          </div>
-                                                          <p className={`font-semibold ${
-                                                            zahlung.kategorie === 'Mietkaution' ? 'text-purple-600' :
-                                                            wasShifted || hasCustomMonth ? 'text-blue-600' : 'text-green-600'
-                                                          } text-sm`}>
-                                                            {zahlung.kategorie === 'Mietkaution' ? 'Kaution' : 'Zahlung'}
-                                                          </p>
-                                                       </div>
-                        <p className={`text-xl font-bold ${
-                          zahlung.kategorie === 'Mietkaution' ? 'text-purple-700' :
-                          wasShifted || hasCustomMonth ? 'text-blue-700' : 'text-green-700'
-                        } mb-1`}>
-                          {formatBetrag(Number(zahlung.betrag))}
-                        </p>
-                        <p className={`text-xs ${
-                          zahlung.kategorie === 'Mietkaution' ? 'text-purple-500' :
-                          wasShifted || hasCustomMonth ? 'text-blue-500' : 'text-green-500'
-                        } mb-1 font-medium`}>
-                          {formatDatum(zahlung.buchungsdatum)}
-                        </p>
-                                                       {zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7) && (
-                                                         <p className="text-xs text-blue-500 mb-1">
-                                                           Zugeordnet zu: {new Date(zahlung.zugeordneter_monat + '-01').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-                                                         </p>
-                                                       )}
+                                             {zahlungen.map((zahlung, zahlungIndex) => {
+                                               const zahlungsDatum = new Date(zahlung.buchungsdatum);
+                                               let statusColor = 'green';
+                                               let statusText = 'Pünktlich';
+                                               let statusIcon = '✅';
+                                               
+                                               // Determine if payment is late
+                                               if (forderung && faelligkeitsDatum) {
+                                                 const daysDiff = Math.ceil((zahlungsDatum.getTime() - faelligkeitsDatum.getTime()) / (1000 * 60 * 60 * 24));
+                                                 if (daysDiff > 7) {
+                                                   statusColor = 'red';
+                                                   statusText = `${daysDiff} Tage zu spät`;
+                                                   statusIcon = '❌';
+                                                 } else if (daysDiff > 0) {
+                                                   statusColor = 'orange';
+                                                   statusText = `${daysDiff} Tage nach Fälligkeit`;
+                                                   statusIcon = '⚠️';
+                                                 } else if (daysDiff < 0) {
+                                                   statusColor = 'blue';
+                                                   statusText = `${Math.abs(daysDiff)} Tage vor Fälligkeit`;
+                                                   statusIcon = '🚀';
+                                                 }
+                                               }
+                                               
+                                               return (
+                                                  <div 
+                                                    key={zahlung.id} 
+                                                    className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-300 hover-scale animate-fade-in cursor-move"
+                                                    style={{ animationDelay: `${zahlungIndex * 100}ms` }}
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, zahlung.id)}
+                                                    onDragEnd={handleDragEnd}
+                                                  >
+                                                   <div className="flex justify-between items-start mb-2">
+                                                     <div className="flex-1">
+                                                        <div className="flex items-center mb-1">
+                                                           <div className={`${
+                                                             zahlung.kategorie === 'Mietkaution' ? 'bg-purple-100' : 'bg-green-100'
+                                                           } rounded-full p-1.5 mr-2`}>
+                                                             <span className={`${
+                                                               zahlung.kategorie === 'Mietkaution' ? 'text-purple-600' : 'text-green-600'
+                                                             } text-xs`}>
+                                                               {zahlung.kategorie === 'Mietkaution' ? '🏠' : '💰'}
+                                                             </span>
+                                                           </div>
+                                                           <p className={`font-semibold ${
+                                                             zahlung.kategorie === 'Mietkaution' ? 'text-purple-600' : 'text-green-600'
+                                                           } text-sm`}>
+                                                             {zahlung.kategorie === 'Mietkaution' ? 'Kaution' : 'Zahlung'}
+                                                           </p>
+                                                        </div>
+                         <p className={`text-xl font-bold ${
+                           zahlung.kategorie === 'Mietkaution' ? 'text-purple-700' : 'text-green-700'
+                         } mb-1`}>
+                           {formatBetrag(Number(zahlung.betrag))}
+                         </p>
+                         <p className={`text-xs ${
+                           zahlung.kategorie === 'Mietkaution' ? 'text-purple-500' : 'text-green-500'
+                         } mb-1 font-medium`}>
+                           {formatDatum(zahlung.buchungsdatum)}
+                         </p>
                                                        
                                                        {zahlung.verwendungszweck && (
                                                          <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded border break-words">
@@ -2047,18 +2065,15 @@ export const MietvertragDetailsModal = ({
                                                             >
                                                               <Edit2 className="h-2.5 w-2.5" />
                                                             </Button>
-                                                              <Button
-                                                                onClick={() => {
-                                                                  console.log('🎯 Timeline Monat-Edit geklickt für Zahlung:', {
-                                                                    zahlungId: zahlung.id,
-                                                                    wasShifted: (zahlung as any)._verschoben_von || (zahlung as any)._verschoben_monatsende,
-                                                                    hasCustomMonth: zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7),
-                                                                    isBlueMarked: ((zahlung as any)._verschoben_von || (zahlung as any)._verschoben_monatsende) || (zahlung.zugeordneter_monat && zahlung.zugeordneter_monat !== zahlung.buchungsdatum?.slice(0, 7)),
-                                                                    currentMonth: zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || ''
-                                                                  });
-                                                                  const current_Month = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
-                                                                  handleEditPaymentField(zahlung.id, 'monat', current_Month);
-                                                                }}
+                                                               <Button
+                                                                 onClick={() => {
+                                                                   console.log('🎯 Timeline Monat-Edit geklickt für Zahlung:', {
+                                                                     zahlungId: zahlung.id,
+                                                                     currentMonth: zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || ''
+                                                                   });
+                                                                   const current_Month = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '';
+                                                                   handleEditPaymentField(zahlung.id, 'monat', current_Month);
+                                                                 }}
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 className="h-5 w-5 p-0 hover:bg-blue-200"
