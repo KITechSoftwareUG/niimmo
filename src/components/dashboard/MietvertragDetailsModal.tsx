@@ -137,20 +137,34 @@ export const MietvertragDetailsModal = ({
     const zahlung = zahlungen?.find(z => z.id === zahlungId);
     const wasShifted = (zahlung as any)?._verschoben_von || (zahlung as any)?._verschoben_monatsende;
     const hasCustomMonth = zahlung?.zugeordneter_monat && zahlung?.zugeordneter_monat !== zahlung?.buchungsdatum?.slice(0, 7);
+    const isBlueMarked = wasShifted || hasCustomMonth;
     
-    console.log('🔧 Edit Payment Field aufgerufen:', { 
+    console.log('🔧 EDIT PAYMENT - Start Editing:', { 
       zahlungId, 
       field, 
       currentValue,
       wasShifted,
       hasCustomMonth,
-      isBlueMarked: wasShifted || hasCustomMonth
+      isBlueMarked,
+      zugeordneterMonat: zahlung?.zugeordneter_monat,
+      buchungsdatum: zahlung?.buchungsdatum,
+      mietvertragId: zahlung?.mietvertrag_id
     });
+    
+    // Für blaue Zahlungen explizit erlauben
+    if (isBlueMarked && field === 'monat') {
+      console.log('🔵 BLUE PAYMENT - Editing zugeordneter Monat für bereits zugeordnete Zahlung erlaubt');
+    }
     
     setEditingPayment({ zahlungId, field });
     if (field === 'mietvertrag') {
       // Für mietvertrag nehmen wir die aktuelle mietvertrag_id
       setEditPaymentValue(zahlung?.mietvertrag_id || '');
+    } else if (field === 'monat') {
+      // Für Monat nehmen wir den zugeordneter_monat oder fallback zum buchungsdatum
+      const monthValue = zahlung?.zugeordneter_monat || zahlung?.buchungsdatum?.slice(0, 7) || '';
+      console.log('🔧 EDIT PAYMENT - Setting month value:', monthValue);
+      setEditPaymentValue(monthValue);
     } else {
       setEditPaymentValue(currentValue || '');
     }
@@ -159,11 +173,19 @@ export const MietvertragDetailsModal = ({
   const handleSavePaymentField = async () => {
     if (!editingPayment) return;
     
-    console.log('🔧 Speichere Zahlung:', {
+    const zahlung = zahlungen?.find(z => z.id === editingPayment.zahlungId);
+    const wasShifted = (zahlung as any)?._verschoben_von || (zahlung as any)?._verschoben_monatsende;
+    const hasCustomMonth = zahlung?.zugeordneter_monat && zahlung?.zugeordneter_monat !== zahlung?.buchungsdatum?.slice(0, 7);
+    const isBlueMarked = wasShifted || hasCustomMonth;
+    
+    console.log('💾 SAVE PAYMENT - Speichere Zahlung:', {
       zahlungId: editingPayment.zahlungId,
       field: editingPayment.field,
       newValue: editPaymentValue,
-      originalValue: zahlungen?.find(z => z.id === editingPayment.zahlungId)?.[editingPayment.field === 'monat' ? 'zugeordneter_monat' : editingPayment.field]
+      isBlueMarked,
+      originalZugeordneterMonat: zahlung?.zugeordneter_monat,
+      originalBuchungsdatum: zahlung?.buchungsdatum,
+      originalValue: zahlung?.[editingPayment.field === 'monat' ? 'zugeordneter_monat' : editingPayment.field]
     });
     
     try {
@@ -173,11 +195,16 @@ export const MietvertragDetailsModal = ({
         updateData.kategorie = editPaymentValue as any;
       } else if (editingPayment.field === 'monat') {
         updateData.zugeordneter_monat = editPaymentValue;
+        console.log('💾 SAVE PAYMENT - Updating zugeordneter_monat to:', editPaymentValue);
+        
+        if (isBlueMarked) {
+          console.log('🔵 BLUE PAYMENT - Erlaubing update von zugeordneter_monat für bereits zugeordnete Zahlung');
+        }
       } else if (editingPayment.field === 'mietvertrag') {
         updateData.mietvertrag_id = editPaymentValue;
       }
 
-      console.log('🔧 Update-Daten:', updateData);
+      console.log('💾 SAVE PAYMENT - Final update data:', updateData);
 
       const { error, data } = await supabase
         .from('zahlungen')
@@ -186,11 +213,11 @@ export const MietvertragDetailsModal = ({
         .select();
 
       if (error) {
-        console.error('🚨 Supabase Fehler:', error);
+        console.error('🚨 SAVE PAYMENT - Supabase Fehler:', error);
         throw error;
       }
 
-      console.log('✅ Update erfolgreich:', data);
+      console.log('✅ SAVE PAYMENT - Update erfolgreich:', data);
 
       toast({
         title: "Aktualisiert",
@@ -203,7 +230,7 @@ export const MietvertragDetailsModal = ({
       setEditPaymentValue('');
       
       // Invalidiere alle relevanten Queries für sofortige UI-Aktualisierung
-      console.log('🔄 Invalidiere Queries für vertragId:', vertragId);
+      console.log('🔄 SAVE PAYMENT - Invalidiere Queries für vertragId:', vertragId);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
         queryClient.invalidateQueries({ queryKey: ['zahlungen-by-vertrag', vertragId] }),
@@ -215,7 +242,7 @@ export const MietvertragDetailsModal = ({
       queryClient.refetchQueries({ queryKey: ['zahlungen-detail', vertragId] });
       
     } catch (error) {
-      console.error('🚨 Fehler beim Aktualisieren:', error);
+      console.error('🚨 SAVE PAYMENT - Fehler beim Aktualisieren:', error);
       toast({
         title: "Fehler",
         description: `${editingPayment.field === 'kategorie' ? 'Kategorie' : 
