@@ -834,9 +834,35 @@ export default function MietvertragDetailsModal({
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <p className="text-gray-600">Keine Mieter gefunden</p>
-                    )}
+                     ) : (
+                       <p className="text-gray-600">Keine Mieter gefunden</p>
+                     )}
+                     
+                     {/* Immobilie und Einheit Informationen */}
+                     <div className="mt-6 pt-6 border-t">
+                       <div className="space-y-4">
+                         {immobilie && (
+                           <div className="flex items-center space-x-2">
+                             <Building2 className="h-4 w-4 text-gray-600" />
+                             <div>
+                               <span className="font-medium">Immobilie: </span>
+                               <span className="text-gray-800">{immobilie.name}</span>
+                             </div>
+                           </div>
+                         )}
+                         {einheit && (
+                           <div className="flex items-center space-x-2">
+                             <Square className="h-4 w-4 text-gray-600" />
+                             <div>
+                               <span className="font-medium">Einheit: </span>
+                               <span className="text-gray-800">
+                                 {einheit.einheitentyp} - {einheit.id?.slice(-2) || 'N/A'}
+                               </span>
+                             </div>
+                           </div>
+                         )}
+                       </div>
+                     </div>
                   </CardContent>
                 </Card>
               </div>
