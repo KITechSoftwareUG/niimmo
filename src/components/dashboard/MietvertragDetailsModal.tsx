@@ -170,8 +170,10 @@ export const MietvertragDetailsModal = ({
     }
   };
 
-  const handleSavePaymentField = async () => {
+  const handleSavePaymentField = async (customValue?: string) => {
     if (!editingPayment) return;
+    
+    const valueToSave = customValue !== undefined ? customValue : editPaymentValue;
     
     const zahlung = zahlungen?.find(z => z.id === editingPayment.zahlungId);
     const wasShifted = (zahlung as any)?._verschoben_von || (zahlung as any)?._verschoben_monatsende;
@@ -181,7 +183,7 @@ export const MietvertragDetailsModal = ({
     console.log('💾 SAVE PAYMENT - Speichere Zahlung:', {
       zahlungId: editingPayment.zahlungId,
       field: editingPayment.field,
-      newValue: editPaymentValue,
+      newValue: valueToSave,
       isBlueMarked,
       originalZugeordneterMonat: zahlung?.zugeordneter_monat,
       originalBuchungsdatum: zahlung?.buchungsdatum,
@@ -192,16 +194,16 @@ export const MietvertragDetailsModal = ({
       let updateData: any = {};
       
       if (editingPayment.field === 'kategorie') {
-        updateData.kategorie = editPaymentValue as any;
+        updateData.kategorie = valueToSave as any;
       } else if (editingPayment.field === 'monat') {
-        updateData.zugeordneter_monat = editPaymentValue;
-        console.log('💾 SAVE PAYMENT - Updating zugeordneter_monat to:', editPaymentValue);
+        updateData.zugeordneter_monat = valueToSave;
+        console.log('💾 SAVE PAYMENT - Updating zugeordneter_monat to:', valueToSave);
         
         if (isBlueMarked) {
           console.log('🔵 BLUE PAYMENT - Erlaubing update von zugeordneter_monat für bereits zugeordnete Zahlung');
         }
       } else if (editingPayment.field === 'mietvertrag') {
-        updateData.mietvertrag_id = editPaymentValue;
+        updateData.mietvertrag_id = valueToSave;
       }
 
       console.log('💾 SAVE PAYMENT - Final update data:', updateData);
@@ -1911,7 +1913,7 @@ export const MietvertragDetailsModal = ({
                                                             </SelectContent>
                                                           </Select>
                                                           <div className="flex space-x-1">
-                                                            <Button onClick={handleSavePaymentField} size="sm" className="h-5 px-1.5">
+                                                             <Button onClick={() => handleSavePaymentField()} size="sm" className="h-5 px-1.5">
                                                               <Check className="h-2.5 w-2.5" />
                                                             </Button>
                                                             <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-5 px-1.5">
@@ -1923,13 +1925,13 @@ export const MietvertragDetailsModal = ({
                                                            <div className="flex flex-col space-y-1">
                                                              <Select 
                                                                value={editPaymentValue} 
-                                                                onValueChange={async (value) => {
-                                                                  setEditPaymentValue(value);
-                                                                  // Direkt speichern ohne Timeout
-                                                                  if (editingPayment) {
-                                                                    await handleSavePaymentField();
-                                                                  }
-                                                                }}
+                                                                 onValueChange={async (value) => {
+                                                                   setEditPaymentValue(value);
+                                                                   // Direkt speichern mit dem neuen Wert
+                                                                   if (editingPayment) {
+                                                                     await handleSavePaymentField(value);
+                                                                   }
+                                                                 }}
                                                              >
                                                                <SelectTrigger className="h-6 text-xs w-28 px-1">
                                                                  <SelectValue placeholder="Monat wählen" />
@@ -1997,7 +1999,7 @@ export const MietvertragDetailsModal = ({
                                                               </SelectContent>
                                                             </Select>
                                                            <div className="flex space-x-1">
-                                                             <Button onClick={handleSavePaymentField} size="sm" className="h-5 px-1.5">
+                                                             <Button onClick={() => handleSavePaymentField()} size="sm" className="h-5 px-1.5">
                                                                <Check className="h-2.5 w-2.5" />
                                                              </Button>
                                                              <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-5 px-1.5">
@@ -2101,7 +2103,7 @@ export const MietvertragDetailsModal = ({
                                          <SelectItem value="Ignorieren">Ignorieren</SelectItem>
                                        </SelectContent>
                                      </Select>
-                                     <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
+                                      <Button onClick={() => handleSavePaymentField()} size="sm" className="h-8 px-3">
                                        <Check className="h-4 w-4" />
                                      </Button>
                                      <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
@@ -2112,16 +2114,13 @@ export const MietvertragDetailsModal = ({
                                      <div className="flex items-center space-x-2">
                                         <Select 
                                           value={editPaymentValue} 
-                                          onValueChange={async (value) => {
-                                            setEditPaymentValue(value);
-                                            // Direkt speichern ohne Timeout
-                                            const tempEditingPayment = editingPayment;
-                                            const tempEditPaymentValue = value;
-                                            
-                                            if (tempEditingPayment) {
-                                              await handleSavePaymentField();
-                                            }
-                                          }}
+                                           onValueChange={async (value) => {
+                                             setEditPaymentValue(value);
+                                             // Direkt speichern mit dem neuen Wert
+                                             if (editingPayment) {
+                                               await handleSavePaymentField(value);
+                                             }
+                                           }}
                                        >
                                          <SelectTrigger className="h-8 text-sm w-40 px-2">
                                            <SelectValue placeholder="Monat wählen" />
@@ -2186,7 +2185,7 @@ export const MietvertragDetailsModal = ({
                                           })}
                                         </SelectContent>
                                       </Select>
-                                     <Button onClick={handleSavePaymentField} size="sm" className="h-8 px-3">
+                                     <Button onClick={() => handleSavePaymentField()} size="sm" className="h-8 px-3">
                                        <Check className="h-4 w-4" />
                                      </Button>
                                      <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-8 px-3">
