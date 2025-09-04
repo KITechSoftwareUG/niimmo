@@ -94,15 +94,15 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
 
     sortedVertraege.forEach((vertrag, index) => {
       const startDatum = new Date(vertrag.start_datum || '1900-01-01');
-      const endDatum = vertrag.ende_datum ? new Date(vertrag.ende_datum) : 
-                      vertrag.kuendigungsdatum ? new Date(vertrag.kuendigungsdatum) : null;
+      const endDatum = vertrag.kuendigungsdatum ? new Date(vertrag.kuendigungsdatum) : 
+                      vertrag.ende_datum ? new Date(vertrag.ende_datum) : null;
       
       // Check for vacancy period before this contract
       if (index > 0) {
         const vorherigendesVertrag = sortedVertraege[index - 1];
-        const vorherigesEndDatum = vorherigendesVertrag.ende_datum ? 
-          new Date(vorherigendesVertrag.ende_datum) : 
-          vorherigendesVertrag.kuendigungsdatum ? new Date(vorherigendesVertrag.kuendigungsdatum) : null;
+        const vorherigesEndDatum = vorherigendesVertrag.kuendigungsdatum ? 
+          new Date(vorherigendesVertrag.kuendigungsdatum) : 
+          vorherigendesVertrag.ende_datum ? new Date(vorherigendesVertrag.ende_datum) : null;
         
         if (vorherigesEndDatum && vorherigesEndDatum < startDatum) {
           // Calculate days between contracts
@@ -134,9 +134,9 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
     // Check for vacancy at the end
     const letzterVertrag = sortedVertraege[sortedVertraege.length - 1];
     if (letzterVertrag) {
-      const letzteEndDatum = letzterVertrag.ende_datum ? 
-        new Date(letzterVertrag.ende_datum) : 
-        letzterVertrag.kuendigungsdatum ? new Date(letzterVertrag.kuendigungsdatum) : null;
+      const letzteEndDatum = letzterVertrag.kuendigungsdatum ? 
+        new Date(letzterVertrag.kuendigungsdatum) : 
+        letzterVertrag.ende_datum ? new Date(letzterVertrag.ende_datum) : null;
       
       if (letzteEndDatum && letzteEndDatum < heute && letzterVertrag.status !== 'aktiv') {
         // Check if more than 5 days have passed since the last contract ended
