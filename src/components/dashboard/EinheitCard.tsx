@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail } from "lucide-react";
 import { useState, useEffect } from "react";
 import { EinheitHistorieView } from "./EinheitHistorieView";
-import MietvertragDetailsModal from "./MietvertragDetailsModal";
+import { MietvertragDetailsModal } from "./MietvertragDetailsModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -324,6 +324,8 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId }: 
           isOpen={showMietvertragDetails}
           onClose={() => setShowMietvertragDetails(false)}
           vertragId={vertrag.id}
+          einheit={einheit}
+          immobilie={immobilie}
         />
       )}
     </>
