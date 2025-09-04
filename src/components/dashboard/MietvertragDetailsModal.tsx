@@ -1041,9 +1041,9 @@ export default function MietvertragDetailsModal({
                             forderungen.forEach(forderung => {
                               const month = forderung.sollmonat;
                               if (!monthlyData.has(month)) {
-                                monthlyData.set(month, { forderung: null, zahlungen: [] });
+                                monthlyData.set(month, { forderungen: [], zahlungen: [] });
                               }
-                              monthlyData.get(month).forderung = forderung;
+                              monthlyData.get(month).forderungen.push(forderung);
                             });
                           }
 
@@ -1055,7 +1055,7 @@ export default function MietvertragDetailsModal({
                             if (assignedMonth) {
                               // Create month entry if it doesn't exist
                               if (!monthlyData.has(assignedMonth)) {
-                                monthlyData.set(assignedMonth, { forderung: null, zahlungen: [] });
+                                monthlyData.set(assignedMonth, { forderungen: [], zahlungen: [] });
                               }
                               monthlyData.get(assignedMonth).zahlungen.push(zahlung);
                             }
@@ -1081,7 +1081,7 @@ export default function MietvertragDetailsModal({
                               {sortedMonths.map((month, index) => {
                                 const data = monthlyData.get(month);
                                 const monthDate = new Date(month + '-01');
-                                const forderung = data.forderung;
+                                const forderungen = data.forderungen;
                                 const zahlungen = data.zahlungen;
 
                                 return (
@@ -1105,57 +1105,63 @@ export default function MietvertragDetailsModal({
                                     <div className="grid grid-cols-2 gap-20 pt-16">
                                        {/* Left side - Forderungen */}
                                        <div className="pr-10">
-                                         {forderung ? (
-                                           <div className="w-full">
-                                             <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm group relative">
-                                               {/* Delete icon in top left */}
-                                               <Button
-                                                 onClick={() => handleDeleteForderung(forderung.id)}
-                                                 variant="ghost"
-                                                 size="sm"
-                                                 className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                                                 title="Forderung löschen"
-                                               >
-                                                 <Trash2 className="h-3 w-3" />
-                                               </Button>
-                                               
-                                               <div className="flex justify-center items-center flex-col text-center pt-2">
-                                                 <div className="flex items-center justify-center mb-2">
-                                                   <div className="bg-red-100 rounded-full p-1.5 mr-2">
-                                                     <span className="text-red-600 text-xs">📋</span>
-                                                   </div>
-                                                   <p className="font-semibold text-red-600 text-sm">Forderung</p>
-                                                 </div>
-                                                 
-                                                 {/* Editable amount */}
-                                                 {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'betrag' ? (
-                                                   <div className="flex items-center space-x-2">
-                                                     <Input
-                                                       type="number"
-                                                       value={editForderungValue}
-                                                       onChange={(e) => setEditForderungValue(e.target.value)}
-                                                       className="w-24 h-8 text-center"
-                                                       step="0.01"
-                                                     />
-                                                     <Button onClick={() => handleSaveForderung(editForderungValue)} size="sm" className="h-6 text-xs">
-                                                       ✓
-                                                     </Button>
-                                                     <Button onClick={handleCancelForderungEdit} size="sm" variant="outline" className="h-6 text-xs">
-                                                       ✕
-                                                     </Button>
-                                                   </div>
-                                                 ) : (
-                                                   <p 
-                                                     className="text-xl font-bold text-red-700 mb-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
-                                                     onClick={() => handleEditForderung(forderung.id, 'betrag', forderung.sollbetrag.toString())}
+                                         {forderungen.length > 0 ? (
+                                           <div className="space-y-3">
+                                             {forderungen.map((forderung) => (
+                                               <div key={forderung.id} className="w-full">
+                                                 <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm group relative">
+                                                   {/* Delete icon in top left */}
+                                                   <Button
+                                                     onClick={() => handleDeleteForderung(forderung.id)}
+                                                     variant="ghost"
+                                                     size="sm"
+                                                     className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                                     title="Forderung löschen"
                                                    >
-                                                     {formatBetrag(Number(forderung.sollbetrag))}
-                                                   </p>
-                                                 )}
+                                                     <Trash2 className="h-3 w-3" />
+                                                   </Button>
+                                                   
+                                                   <div className="flex justify-center items-center flex-col text-center pt-2">
+                                                     <div className="flex items-center justify-center mb-2">
+                                                       <div className="bg-red-100 rounded-full p-1.5 mr-2">
+                                                         <span className="text-red-600 text-xs">📋</span>
+                                                       </div>
+                                                       <p className="font-semibold text-red-600 text-sm">
+                                                         Forderung {forderungen.length > 1 ? `${forderungen.indexOf(forderung) + 1}/${forderungen.length}` : ''}
+                                                       </p>
+                                                     </div>
+                                                     
+                                                     {/* Editable amount */}
+                                                     {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'betrag' ? (
+                                                       <div className="flex items-center space-x-2">
+                                                         <Input
+                                                           type="number"
+                                                           value={editForderungValue}
+                                                           onChange={(e) => setEditForderungValue(e.target.value)}
+                                                           className="w-24 h-8 text-center"
+                                                           step="0.01"
+                                                         />
+                                                         <Button onClick={() => handleSaveForderung(editForderungValue)} size="sm" className="h-6 text-xs">
+                                                           ✓
+                                                         </Button>
+                                                         <Button onClick={handleCancelForderungEdit} size="sm" variant="outline" className="h-6 text-xs">
+                                                           ✕
+                                                         </Button>
+                                                       </div>
+                                                     ) : (
+                                                       <p 
+                                                         className="text-xl font-bold text-red-700 mb-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
+                                                         onClick={() => handleEditForderung(forderung.id, 'betrag', forderung.sollbetrag.toString())}
+                                                       >
+                                                         {formatBetrag(Number(forderung.sollbetrag))}
+                                                       </p>
+                                                     )}
+                                                   </div>
+                                                 </div>
                                                </div>
-                                             </div>
+                                             ))}
                                            </div>
-                                          ) : null}
+                                         ) : null}
                                        </div>
 
                                       {/* Right side - Zahlungen */}

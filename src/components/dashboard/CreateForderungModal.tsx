@@ -31,7 +31,6 @@ export const CreateForderungModal = ({
   const [sollbetrag, setSollbetrag] = useState("");
 
   const currentYear = new Date().getFullYear();
-  const nextYear = currentYear + 1;
   const totalRent = currentKaltmiete + currentBetriebskosten;
 
   const months = [
@@ -49,7 +48,9 @@ export const CreateForderungModal = ({
     { value: "12", label: "Dezember" }
   ];
 
-  const years = [currentYear - 1, currentYear, nextYear];
+  // Only show years from 2025 onwards
+  const startYear = Math.max(2025, currentYear);
+  const years = Array.from({ length: 3 }, (_, i) => startYear + i);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
