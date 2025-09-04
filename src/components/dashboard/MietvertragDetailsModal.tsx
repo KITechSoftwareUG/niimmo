@@ -68,6 +68,8 @@ export default function MietvertragDetailsModal({
   const [isLoadingSendMahnung, setIsLoadingSendMahnung] = useState(false);
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
   const [kautionValue, setKautionValue] = useState<string>("");
+  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | null>(null);
+  const [mietvertragValue, setMietvertragValue] = useState<string>("");
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -80,6 +82,66 @@ export default function MietvertragDetailsModal({
       toast({
         title: "Fehler",
         description: `${type} konnte nicht kopiert werden.`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten', value: string) => {
+    try {
+      const numericValue = parseFloat(value);
+      if (isNaN(numericValue)) {
+        toast({
+          title: "Fehler",
+          description: "Bitte geben Sie einen gültigen Betrag ein.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const oldKaltmiete = Number(vertrag?.kaltmiete || 0);
+      const oldBetriebskosten = Number(vertrag?.betriebskosten || 0);
+      
+      const updateData: any = { [field]: numericValue };
+      
+      // Check if this is a rent increase
+      const isIncrease = (field === 'kaltmiete' && numericValue > oldKaltmiete) || 
+                        (field === 'betriebskosten' && numericValue > oldBetriebskosten);
+      
+      if (isIncrease) {
+        updateData.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
+      }
+
+      const { error } = await supabase
+        .from('mietvertrag')
+        .update(updateData)
+        .eq('id', vertragId);
+
+      if (error) throw error;
+
+      if (isIncrease) {
+        toast({
+          title: "Mieterhöhung dokumentiert",
+          description: `${field === 'kaltmiete' ? 'Kaltmiete' : 'Betriebskosten'} wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt.`,
+        });
+      } else {
+        toast({
+          title: "Aktualisiert",
+          description: `${field === 'kaltmiete' ? 'Kaltmiete' : 'Betriebskosten'} wurde erfolgreich aktualisiert.`,
+        });
+      }
+
+      setEditingMietvertrag(null);
+      setMietvertragValue('');
+
+      // Invalidate queries
+      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren:', error);
+      toast({
+        title: "Fehler",
+        description: `${field === 'kaltmiete' ? 'Kaltmiete' : 'Betriebskosten'} konnte nicht aktualisiert werden.`,
         variant: "destructive",
       });
     }
@@ -565,12 +627,112 @@ export default function MietvertragDetailsModal({
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm font-medium text-gray-600">Kaltmiete</p>
-                        <p className="text-lg font-semibold">{formatBetrag(Number(vertrag.kaltmiete))}</p>
+                        {editingMietvertrag === 'kaltmiete' ? (
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={mietvertragValue}
+                              onChange={(e) => setMietvertragValue(e.target.value)}
+                              className="w-32 h-8"
+                              placeholder="0.00"
+                            />
+                            <Button
+                              onClick={() => handleEditMietvertrag('kaltmiete', mietvertragValue)}
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setEditingMietvertrag(null);
+                                setMietvertragValue('');
+                              }}
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-8 p-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <p className="text-lg font-semibold">{formatBetrag(Number(vertrag.kaltmiete))}</p>
+                            <Button
+                              onClick={() => {
+                                setEditingMietvertrag('kaltmiete');
+                                setMietvertragValue(vertrag.kaltmiete?.toString() || '');
+                              }}
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-600">Betriebskosten</p>
-                        <p className="text-lg">{formatBetrag(Number(vertrag.betriebskosten))}</p>
+                        {editingMietvertrag === 'betriebskosten' ? (
+                          <div className="flex items-center space-x-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={mietvertragValue}
+                              onChange={(e) => setMietvertragValue(e.target.value)}
+                              className="w-32 h-8"
+                              placeholder="0.00"
+                            />
+                            <Button
+                              onClick={() => handleEditMietvertrag('betriebskosten', mietvertragValue)}
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setEditingMietvertrag(null);
+                                setMietvertragValue('');
+                              }}
+                              size="sm"
+                              variant="outline"
+                              className="h-8 w-8 p-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <p className="text-lg">{formatBetrag(Number(vertrag.betriebskosten))}</p>
+                            <Button
+                              onClick={() => {
+                                setEditingMietvertrag('betriebskosten');
+                                setMietvertragValue(vertrag.betriebskosten?.toString() || '');
+                              }}
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Gesamtmiete</p>
+                        <p className="text-lg font-bold text-green-600">
+                          {formatBetrag(Number(vertrag.kaltmiete || 0) + Number(vertrag.betriebskosten || 0))}
+                        </p>
+                      </div>
+                      {vertrag.letzte_mieterhoehung_am && (
+                        <div>
+                          <p className="text-sm font-medium text-gray-600">Letzte Mieterhöhung</p>
+                          <p className="text-lg">{formatDatum(vertrag.letzte_mieterhoehung_am)}</p>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
