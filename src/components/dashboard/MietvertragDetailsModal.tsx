@@ -1080,8 +1080,8 @@ export default function MietvertragDetailsModal({
                                                           </Badge>
                                                            {(() => {
                                                              const zahlungsJahr = new Date(zahlung.buchungsdatum).getFullYear();
-                                                             const hasForderung = forderung !== undefined;
-                                                             const canEditMonth = zahlungsJahr >= 2025 && hasForderung;
+                                                             const hatForderungen = (forderungen || []).length > 0;
+                                                             const canEditMonth = zahlungsJahr >= 2025 && hatForderungen;
                                                              
                                                              return canEditMonth ? (
                                                                <Button
