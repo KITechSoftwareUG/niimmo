@@ -1653,8 +1653,8 @@ export const MietvertragDetailsModal = ({
                        {/* Timeline Section */}
                        <div className="relative py-6">
                         {(() => {
-                            // Use processed payments that include month-end shifts and prepayment logic
-                            const timelineZahlungen = processedZahlungen;
+                            // Use ALL payments instead of processed ones to match list view
+                            const timelineZahlungen = zahlungen || [];
                            
                            // Group data by months for better display
                            const monthlyData = new Map();
@@ -1684,34 +1684,7 @@ export const MietvertragDetailsModal = ({
                              }
                            });
                            
-                           // Filter months to only include those within reasonable contract period
-                           const contractStart = vertrag?.start_datum ? new Date(vertrag.start_datum) : null;
-                           const contractEnd = vertrag?.ende_datum ? new Date(vertrag.ende_datum) : null;
-                           
-                           // Remove months that are clearly outside contract period (with some tolerance)
-                           for (const [month] of monthlyData) {
-                             const monthDate = new Date(month + '-01');
-                             
-                             // Be more lenient - allow 3 months before contract start for security deposits etc.
-                             if (contractStart) {
-                               const tolerantStart = new Date(contractStart);
-                               tolerantStart.setMonth(tolerantStart.getMonth() - 3);
-                               if (monthDate < tolerantStart) {
-                                 monthlyData.delete(month);
-                                 continue;
-                               }
-                             }
-                             
-                             // Be more lenient - allow 3 months after contract end for final payments
-                             if (contractEnd) {
-                               const tolerantEnd = new Date(contractEnd);
-                               tolerantEnd.setMonth(tolerantEnd.getMonth() + 3);
-                               if (monthDate > tolerantEnd) {
-                                 monthlyData.delete(month);
-                                 continue;
-                               }
-                             }
-                           }
+                           // No filtering by contract period - show all months with data
                           
                           // Sort months chronologically (newest first)
                           const sortedMonths = Array.from(monthlyData.keys()).sort().reverse();
