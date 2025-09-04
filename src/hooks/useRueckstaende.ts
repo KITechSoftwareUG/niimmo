@@ -29,6 +29,8 @@ export interface FehlendeMietzahlung {
   faellige_forderungen_betrag: number;
   noch_nicht_faellige_forderungen_betrag: number;
   naechste_faelligkeit?: string;
+  // Guthaben-Information
+  ist_guthaben: boolean;
 }
 
 export const useRueckstaende = () => {
@@ -166,8 +168,8 @@ export const useRueckstaende = () => {
         
         console.log(`Mietvertrag ${mietvertrag.id}: Forderungen=${gesamtForderungen}, Zahlungen=${gesamtZahlungen}, Rückstand=${rueckstand}`);
         
-        // Nur Rückstände > 0 anzeigen
-        if (rueckstand > 0) {
+        // Zeige sowohl Rückstände als auch Guthaben (wenn != 0)
+        if (rueckstand !== 0) {
           // Lade zusätzliche Informationen
           const einheit = einheiten?.find(e => e.id === mietvertrag.einheit_id);
           const immobilie = immobilien?.find(i => i.id === einheit?.immobilie_id);
@@ -199,7 +201,7 @@ export const useRueckstaende = () => {
           
           rueckstaende.push({
             mietvertrag_id: mietvertrag.id,
-            fehlend_betrag: rueckstand,
+            fehlend_betrag: Math.abs(rueckstand), // Betrag immer positiv anzeigen
             gesamt_forderungen: gesamtForderungen,
             gesamt_zahlungen: gesamtZahlungen,
             miete_zahlungen: mieteZahlungenSumme,
@@ -222,14 +224,18 @@ export const useRueckstaende = () => {
             faellige_forderungen: faelligeForderungen.length,
             noch_nicht_faellige_forderungen: nichtFaelligeForderungen.length,
             faellige_forderungen_betrag: faelligeForderungenBetrag,
-            noch_nicht_faellige_forderungen_betrag: nichtFaelligeForderungenBetrag
+            noch_nicht_faellige_forderungen_betrag: nichtFaelligeForderungenBetrag,
+            // Guthaben-Information
+            ist_guthaben: rueckstand < 0
           });
         }
       }
       
       console.log('=== ENDERGEBNIS (IDENTISCH ZUM MODAL) ===');
-      console.log('Berechnete Rückstände:', rueckstaende.length);
-      console.log('Gesamtrückstand:', rueckstaende.reduce((sum, item) => sum + item.fehlend_betrag, 0));
+      console.log('Berechnete Einträge:', rueckstaende.length);
+      console.log('Netto-Saldo:', rueckstaende.reduce((sum, item) => {
+        return sum + (item.ist_guthaben ? -item.fehlend_betrag : item.fehlend_betrag);
+      }, 0));
       
       return rueckstaende;
     }

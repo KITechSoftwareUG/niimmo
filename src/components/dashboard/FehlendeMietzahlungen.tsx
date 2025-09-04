@@ -54,7 +54,9 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
     return sorted;
   }, [fehlendeMietzahlungen, sortBy, sortDirection]);
 
-  const gesamtRueckstand = fehlendeMietzahlungen?.reduce((sum, item) => sum + item.fehlend_betrag, 0) || 0;
+  const gesamtRueckstand = fehlendeMietzahlungen?.reduce((sum, item) => {
+    return sum + (item.ist_guthaben ? -item.fehlend_betrag : item.fehlend_betrag);
+  }, 0) || 0;
 
   const formatBetrag = (betrag: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -96,18 +98,22 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                 <AlertTriangle className="h-5 w-5 text-red-600" />
               </div>
               <div className="text-left">
-                <h2 className="text-lg font-semibold text-gray-800">Rückstände</h2>
+                <h2 className="text-lg font-semibold text-gray-800">Rückstände & Guthaben</h2>
                 <p className="text-sm text-gray-600">
-                  {fehlendeMietzahlungen?.length || 0} Mietvertrag{(fehlendeMietzahlungen?.length || 0) !== 1 ? 'e' : ''} mit offenen Forderungen
+                  {fehlendeMietzahlungen?.length || 0} Mietvertrag{(fehlendeMietzahlungen?.length || 0) !== 1 ? 'e' : ''} mit Rückständen oder Guthaben
                 </p>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
-              {gesamtRueckstand > 0 && (
+              {gesamtRueckstand !== 0 && (
                 <div className="text-right mr-4">
-                  <p className="text-sm text-gray-600">Gesamtrückstand</p>
-                  <p className="text-xl font-bold text-red-600">{formatBetrag(gesamtRueckstand)}</p>
+                  <p className="text-sm text-gray-600">
+                    {gesamtRueckstand > 0 ? 'Gesamtrückstand' : 'Gesamtguthaben'}
+                  </p>
+                  <p className={`text-xl font-bold ${gesamtRueckstand > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {formatBetrag(Math.abs(gesamtRueckstand))}
+                  </p>
                 </div>
               )}
               {isOpen ? (
@@ -218,10 +224,11 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                             <p className="font-medium text-green-600">{formatBetrag(rueckstand.gesamt_zahlungen)}</p>
                           </div>
                           <div>
-                            <p className="text-gray-600">Rückstand</p>
-                            <p className="font-bold text-red-600">
+                            <p className="text-gray-600">{rueckstand.ist_guthaben ? 'Guthaben' : 'Rückstand'}</p>
+                            <p className={`font-bold ${rueckstand.ist_guthaben ? 'text-green-600' : 'text-red-600'}`}>
+                              {rueckstand.ist_guthaben ? 'Guthaben: ' : 'Rückstand: '}
                               {formatBetrag(rueckstand.fehlend_betrag)}
-                              {rueckstand.noch_nicht_faellige_forderungen_betrag > 0 && (
+                              {!rueckstand.ist_guthaben && rueckstand.noch_nicht_faellige_forderungen_betrag > 0 && (
                                 <span className="text-orange-600 ml-1 font-normal">
                                   ({formatBetrag(rueckstand.noch_nicht_faellige_forderungen_betrag)} offen)
                                 </span>
@@ -260,10 +267,10 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
               <div className="pt-4 border-t border-red-200">
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-600">
-                    {sortedFehlendeMietzahlungen.length} Mietvertrag{sortedFehlendeMietzahlungen.length !== 1 ? 'e' : ''} mit Rückständen
+                    {sortedFehlendeMietzahlungen.length} Mietvertrag{sortedFehlendeMietzahlungen.length !== 1 ? 'e' : ''} mit Rückständen oder Guthaben
                   </p>
-                  <p className="font-semibold text-red-600">
-                    Gesamtrückstand: {formatBetrag(gesamtRueckstand)}
+                  <p className={`font-semibold ${gesamtRueckstand > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {gesamtRueckstand > 0 ? 'Gesamtrückstand' : 'Gesamtguthaben'}: {formatBetrag(Math.abs(gesamtRueckstand))}
                   </p>
                 </div>
               </div>
@@ -275,8 +282,8 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
                   <div className="p-3 bg-green-100 rounded-full">
                     <Euro className="h-6 w-6 text-green-600" />
                   </div>
-                  <p className="text-green-700 font-medium text-lg">Keine Rückstände</p>
-                  <p className="text-green-600 text-sm">Alle Mietverträge sind auf dem aktuellen Stand</p>
+                  <p className="text-green-700 font-medium text-lg">Keine Rückstände oder Guthaben</p>
+                  <p className="text-green-600 text-sm">Alle Mietverträge sind ausgeglichen</p>
                 </div>
               </div>
             </div>

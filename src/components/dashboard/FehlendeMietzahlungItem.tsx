@@ -16,7 +16,9 @@ export const FehlendeMietzahlungItem = ({ item, onMietvertragClick }: FehlendeMi
 
   return (
     <div 
-      className="p-4 bg-white/60 rounded-lg border border-red-100 cursor-pointer hover:bg-white/80 transition-colors"
+      className={`p-4 bg-white/60 rounded-lg border cursor-pointer hover:bg-white/80 transition-colors ${
+        item.ist_guthaben ? 'border-green-100' : 'border-red-100'
+      }`}
       onClick={handleClick}
     >
       <div className="flex items-start justify-between mb-3">
@@ -26,11 +28,15 @@ export const FehlendeMietzahlungItem = ({ item, onMietvertragClick }: FehlendeMi
           <p className="text-xs text-gray-500">{item.immobilie_adresse}</p>
         </div>
         <div className="text-right">
-          <div className="flex items-center gap-1 text-red-600 font-bold text-lg mb-1">
+          <div className={`flex items-center gap-1 font-bold text-lg mb-1 ${
+            item.ist_guthaben ? 'text-green-600' : 'text-red-600'
+          }`}>
             <Euro className="h-4 w-4" />
             {item.fehlend_betrag.toLocaleString()}
           </div>
-          <p className="text-xs text-gray-500">Status: {item.mietvertrag_status}</p>
+          <p className="text-xs text-gray-500">
+            {item.ist_guthaben ? 'Guthaben' : 'Rückstand'} - Status: {item.mietvertrag_status}
+          </p>
         </div>
       </div>
       
