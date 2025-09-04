@@ -110,29 +110,29 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
   }
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Mögliche Mieterhöhungen
-                <Badge variant="secondary" className="ml-2">
-                  {eligibleContracts.length}
-                </Badge>
-              </div>
-              {isOpen ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </CardTitle>
-          </CardHeader>
-        </CollapsibleTrigger>
-        
-        <CollapsibleContent>
-          <CardContent className="pt-0">
+    <Card>
+      <CardHeader 
+        className="cursor-pointer hover:bg-muted/50 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Mögliche Mieterhöhungen
+            <Badge variant="secondary" className="ml-2">
+              {eligibleContracts.length}
+            </Badge>
+          </div>
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </CardTitle>
+      </CardHeader>
+      
+      {isOpen && (
+        <CardContent className="pt-0">
             <div className="space-y-3">
               {eligibleContracts.map((contract) => {
                 const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
@@ -179,9 +179,8 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
                 );
               })}
             </div>
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+        </CardContent>
+      )}
+    </Card>
   );
 }
