@@ -759,8 +759,8 @@ export default function MietvertragDetailsModal({
                       {/* Timeline Section */}
                       <div className="relative py-6">
                         {(() => {
-                          // Filter out Mietkaution from timeline - they go to separate section
-                          const timelineZahlungen = (zahlungen || []).filter(z => z.kategorie !== 'Mietkaution');
+                          // Include ALL payments in timeline - including Mietkaution
+                          const timelineZahlungen = (zahlungen || []);
 
                           // Group data by months for better display
                           const monthlyData = new Map();
@@ -936,11 +936,12 @@ export default function MietvertragDetailsModal({
                                                             <SelectTrigger className="w-32 h-6 text-xs">
                                                               <SelectValue placeholder="Kategorie" />
                                                             </SelectTrigger>
-                                                             <SelectContent>
-                                                               <SelectItem value="Miete">Miete</SelectItem>
-                                                               <SelectItem value="Kaution">Kaution</SelectItem>
-                                                               <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                                                             </SelectContent>
+                                             <SelectContent>
+                                               <SelectItem value="Miete">Miete</SelectItem>
+                                               <SelectItem value="Kaution">Kaution</SelectItem>
+                                               <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                               <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                             </SelectContent>
                                                           </Select>
                                                           <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
                                                             <Check className="h-3 w-3" />
@@ -1095,8 +1096,8 @@ export default function MietvertragDetailsModal({
                     /* List View */
                     <div className="space-y-4">
                       {(() => {
-                        // Filter out Mietkaution from list view too - they appear in separate section
-                        const listZahlungen = (zahlungen || []).filter(z => z.kategorie !== 'Mietkaution');
+                        // Include ALL payments in list - including Mietkaution
+                        const listZahlungen = (zahlungen || []);
 
                         return listZahlungen.length > 0 ? (
                           listZahlungen.map((zahlung) => (
@@ -1124,12 +1125,12 @@ export default function MietvertragDetailsModal({
                                           <SelectTrigger className="w-32 h-6 text-xs">
                                             <SelectValue placeholder="Kategorie" />
                                           </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="Miete">Miete</SelectItem>
-                                            <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
-                                            <SelectItem value="Kaution">Kaution</SelectItem>
-                                            <SelectItem value="Sonstige">Sonstige</SelectItem>
-                                          </SelectContent>
+                                           <SelectContent>
+                                             <SelectItem value="Miete">Miete</SelectItem>
+                                             <SelectItem value="Kaution">Kaution</SelectItem>
+                                             <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                             <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                           </SelectContent>
                                         </Select>
                                         <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
                                           <Check className="h-3 w-3" />
@@ -1199,67 +1200,6 @@ export default function MietvertragDetailsModal({
                     </div>
                   )}
 
-                  {/* Kaution Section - at the bottom */}
-                  {(() => {
-                    const kautionZahlungen = zahlungen?.filter(z =>
-                      z.mietvertrag_id === vertragId && z.kategorie === 'Mietkaution'
-                    ) || [];
-
-                    if (kautionZahlungen.length === 0) return null;
-
-                    return (
-                      <div className="mt-8 bg-purple-50 border border-purple-200 rounded-lg p-6">
-                        <div className="flex items-center mb-4">
-                          <div className="bg-purple-100 rounded-full p-2 mr-3">
-                            <span className="text-purple-600 text-lg">🏠</span>
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-purple-800">Mietkaution</h3>
-                            <p className="text-sm text-purple-600">Gezahlt bei Mietbeginn</p>
-                          </div>
-                        </div>
-
-                        <div className="grid gap-3">
-                          {kautionZahlungen.map((zahlung) => (
-                            <div
-                              key={zahlung.id}
-                              className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm group"
-                            >
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="font-bold text-xl text-purple-700">
-                                    {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                                  </p>
-                                  <p className="text-sm text-purple-600">
-                                    {formatDatum(zahlung.buchungsdatum)}
-                                  </p>
-                                  {zahlung.verwendungszweck && (
-                                    <p className="text-xs text-purple-500 mt-1">
-                                      {zahlung.verwendungszweck}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="text-right flex items-center space-x-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                    Kaution
-                                  </span>
-                                  <Button
-                                    onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
-                                    variant="ghost"
-                                    size="sm"
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
-                                    title="Kategorie ändern"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
                 </CardContent>
               </Card>
             </TabsContent>
