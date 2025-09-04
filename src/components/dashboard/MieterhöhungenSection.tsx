@@ -53,6 +53,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
           letzte_mieterhoehung_am,
           einheiten!inner(
             id,
+            einheitentyp,
             immobilien!inner(
               name
             )

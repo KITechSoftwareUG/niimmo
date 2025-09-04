@@ -7,6 +7,7 @@ import { MietvertragInfo } from "./MietvertragInfo";
 import { MieterList } from "./MieterList";
 import { PaymentHistory } from "./PaymentHistory";
 import { DocumentsList } from "./DocumentsList";
+import { MieterhöhungManagement } from "./MieterhöhungManagement";
 
 interface MietvertragDetailProps {
   vertragId: string;
@@ -120,6 +121,13 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
       <MietvertragInfo vertrag={vertrag} einheit={einheit} immobilie={immobilie} />
       
       <MieterList mieter={mieter} />
+      
+      <MieterhöhungManagement 
+        vertragId={vertragId}
+        currentKaltmiete={vertrag?.kaltmiete || 0}
+        letzteErhöhung={vertrag?.letzte_mieterhoehung_am}
+        startDatum={vertrag?.start_datum}
+      />
       
       <PaymentHistory 
         mietvertragId={vertragId} 

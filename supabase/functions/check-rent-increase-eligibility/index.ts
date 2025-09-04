@@ -42,7 +42,8 @@ const handler = async (req: Request): Promise<Response> => {
         start_datum,
         status,
         einheiten!inner(
-          einheit_nummer,
+          id,
+          einheitentyp,
           immobilien!inner(
             name
           )
