@@ -657,19 +657,26 @@ export default function MietvertragDetailsModal({
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex items-center space-x-2">
-                            <p className="text-lg font-semibold">{formatBetrag(Number(vertrag.kaltmiete))}</p>
-                            <Button
-                              onClick={() => {
-                                setEditingMietvertrag('kaltmiete');
-                                setMietvertragValue(vertrag.kaltmiete?.toString() || '');
-                              }}
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <p className="text-lg font-semibold">{formatBetrag(Number(vertrag.kaltmiete))}</p>
+                              <Button
+                                onClick={() => {
+                                  setEditingMietvertrag('kaltmiete');
+                                  setMietvertragValue(vertrag.kaltmiete?.toString() || '');
+                                }}
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            {vertrag.letzte_mieterhoehung_am && (
+                              <p className="text-xs text-gray-500">
+                                Letzte Erhöhung: {formatDatum(vertrag.letzte_mieterhoehung_am)}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -705,19 +712,26 @@ export default function MietvertragDetailsModal({
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex items-center space-x-2">
-                            <p className="text-lg">{formatBetrag(Number(vertrag.betriebskosten))}</p>
-                            <Button
-                              onClick={() => {
-                                setEditingMietvertrag('betriebskosten');
-                                setMietvertragValue(vertrag.betriebskosten?.toString() || '');
-                              }}
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </Button>
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <p className="text-lg">{formatBetrag(Number(vertrag.betriebskosten))}</p>
+                              <Button
+                                onClick={() => {
+                                  setEditingMietvertrag('betriebskosten');
+                                  setMietvertragValue(vertrag.betriebskosten?.toString() || '');
+                                }}
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            {vertrag.letzte_mieterhoehung_am && (
+                              <p className="text-xs text-gray-500">
+                                Letzte Erhöhung: {formatDatum(vertrag.letzte_mieterhoehung_am)}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -727,12 +741,6 @@ export default function MietvertragDetailsModal({
                           {formatBetrag(Number(vertrag.kaltmiete || 0) + Number(vertrag.betriebskosten || 0))}
                         </p>
                       </div>
-                      {vertrag.letzte_mieterhoehung_am && (
-                        <div>
-                          <p className="text-sm font-medium text-gray-600">Letzte Mieterhöhung</p>
-                          <p className="text-lg">{formatDatum(vertrag.letzte_mieterhoehung_am)}</p>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
