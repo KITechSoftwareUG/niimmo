@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, Users, Euro, Building2, Clock, FileText } from "lucide-react";
 import { Loader2 } from "lucide-react";
-import { MietvertragDetailsModal } from "./MietvertragDetailsModal";
+import MietvertragDetailsModal from "./MietvertragDetailsModal";
 
 interface EinheitHistorieViewProps {
   einheitId: string;
@@ -193,8 +193,6 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
         isOpen={!!selectedVertragId}
         onClose={() => setSelectedVertragId(null)}
         vertragId={selectedVertragId || ''}
-        einheit={einheit}
-        immobilie={immobilie}
       />
       
       <div className="max-w-4xl mx-auto">

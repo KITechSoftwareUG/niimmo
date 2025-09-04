@@ -98,24 +98,9 @@ export const MietvertragDetailsModal: React.FC<MietvertragDetailsModalProps> = (
         .from('mietvertrag')
         .select(`
           *,
-          einheiten (
-            immobilie_id,
-            einheit,
-            immobilien (
-              bezeichnung,
-              strasse,
-              hausnummer,
-              plz,
-              ort
-            )
-          ),
-          mietvertrag_mieter (
-            mieter (
-              vorname,
-              nachname,
-              hauptmail,
-              telnr
-            )
+          einheiten!inner (
+            id,
+            immobilie_id
           )
         `)
         .eq('id', vertragId)
@@ -246,7 +231,7 @@ export const MietvertragDetailsModal: React.FC<MietvertragDetailsModalProps> = (
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Building className="h-5 w-5" />
-            <span>Mietvertrag Details - {mietvertrag.einheiten?.immobilien?.bezeichnung}</span>
+            <span>Mietvertrag Details - Einheit {mietvertrag.einheiten?.id}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -267,11 +252,9 @@ export const MietvertragDetailsModal: React.FC<MietvertragDetailsModalProps> = (
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p><strong>Bezeichnung:</strong> {mietvertrag.einheiten?.immobilien?.bezeichnung}</p>
-                  <p><strong>Adresse:</strong> {mietvertrag.einheiten?.immobilien?.strasse} {mietvertrag.einheiten?.immobilien?.hausnummer}</p>
-                  <p>{mietvertrag.einheiten?.immobilien?.plz} {mietvertrag.einheiten?.immobilien?.ort}</p>
+                  <p><strong>Einheit ID:</strong> {mietvertrag.einheiten?.id}</p>
+                  <p><strong>Immobilie ID:</strong> {mietvertrag.einheiten?.immobilie_id}</p>
                   <Separator className="my-4" />
-                  <p><strong>Einheit:</strong> {mietvertrag.einheiten?.einheit}</p>
                   <p><strong>Kaltmiete:</strong> {mietvertrag.kaltmiete}€</p>
                   <p><strong>Nebenkosten:</strong> {mietvertrag.betriebskosten}€</p>
                   <p><strong>Kaution:</strong> {mietvertrag.kaution_betrag}€</p>
@@ -286,13 +269,7 @@ export const MietvertragDetailsModal: React.FC<MietvertragDetailsModalProps> = (
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {mietvertrag.mietvertrag_mieter?.[0]?.mieter && (
-                    <>
-                      <p><strong>Mieter:</strong> {mietvertrag.mietvertrag_mieter[0].mieter.vorname} {mietvertrag.mietvertrag_mieter[0].mieter.nachname}</p>
-                      <p><strong>E-Mail:</strong> {mietvertrag.mietvertrag_mieter[0].mieter.hauptmail}</p>
-                      <p><strong>Telefon:</strong> {mietvertrag.mietvertrag_mieter[0].mieter.telnr}</p>
-                    </>
-                  )}
+                  <p><strong>Mietvertrag ID:</strong> {mietvertrag.id}</p>
                   <Separator className="my-4" />
                   <p><strong>Beginn:</strong> {format(parseISO(mietvertrag.start_datum), 'dd.MM.yyyy', { locale: de })}</p>
                   {mietvertrag.ende_datum && (
@@ -592,7 +569,10 @@ export const MietvertragDetailsModal: React.FC<MietvertragDetailsModalProps> = (
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-export default MietvertragDetailsModal;
+         </Tabs>
+       </DialogContent>
+     </Dialog>
+   );
+ };
+
+ export default MietvertragDetailsModal;
