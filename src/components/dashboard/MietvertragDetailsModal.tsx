@@ -1012,7 +1012,7 @@ export default function MietvertragDetailsModal({
                                                             className="w-full h-6 text-xs"
                                                           />
                                                           <div className="max-h-32 overflow-y-auto space-y-1">
-                                                            {allMietvertraege?.slice(0, 10).map(mv => {
+                                                            {allMietvertraege?.map(mv => {
                                                               const mieterNames = mv.mietvertrag_mieter?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || 'Keine Mieter';
                                                               const einheitId = mv.einheit_id?.slice(-2) || 'XX';
                                                               return (
