@@ -359,6 +359,12 @@ export default function MietvertragDetailsModal({
               name,
               adresse
             )
+          ),
+          mietvertrag_mieter (
+            mieter:mieter_id (
+              vorname,
+              nachname
+            )
           )
         `);
 
@@ -934,18 +940,27 @@ export default function MietvertragDetailsModal({
                                                             className="w-full h-6 text-xs"
                                                           />
                                                           <div className="max-h-32 overflow-y-auto space-y-1">
-                                                            {allMietvertraege?.filter(mv => 
-                                                              mv.einheiten?.immobilien?.name?.toLowerCase().includes(mietvertragSearchTerm.toLowerCase()) ||
-                                                              mv.einheiten?.immobilien?.adresse?.toLowerCase().includes(mietvertragSearchTerm.toLowerCase())
-                                                            ).slice(0, 5).map(mv => (
-                                                              <button
-                                                                key={mv.id}
-                                                                onClick={() => handleSavePaymentField(mv.id)}
-                                                                className="w-full text-left p-2 text-xs bg-gray-50 hover:bg-gray-100 rounded"
-                                                              >
-                                                                {mv.einheiten?.immobilien?.name} - {mv.einheiten?.immobilien?.adresse}
-                                                              </button>
-                                                            ))}
+                                                            {allMietvertraege?.filter(mv => {
+                                                              const searchLower = mietvertragSearchTerm.toLowerCase();
+                                                              const mieterNames = mv.mietvertrag_mieter?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(' ') || '';
+                                                              return mv.einheiten?.immobilien?.name?.toLowerCase().includes(searchLower) ||
+                                                                     mv.einheiten?.immobilien?.adresse?.toLowerCase().includes(searchLower) ||
+                                                                     mieterNames.toLowerCase().includes(searchLower);
+                                                            }).slice(0, 5).map(mv => {
+                                                              const mieterNames = mv.mietvertrag_mieter?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || 'Keine Mieter';
+                                                              const einheitId = mv.einheit_id?.slice(-2) || 'XX';
+                                                              return (
+                                                                <button
+                                                                  key={mv.id}
+                                                                  onClick={() => handleSavePaymentField(mv.id)}
+                                                                  className="w-full text-left p-2 text-xs bg-gray-50 hover:bg-gray-100 rounded"
+                                                                >
+                                                                  <div className="font-medium">{mv.einheiten?.immobilien?.name} - Einheit {einheitId}</div>
+                                                                  <div className="text-gray-600">{mv.einheiten?.immobilien?.adresse}</div>
+                                                                  <div className="text-blue-600 mt-1">{mieterNames}</div>
+                                                                </button>
+                                                              );
+                                                            })}
                                                           </div>
                                                           <div className="flex items-center space-x-1">
                                                             <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 text-xs">
