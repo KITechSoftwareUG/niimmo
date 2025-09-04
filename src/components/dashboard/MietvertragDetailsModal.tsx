@@ -1647,61 +1647,61 @@ export const MietvertragDetailsModal = ({
                     </div>
                   </div>
                 </CardHeader>
-                 <CardContent>
-                    {viewMode === 'timeline' ? (
-                      <div className="space-y-8">
-                        {/* Kaution Section - at the beginning of contract */}
-                        {(() => {
-                          const kautionZahlungen = zahlungen?.filter(z => 
-                            z.mietvertrag_id === vertragId && z.kategorie === 'Mietkaution'
-                          ) || [];
-                          
-                          if (kautionZahlungen.length === 0) return null;
-                          
-                          return (
-                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-8">
-                              <div className="flex items-center mb-4">
-                                <div className="bg-purple-100 rounded-full p-2 mr-3">
-                                  <span className="text-purple-600 text-lg">🏠</span>
-                                </div>
-                                <div>
-                                  <h3 className="text-lg font-semibold text-purple-800">Mietkaution</h3>
-                                  <p className="text-sm text-purple-600">Gezahlt bei Mietbeginn</p>
-                                </div>
+                <CardContent>
+                  {viewMode === 'timeline' ? (
+                    <div className="space-y-8">
+                      {/* Kaution Section - at the beginning of contract */}
+                      {(() => {
+                        const kautionZahlungen = zahlungen?.filter(z => 
+                          z.mietvertrag_id === vertragId && z.kategorie === 'Mietkaution'
+                        ) || [];
+                        
+                        if (kautionZahlungen.length === 0) return null;
+                        
+                        return (
+                          <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-8">
+                            <div className="flex items-center mb-4">
+                              <div className="bg-purple-100 rounded-full p-2 mr-3">
+                                <span className="text-purple-600 text-lg">🏠</span>
                               </div>
-                              
-                              <div className="grid gap-3">
-                                {kautionZahlungen.map((zahlung) => (
-                                  <div 
-                                    key={zahlung.id}
-                                    className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm"
-                                  >
-                                    <div className="flex justify-between items-center">
-                                      <div>
-                                        <p className="font-bold text-xl text-purple-700">
-                                          {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                                        </p>
-                                        <p className="text-sm text-purple-600">
-                                          {formatDatum(zahlung.buchungsdatum)}
-                                        </p>
-                                        {zahlung.verwendungszweck && (
-                                          <p className="text-xs text-purple-500 mt-1">
-                                            {zahlung.verwendungszweck}
-                                          </p>
-                                        )}
-                                      </div>
-                                      <div className="text-right">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                          Kaution
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
+                              <div>
+                                <h3 className="text-lg font-semibold text-purple-800">Mietkaution</h3>
+                                <p className="text-sm text-purple-600">Gezahlt bei Mietbeginn</p>
                               </div>
                             </div>
-                          );
-                        })()}
+                            
+                            <div className="grid gap-3">
+                              {kautionZahlungen.map((zahlung) => (
+                                <div 
+                                  key={zahlung.id}
+                                  className="bg-white border border-purple-200 rounded-lg p-4 shadow-sm"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <p className="font-bold text-xl text-purple-700">
+                                        {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                      </p>
+                                      <p className="text-sm text-purple-600">
+                                        {formatDatum(zahlung.buchungsdatum)}
+                                      </p>
+                                      {zahlung.verwendungszweck && (
+                                        <p className="text-xs text-purple-500 mt-1">
+                                          {zahlung.verwendungszweck}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                        Kaution
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                         
                         {/* Timeline Section */}
                         <div className="relative py-6">
@@ -2345,45 +2345,46 @@ export const MietvertragDetailsModal = ({
                            <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                            <p className="text-gray-600 text-lg">Keine Zahlungen oder Forderungen gefunden</p>
                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      /* List View */
-                      <div className="space-y-4">
-                        {zahlungen && zahlungen.length > 0 ? (
-                          zahlungen.map((zahlung, index) => (
-                            <div key={zahlung.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow group">
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="flex items-center mb-2">
-                                    <Badge variant="outline" className="text-xs font-medium">
-                                      {zahlung.kategorie || 'Sonstige'}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-lg font-semibold text-gray-900">
-                                    {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                                  </p>
-                                  <p className="text-sm text-gray-600">
-                                    {formatDatum(zahlung.buchungsdatum)}
-                                  </p>
-                                  {zahlung.verwendungszweck && (
-                                    <p className="text-xs text-gray-500 mt-1 truncate">
-                                      {zahlung.verwendungszweck}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-center py-12">
-                            <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                            <p className="text-gray-600 text-lg">Keine Zahlungen gefunden</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
+                         )}
+                       </div>
+                     </div>
+                   ) : (
+                     /* List View */
+                     <div className="space-y-4">
+                       {zahlungen && zahlungen.length > 0 ? (
+                         zahlungen.map((zahlung, index) => (
+                           <div key={zahlung.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow group">
+                             <div className="flex justify-between items-start">
+                               <div className="flex-1">
+                                 <div className="flex items-center mb-2">
+                                   <Badge variant="outline" className="text-xs font-medium">
+                                     {zahlung.kategorie || 'Sonstige'}
+                                   </Badge>
+                                 </div>
+                                 <p className="text-lg font-semibold text-gray-900">
+                                   {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                 </p>
+                                 <p className="text-sm text-gray-600">
+                                   {formatDatum(zahlung.buchungsdatum)}
+                                 </p>
+                                 {zahlung.verwendungszweck && (
+                                   <p className="text-xs text-gray-500 mt-1 truncate">
+                                     {zahlung.verwendungszweck}
+                                   </p>
+                                 )}
+                               </div>
+                             </div>
+                           </div>
+                         ))
+                       ) : (
+                         <div className="text-center py-12">
+                           <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                           <p className="text-gray-600 text-lg">Keine Zahlungen gefunden</p>
+                         </div>
+                       )}
+                     </div>
+                   )}
+                 </CardContent>
               </Card>
             </TabsContent>
 
