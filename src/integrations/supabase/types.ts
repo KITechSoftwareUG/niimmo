@@ -725,7 +725,12 @@ export type Database = {
       mieterrolle: "Hauptmieter" | "Zweitmieter" | "Drittmieter"
       mietstatus: "aktiv" | "gekuendigt" | "beendet"
       objekttyp: "Wohnhaus" | "Gewerbe" | "Mischnutzung"
-      zahlkategorien: "Miete" | "Nichtmiete" | "Mietkaution" | "Ignorieren"
+      zahlkategorien:
+        | "Miete"
+        | "Nichtmiete"
+        | "Mietkaution"
+        | "Ignorieren"
+        | "Rücklastschrift"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -874,7 +879,13 @@ export const Constants = {
       mieterrolle: ["Hauptmieter", "Zweitmieter", "Drittmieter"],
       mietstatus: ["aktiv", "gekuendigt", "beendet"],
       objekttyp: ["Wohnhaus", "Gewerbe", "Mischnutzung"],
-      zahlkategorien: ["Miete", "Nichtmiete", "Mietkaution", "Ignorieren"],
+      zahlkategorien: [
+        "Miete",
+        "Nichtmiete",
+        "Mietkaution",
+        "Ignorieren",
+        "Rücklastschrift",
+      ],
     },
   },
 } as const

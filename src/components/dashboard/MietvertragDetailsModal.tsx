@@ -1028,6 +1028,7 @@ export default function MietvertragDetailsModal({
                                                <SelectItem value="Miete">Miete</SelectItem>
                                                <SelectItem value="Kaution">Kaution</SelectItem>
                                                <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                               <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
                                                <SelectItem value="Ignorieren">Ignorieren</SelectItem>
                                              </SelectContent>
                                                           </Select>
@@ -1217,6 +1218,7 @@ export default function MietvertragDetailsModal({
                                              <SelectItem value="Miete">Miete</SelectItem>
                                              <SelectItem value="Kaution">Kaution</SelectItem>
                                              <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                             <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
                                              <SelectItem value="Ignorieren">Ignorieren</SelectItem>
                                            </SelectContent>
                                         </Select>

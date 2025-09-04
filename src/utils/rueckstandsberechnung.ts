@@ -86,6 +86,7 @@ export const calculateMietvertragRueckstand = (
     
     // Kategorie-Filter (exakt wie im Modal) - Mietkaution ausschließen
     return z.kategorie === 'Miete' || 
+           z.kategorie === 'Rücklastschrift' ||
            z.kategorie === null || 
            (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && 
             String(z.kategorie) !== 'Ignorieren' && 
