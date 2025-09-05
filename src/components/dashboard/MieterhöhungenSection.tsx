@@ -3,11 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Collapsible, 
-  CollapsibleContent, 
-  CollapsibleTrigger 
-} from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
 import { useState } from "react";
 
@@ -109,11 +104,16 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
     );
   }
 
+  const handleToggle = () => {
+    console.log('Toggle clicked, current state:', isOpen);
+    setIsOpen(!isOpen);
+  };
+
   return (
     <Card>
       <CardHeader 
-        className="cursor-pointer hover:bg-muted/50 transition-colors"
-        onClick={() => setIsOpen(!isOpen)}
+        className="cursor-pointer hover:bg-muted/50 transition-colors select-none"
+        onClick={handleToggle}
       >
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
