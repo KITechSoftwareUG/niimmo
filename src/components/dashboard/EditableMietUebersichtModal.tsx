@@ -121,25 +121,8 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     }
   });
 
-  // Process data into table rows
-  const processedData: TableRow[] = useMemo(() => {
-    if (!tableData) return [];
-
-    return tableData.map(vertrag => {
-      const zahlungen = getZahlungenFuerVertrag(vertrag.id);
-      
-      return {
-        vertrag,
-        einheit: vertrag.einheiten,
-        immobilie: vertrag.einheiten?.immobilien,
-        mieter: vertrag.mietvertrag_mieter?.map((mm: any) => mm.mieter) || [],
-        zahlungen
-      };
-    });
-  }, [tableData, zahlungenData]);
-
-  // Helper function to get payments for a contract
-  const getZahlungenFuerVertrag = (vertragId: string) => {
+  // Helper function to get payments for a contract - MOVED BEFORE processedData
+  const getZahlungenFuerVertrag = useCallback((vertragId: string) => {
     if (!zahlungenData) return { aktuellerMonat: 0, gesamt: 0, anzahlZahlungen: 0 };
     
     const vertragsZahlungen = zahlungenData.filter(z => z.mietvertrag_id === vertragId);
@@ -156,7 +139,24 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
       gesamt,
       anzahlZahlungen: vertragsZahlungen.length
     };
-  };
+  }, [zahlungenData]);
+
+  // Process data into table rows
+  const processedData: TableRow[] = useMemo(() => {
+    if (!tableData) return [];
+
+    return tableData.map(vertrag => {
+      const zahlungen = getZahlungenFuerVertrag(vertrag.id);
+      
+      return {
+        vertrag,
+        einheit: vertrag.einheiten,
+        immobilie: vertrag.einheiten?.immobilien,
+        mieter: vertrag.mietvertrag_mieter?.map((mm: any) => mm.mieter) || [],
+        zahlungen
+      };
+    });
+  }, [tableData, getZahlungenFuerVertrag]);
 
   // Editing functions
   const startEditing = useCallback((vertragId: string, field: string, currentValue: any) => {
