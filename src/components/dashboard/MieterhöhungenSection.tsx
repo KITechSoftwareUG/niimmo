@@ -151,16 +151,30 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
     );
   }
 
-  const handleToggle = () => {
-    console.log('Toggle clicked, current state:', isOpen);
-    setIsOpen(!isOpen);
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Toggle clicked - before:', isOpen);
+    setIsOpen(prev => {
+      console.log('Toggle clicked - after:', !prev);
+      return !prev;
+    });
   };
+
+  console.log('Rendering MieterhöhungenSection - isOpen:', isOpen, 'eligibleContracts:', eligibleContracts.length);
 
   return (
     <Card>
       <CardHeader 
         className="cursor-pointer hover:bg-muted/50 transition-colors select-none"
         onClick={handleToggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            handleToggle(e as any);
+          }
+        }}
       >
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -180,8 +194,8 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
       
       {isOpen && (
         <CardContent className="pt-0">
-            <div className="space-y-3">
-              {eligibleContracts.map((contract) => {
+          <div className="space-y-3">
+            {eligibleContracts.map((contract) => {
                 const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
                 const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
                 const unitId = contractDetails?.einheiten?.id || 'N/A';
