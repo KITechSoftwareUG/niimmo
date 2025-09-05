@@ -8,6 +8,7 @@ import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { MietUebersichtModal } from "@/components/dashboard/MietUebersichtModal";
+import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { MieterhöhungenSection } from "@/components/dashboard/MieterhöhungenSection";
 import { useState, useMemo } from "react";
 import { Loader2, Building2, BarChart3, ArrowLeft } from "lucide-react";
@@ -219,7 +220,7 @@ const Index = () => {
           </div>}
       </div>
       
-      <MietUebersichtModal 
+      <EditableMietUebersichtModal 
         open={showMietUebersicht} 
         onOpenChange={setShowMietUebersicht} 
       />
