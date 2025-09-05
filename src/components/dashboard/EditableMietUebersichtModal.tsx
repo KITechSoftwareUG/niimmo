@@ -453,10 +453,11 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         </DialogHeader>
         
         <div className="flex-1 overflow-hidden px-6 pb-6">
-          <div className="h-[calc(95vh-120px)] overflow-auto border rounded-lg bg-white">
-            <Table>
-              {/* Fixed Header - Completely sticky */}
-              <TableHeader className="sticky top-0 z-50 bg-white shadow-lg border-b-2 border-gray-300">
+          <div className="h-[calc(95vh-120px)] border rounded-lg bg-white relative">
+            <div className="overflow-auto h-full">
+              <Table className="relative">
+                {/* Fixed Header - Completely sticky */}
+                <TableHeader className="sticky top-0 z-50 bg-white shadow-lg border-b-2 border-gray-300">
                 <TableRow className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-200">
                   <TableHead className="text-xs font-semibold text-center w-32 bg-gradient-to-r from-gray-100 to-gray-50 sticky left-0 z-20 border-r-2 border-gray-300 shadow-lg">Objekt</TableHead>
                   <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Einheit Details</TableHead>
@@ -605,7 +606,8 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+             </Table>
+            </div>
           </div>
         </div>
       </DialogContent>
