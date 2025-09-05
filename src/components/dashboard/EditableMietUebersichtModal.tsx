@@ -458,29 +458,29 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
             <div className="flex-shrink-0 border-b-2 border-gray-300 bg-white">
               <Table>
                 <TableHeader className="bg-white shadow-lg border-b-2 border-gray-300">
-                <TableRow className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-200">
-                  <TableHead className="text-xs font-semibold text-center w-32 bg-gradient-to-r from-gray-100 to-gray-50 sticky left-0 z-20 border-r-2 border-gray-300 shadow-lg">Objekt</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Einheit Details</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">ID</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Etage</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">qm</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Nutzung</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Zähler</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-32 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mieter</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Kaltmiete</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">BK</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Status</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mietbeginn</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mietende</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Kaution Soll</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Kaution Ist</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Letzte Erhöhung</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mahnstufe</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Lastschrift</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-32 border-r bg-gradient-to-r from-gray-100 to-gray-50">E-Mail</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Telefon</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Zahlung aktuell</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 bg-gradient-to-r from-gray-100 to-gray-50">Zahlungen gesamt</TableHead>
+                 <TableRow className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-200">
+                   <TableHead className="text-xs font-semibold text-center w-24 bg-gradient-to-r from-gray-100 to-gray-50 sticky left-0 z-20 border-r-2 border-gray-300 shadow-lg">Objekt</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Einheit</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-12 border-r bg-gradient-to-r from-gray-100 to-gray-50">ID</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-12 border-r bg-gradient-to-r from-gray-100 to-gray-50">Et.</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-12 border-r bg-gradient-to-r from-gray-100 to-gray-50">qm</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-14 border-r bg-gradient-to-r from-gray-100 to-gray-50">Typ</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-12 border-r bg-gradient-to-r from-gray-100 to-gray-50">Zähl.</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mieter</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Kalt</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-14 border-r bg-gradient-to-r from-gray-100 to-gray-50">BK</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-14 border-r bg-gradient-to-r from-gray-100 to-gray-50">Status</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-18 border-r bg-gradient-to-r from-gray-100 to-gray-50">Beginn</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-18 border-r bg-gradient-to-r from-gray-100 to-gray-50">Ende</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">K.Soll</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">K.Ist</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-18 border-r bg-gradient-to-r from-gray-100 to-gray-50">Erhöhung</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-12 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mahn</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-14 border-r bg-gradient-to-r from-gray-100 to-gray-50">LS</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">E-Mail</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Telefon</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Akt.Zahl</TableHead>
+                   <TableHead className="text-xs font-semibold text-center w-16 bg-gradient-to-r from-gray-100 to-gray-50">Gesamt</TableHead>
                  </TableRow>
                </TableHeader>
               </Table>
@@ -490,127 +490,112 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
             <div className="flex-1 overflow-auto">
               <Table>
                 <TableBody>
-                  {processedData.map((row, index) => (
-                    <TableRow key={row.vertrag.id} className="hover:bg-gray-50/50 border-b border-gray-200">
-                      {/* Objekt - Sticky left column */}
-                      <TableCell className="text-xs border-r-2 border-gray-300 sticky left-0 z-10 bg-white shadow-lg min-w-32">
-                        <div className="font-medium">
-                          {renderEditableCell(row, 'immobilie.name', row.immobilie?.name, 'p-0 border-0').props.children}
-                          <div className="text-gray-600 text-xs mt-1">
-                            {row.immobilie?.adresse}
-                          </div>
-                        </div>
-                      </TableCell>
-                      
-                      {/* Einheit Details */}
-                      <TableCell className="text-xs text-center border-r">
-                        <div className="space-y-1">
-                          <div className="font-medium text-primary">
-                            Einheit #{row.einheit?.id?.toString()?.slice(-2) || '-'}
-                          </div>
-                          <div className="text-gray-600 text-xs">
-                            {row.einheit?.einheitentyp || 'Unbekannt'}
-                          </div>
-                          <div className="text-gray-500 text-xs">
-                            {row.einheit?.qm ? `${row.einheit.qm} qm` : '-'}
-                            {row.einheit?.etage && ` • ${row.einheit.etage}. OG`}
-                          </div>
-                        </div>
-                      </TableCell>
-                      
-                      {/* Einheit ID */}
-                      <TableCell className="text-xs text-center border-r">
-                        {row.einheit?.id?.toString()?.slice(-2) || '-'}
-                      </TableCell>
-                      
-                      {/* Etage */}
-                      {renderEditableCell(row, 'einheit.etage', row.einheit?.etage, 'text-xs text-center border-r')}
-                      
-                      {/* qm */}
-                      {renderEditableCell(row, 'einheit.qm', row.einheit?.qm, 'text-xs text-center border-r')}
-                      
-                      {/* Nutzung */}
-                      {renderEditableCell(row, 'einheit.einheitentyp', row.einheit?.einheitentyp, 'text-xs text-center border-r')}
-                      
-                      {/* Zähler */}
-                      {renderEditableCell(row, 'einheit.zaehler', row.einheit?.zaehler, 'text-xs text-center border-r')}
-                      
-                      {/* Mieter */}
-                      <TableCell className="text-xs text-center border-r">
-                        <div className="space-y-1">
-                          {row.mieter.map((mieter, idx) => (
-                            <div key={mieter.id} className="text-xs">
-                              {mieter.vorname} {mieter.nachname}
-                            </div>
-                          ))}
-                        </div>
-                      </TableCell>
-                      
-                      {/* Kaltmiete */}
-                      {renderEditableCell(row, 'vertrag.kaltmiete', row.vertrag.kaltmiete, 'text-xs text-center border-r')}
-                      
-                      {/* Betriebskosten */}
-                      {renderEditableCell(row, 'vertrag.betriebskosten', row.vertrag.betriebskosten, 'text-xs text-center border-r')}
-                      
-                      {/* Status */}
-                      {renderEditableCell(row, 'vertrag.status', row.vertrag.status, 'text-xs text-center border-r')}
-                      
-                      {/* Mietbeginn */}
-                      {renderEditableCell(row, 'vertrag.start_datum', row.vertrag.start_datum, 'text-xs text-center border-r')}
-                      
-                      {/* Mietende */}
-                      {renderEditableCell(row, 'vertrag.ende_datum', row.vertrag.ende_datum, 'text-xs text-center border-r')}
-                      
-                      {/* Kaution Soll */}
-                      {renderEditableCell(row, 'vertrag.kaution_betrag', row.vertrag.kaution_betrag, 'text-xs text-center border-r')}
-                      
-                      {/* Kaution Ist */}
-                      {renderEditableCell(row, 'vertrag.kaution_ist', row.vertrag.kaution_ist, 'text-xs text-center border-r')}
-                      
-                      {/* Letzte Erhöhung */}
-                      {renderEditableCell(row, 'vertrag.letzte_mieterhoehung_am', row.vertrag.letzte_mieterhoehung_am, 'text-xs text-center border-r')}
-                      
-                      {/* Mahnstufe */}
-                      {renderEditableCell(row, 'vertrag.mahnstufe', row.vertrag.mahnstufe, 'text-xs text-center border-r')}
-                      
-                      {/* Lastschrift */}
-                      {renderEditableCell(row, 'vertrag.lastschrift', row.vertrag.lastschrift, 'text-xs text-center border-r')}
-                      
-                      {/* E-Mail */}
-                      <TableCell className="text-xs text-center border-r">
-                        {row.mieter.map(mieter => mieter.hauptmail).filter(Boolean).join(', ') || '-'}
-                      </TableCell>
-                      
-                      {/* Telefon */}
-                      <TableCell className="text-xs text-center border-r">
-                        {row.mieter.map(mieter => mieter.telnr).filter(Boolean).join(', ') || '-'}
-                      </TableCell>
-                      
-                      {/* Zahlung aktueller Monat */}
-                      <TableCell className="text-xs text-center border-r">
-                        {row.zahlungen.aktuellerMonat > 0 
-                          ? `${row.zahlungen.aktuellerMonat.toLocaleString('de-DE')} €`
-                          : '-'
-                        }
-                      </TableCell>
-                      
-                      {/* Zahlungen gesamt */}
-                      <TableCell className="text-xs text-center">
-                        <div>
-                          {row.zahlungen.gesamt > 0 
-                            ? `${row.zahlungen.gesamt.toLocaleString('de-DE')} €`
-                            : '-'
-                          }
-                          {row.zahlungen.anzahlZahlungen > 0 && (
-                            <div className="text-gray-500 text-xs">
-                              ({row.zahlungen.anzahlZahlungen}×)
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                   {processedData.map((row, index) => (
+                     <TableRow key={row.vertrag.id} className="hover:bg-gray-50/50 border-b border-gray-200">
+                       {/* Objekt - Sticky left column */}
+                       <TableCell className="text-xs border-r-2 border-gray-300 sticky left-0 z-10 bg-white shadow-lg w-24">
+                         <div className="font-medium text-xs truncate">
+                           {row.immobilie?.name || '-'}
+                         </div>
+                       </TableCell>
+                       
+                       {/* Einheit */}
+                       <TableCell className="text-xs text-center border-r w-16">
+                         <div className="text-xs">
+                           #{row.einheit?.id?.toString()?.slice(-2) || '-'}
+                         </div>
+                       </TableCell>
+                       
+                       {/* Einheit ID */}
+                       <TableCell className="text-xs text-center border-r w-12">
+                         {row.einheit?.id?.toString()?.slice(-2) || '-'}
+                       </TableCell>
+                       
+                       {/* Etage */}
+                       {renderEditableCell(row, 'einheit.etage', row.einheit?.etage, 'text-xs text-center border-r w-12')}
+                       
+                       {/* qm */}
+                       {renderEditableCell(row, 'einheit.qm', row.einheit?.qm, 'text-xs text-center border-r w-12')}
+                       
+                       {/* Typ */}
+                       {renderEditableCell(row, 'einheit.einheitentyp', row.einheit?.einheitentyp, 'text-xs text-center border-r w-14')}
+                       
+                       {/* Zähler */}
+                       {renderEditableCell(row, 'einheit.zaehler', row.einheit?.zaehler, 'text-xs text-center border-r w-12')}
+                       
+                       {/* Mieter */}
+                       <TableCell className="text-xs text-center border-r w-20">
+                         <div className="text-xs truncate">
+                           {row.mieter.map(mieter => `${mieter.vorname} ${mieter.nachname}`).join(', ') || '-'}
+                         </div>
+                       </TableCell>
+                       
+                       {/* Kaltmiete */}
+                       {renderEditableCell(row, 'vertrag.kaltmiete', row.vertrag.kaltmiete, 'text-xs text-center border-r w-16')}
+                       
+                       {/* Betriebskosten */}
+                       {renderEditableCell(row, 'vertrag.betriebskosten', row.vertrag.betriebskosten, 'text-xs text-center border-r w-14')}
+                       
+                       {/* Status */}
+                       {renderEditableCell(row, 'vertrag.status', row.vertrag.status, 'text-xs text-center border-r w-14')}
+                       
+                       {/* Mietbeginn */}
+                       {renderEditableCell(row, 'vertrag.start_datum', row.vertrag.start_datum, 'text-xs text-center border-r w-18')}
+                       
+                       {/* Mietende */}
+                       {renderEditableCell(row, 'vertrag.ende_datum', row.vertrag.ende_datum, 'text-xs text-center border-r w-18')}
+                       
+                       {/* Kaution Soll */}
+                       {renderEditableCell(row, 'vertrag.kaution_betrag', row.vertrag.kaution_betrag, 'text-xs text-center border-r w-16')}
+                       
+                       {/* Kaution Ist */}
+                       {renderEditableCell(row, 'vertrag.kaution_ist', row.vertrag.kaution_ist, 'text-xs text-center border-r w-16')}
+                       
+                       {/* Letzte Erhöhung */}
+                       {renderEditableCell(row, 'vertrag.letzte_mieterhoehung_am', row.vertrag.letzte_mieterhoehung_am, 'text-xs text-center border-r w-18')}
+                       
+                       {/* Mahnstufe */}
+                       {renderEditableCell(row, 'vertrag.mahnstufe', row.vertrag.mahnstufe, 'text-xs text-center border-r w-12')}
+                       
+                       {/* Lastschrift */}
+                       {renderEditableCell(row, 'vertrag.lastschrift', row.vertrag.lastschrift, 'text-xs text-center border-r w-14')}
+                       
+                       {/* E-Mail */}
+                       <TableCell className="text-xs text-center border-r w-20">
+                         <div className="text-xs truncate">
+                           {row.mieter.map(mieter => mieter.hauptmail).filter(Boolean).join(', ') || '-'}
+                         </div>
+                       </TableCell>
+                       
+                       {/* Telefon */}
+                       <TableCell className="text-xs text-center border-r w-16">
+                         <div className="text-xs truncate">
+                           {row.mieter.map(mieter => mieter.telnr).filter(Boolean).join(', ') || '-'}
+                         </div>
+                       </TableCell>
+                       
+                       {/* Zahlung aktueller Monat */}
+                       <TableCell className="text-xs text-center border-r w-16">
+                         <div className="text-xs">
+                           {row.zahlungen.aktuellerMonat > 0 
+                             ? `${row.zahlungen.aktuellerMonat.toFixed(0)}€`
+                             : '-'
+                           }
+                         </div>
+                       </TableCell>
+                       
+                       {/* Zahlungen gesamt */}
+                       <TableCell className="text-xs text-center w-16">
+                         <div className="text-xs">
+                           {row.zahlungen.gesamt > 0 
+                             ? `${row.zahlungen.gesamt.toFixed(0)}€`
+                             : '-'
+                           }
+                         </div>
+                       </TableCell>
+                     </TableRow>
+                   ))}
+                 </TableBody>
               </Table>
             </div>
           </div>
