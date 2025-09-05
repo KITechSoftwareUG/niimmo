@@ -456,36 +456,38 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
           <div className="h-[calc(95vh-120px)] overflow-auto border rounded-lg bg-white">
             <Table>
               {/* Fixed Header - Completely sticky */}
-              <TableHeader className="sticky top-0 z-50 bg-white shadow-md">
-                <TableRow className="bg-gray-50 border-b-2 border-gray-200">
-                  <TableHead className="text-xs font-semibold text-center w-32 bg-gray-50 sticky left-0 z-10 border-r-2">Objekt</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gray-50">Einheit</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gray-50">Etage</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gray-50">qm</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gray-50">Nutzung</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-32 border-r bg-gray-50">Mieter</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gray-50">Kaltmiete</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gray-50">BK</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gray-50">Status</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gray-50">Mietbeginn</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gray-50">Mietende</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gray-50">Kaution Soll</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gray-50">Kaution Ist</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gray-50">Letzte Erhöhung</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gray-50">Mahnstufe</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gray-50">Lastschrift</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-32 border-r bg-gray-50">E-Mail</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gray-50">Telefon</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gray-50">Zahlung aktuell</TableHead>
-                  <TableHead className="text-xs font-semibold text-center w-24 bg-gray-50">Zahlungen gesamt</TableHead>
+              <TableHeader className="sticky top-0 z-50 bg-white shadow-lg border-b-2 border-gray-300">
+                <TableRow className="bg-gradient-to-r from-gray-100 to-gray-50 border-b-2 border-gray-200">
+                  <TableHead className="text-xs font-semibold text-center w-32 bg-gradient-to-r from-gray-100 to-gray-50 sticky left-0 z-20 border-r-2 border-gray-300 shadow-lg">Objekt</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Einheit Details</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">ID</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Etage</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">qm</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Nutzung</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Zähler</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-32 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mieter</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Kaltmiete</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">BK</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Status</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mietbeginn</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mietende</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Kaution Soll</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Kaution Ist</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Letzte Erhöhung</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-16 border-r bg-gradient-to-r from-gray-100 to-gray-50">Mahnstufe</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-20 border-r bg-gradient-to-r from-gray-100 to-gray-50">Lastschrift</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-32 border-r bg-gradient-to-r from-gray-100 to-gray-50">E-Mail</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Telefon</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-24 border-r bg-gradient-to-r from-gray-100 to-gray-50">Zahlung aktuell</TableHead>
+                  <TableHead className="text-xs font-semibold text-center w-24 bg-gradient-to-r from-gray-100 to-gray-50">Zahlungen gesamt</TableHead>
                 </TableRow>
               </TableHeader>
               
               <TableBody>
                 {processedData.map((row, index) => (
-                  <TableRow key={row.vertrag.id} className="hover:bg-gray-50/50">
+                  <TableRow key={row.vertrag.id} className="hover:bg-gray-50/50 border-b border-gray-200">
                     {/* Objekt - Sticky left column */}
-                    <TableCell className="text-xs border-r sticky left-0 z-10 bg-white shadow-sm min-w-32">
+                    <TableCell className="text-xs border-r-2 border-gray-300 sticky left-0 z-10 bg-white shadow-lg min-w-32">
                       <div className="font-medium">
                         {renderEditableCell(row, 'immobilie.name', row.immobilie?.name, 'p-0 border-0').props.children}
                         <div className="text-gray-600 text-xs mt-1">
@@ -494,7 +496,23 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                       </div>
                     </TableCell>
                     
-                    {/* Einheit */}
+                    {/* Einheit Details */}
+                    <TableCell className="text-xs text-center border-r">
+                      <div className="space-y-1">
+                        <div className="font-medium text-primary">
+                          Einheit #{row.einheit?.id?.toString()?.slice(-2) || '-'}
+                        </div>
+                        <div className="text-gray-600 text-xs">
+                          {row.einheit?.einheitentyp || 'Unbekannt'}
+                        </div>
+                        <div className="text-gray-500 text-xs">
+                          {row.einheit?.qm ? `${row.einheit.qm} qm` : '-'}
+                          {row.einheit?.etage && ` • ${row.einheit.etage}. OG`}
+                        </div>
+                      </div>
+                    </TableCell>
+                    
+                    {/* Einheit ID */}
                     <TableCell className="text-xs text-center border-r">
                       {row.einheit?.id?.toString()?.slice(-2) || '-'}
                     </TableCell>
@@ -507,6 +525,9 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                     
                     {/* Nutzung */}
                     {renderEditableCell(row, 'einheit.einheitentyp', row.einheit?.einheitentyp, 'text-xs text-center border-r')}
+                    
+                    {/* Zähler */}
+                    {renderEditableCell(row, 'einheit.zaehler', row.einheit?.zaehler, 'text-xs text-center border-r')}
                     
                     {/* Mieter */}
                     <TableCell className="text-xs text-center border-r">
