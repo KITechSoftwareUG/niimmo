@@ -24,18 +24,25 @@ interface MieterhöhungenSectionProps {
 export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data: eligibilityData, isLoading } = useQuery({
+  console.log('MieterhöhungenSection: Component rendering, isOpen:', isOpen);
+
+  const { data: eligibilityData, isLoading, error: eligibilityError } = useQuery({
     queryKey: ['rent-increase-eligibility'],
     queryFn: async () => {
+      console.log('MieterhöhungenSection: Fetching eligibility data...');
       const { data, error } = await supabase.functions.invoke('check-rent-increase-eligibility');
       
-      if (error) throw error;
+      if (error) {
+        console.error('MieterhöhungenSection: Error fetching eligibility data:', error);
+        throw error;
+      }
+      console.log('MieterhöhungenSection: Eligibility data received:', data);
       return data;
     },
     refetchInterval: 300000, // Refresh every 5 minutes
   });
 
-  const { data: contractsData } = useQuery({
+  const { data: contractsData, error: contractsError } = useQuery({
     queryKey: ['mietvertraege-with-details'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -65,8 +72,48 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
       if (error) throw error;
       return data;
     },
-    enabled: eligibilityData?.eligible_contracts?.length > 0,
+    enabled: !!eligibilityData?.eligible_contracts?.length,
   });
+
+  console.log('MieterhöhungenSection: Current state - isLoading:', isLoading, 'eligibilityError:', eligibilityError, 'contractsError:', contractsError);
+
+  if (eligibilityError) {
+    console.error('MieterhöhungenSection: Eligibility error detected:', eligibilityError);
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Mögliche Mieterhöhungen
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">
+            Fehler beim Laden der Mieterhöhungen: {eligibilityError.message}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (contractsError) {
+    console.error('MieterhöhungenSection: Contracts error detected:', contractsError);
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Mögliche Mieterhöhungen
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-destructive">
+            Fehler beim Laden der Verträge: {contractsError.message}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (isLoading) {
     return (
