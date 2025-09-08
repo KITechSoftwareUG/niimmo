@@ -34,6 +34,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CreateForderungModal } from "./CreateForderungModal";
+import { MietvertragInfo } from "./MietvertragInfo";
 import { calculateMietvertragRueckstand } from "@/utils/rueckstandsberechnung";
 
 interface MietvertragDetailsModalProps {
@@ -658,12 +659,28 @@ export default function MietvertragDetailsModal({
 
         <div className="space-y-6">
           <Tabs defaultValue="uebersicht" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
+              <TabsTrigger value="einheit-zaehler">Einheit & Zähler</TabsTrigger>
+              <TabsTrigger value="zahlungen">Zahlungen</TabsTrigger>
               <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
             </TabsList>
 
             <TabsContent value="uebersicht" className="space-y-4">
+              {/* ... keep existing code (overview content) */}
+            </TabsContent>
+
+            <TabsContent value="einheit-zaehler" className="space-y-4">
+              <MietvertragInfo 
+                vertrag={vertrag} 
+                einheit={einheit} 
+                immobilie={immobilie} 
+              />
+            </TabsContent>
+
+            <TabsContent value="zahlungen" className="space-y-4">
+              {/* ... keep existing code (payments and demands) */}
+            </TabsContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -990,6 +1007,15 @@ export default function MietvertragDetailsModal({
                 </CardContent>
               </Card>
 
+            <TabsContent value="einheit-zaehler" className="space-y-4">
+              <MietvertragInfo 
+                vertrag={vertrag} 
+                einheit={einheit} 
+                immobilie={immobilie} 
+              />
+            </TabsContent>
+
+            <TabsContent value="zahlungen" className="space-y-4">
               {/* Rückstands-Übersicht */}
               <Card>
                 <CardHeader>
