@@ -659,28 +659,13 @@ export default function MietvertragDetailsModal({
 
         <div className="space-y-6">
           <Tabs defaultValue="uebersicht" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-              <TabsTrigger value="einheit-zaehler">Einheit & Zähler</TabsTrigger>
-              <TabsTrigger value="zahlungen">Zahlungen</TabsTrigger>
+              <TabsTrigger value="zaehlerstaende">Zählerstände</TabsTrigger>
               <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
             </TabsList>
 
             <TabsContent value="uebersicht" className="space-y-4">
-              {/* ... keep existing code (overview content) */}
-            </TabsContent>
-
-            <TabsContent value="einheit-zaehler" className="space-y-4">
-              <MietvertragInfo 
-                vertrag={vertrag} 
-                einheit={einheit} 
-                immobilie={immobilie} 
-              />
-            </TabsContent>
-
-            <TabsContent value="zahlungen" className="space-y-4">
-              {/* ... keep existing code (payments and demands) */}
-            </TabsContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -1005,17 +990,509 @@ export default function MietvertragDetailsModal({
                     </div>
                   </div>
                 </CardContent>
+              {/* ... keep existing overview content above ... */}
+
+              {/* Rückstands-Übersicht */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <AlertCircle className="h-5 w-5" />
+                    <span>Rückstands-Übersicht</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const rueckstandsBerechnung = calculateMietvertragRueckstand(
+                      vertrag, 
+                      forderungen || [], 
+                      zahlungen || []
+                    );
+                    
+                    const { gesamtForderungen, gesamtZahlungen, rueckstand } = rueckstandsBerechnung;
+                    
+                    // Berechne Fälligkeitsinformationen
+                    const heute = new Date();
+                    const mietvertragStart = vertrag?.start_datum ? new Date(vertrag.start_datum) : new Date('2025-01-01');
+                    const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
+                    
+                    const alleForderungenAbStart = (forderungen || []).filter(f => {
+                      if (!f.sollmonat) return false;
+                      const forderungsDatum = new Date(f.sollmonat + '-01');
+                      return forderungsDatum >= startDatum;
+                    });
+                    
+                    const faelligeForderungen = alleForderungenAbStart.filter(f => f.ist_faellig === true);
+                    const nichtFaelligeForderungen = alleForderungenAbStart.filter(f => f.ist_faellig !== true);
+                    
+                    const faelligeForderungenBetrag = faelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+                    const nichtFaelligeForderungenBetrag = nichtFaelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Fällige Forderungen */}
+                        <div className={`p-4 border rounded-lg ${faelligeForderungenBetrag > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                          <div className="flex flex-col">
+                            <p className={`text-sm font-medium ${faelligeForderungenBetrag > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                              Fällige Forderungen
+                            </p>
+                            <p className={`text-2xl font-bold mt-1 ${faelligeForderungenBetrag > 0 ? 'text-red-700' : 'text-gray-700'}`}>
+                              {formatBetrag(faelligeForderungenBetrag)}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {faelligeForderungen.length} Forderung{faelligeForderungen.length !== 1 ? 'en' : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Geleistete Zahlungen */}
+                        <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+                          <div className="flex flex-col">
+                            <p className="text-sm font-medium text-green-600">Geleistete Zahlungen</p>
+                            <p className="text-2xl font-bold text-green-700 mt-1">
+                              {formatBetrag(gesamtZahlungen)}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Relevante Mietzahlungen
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Rückstand */}
+                        <div className={`p-4 border rounded-lg ${rueckstand > 0 ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}`}>
+                          <div className="flex flex-col">
+                            <p className={`text-sm font-medium ${rueckstand > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                              {rueckstand > 0 ? 'Rückstand' : 'Kein Rückstand'}
+                            </p>
+                            <p className={`text-2xl font-bold mt-1 ${rueckstand > 0 ? 'text-orange-700' : 'text-green-700'}`}>
+                              {formatBetrag(Math.abs(rueckstand))}
+                            </p>
+                            {nichtFaelligeForderungenBetrag > 0 && (
+                              <p className="text-xs text-blue-600 mt-1">
+                                + {formatBetrag(nichtFaelligeForderungenBetrag)} noch nicht fällig
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
               </Card>
 
-            <TabsContent value="einheit-zaehler" className="space-y-4">
+              {/* Zahlungen & Forderungen Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Zahlungen & Forderungen</CardTitle>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCreateForderungModal(true)}
+                        className="h-8"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Forderung erstellen
+                      </Button>
+                      <Button
+                        variant={viewMode === 'timeline' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('timeline')}
+                        className="h-8"
+                      >
+                        Timeline
+                      </Button>
+                      <Button
+                        variant={viewMode === 'list' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('list')}
+                        className="h-8"
+                      >
+                        Liste
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {viewMode === 'timeline' ? (
+                    <div className="space-y-8">
+                      {/* Timeline Section */}
+                      <div className="relative py-6">
+                        {(() => {
+                          // Include ALL payments in timeline - including Mietkaution
+                          const timelineZahlungen = (zahlungen || []);
+
+                          // Group data by months for better display
+                          const monthlyData = new Map();
+
+                          // Add ALL months with Forderungen
+                          if (forderungen) {
+                            forderungen.forEach(forderung => {
+                              const month = forderung.sollmonat;
+                              if (!monthlyData.has(month)) {
+                                monthlyData.set(month, { forderungen: [], zahlungen: [] });
+                              }
+                              monthlyData.get(month).forderungen.push(forderung);
+                            });
+                          }
+
+                          // Add ALL non-Kaution payments and create months for them if they don't exist
+                          timelineZahlungen.forEach(zahlung => {
+                            // Use zugeordneter_monat from DB, fallback to calculated month from buchungsdatum
+                            const assignedMonth = zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7);
+
+                            if (assignedMonth) {
+                              // Create month entry if it doesn't exist
+                              if (!monthlyData.has(assignedMonth)) {
+                                monthlyData.set(assignedMonth, { forderungen: [], zahlungen: [] });
+                              }
+                              monthlyData.get(assignedMonth).zahlungen.push(zahlung);
+                            }
+                          });
+
+                          // Sort months chronologically (newest first)
+                          const sortedMonths = Array.from(monthlyData.keys()).sort().reverse();
+
+                          if (sortedMonths.length === 0) {
+                            return (
+                              <div className="text-center py-12">
+                                <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                                <p className="text-gray-600 text-lg">Keine Zahlungen oder Forderungen gefunden</p>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="relative px-8 py-8">
+                              {/* Central Timeline */}
+                              <div className="absolute left-1/2 top-0 w-0.5 bg-gradient-to-b from-blue-400 via-indigo-400 to-purple-400 h-full transform -translate-x-0.5 z-0 opacity-60"></div>
+
+                              {sortedMonths.map((month, index) => {
+                                const data = monthlyData.get(month);
+                                const monthDate = new Date(month + '-01');
+                                const forderungen = data.forderungen;
+                                const zahlungen = data.zahlungen;
+
+                                return (
+                                  <div
+                                    key={month}
+                                    className="relative mb-20 min-h-[180px] animate-fade-in"
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, month)}
+                                  >
+                                    {/* Month marker */}
+                                    <div className="absolute left-1/2 w-6 h-6 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full border-3 border-white shadow-lg transform -translate-x-1/2 z-20">
+                                      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                                        <div className="bg-white shadow-md rounded-lg px-4 py-2 border border-gray-100">
+                                          <span className="text-sm font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                                            {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Left Side: Forderungen */}
+                                    <div className="absolute left-0 w-[45%] pr-8">
+                                      <div className="bg-gradient-to-br from-red-50 to-rose-50 border border-red-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                                        <h4 className="text-sm font-semibold text-red-700 mb-4 flex items-center">
+                                          <Euro className="h-4 w-4 mr-2" />
+                                          Forderungen
+                                        </h4>
+                                        {forderungen.length > 0 ? (
+                                          <div className="space-y-3">
+                                            {forderungen.map((forderung) => (
+                                              <div key={forderung.id} className="bg-white/80 border border-red-100 rounded-lg p-3">
+                                                <div className="flex justify-between items-start">
+                                                  <div className="flex-1">
+                                                    {editingForderung?.forderungId === forderung.id && editingForderung.field === 'betrag' ? (
+                                                      <div className="flex items-center space-x-2">
+                                                        <Input
+                                                          type="number"
+                                                          value={editForderungValue}
+                                                          onChange={(e) => setEditForderungValue(e.target.value)}
+                                                          className="w-24 h-8 text-sm"
+                                                          step="0.01"
+                                                        />
+                                                        <Button
+                                                          onClick={() => handleSaveForderung(editForderungValue)}
+                                                          size="sm"
+                                                          className="h-8 w-8 p-0"
+                                                        >
+                                                          <Check className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                          onClick={handleCancelForderungEdit}
+                                                          size="sm"
+                                                          variant="outline"
+                                                          className="h-8 w-8 p-0"
+                                                        >
+                                                          <X className="h-3 w-3" />
+                                                        </Button>
+                                                      </div>
+                                                    ) : (
+                                                      <div className="flex items-center space-x-2">
+                                                        <p className="text-lg font-semibold text-red-700">
+                                                          {forderung.sollbetrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                                        </p>
+                                                        <Button
+                                                          onClick={() => handleEditForderung(forderung.id, 'betrag', String(forderung.sollbetrag || 0))}
+                                                          size="sm"
+                                                          variant="ghost"
+                                                          className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                                        >
+                                                          <Edit2 className="h-3 w-3" />
+                                                        </Button>
+                                                      </div>
+                                                    )}
+                                                    <div className="flex items-center space-x-4 mt-2">
+                                                      <div className="flex items-center space-x-1">
+                                                        <MahnstufeIndicator mahnstufe={forderung.mahnstufe} />
+                                                      </div>
+                                                      <div className="flex items-center space-x-1">
+                                                        <FaelligkeitsIndicator 
+                                                          istFaellig={forderung.ist_faellig} 
+                                                          faelligkeitsdatum={forderung.faelligkeitsdatum}
+                                                          faelligSeit={forderung.faellig_seit}
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <Button
+                                                    onClick={() => handleDeleteForderung(forderung.id)}
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-6 w-6 p-0 opacity-60 hover:opacity-100 hover:text-red-600"
+                                                  >
+                                                    <Trash2 className="h-3 w-3" />
+                                                  </Button>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <div className="text-center py-4">
+                                            <p className="text-sm text-red-500">Keine Forderungen</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Right Side: Zahlungen */}
+                                    <div className="absolute right-0 w-[45%] pl-8">
+                                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                                        <h4 className="text-sm font-semibold text-green-700 mb-4 flex items-center">
+                                          <ArrowRightLeft className="h-4 w-4 mr-2" />
+                                          Zahlungen
+                                        </h4>
+                                        {zahlungen.length > 0 ? (
+                                          <div className="space-y-3">
+                                            {zahlungen.map((zahlung) => (
+                                              <div 
+                                                key={zahlung.id} 
+                                                className={`bg-white/80 border border-green-100 rounded-lg p-3 cursor-move transition-all duration-200 ${
+                                                  draggedPayment === zahlung.id 
+                                                    ? 'opacity-50 scale-105 shadow-lg border-blue-300 bg-blue-50' 
+                                                    : 'hover:shadow-md'
+                                                }`}
+                                                draggable
+                                                onDragStart={(e) => handleDragStart(e, zahlung.id)}
+                                                onDragEnd={handleDragEnd}
+                                              >
+                                                <div className="flex justify-between items-start">
+                                                  <div className="flex-1">
+                                                    <p className="text-lg font-semibold text-green-700">
+                                                      {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                                    </p>
+                                                    <p className="text-xs text-gray-600 mt-1">
+                                                      {formatDatum(zahlung.buchungsdatum)}
+                                                    </p>
+                                                    {zahlung.verwendungszweck && (
+                                                      <p className="text-xs text-gray-500 mt-1 truncate">
+                                                        {zahlung.verwendungszweck.length > 30 
+                                                          ? zahlung.verwendungszweck.substring(0, 30) + '...' 
+                                                          : zahlung.verwendungszweck}
+                                                      </p>
+                                                    )}
+                                                    <div className="flex items-center mt-2 space-x-2">
+                                                      {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'kategorie' ? (
+                                                        <div className="flex items-center space-x-1">
+                                                          <Select
+                                                            value={editPaymentValue}
+                                                            onValueChange={setEditPaymentValue}
+                                                          >
+                                                            <SelectTrigger className="w-24 h-6 text-xs">
+                                                              <SelectValue placeholder="Kategorie" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                              <SelectItem value="Miete">Miete</SelectItem>
+                                                              <SelectItem value="Kaution">Kaution</SelectItem>
+                                                              <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                                              <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
+                                                              <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                                            </SelectContent>
+                                                          </Select>
+                                                          <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                                                            <Check className="h-3 w-3" />
+                                                          </Button>
+                                                          <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                                                            <X className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      ) : (
+                                                        <div className="flex items-center space-x-1">
+                                                          <Badge variant="outline" className="text-xs font-medium">
+                                                            {zahlung.kategorie || 'Sonstige'}
+                                                          </Badge>
+                                                          <Button
+                                                            onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                                          >
+                                                            <Edit2 className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <div className="text-center py-4">
+                                            <p className="text-sm italic">Keine Zahlungen</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  ) : (
+                    /* List View */
+                    <div className="space-y-4">
+                      {(() => {
+                        // Include ALL payments in list - including Mietkaution
+                        const listZahlungen = (zahlungen || []);
+
+                        return listZahlungen.length > 0 ? (
+                          listZahlungen.map((zahlung) => (
+                            <div key={zahlung.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <p className="text-lg font-semibold text-gray-900">
+                                    {zahlung.betrag?.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {formatDatum(zahlung.buchungsdatum)}
+                                  </p>
+                                  {zahlung.verwendungszweck && (
+                                    <p className="text-xs text-gray-500 mt-1 truncate">
+                                      {zahlung.verwendungszweck}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center mt-2 space-x-4">
+                                    {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'kategorie' ? (
+                                      <div className="flex items-center space-x-1">
+                                        <Select
+                                          value={editPaymentValue}
+                                          onValueChange={setEditPaymentValue}
+                                        >
+                                          <SelectTrigger className="w-32 h-6 text-xs">
+                                            <SelectValue placeholder="Kategorie" />
+                                          </SelectTrigger>
+                                           <SelectContent>
+                                             <SelectItem value="Miete">Miete</SelectItem>
+                                             <SelectItem value="Kaution">Kaution</SelectItem>
+                                             <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                             <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
+                                             <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                                           </SelectContent>
+                                        </Select>
+                                        <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                                          <Check className="h-3 w-3" />
+                                        </Button>
+                                        <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center space-x-1">
+                                        <Badge variant="outline" className="text-xs font-medium">
+                                          {zahlung.kategorie || 'Sonstige'}
+                                        </Badge>
+                                        <Button
+                                          onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                        >
+                                          <Edit2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                    {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'monat' ? (
+                                      <div className="flex items-center space-x-1">
+                                        <Input
+                                          type="month"
+                                          value={editPaymentValue}
+                                          onChange={(e) => setEditPaymentValue(e.target.value)}
+                                          className="w-32 h-6 text-xs"
+                                        />
+                                        <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                                          <Check className="h-3 w-3" />
+                                        </Button>
+                                        <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center space-x-1">
+                                        <Badge variant="secondary" className="text-xs">
+                                          {zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || 'Unzugeordnet'}
+                                        </Badge>
+                                        <Button
+                                          onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || '')}
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                        >
+                                          <Calendar className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-center py-12">
+                            <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                            <p className="text-gray-600 text-lg">Keine Zahlungen gefunden</p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="zaehlerstaende" className="space-y-4">
               <MietvertragInfo 
                 vertrag={vertrag} 
                 einheit={einheit} 
                 immobilie={immobilie} 
               />
             </TabsContent>
-
-            <TabsContent value="zahlungen" className="space-y-4">
               {/* Rückstands-Übersicht */}
               <Card>
                 <CardHeader>
