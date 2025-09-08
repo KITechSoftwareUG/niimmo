@@ -188,45 +188,6 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId }: 
             </div>
           )}
 
-          {/* Zählernummern */}
-          {(einheit.kaltwasser_zaehler || einheit.warmwasser_zaehler || einheit.strom_zaehler || einheit.gas_zaehler) && (
-            <div className="p-3 bg-gray-50 rounded-lg border">
-              <div className="flex items-center space-x-2 mb-2">
-                <Gauge className="h-4 w-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-700">Zählernummern</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {einheit.kaltwasser_zaehler && (
-                  <div className="flex items-center space-x-1">
-                    <Droplet className="h-3 w-3 text-blue-500" />
-                    <span className="text-gray-600">KW:</span>
-                    <span className="font-mono">{einheit.kaltwasser_zaehler}</span>
-                  </div>
-                )}
-                {einheit.warmwasser_zaehler && (
-                  <div className="flex items-center space-x-1">
-                    <Thermometer className="h-3 w-3 text-orange-500" />
-                    <span className="text-gray-600">WW:</span>
-                    <span className="font-mono">{einheit.warmwasser_zaehler}</span>
-                  </div>
-                )}
-                {einheit.strom_zaehler && (
-                  <div className="flex items-center space-x-1">
-                    <Zap className="h-3 w-3 text-yellow-500" />
-                    <span className="text-gray-600">Strom:</span>
-                    <span className="font-mono">{einheit.strom_zaehler}</span>
-                  </div>
-                )}
-                {einheit.gas_zaehler && (
-                  <div className="flex items-center space-x-1">
-                    <Flame className="h-3 w-3 text-red-500" />
-                    <span className="text-gray-600">Gas:</span>
-                    <span className="font-mono">{einheit.gas_zaehler}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {vertrag && (
             <>
