@@ -1,8 +1,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FileText, Building, Home, Euro, Calendar, MapPin, AlertTriangle, ChevronDown, Square, Hash, Layers, Gauge, Droplet, Zap, Flame, Thermometer } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { FileText, Building, Home, Euro, Calendar, MapPin, AlertTriangle, ChevronDown, Square, Hash, Layers, Gauge, Droplet, Zap, Flame, Thermometer, Edit2, Save, X } from "lucide-react";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface MietvertragInfoProps {
   vertrag: any;
@@ -11,9 +15,59 @@ interface MietvertragInfoProps {
 }
 
 export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfoProps) => {
-  const [isEinheitExpanded, setIsEinheitExpanded] = useState(false);
+  const [isEinheitExpanded, setIsEinheitExpanded] = useState(true); // Default expanded for meter numbers
   const [isImmobilieExpanded, setIsImmobilieExpanded] = useState(false);
   const [isZaehlerstaendeExpanded, setIsZaehlerstaendeExpanded] = useState(false);
+  const [isEditingReadings, setIsEditingReadings] = useState(false);
+  const [editedReadings, setEditedReadings] = useState({
+    kaltwasser_einzug: vertrag?.kaltwasser_einzug || '',
+    warmwasser_einzug: vertrag?.warmwasser_einzug || '',
+    strom_einzug: vertrag?.strom_einzug || '',
+    gas_einzug: vertrag?.gas_einzug || '',
+    kaltwasser_auszug: vertrag?.kaltwasser_auszug || '',
+    warmwasser_auszug: vertrag?.warmwasser_auszug || '',
+    strom_auszug: vertrag?.strom_auszug || '',
+    gas_auszug: vertrag?.gas_auszug || ''
+  });
+  const { toast } = useToast();
+
+  const handleSaveReadings = async () => {
+    try {
+      const { error } = await supabase
+        .from('mietvertrag')
+        .update(editedReadings)
+        .eq('id', vertrag.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Erfolg",
+        description: "Zählerstände wurden aktualisiert.",
+      });
+      setIsEditingReadings(false);
+    } catch (error) {
+      console.error('Error updating readings:', error);
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Speichern der Zählerstände.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedReadings({
+      kaltwasser_einzug: vertrag?.kaltwasser_einzug || '',
+      warmwasser_einzug: vertrag?.warmwasser_einzug || '',
+      strom_einzug: vertrag?.strom_einzug || '',
+      gas_einzug: vertrag?.gas_einzug || '',
+      kaltwasser_auszug: vertrag?.kaltwasser_auszug || '',
+      warmwasser_auszug: vertrag?.warmwasser_auszug || '',
+      strom_auszug: vertrag?.strom_auszug || '',
+      gas_auszug: vertrag?.gas_auszug || ''
+    });
+    setIsEditingReadings(false);
+  };
 
   return (
     <Card className="elegant-card border-0 shadow-lg rounded-2xl overflow-hidden">
@@ -216,7 +270,47 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
                     <Gauge className="h-5 w-5 text-amber-600" />
                     <h3 className="text-lg font-semibold text-gray-800">Zählerstände</h3>
                   </div>
-                  <ChevronDown className={`h-4 w-4 text-amber-600 transition-transform ${isZaehlerstaendeExpanded ? 'rotate-180' : ''}`} />
+                  <div className="flex items-center space-x-2">
+                    {!isEditingReadings ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsEditingReadings(true);
+                        }}
+                        className="text-amber-600 hover:text-amber-700"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <div className="flex space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSaveReadings();
+                          }}
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <Save className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCancelEdit();
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    <ChevronDown className={`h-4 w-4 text-amber-600 transition-transform ${isZaehlerstaendeExpanded ? 'rotate-180' : ''}`} />
+                  </div>
                 </CollapsibleTrigger>
                 
                 <div className="space-y-3">
@@ -244,36 +338,80 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
                             <Droplet className="h-4 w-4 text-blue-600" />
                             <label className="text-sm font-medium text-gray-600">Kaltwasser</label>
                           </div>
-                          <p className="text-gray-900 font-mono text-sm">
-                            {vertrag?.kaltwasser_einzug ? `${vertrag.kaltwasser_einzug} m³` : 'Nicht erfasst'}
-                          </p>
+                          {isEditingReadings ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editedReadings.kaltwasser_einzug}
+                              onChange={(e) => setEditedReadings({...editedReadings, kaltwasser_einzug: e.target.value})}
+                              className="text-sm"
+                              placeholder="0.0"
+                            />
+                          ) : (
+                            <p className="text-gray-900 font-mono text-sm">
+                              {vertrag?.kaltwasser_einzug ? `${vertrag.kaltwasser_einzug} m³` : 'Nicht erfasst'}
+                            </p>
+                          )}
                         </div>
                         <div className="bg-white/80 p-3 rounded-lg border border-orange-200">
                           <div className="flex items-center space-x-2 mb-1">
                             <Thermometer className="h-4 w-4 text-orange-600" />
                             <label className="text-sm font-medium text-gray-600">Warmwasser</label>
                           </div>
-                          <p className="text-gray-900 font-mono text-sm">
-                            {vertrag?.warmwasser_einzug ? `${vertrag.warmwasser_einzug} m³` : 'Nicht erfasst'}
-                          </p>
+                          {isEditingReadings ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editedReadings.warmwasser_einzug}
+                              onChange={(e) => setEditedReadings({...editedReadings, warmwasser_einzug: e.target.value})}
+                              className="text-sm"
+                              placeholder="0.0"
+                            />
+                          ) : (
+                            <p className="text-gray-900 font-mono text-sm">
+                              {vertrag?.warmwasser_einzug ? `${vertrag.warmwasser_einzug} m³` : 'Nicht erfasst'}
+                            </p>
+                          )}
                         </div>
                         <div className="bg-white/80 p-3 rounded-lg border border-yellow-200">
                           <div className="flex items-center space-x-2 mb-1">
                             <Zap className="h-4 w-4 text-yellow-600" />
                             <label className="text-sm font-medium text-gray-600">Strom</label>
                           </div>
-                          <p className="text-gray-900 font-mono text-sm">
-                            {vertrag?.strom_einzug ? `${vertrag.strom_einzug} kWh` : 'Nicht erfasst'}
-                          </p>
+                          {isEditingReadings ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editedReadings.strom_einzug}
+                              onChange={(e) => setEditedReadings({...editedReadings, strom_einzug: e.target.value})}
+                              className="text-sm"
+                              placeholder="0.0"
+                            />
+                          ) : (
+                            <p className="text-gray-900 font-mono text-sm">
+                              {vertrag?.strom_einzug ? `${vertrag.strom_einzug} kWh` : 'Nicht erfasst'}
+                            </p>
+                          )}
                         </div>
                         <div className="bg-white/80 p-3 rounded-lg border border-red-200">
                           <div className="flex items-center space-x-2 mb-1">
                             <Flame className="h-4 w-4 text-red-600" />
                             <label className="text-sm font-medium text-gray-600">Gas</label>
                           </div>
-                          <p className="text-gray-900 font-mono text-sm">
-                            {vertrag?.gas_einzug ? `${vertrag.gas_einzug} m³` : 'Nicht erfasst'}
-                          </p>
+                          {isEditingReadings ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editedReadings.gas_einzug}
+                              onChange={(e) => setEditedReadings({...editedReadings, gas_einzug: e.target.value})}
+                              className="text-sm"
+                              placeholder="0.0"
+                            />
+                          ) : (
+                            <p className="text-gray-900 font-mono text-sm">
+                              {vertrag?.gas_einzug ? `${vertrag.gas_einzug} m³` : 'Nicht erfasst'}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -295,36 +433,80 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
                             <Droplet className="h-4 w-4 text-blue-600" />
                             <label className="text-sm font-medium text-gray-600">Kaltwasser</label>
                           </div>
-                          <p className="text-gray-900 font-mono text-sm">
-                            {vertrag?.kaltwasser_auszug ? `${vertrag.kaltwasser_auszug} m³` : 'Noch nicht erfasst'}
-                          </p>
+                          {isEditingReadings ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editedReadings.kaltwasser_auszug}
+                              onChange={(e) => setEditedReadings({...editedReadings, kaltwasser_auszug: e.target.value})}
+                              className="text-sm"
+                              placeholder="0.0"
+                            />
+                          ) : (
+                            <p className="text-gray-900 font-mono text-sm">
+                              {vertrag?.kaltwasser_auszug ? `${vertrag.kaltwasser_auszug} m³` : 'Noch nicht erfasst'}
+                            </p>
+                          )}
                         </div>
                         <div className="bg-white/80 p-3 rounded-lg border border-orange-200">
                           <div className="flex items-center space-x-2 mb-1">
                             <Thermometer className="h-4 w-4 text-orange-600" />
                             <label className="text-sm font-medium text-gray-600">Warmwasser</label>
                           </div>
-                          <p className="text-gray-900 font-mono text-sm">
-                            {vertrag?.warmwasser_auszug ? `${vertrag.warmwasser_auszug} m³` : 'Noch nicht erfasst'}
-                          </p>
+                          {isEditingReadings ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editedReadings.warmwasser_auszug}
+                              onChange={(e) => setEditedReadings({...editedReadings, warmwasser_auszug: e.target.value})}
+                              className="text-sm"
+                              placeholder="0.0"
+                            />
+                          ) : (
+                            <p className="text-gray-900 font-mono text-sm">
+                              {vertrag?.warmwasser_auszug ? `${vertrag.warmwasser_auszug} m³` : 'Noch nicht erfasst'}
+                            </p>
+                          )}
                         </div>
                         <div className="bg-white/80 p-3 rounded-lg border border-yellow-200">
                           <div className="flex items-center space-x-2 mb-1">
                             <Zap className="h-4 w-4 text-yellow-600" />
                             <label className="text-sm font-medium text-gray-600">Strom</label>
                           </div>
-                          <p className="text-gray-900 font-mono text-sm">
-                            {vertrag?.strom_auszug ? `${vertrag.strom_auszug} kWh` : 'Noch nicht erfasst'}
-                          </p>
+                          {isEditingReadings ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editedReadings.strom_auszug}
+                              onChange={(e) => setEditedReadings({...editedReadings, strom_auszug: e.target.value})}
+                              className="text-sm"
+                              placeholder="0.0"
+                            />
+                          ) : (
+                            <p className="text-gray-900 font-mono text-sm">
+                              {vertrag?.strom_auszug ? `${vertrag.strom_auszug} kWh` : 'Noch nicht erfasst'}
+                            </p>
+                          )}
                         </div>
                         <div className="bg-white/80 p-3 rounded-lg border border-red-200">
                           <div className="flex items-center space-x-2 mb-1">
                             <Flame className="h-4 w-4 text-red-600" />
                             <label className="text-sm font-medium text-gray-600">Gas</label>
                           </div>
-                          <p className="text-gray-900 font-mono text-sm">
-                            {vertrag?.gas_auszug ? `${vertrag.gas_auszug} m³` : 'Noch nicht erfasst'}
-                          </p>
+                          {isEditingReadings ? (
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={editedReadings.gas_auszug}
+                              onChange={(e) => setEditedReadings({...editedReadings, gas_auszug: e.target.value})}
+                              className="text-sm"
+                              placeholder="0.0"
+                            />
+                          ) : (
+                            <p className="text-gray-900 font-mono text-sm">
+                              {vertrag?.gas_auszug ? `${vertrag.gas_auszug} m³` : 'Noch nicht erfasst'}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
