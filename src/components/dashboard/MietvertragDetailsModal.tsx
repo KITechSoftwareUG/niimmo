@@ -1631,7 +1631,7 @@ export default function MietvertragDetailsModal({
                 </CardHeader>
                 <CardContent>
                   {dokumente && dokumente.length > 0 ? (
-                    <div className="space-y-3 max-h-60 overflow-y-auto">
+                    <div className="space-y-3">
                       {dokumente.map((dokument) => (
                         <div key={dokument.id} className="p-3 border rounded-lg hover:bg-gray-50">
                           <div className="flex justify-between items-start">
