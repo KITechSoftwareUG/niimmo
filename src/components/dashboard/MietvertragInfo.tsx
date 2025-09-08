@@ -14,8 +14,6 @@ interface MietvertragInfoProps {
 }
 
 export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfoProps) => {
-  console.log("MietvertragInfo - Rendering with props:", { vertrag, einheit, immobilie });
-  
   const [isEinheitExpanded, setIsEinheitExpanded] = useState(false); // Default collapsed
   const [isImmobilieExpanded, setIsImmobilieExpanded] = useState(false);
   const [isZaehlerstaendeExpanded, setIsZaehlerstaendeExpanded] = useState(false);
@@ -70,8 +68,6 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
     setIsEditingReadings(false);
   };
 
-  console.log("MietvertragInfo - About to render Card component");
-  
   return (
     <Card className="elegant-card border-0 shadow-lg rounded-2xl overflow-hidden">
       <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
