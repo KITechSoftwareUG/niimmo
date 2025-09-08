@@ -14,7 +14,7 @@ interface MietvertragInfoProps {
 }
 
 export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfoProps) => {
-  const [isEinheitExpanded, setIsEinheitExpanded] = useState(true); // Default expanded for meter numbers
+  const [isEinheitExpanded, setIsEinheitExpanded] = useState(false); // Default collapsed
   const [isImmobilieExpanded, setIsImmobilieExpanded] = useState(false);
   const [isZaehlerstaendeExpanded, setIsZaehlerstaendeExpanded] = useState(false);
   const [isEditingReadings, setIsEditingReadings] = useState(false);
@@ -180,12 +180,12 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
 
                 <CollapsibleContent className="mt-4">
                   <div className="pt-4 border-t border-green-200">
-                    {/* Zählernummern - Always expanded when unit is expanded */}
+                    {/* Zählernummern - Always visible when unit section is expanded */}
                     {(einheit?.kaltwasser_zaehler || einheit?.warmwasser_zaehler || einheit?.strom_zaehler || einheit?.gas_zaehler) && (
-                      <div className="mb-4">
+                      <div className="mb-6">
                         <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center space-x-2">
                           <Gauge className="h-4 w-4" />
-                          <span>Zählernummern</span>
+                          <span>Zählernummern (fix angezeigt)</span>
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {einheit?.kaltwasser_zaehler && (
