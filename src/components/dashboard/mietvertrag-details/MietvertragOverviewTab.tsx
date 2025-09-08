@@ -2,6 +2,7 @@ import { MietvertragContractInfo } from "./MietvertragContractInfo";
 import { MietvertragTenantInfo } from "./MietvertragTenantInfo";
 import { MietvertragKautionSection } from "./MietvertragKautionSection";
 import { MietvertragPaymentsSection } from "./MietvertragPaymentsSection";
+import { MietvertragMeterReadings } from "./MietvertragMeterReadings";
 
 interface MietvertragOverviewTabProps {
   vertrag: any;
@@ -14,12 +15,16 @@ interface MietvertragOverviewTabProps {
   einheit?: any;
   editingMietvertrag: 'kaltmiete' | 'betriebskosten' | null;
   editingKaution: 'soll' | 'ist' | null;
+  editingMeter: string | null;
   onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten', value: string) => void;
   onStartEdit: (field: 'kaltmiete' | 'betriebskosten') => void;
   onCancelEdit: () => void;
   onEditKaution: (field: 'soll' | 'ist', value: string) => void;
   onStartEditKaution: (field: 'soll' | 'ist') => void;
   onCancelEditKaution: () => void;
+  onEditMeter: (field: string, value: string) => void;
+  onStartEditMeter: (field: string) => void;
+  onCancelEditMeter: () => void;
   onCreateForderung: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
@@ -36,12 +41,16 @@ export function MietvertragOverviewTab({
   einheit,
   editingMietvertrag,
   editingKaution,
+  editingMeter,
   onEditMietvertrag,
   onStartEdit,
   onCancelEdit,
   onEditKaution,
   onStartEditKaution,
   onCancelEditKaution,
+  onEditMeter,
+  onStartEditMeter,
+  onCancelEditMeter,
   onCreateForderung,
   formatDatum,
   formatBetrag
@@ -74,6 +83,16 @@ export function MietvertragOverviewTab({
         onStartEditKaution={onStartEditKaution}
         onCancelEditKaution={onCancelEditKaution}
         formatBetrag={formatBetrag}
+      />
+
+      {/* Meter Readings Section */}
+      <MietvertragMeterReadings
+        vertrag={vertrag}
+        einheit={einheit}
+        editingMeter={editingMeter}
+        onEditMeter={onEditMeter}
+        onStartEditMeter={onStartEditMeter}
+        onCancelEditMeter={onCancelEditMeter}
       />
 
       {/* Payments Section */}

@@ -188,6 +188,40 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId }: 
             </div>
           )}
 
+          {/* Zählernummern - Collapsible Section */}
+          <div className="space-y-2 pt-2 border-t border-gray-100">
+            <div className="text-sm font-medium text-gray-700 mb-2">Zählernummern</div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {einheit.kaltwasser_zaehler && (
+                <div className="flex items-center space-x-1">
+                  <Droplet className="h-3 w-3 text-blue-500" />
+                  <span className="text-gray-600">Kaltwasser:</span>
+                  <span className="font-mono text-gray-800">{einheit.kaltwasser_zaehler}</span>
+                </div>
+              )}
+              {einheit.warmwasser_zaehler && (
+                <div className="flex items-center space-x-1">
+                  <Thermometer className="h-3 w-3 text-orange-500" />
+                  <span className="text-gray-600">Warmwasser:</span>
+                  <span className="font-mono text-gray-800">{einheit.warmwasser_zaehler}</span>
+                </div>
+              )}
+              {einheit.strom_zaehler && (
+                <div className="flex items-center space-x-1">
+                  <Zap className="h-3 w-3 text-yellow-500" />
+                  <span className="text-gray-600">Strom:</span>
+                  <span className="font-mono text-gray-800">{einheit.strom_zaehler}</span>
+                </div>
+              )}
+              {einheit.gas_zaehler && (
+                <div className="flex items-center space-x-1">
+                  <Flame className="h-3 w-3 text-red-500" />
+                  <span className="text-gray-600">Gas:</span>
+                  <span className="font-mono text-gray-800">{einheit.gas_zaehler}</span>
+                </div>
+              )}
+            </div>
+          </div>
 
           {vertrag && (
             <>
