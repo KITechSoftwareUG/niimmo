@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -180,10 +179,10 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
                 </div>
 
                 <CollapsibleContent className="mt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-green-200">
-                    {/* Zählernummern */}
+                  <div className="pt-4 border-t border-green-200">
+                    {/* Zählernummern - Always expanded when unit is expanded */}
                     {(einheit?.kaltwasser_zaehler || einheit?.warmwasser_zaehler || einheit?.strom_zaehler || einheit?.gas_zaehler) && (
-                      <div className="md:col-span-2 mb-4">
+                      <div className="mb-4">
                         <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center space-x-2">
                           <Gauge className="h-4 w-4" />
                           <span>Zählernummern</span>
@@ -229,37 +228,42 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
                       </div>
                     )}
                     
-                    {/* Existing unit details */}
-                    {einheit?.zaehler && (
-                      <div className="bg-white/60 p-3 rounded-lg">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <Hash className="h-4 w-4 text-green-600" />
-                          <label className="text-sm font-medium text-gray-600">Alte Zählernummer</label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {einheit?.zaehler && (
+                        <div className="bg-white/60 p-3 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Hash className="h-4 w-4 text-green-600" />
+                            <label className="text-sm font-medium text-gray-600">Alte Zählernummer</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">{einheit.zaehler}</p>
                         </div>
-                        <p className="text-gray-900 font-mono text-sm">{einheit.zaehler}</p>
-                      </div>
-                    )}
-                    {einheit?.einheitentyp && (
-                      <div className="bg-white/60 p-3 rounded-lg">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <Layers className="h-4 w-4 text-green-600" />
-                          <label className="text-sm font-medium text-gray-600">Einheitentyp</label>
+                      )}
+                      {einheit?.einheitentyp && (
+                        <div className="bg-white/60 p-3 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Layers className="h-4 w-4 text-green-600" />
+                            <label className="text-sm font-medium text-gray-600">Einheitentyp</label>
+                          </div>
+                          <p className="text-gray-900 capitalize">{einheit.einheitentyp}</p>
                         </div>
-                        <p className="text-gray-900 capitalize">{einheit.einheitentyp}</p>
-                      </div>
-                    )}
-                    {einheit?.qm && (
-                      <div className="bg-white/60 p-3 rounded-lg">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <Square className="h-4 w-4 text-green-600" />
-                          <label className="text-sm font-medium text-gray-600">Wohnfläche</label>
+                      )}
+                      {einheit?.qm && (
+                        <div className="bg-white/60 p-3 rounded-lg">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Square className="h-4 w-4 text-green-600" />
+                            <label className="text-sm font-medium text-gray-600">Wohnfläche</label>
+                          </div>
+                          <p className="text-gray-900 font-semibold">{einheit.qm} m²</p>
                         </div>
-                        <p className="text-gray-900 font-semibold">{einheit.qm} m²</p>
+                      )}
+                      <div className="bg-white/60 p-3 rounded-lg">
+                        <label className="text-sm font-medium text-gray-600 block mb-1">Vollständige ID</label>
+                        <p className="text-gray-900 font-mono text-xs break-all">{einheit?.id || 'Keine ID'}</p>
                       </div>
-                    )}
-                    <div className="bg-white/60 p-3 rounded-lg">
-                      <label className="text-sm font-medium text-gray-600 block mb-1">Vollständige ID</label>
-                      <p className="text-gray-900 font-mono text-xs break-all">{einheit?.id || 'Keine ID'}</p>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             {/* Zählerstände Section */}
@@ -511,10 +515,6 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
                       </div>
                     </div>
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          </div>
                 </CollapsibleContent>
               </Collapsible>
             </div>
