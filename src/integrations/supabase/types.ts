@@ -164,9 +164,13 @@ export type Database = {
           einheitentyp: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am: string | null
           etage: string | null
+          gas_zaehler: string | null
           id: string
           immobilie_id: string | null
+          kaltwasser_zaehler: string | null
           qm: number | null
+          strom_zaehler: string | null
+          warmwasser_zaehler: string | null
           zaehler: number | null
         }
         Insert: {
@@ -174,9 +178,13 @@ export type Database = {
           einheitentyp?: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am?: string | null
           etage?: string | null
+          gas_zaehler?: string | null
           id?: string
           immobilie_id?: string | null
+          kaltwasser_zaehler?: string | null
           qm?: number | null
+          strom_zaehler?: string | null
+          warmwasser_zaehler?: string | null
           zaehler?: number | null
         }
         Update: {
@@ -184,9 +192,13 @@ export type Database = {
           einheitentyp?: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am?: string | null
           etage?: string | null
+          gas_zaehler?: string | null
           id?: string
           immobilie_id?: string | null
+          kaltwasser_zaehler?: string | null
           qm?: number | null
+          strom_zaehler?: string | null
+          warmwasser_zaehler?: string | null
           zaehler?: number | null
         }
         Relationships: [
@@ -339,8 +351,12 @@ export type Database = {
           einheit_id: string
           ende_datum: string | null
           erstellt_am: string | null
+          gas_auszug: number | null
+          gas_einzug: number | null
           id: string
           kaltmiete: number | null
+          kaltwasser_auszug: number | null
+          kaltwasser_einzug: number | null
           kaution_betrag: number | null
           kaution_gezahlt_am: string | null
           kaution_ist: number | null
@@ -352,7 +368,11 @@ export type Database = {
           naechste_mahnung_am: string | null
           start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
+          strom_auszug: number | null
+          strom_einzug: number | null
           verwendungszweck: string[] | null
+          warmwasser_auszug: number | null
+          warmwasser_einzug: number | null
           weitere_bankkonten: string | null
         }
         Insert: {
@@ -362,8 +382,12 @@ export type Database = {
           einheit_id: string
           ende_datum?: string | null
           erstellt_am?: string | null
+          gas_auszug?: number | null
+          gas_einzug?: number | null
           id?: string
           kaltmiete?: number | null
+          kaltwasser_auszug?: number | null
+          kaltwasser_einzug?: number | null
           kaution_betrag?: number | null
           kaution_gezahlt_am?: string | null
           kaution_ist?: number | null
@@ -375,7 +399,11 @@ export type Database = {
           naechste_mahnung_am?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
+          strom_auszug?: number | null
+          strom_einzug?: number | null
           verwendungszweck?: string[] | null
+          warmwasser_auszug?: number | null
+          warmwasser_einzug?: number | null
           weitere_bankkonten?: string | null
         }
         Update: {
@@ -385,8 +413,12 @@ export type Database = {
           einheit_id?: string
           ende_datum?: string | null
           erstellt_am?: string | null
+          gas_auszug?: number | null
+          gas_einzug?: number | null
           id?: string
           kaltmiete?: number | null
+          kaltwasser_auszug?: number | null
+          kaltwasser_einzug?: number | null
           kaution_betrag?: number | null
           kaution_gezahlt_am?: string | null
           kaution_ist?: number | null
@@ -398,7 +430,11 @@ export type Database = {
           naechste_mahnung_am?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
+          strom_auszug?: number | null
+          strom_einzug?: number | null
           verwendungszweck?: string[] | null
+          warmwasser_auszug?: number | null
+          warmwasser_einzug?: number | null
           weitere_bankkonten?: string | null
         }
         Relationships: [

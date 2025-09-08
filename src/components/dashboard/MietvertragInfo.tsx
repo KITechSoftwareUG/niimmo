@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FileText, Building, Home, Euro, Calendar, MapPin, AlertTriangle, ChevronDown, Square, Hash, Layers } from "lucide-react";
+import { FileText, Building, Home, Euro, Calendar, MapPin, AlertTriangle, ChevronDown, Square, Hash, Layers, Gauge, Droplet, Zap, Flame, Thermometer } from "lucide-react";
 import { useState } from "react";
 
 interface MietvertragInfoProps {
@@ -13,6 +13,7 @@ interface MietvertragInfoProps {
 export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfoProps) => {
   const [isEinheitExpanded, setIsEinheitExpanded] = useState(false);
   const [isImmobilieExpanded, setIsImmobilieExpanded] = useState(false);
+  const [isZaehlerstaendeExpanded, setIsZaehlerstaendeExpanded] = useState(false);
 
   return (
     <Card className="elegant-card border-0 shadow-lg rounded-2xl overflow-hidden">
@@ -126,11 +127,60 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
 
                 <CollapsibleContent className="mt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-green-200">
+                    {/* Zählernummern */}
+                    {(einheit?.kaltwasser_zaehler || einheit?.warmwasser_zaehler || einheit?.strom_zaehler || einheit?.gas_zaehler) && (
+                      <div className="md:col-span-2 mb-4">
+                        <h4 className="text-sm font-semibold text-green-700 mb-3 flex items-center space-x-2">
+                          <Gauge className="h-4 w-4" />
+                          <span>Zählernummern</span>
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {einheit?.kaltwasser_zaehler && (
+                            <div className="bg-white/80 p-3 rounded-lg border border-blue-200">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <Droplet className="h-4 w-4 text-blue-600" />
+                                <label className="text-sm font-medium text-gray-600">Kaltwasser</label>
+                              </div>
+                              <p className="text-gray-900 font-mono text-sm">{einheit.kaltwasser_zaehler}</p>
+                            </div>
+                          )}
+                          {einheit?.warmwasser_zaehler && (
+                            <div className="bg-white/80 p-3 rounded-lg border border-orange-200">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <Thermometer className="h-4 w-4 text-orange-600" />
+                                <label className="text-sm font-medium text-gray-600">Warmwasser</label>
+                              </div>
+                              <p className="text-gray-900 font-mono text-sm">{einheit.warmwasser_zaehler}</p>
+                            </div>
+                          )}
+                          {einheit?.strom_zaehler && (
+                            <div className="bg-white/80 p-3 rounded-lg border border-yellow-200">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <Zap className="h-4 w-4 text-yellow-600" />
+                                <label className="text-sm font-medium text-gray-600">Strom</label>
+                              </div>
+                              <p className="text-gray-900 font-mono text-sm">{einheit.strom_zaehler}</p>
+                            </div>
+                          )}
+                          {einheit?.gas_zaehler && (
+                            <div className="bg-white/80 p-3 rounded-lg border border-red-200">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <Flame className="h-4 w-4 text-red-600" />
+                                <label className="text-sm font-medium text-gray-600">Gas</label>
+                              </div>
+                              <p className="text-gray-900 font-mono text-sm">{einheit.gas_zaehler}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Existing unit details */}
                     {einheit?.zaehler && (
                       <div className="bg-white/60 p-3 rounded-lg">
                         <div className="flex items-center space-x-2 mb-1">
                           <Hash className="h-4 w-4 text-green-600" />
-                          <label className="text-sm font-medium text-gray-600">Zählernummer</label>
+                          <label className="text-sm font-medium text-gray-600">Alte Zählernummer</label>
                         </div>
                         <p className="text-gray-900 font-mono text-sm">{einheit.zaehler}</p>
                       </div>
@@ -156,8 +206,133 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
                     <div className="bg-white/60 p-3 rounded-lg">
                       <label className="text-sm font-medium text-gray-600 block mb-1">Vollständige ID</label>
                       <p className="text-gray-900 font-mono text-xs break-all">{einheit?.id || 'Keine ID'}</p>
+            </div>
+
+            {/* Zählerstände Section */}
+            <div className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-100">
+              <Collapsible open={isZaehlerstaendeExpanded} onOpenChange={setIsZaehlerstaendeExpanded}>
+                <CollapsibleTrigger className="flex items-center justify-between w-full mb-4 hover:bg-amber-100/50 rounded-lg p-2 transition-colors">
+                  <div className="flex items-center space-x-3">
+                    <Gauge className="h-5 w-5 text-amber-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">Zählerstände</h3>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-amber-600 transition-transform ${isZaehlerstaendeExpanded ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    Hier werden die Zählerstände bei Ein- und Auszug dokumentiert.
+                  </p>
+                </div>
+
+                <CollapsibleContent className="mt-4">
+                  <div className="space-y-6 pt-4 border-t border-amber-200">
+                    {/* Einzug */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-amber-700 mb-3 flex items-center space-x-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>Bei Einzug</span>
+                        {vertrag?.start_datum && (
+                          <span className="text-xs text-gray-500 font-normal">
+                            ({new Date(vertrag.start_datum).toLocaleDateString('de-DE')})
+                          </span>
+                        )}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="bg-white/80 p-3 rounded-lg border border-blue-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Droplet className="h-4 w-4 text-blue-600" />
+                            <label className="text-sm font-medium text-gray-600">Kaltwasser</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">
+                            {vertrag?.kaltwasser_einzug ? `${vertrag.kaltwasser_einzug} m³` : 'Nicht erfasst'}
+                          </p>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-lg border border-orange-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Thermometer className="h-4 w-4 text-orange-600" />
+                            <label className="text-sm font-medium text-gray-600">Warmwasser</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">
+                            {vertrag?.warmwasser_einzug ? `${vertrag.warmwasser_einzug} m³` : 'Nicht erfasst'}
+                          </p>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-lg border border-yellow-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Zap className="h-4 w-4 text-yellow-600" />
+                            <label className="text-sm font-medium text-gray-600">Strom</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">
+                            {vertrag?.strom_einzug ? `${vertrag.strom_einzug} kWh` : 'Nicht erfasst'}
+                          </p>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-lg border border-red-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Flame className="h-4 w-4 text-red-600" />
+                            <label className="text-sm font-medium text-gray-600">Gas</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">
+                            {vertrag?.gas_einzug ? `${vertrag.gas_einzug} m³` : 'Nicht erfasst'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Auszug */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-amber-700 mb-3 flex items-center space-x-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>Bei Auszug</span>
+                        {vertrag?.kuendigungsdatum && (
+                          <span className="text-xs text-gray-500 font-normal">
+                            ({new Date(vertrag.kuendigungsdatum).toLocaleDateString('de-DE')})
+                          </span>
+                        )}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="bg-white/80 p-3 rounded-lg border border-blue-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Droplet className="h-4 w-4 text-blue-600" />
+                            <label className="text-sm font-medium text-gray-600">Kaltwasser</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">
+                            {vertrag?.kaltwasser_auszug ? `${vertrag.kaltwasser_auszug} m³` : 'Noch nicht erfasst'}
+                          </p>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-lg border border-orange-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Thermometer className="h-4 w-4 text-orange-600" />
+                            <label className="text-sm font-medium text-gray-600">Warmwasser</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">
+                            {vertrag?.warmwasser_auszug ? `${vertrag.warmwasser_auszug} m³` : 'Noch nicht erfasst'}
+                          </p>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-lg border border-yellow-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Zap className="h-4 w-4 text-yellow-600" />
+                            <label className="text-sm font-medium text-gray-600">Strom</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">
+                            {vertrag?.strom_auszug ? `${vertrag.strom_auszug} kWh` : 'Noch nicht erfasst'}
+                          </p>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-lg border border-red-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Flame className="h-4 w-4 text-red-600" />
+                            <label className="text-sm font-medium text-gray-600">Gas</label>
+                          </div>
+                          <p className="text-gray-900 font-mono text-sm">
+                            {vertrag?.gas_auszug ? `${vertrag.gas_auszug} m³` : 'Noch nicht erfasst'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          </div>
                 </CollapsibleContent>
               </Collapsible>
             </div>
