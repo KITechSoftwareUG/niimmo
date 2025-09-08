@@ -16,6 +16,7 @@ interface MietvertragOverviewTabProps {
   editingMietvertrag: 'kaltmiete' | 'betriebskosten' | null;
   editingKaution: 'soll' | 'ist' | null;
   editingMeter: string | null;
+  editingMeterNumber: string | null;
   onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten', value: string) => void;
   onStartEdit: (field: 'kaltmiete' | 'betriebskosten') => void;
   onCancelEdit: () => void;
@@ -25,6 +26,9 @@ interface MietvertragOverviewTabProps {
   onEditMeter: (field: string, value: string) => void;
   onStartEditMeter: (field: string) => void;
   onCancelEditMeter: () => void;
+  onEditMeterNumber: (field: string, value: string) => void;
+  onStartEditMeterNumber: (field: string) => void;
+  onCancelEditMeterNumber: () => void;
   onCreateForderung: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
@@ -42,6 +46,7 @@ export function MietvertragOverviewTab({
   editingMietvertrag,
   editingKaution,
   editingMeter,
+  editingMeterNumber,
   onEditMietvertrag,
   onStartEdit,
   onCancelEdit,
@@ -51,6 +56,9 @@ export function MietvertragOverviewTab({
   onEditMeter,
   onStartEditMeter,
   onCancelEditMeter,
+  onEditMeterNumber,
+  onStartEditMeterNumber,
+  onCancelEditMeterNumber,
   onCreateForderung,
   formatDatum,
   formatBetrag
@@ -90,9 +98,13 @@ export function MietvertragOverviewTab({
         vertrag={vertrag}
         einheit={einheit}
         editingMeter={editingMeter}
+        editingMeterNumber={editingMeterNumber}
         onEditMeter={onEditMeter}
         onStartEditMeter={onStartEditMeter}
         onCancelEditMeter={onCancelEditMeter}
+        onEditMeterNumber={onEditMeterNumber}
+        onStartEditMeterNumber={onStartEditMeterNumber}
+        onCancelEditMeterNumber={onCancelEditMeterNumber}
       />
 
       {/* Payments Section */}

@@ -31,6 +31,7 @@ export default function MietvertragDetailsModal({
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
   const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | null>(null);
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
+  const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
   
   // Set up real-time subscriptions for instant updates when this modal is open
@@ -354,6 +355,42 @@ export default function MietvertragDetailsModal({
     }
   };
 
+  const handleEditMeterNumber = async (field: string, value: string) => {
+    try {
+      if (!einheit?.id) {
+        toast({
+          title: "Fehler",
+          description: "Einheit nicht gefunden.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('einheiten')
+        .update({ [field]: value })
+        .eq('id', einheit.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Aktualisiert",
+        description: "Zählernummer wurde erfolgreich aktualisiert.",
+      });
+
+      setEditingMeterNumber(null);
+      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren der Zählernummer:', error);
+      toast({
+        title: "Fehler",
+        description: "Zählernummer konnte nicht aktualisiert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Loading state
   if (vertragLoading) {
     return (
@@ -409,16 +446,20 @@ export default function MietvertragDetailsModal({
                 einheit={einheit}
                 editingMietvertrag={editingMietvertrag}
                 editingKaution={editingKaution}
-                editingMeter={editingMeter}
                 onEditMietvertrag={handleEditMietvertrag}
                 onStartEdit={setEditingMietvertrag}
                 onCancelEdit={() => setEditingMietvertrag(null)}
                 onEditKaution={handleEditKaution}
                 onStartEditKaution={setEditingKaution}
                 onCancelEditKaution={() => setEditingKaution(null)}
+                editingMeter={editingMeter}
+                editingMeterNumber={editingMeterNumber}
                 onEditMeter={handleEditMeter}
                 onStartEditMeter={setEditingMeter}
                 onCancelEditMeter={() => setEditingMeter(null)}
+                onEditMeterNumber={handleEditMeterNumber}
+                onStartEditMeterNumber={setEditingMeterNumber}
+                onCancelEditMeterNumber={() => setEditingMeterNumber(null)}
                 onCreateForderung={() => setShowCreateForderungModal(true)}
                 allMietvertraege={allMietvertraege}
                 vertragId={vertragId}

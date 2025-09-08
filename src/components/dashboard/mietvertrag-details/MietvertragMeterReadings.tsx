@@ -9,18 +9,26 @@ interface MietvertragMeterReadingsProps {
   vertrag: any;
   einheit?: any;
   editingMeter: string | null;
+  editingMeterNumber: string | null;
   onEditMeter: (field: string, value: string) => void;
   onStartEditMeter: (field: string) => void;
   onCancelEditMeter: () => void;
+  onEditMeterNumber: (field: string, value: string) => void;
+  onStartEditMeterNumber: (field: string) => void;
+  onCancelEditMeterNumber: () => void;
 }
 
 export function MietvertragMeterReadings({
   vertrag,
   einheit,
   editingMeter,
+  editingMeterNumber,
   onEditMeter,
   onStartEditMeter,
-  onCancelEditMeter
+  onCancelEditMeter,
+  onEditMeterNumber,
+  onStartEditMeterNumber,
+  onCancelEditMeterNumber
 }: MietvertragMeterReadingsProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -95,11 +103,16 @@ export function MietvertragMeterReadings({
                   <div className="flex items-center space-x-2 mb-3">
                     <IconComponent className={`h-4 w-4 ${meter.color}`} />
                     <span className="font-medium">{meter.label}</span>
-                    {meter.number && (
-                      <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
-                        Nr: {meter.number}
-                      </span>
-                    )}
+                    <MietvertragEditableField
+                      label="Nr"
+                      value={meter.number || ""}
+                      isEditing={editingMeterNumber === `${meter.key}_zaehler`}
+                      onEdit={() => onStartEditMeterNumber(`${meter.key}_zaehler`)}
+                      onSave={(value) => onEditMeterNumber(`${meter.key}_zaehler`, value)}
+                      onCancel={onCancelEditMeterNumber}
+                      type="text"
+                      formatter={(value) => String(value) || "Nicht gesetzt"}
+                    />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
