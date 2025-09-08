@@ -119,7 +119,7 @@ export function MietvertragPaymentsSection({
                 {nichtFaelligeForderungenBetrag > 0 && (
                   <div className="text-right">
                     <p className="text-xs text-primary">
-                      + {formatBetrag(nichtFaelligeForderungenBetrag)} nicht fällig
+                      + {formatBetrag(nichtFaelligeForderungenBetrag)} noch nicht fällig
                     </p>
                   </div>
                 )}
