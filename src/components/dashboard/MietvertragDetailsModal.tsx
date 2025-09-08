@@ -156,7 +156,35 @@ export default function MietvertragDetailsModal({
       if (error) throw error;
       return data || [];
     },
-    enabled: isOpen && !!vertragId
+  });
+
+  const { data: allMietvertraege } = useQuery({
+    queryKey: ['all-mietvertraege'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietvertrag')
+        .select(`
+          id,
+          einheit_id,
+          einheiten (
+            immobilie_id,
+            immobilien (
+              name,
+              adresse
+            )
+          ),
+          mietvertrag_mieter (
+            mieter:mieter_id (
+              vorname,
+              nachname
+            )
+          )
+        `);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen
   });
 
   const { data: forderungen } = useQuery({
@@ -350,6 +378,8 @@ export default function MietvertragDetailsModal({
                 onStartEditKaution={setEditingKaution}
                 onCancelEditKaution={() => setEditingKaution(null)}
                 onCreateForderung={() => setShowCreateForderungModal(true)}
+                allMietvertraege={allMietvertraege}
+                vertragId={vertragId}
                 formatDatum={formatDatum}
                 formatBetrag={formatBetrag}
               />

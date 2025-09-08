@@ -2,13 +2,17 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { calculateMietvertragRueckstand } from "@/utils/rueckstandsberechnung";
+import { MietvertragTimelineView } from "./MietvertragTimelineView";
 import { Plus } from "lucide-react";
 
 interface MietvertragPaymentsSectionProps {
   vertrag: any;
   forderungen: any[];
   zahlungen: any[];
+  allMietvertraege?: any[];
+  vertragId: string;
   formatBetrag: (betrag: number) => string;
+  formatDatum: (datum: string) => string;
   onCreateForderung: () => void;
 }
 
@@ -16,7 +20,10 @@ export function MietvertragPaymentsSection({
   vertrag,
   forderungen,
   zahlungen,
+  allMietvertraege,
+  vertragId,
   formatBetrag,
+  formatDatum,
   onCreateForderung
 }: MietvertragPaymentsSectionProps) {
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('list');
@@ -138,11 +145,20 @@ export function MietvertragPaymentsSection({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">
-              {viewMode === 'timeline' ? 'Timeline-Ansicht wird geladen...' : 'Listen-Ansicht wird geladen...'}
-            </p>
-          </div>
+          {viewMode === 'timeline' ? (
+            <MietvertragTimelineView
+              forderungen={forderungen}
+              zahlungen={zahlungen}
+              allMietvertraege={allMietvertraege}
+              vertragId={vertragId}
+              formatDatum={formatDatum}
+              formatBetrag={formatBetrag}
+            />
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Listen-Ansicht wird geladen...</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </>

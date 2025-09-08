@@ -8,6 +8,8 @@ interface MietvertragOverviewTabProps {
   mieter: any[];
   forderungen: any[];
   zahlungen: any[];
+  allMietvertraege?: any[];
+  vertragId: string;
   immobilie?: any;
   einheit?: any;
   editingMietvertrag: 'kaltmiete' | 'betriebskosten' | null;
@@ -28,6 +30,8 @@ export function MietvertragOverviewTab({
   mieter,
   forderungen,
   zahlungen,
+  allMietvertraege,
+  vertragId,
   immobilie,
   einheit,
   editingMietvertrag,
@@ -77,7 +81,10 @@ export function MietvertragOverviewTab({
         vertrag={vertrag}
         forderungen={forderungen}
         zahlungen={zahlungen}
+        allMietvertraege={allMietvertraege}
+        vertragId={vertragId}
         formatBetrag={formatBetrag}
+        formatDatum={formatDatum}
         onCreateForderung={onCreateForderung}
       />
     </div>
