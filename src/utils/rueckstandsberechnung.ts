@@ -106,38 +106,20 @@ export const calculateMietvertragRueckstand = (
     zahlungenByMonth.get(monat)!.push(z);
   });
   
-  // Prüfe bei offenen Forderungen, ob Zahlungen vorhanden sind und setze sie ggf. auf fällig
-  alleForderungenAbStart.forEach(forderung => {
+  // Bestimme fällige Forderungen: entweder ist_faellig = true ODER es gibt Zahlungen zu dem Monat
+  const faelligeForderungen = alleForderungenAbStart.filter(forderung => {
+    // Wenn bereits als fällig markiert, dann einbeziehen
+    if (forderung.ist_faellig) return true;
+    
+    // Wenn nicht fällig, prüfe ob es Zahlungen zu diesem Monat gibt
     const monat = forderung.sollmonat;
     const zahlungenFuerMonat = zahlungenByMonth.get(monat) || [];
     
-    // Wenn Forderung noch nicht fällig ist, prüfe ob Zahlungen sie abdecken
-    if (!forderung.ist_faellig && zahlungenFuerMonat.length > 0) {
-      // Berechne Gesamtsumme der Zahlungen für diesen Monat
-      const gesamtZahlungenFuerMonat = zahlungenFuerMonat.reduce((sum, z) => {
-        // Prüfe 6-Tage-Wartezeit bei Lastschrift
-        if (istLastschrift) {
-          const zahlungMitWartezeit = new Date(z.buchungsdatum);
-          zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
-          if (heute < zahlungMitWartezeit) {
-            return sum; // Zahlung noch in Wartezeit - nicht mitzählen
-          }
-        }
-        return sum + (Number(z.betrag) || 0);
-      }, 0);
-      
-      const sollbetrag = Number(forderung.sollbetrag) || 0;
-      
-      // Wenn Zahlungen die Forderung vollständig abdecken, setze auf fällig
-      if (gesamtZahlungenFuerMonat >= sollbetrag) {
-        forderung.ist_faellig = true;
-        forderung.faellig_seit = new Date().toISOString();
-      }
-    }
+    // Wenn Zahlungen vorhanden, dann auch einbeziehen (auch wenn noch nicht fällig)
+    return zahlungenFuerMonat.length > 0;
   });
   
-  // ALLE Forderungen einbeziehen (nicht nur die mit Zahlungen)
-  const relevanteForderungen = alleForderungenAbStart;
+  const relevanteForderungen = faelligeForderungen;
   
   // Berechne Gesamtforderungen
   const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
