@@ -15,7 +15,12 @@ import {
   ArrowRightLeft, 
   AlertCircle,
   Mail,
-  Phone
+  Phone,
+  Receipt,
+  Coins,
+  CreditCard,
+  Clock,
+  Move
 } from "lucide-react";
 
 interface MietvertragTimelineViewProps {
@@ -45,7 +50,8 @@ export function MietvertragTimelineView({
   const [editForderungValue, setEditForderungValue] = useState<string>("");
   const [draggedPayment, setDraggedPayment] = useState<string | null>(null);
 
-  // Drag and drop handlers
+  // Drag and drop handlers and all other functions
+
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, zahlungId: string) => {
     setDraggedPayment(zahlungId);
     event.dataTransfer.effectAllowed = 'move';
@@ -278,9 +284,14 @@ export function MietvertragTimelineView({
 
   if (sortedMonths.length === 0) {
     return (
-      <div className="text-center py-12">
-        <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground text-lg">Keine Zahlungen oder Forderungen gefunden</p>
+      <div className="text-center py-16 animate-fade-in">
+        <div className="glass-card p-12 rounded-2xl max-w-md mx-auto">
+          <div className="animate-float">
+            <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-6" />
+          </div>
+          <h3 className="text-xl font-semibold text-foreground mb-2">Keine Daten gefunden</h3>
+          <p className="text-muted-foreground">Keine Zahlungen oder Forderungen für diesen Zeitraum vorhanden.</p>
+        </div>
       </div>
     );
   }
@@ -288,7 +299,10 @@ export function MietvertragTimelineView({
   return (
     <div className="relative px-8 py-8">
       {/* Central Timeline */}
-      <div className="absolute left-1/2 top-0 w-0.5 bg-gradient-to-b from-blue-400 via-indigo-400 to-purple-400 h-full transform -translate-x-0.5 z-0 opacity-60"></div>
+      <div className="absolute left-1/2 top-0 w-1 bg-gradient-to-b from-primary/80 via-primary/60 to-primary/40 h-full transform -translate-x-0.5 z-0 rounded-full shadow-lg animate-pulse-glow"></div>
+      
+      {/* Timeline glow effect */}
+      <div className="absolute left-1/2 top-0 w-8 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent h-full transform -translate-x-1/2 z-0 blur-sm"></div>
 
       {sortedMonths.map((month, index) => {
         const data = monthlyData.get(month);
@@ -299,74 +313,99 @@ export function MietvertragTimelineView({
         return (
           <div
             key={month}
-            className="relative mb-20 min-h-[180px] animate-fade-in"
+            className="relative mb-24 min-h-[200px] animate-scale-in hover-scale"
+            style={{ animationDelay: `${index * 100}ms` }}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, month)}
           >
-            {/* Month marker */}
-            <div className="absolute left-1/2 w-6 h-6 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full border-3 border-white shadow-lg transform -translate-x-1/2 z-20">
-              <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                <div className="bg-white shadow-md rounded-lg px-4 py-2 border border-gray-100">
-                  <span className="text-sm font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                    {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-                  </span>
+            {/* Month marker with enhanced design */}
+            <div className="absolute left-1/2 w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-full border-4 border-background shadow-xl transform -translate-x-1/2 z-30 hover:scale-110 transition-transform duration-300">
+              <div className="absolute inset-1 bg-gradient-to-br from-primary-foreground/20 to-transparent rounded-full"></div>
+              <Calendar className="absolute inset-0 m-auto h-4 w-4 text-primary-foreground" />
+              
+              {/* Month label with improved styling */}
+              <div className="absolute top-12 left-1/2 transform -translate-x-1/2 whitespace-nowrap z-20">
+                <div className="elegant-card px-6 py-3 rounded-xl border border-primary/20 bg-gradient-to-r from-card/95 to-card/90 backdrop-blur-md">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold text-primary">
+                      {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-20 pt-16">
+            <div className="grid grid-cols-2 gap-24 pt-20">
               {/* Left side - Forderungen */}
-              <div className="pr-10">
+              <div className="pr-8">
                 {forderungenData.length > 0 ? (
-                  <div className="space-y-3">
-                    {forderungenData.map((forderung: any) => (
-                      <div key={forderung.id} className="w-full">
-                        <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm group relative">
-                          {/* Delete icon in top left */}
+                  <div className="space-y-4">
+                    {forderungenData.map((forderung: any, forderungIndex: number) => (
+                      <div key={forderung.id} className="w-full animate-slide-in-right" style={{ animationDelay: `${(index * 100) + (forderungIndex * 50)}ms` }}>
+                        <div className="w-full elegant-card p-6 group relative hover:shadow-xl transition-all duration-300 border-l-4 border-l-destructive/60 bg-gradient-to-r from-destructive/5 to-transparent">
+                          {/* Delete icon with improved styling */}
                           <Button
                             onClick={() => handleDeleteForderung(forderung.id)}
                             variant="ghost"
                             size="sm"
-                            className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                            className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-200 h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg"
                             title="Forderung löschen"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                           
                           <div className="flex justify-center items-center flex-col text-center pt-2">
-                            <div className="flex items-center justify-center mb-2">
-                              <div className="bg-red-100 rounded-full p-1.5 mr-2">
-                                <span className="text-red-600 text-xs">📋</span>
+                            <div className="flex items-center justify-center mb-4">
+                              <div className="bg-gradient-to-br from-destructive/20 to-destructive/10 rounded-full p-3 mr-3 shadow-sm">
+                                <Receipt className="h-5 w-5 text-destructive" />
                               </div>
-                              <p className="font-semibold text-red-600 text-sm">
-                                Forderung {forderungenData.length > 1 ? `${forderungenData.indexOf(forderung) + 1}/${forderungenData.length}` : ''}
-                              </p>
+                              <div className="text-left">
+                                <p className="font-semibold text-destructive text-sm">
+                                  Forderung {forderungenData.length > 1 ? `${forderungIndex + 1}/${forderungenData.length}` : ''}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Ausstehend</p>
+                              </div>
                             </div>
                             
-                            {/* Editable amount */}
+                            {/* Editable amount with enhanced styling */}
                             {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'betrag' ? (
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center justify-center space-x-3 bg-muted/30 rounded-lg p-3">
                                 <Input
                                   type="number"
                                   value={editForderungValue}
                                   onChange={(e) => setEditForderungValue(e.target.value)}
-                                  className="w-24 h-8 text-center"
+                                  className="w-32 h-10 text-center font-semibold modern-input"
                                   step="0.01"
                                 />
-                                <Button onClick={() => handleSaveForderung(editForderungValue)} size="sm" className="h-6 text-xs">
-                                  ✓
+                                <Button 
+                                  onClick={() => handleSaveForderung(editForderungValue)} 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0 bg-primary hover:bg-primary/90"
+                                >
+                                  <Check className="h-4 w-4" />
                                 </Button>
-                                <Button onClick={handleCancelForderungEdit} size="sm" variant="outline" className="h-6 text-xs">
-                                  ✕
+                                <Button 
+                                  onClick={handleCancelForderungEdit} 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-8 w-8 p-0 hover:bg-destructive/10 hover:border-destructive/20"
+                                >
+                                  <X className="h-4 w-4" />
                                 </Button>
                               </div>
                             ) : (
-                              <p 
-                                className="text-xl font-bold text-red-700 mb-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
+                              <div 
+                                className="bg-gradient-to-r from-destructive/10 to-destructive/5 rounded-lg p-4 cursor-pointer hover:from-destructive/15 hover:to-destructive/10 transition-all duration-200 group/amount"
                                 onClick={() => handleEditForderung(forderung.id, 'betrag', forderung.sollbetrag.toString())}
                               >
-                                {formatBetrag(Number(forderung.sollbetrag))}
-                              </p>
+                                <p className="text-2xl font-bold text-destructive mb-1 group-hover/amount:scale-105 transition-transform duration-200">
+                                  {formatBetrag(Number(forderung.sollbetrag))}
+                                </p>
+                                <p className="text-xs text-muted-foreground opacity-0 group-hover/amount:opacity-100 transition-opacity">
+                                  Klicken zum Bearbeiten
+                                </p>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -377,246 +416,159 @@ export function MietvertragTimelineView({
               </div>
 
               {/* Right side - Zahlungen */}
-              <div className="pl-10">
+              <div className="pl-8">
                 {zahlungenData.length > 0 ? (
-                  <div className="space-y-3">
-                    {zahlungenData.map((zahlung: any) => (
-                      <div
-                        key={zahlung.id}
-                        className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-move"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, zahlung.id)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center mb-2">
-                              <div className={`rounded-full p-1.5 mr-2 ${
-                                zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
-                                  ? 'bg-blue-100' 
-                                  : 'bg-green-100'
-                              }`}>
-                                <span className={`text-xs ${
-                                  zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
-                                    ? 'text-blue-600' 
-                                    : 'text-green-600'
-                                }`}>💰</span>
+                  <div className="space-y-4">
+                    {zahlungenData.map((zahlung: any, zahlungIndex: number) => {
+                      const isKaution = zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution';
+                      const colorClasses = isKaution 
+                        ? { 
+                            bg: 'from-blue-500/10 to-blue-400/5', 
+                            border: 'border-l-blue-500/60',
+                            iconBg: 'bg-gradient-to-br from-blue-500/20 to-blue-400/10',
+                            iconColor: 'text-blue-600',
+                            textColor: 'text-blue-700',
+                            amountColor: 'text-blue-800'
+                          }
+                        : { 
+                            bg: 'from-primary/10 to-primary/5', 
+                            border: 'border-l-primary/60',
+                            iconBg: 'bg-gradient-to-br from-primary/20 to-primary/10',
+                            iconColor: 'text-primary',
+                            textColor: 'text-primary',
+                            amountColor: 'text-primary'
+                          };
+                      
+                      return (
+                        <div
+                          key={zahlung.id}
+                          className={`w-full elegant-card p-6 cursor-move group relative hover:shadow-xl transition-all duration-300 border-l-4 ${colorClasses.border} bg-gradient-to-r ${colorClasses.bg} animate-slide-in-left ${draggedPayment === zahlung.id ? 'opacity-50 scale-95' : ''}`}
+                          style={{ animationDelay: `${(index * 100) + (zahlungIndex * 50)}ms` }}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, zahlung.id)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          {/* Drag indicator */}
+                          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <Move className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center mb-4">
+                                <div className={`rounded-full p-3 mr-3 shadow-sm ${colorClasses.iconBg}`}>
+                                  {isKaution ? (
+                                    <CreditCard className={`h-5 w-5 ${colorClasses.iconColor}`} />
+                                  ) : (
+                                    <Coins className={`h-5 w-5 ${colorClasses.iconColor}`} />
+                                  )}
+                                </div>
+                                <div className="text-left">
+                                  <p className={`font-semibold text-sm ${colorClasses.textColor}`}>
+                                    {isKaution ? 'Kaution' : 'Mietzahlung'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">Eingegangen</p>
+                                </div>
                               </div>
-                              <p className={`font-semibold text-sm ${
-                                zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
-                                  ? 'text-blue-600' 
-                                  : 'text-green-600'
-                              }`}>Zahlung</p>
-                            </div>
 
-                            <p className={`text-xl font-bold mb-1 ${
-                              zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
-                                ? 'text-blue-700' 
-                                : 'text-green-700'
-                            }`}>
-                              {formatBetrag(Number(zahlung.betrag))}
-                            </p>
-
-                            <p className="text-sm text-muted-foreground mb-1">
-                              {formatDatum(zahlung.buchungsdatum)}
-                            </p>
-
-                            {zahlung.verwendungszweck && (
-                              <p className="text-xs text-muted-foreground mb-2">
-                                {zahlung.verwendungszweck}
-                              </p>
-                            )}
-
-                            <div className="flex items-center space-x-2">
-                              {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'kategorie' ? (
-                                <div className="flex items-center space-x-1">
-                                  <Select
-                                    value={editPaymentValue}
-                                    onValueChange={setEditPaymentValue}
-                                  >
-                                    <SelectTrigger className="w-32 h-6 text-xs">
-                                      <SelectValue placeholder="Kategorie" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Miete">Miete</SelectItem>
-                                      <SelectItem value="Kaution">Kaution</SelectItem>
-                                      <SelectItem value="Mietkaution">Mietkaution</SelectItem>
-                                      <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
-                                      <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                  <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
-                                    <X className="h-3 w-3" />
-                                  </Button>
+                              <div className={`bg-gradient-to-r ${colorClasses.bg} rounded-lg p-4 mb-4`}>
+                                <p className={`text-2xl font-bold mb-2 ${colorClasses.amountColor}`}>
+                                  {formatBetrag(Number(zahlung.betrag))}
+                                </p>
+                                <div className="flex items-center text-sm text-muted-foreground mb-1">
+                                  <Calendar className="h-4 w-4 mr-2" />
+                                  {formatDatum(zahlung.buchungsdatum)}
                                 </div>
-                              ) : (
-                                <div className="flex items-center space-x-1">
-                                  <Badge variant="outline" className="text-sm">
-                                    {zahlung.kategorie || 'Sonstige'}
-                                  </Badge>
-                                  <Button
-                                    onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </Button>
+                              </div>
+
+                              {zahlung.verwendungszweck && (
+                                <div className="bg-muted/30 rounded-lg p-3 mb-3">
+                                  <p className="text-xs font-medium text-muted-foreground mb-1">Verwendungszweck:</p>
+                                  <p className="text-sm text-foreground">
+                                    {zahlung.verwendungszweck}
+                                  </p>
                                 </div>
                               )}
-                            </div>
 
-                            {/* Month Edit */}
-                            <div className="mt-2">
-                              {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'monat' ? (
-                                <div className="flex items-center space-x-1">
-                                  <Select
-                                    value={editPaymentValue}
-                                    onValueChange={(value) => setEditPaymentValue(value)}
-                                  >
-                                    <SelectTrigger className="w-32 h-6 text-xs">
-                                      <SelectValue placeholder="Monat wählen" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {(() => {
-                                        // Generate available months from Forderungen
-                                        const availableMonths = new Set<string>();
-                                        
-                                        // Add months from Forderungen
-                                        (forderungen || []).forEach(forderung => {
-                                          if (forderung.sollmonat) {
-                                            availableMonths.add(forderung.sollmonat);
-                                          }
-                                        });
-                                        
-                                        // Add current and next 12 months
-                                        const now = new Date();
-                                        for (let i = -6; i <= 12; i++) {
-                                          const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-                                          const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                                          availableMonths.add(monthStr);
-                                        }
-                                        
-                                        // Convert to sorted array
-                                        return Array.from(availableMonths)
-                                          .sort()
-                                          .map(month => {
-                                            const [year, monthNum] = month.split('-');
-                                            const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('de-DE', { 
-                                              year: 'numeric', 
-                                              month: 'long' 
-                                            });
-                                            return (
-                                              <SelectItem key={month} value={month}>
-                                                {monthName}
-                                              </SelectItem>
-                                            );
-                                          });
-                                      })()}
-                                    </SelectContent>
-                                  </Select>
-                                  <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                  <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center space-x-1">
-                                  <Badge variant="secondary" className="text-xs">
-                                    {zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || 'Unzugeordnet'}
-                                  </Badge>
-                                  {(() => {
-                                    const zahlungsJahr = new Date(zahlung.buchungsdatum).getFullYear();
-                                    const hatForderungen = (forderungen || []).length > 0;
-                                    const canEditMonth = zahlungsJahr >= 2025 && hatForderungen;
-                                    
-                                    return canEditMonth ? (
-                                      <Button
-                                        onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || '')}
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                                      >
-                                        <Calendar className="h-3 w-3" />
-                                      </Button>
-                                    ) : null;
-                                  })()}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Mietvertrag Edit */}
-                            <div className="mt-2">
-                              {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'mietvertrag' ? (
-                                <div className="space-y-2">
-                                  <Input
-                                    placeholder="Suche Mietvertrag..."
-                                    value={mietvertragSearchTerm}
-                                    onChange={(e) => setMietvertragSearchTerm(e.target.value)}
-                                    className="w-full h-6 text-xs"
-                                  />
-                                  <div className="max-h-32 overflow-y-auto space-y-1">
-                                    {allMietvertraege?.filter(mv => {
-                                      if (!mietvertragSearchTerm) return true;
-                                      
-                                      const searchTerm = mietvertragSearchTerm.toLowerCase();
-                                      const mieterNames = mv.mietvertrag_mieter?.map((mm: any) => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || '';
-                                      const immobilieName = mv.einheiten?.immobilien?.name || '';
-                                      const adresse = mv.einheiten?.immobilien?.adresse || '';
-                                      const einheitId = mv.einheit_id || '';
-                                      
-                                      return mieterNames.toLowerCase().includes(searchTerm) ||
-                                             immobilieName.toLowerCase().includes(searchTerm) ||
-                                             adresse.toLowerCase().includes(searchTerm) ||
-                                             einheitId.toLowerCase().includes(searchTerm);
-                                    }).map(mv => {
-                                      const mieterNames = mv.mietvertrag_mieter?.map((mm: any) => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || 'Keine Mieter';
-                                      const einheitId = mv.einheit_id?.slice(-2) || 'XX';
-                                      return (
-                                        <button
-                                          key={mv.id}
-                                          onClick={() => handleSavePaymentField(mv.id)}
-                                          className="w-full text-left p-2 text-xs bg-gray-50 hover:bg-gray-100 rounded"
-                                        >
-                                          <div className="font-medium">{mv.einheiten?.immobilien?.name} - Einheit {einheitId}</div>
-                                          <div className="text-muted-foreground">{mv.einheiten?.immobilien?.adresse}</div>
-                                          <div className="text-blue-600 mt-1">{mieterNames}</div>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
+                              <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+                                {/* Category editing */}
+                                {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'kategorie' ? (
                                   <div className="flex items-center space-x-1">
+                                    <Select
+                                      value={editPaymentValue}
+                                      onValueChange={setEditPaymentValue}
+                                    >
+                                      <SelectTrigger className="w-32 h-6 text-xs">
+                                        <SelectValue placeholder="Kategorie" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="Miete">Miete</SelectItem>
+                                        <SelectItem value="Kaution">Kaution</SelectItem>
+                                        <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                                        <SelectItem value="Betriebskosten">Betriebskosten</SelectItem>
+                                        <SelectItem value="Sonstiges">Sonstiges</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 text-xs">
+                                      ✓
+                                    </Button>
                                     <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 text-xs">
-                                      Abbrechen
+                                      ✕
                                     </Button>
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="flex items-center space-x-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    <ArrowRightLeft className="h-3 w-3 mr-1" />
-                                    Objekt
-                                  </Badge>
-                                  <Button
-                                    onClick={() => handleEditPaymentField(zahlung.id, 'mietvertrag', zahlung.mietvertrag_id || '')}
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              )}
+                                ) : (
+                                  <div className="flex items-center space-x-1">
+                                    <Badge variant="secondary" className="text-xs">
+                                      {zahlung.kategorie || 'Miete'}
+                                    </Badge>
+                                    <Button
+                                      onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || 'Miete')}
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                    >
+                                      <Edit2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
+
+                                {/* Month editing */}
+                                {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'monat' ? (
+                                  <div className="flex items-center space-x-1">
+                                    <Input
+                                      type="month"
+                                      value={editPaymentValue}
+                                      onChange={(e) => setEditPaymentValue(e.target.value)}
+                                      className="w-32 h-6 text-xs"
+                                    />
+                                    <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 text-xs">
+                                      ✓
+                                    </Button>
+                                    <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 text-xs">
+                                      ✕
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center space-x-1">
+                                    <Badge variant="outline" className="text-xs">
+                                      📅 {zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || 'Kein Monat'}
+                                    </Badge>
+                                    <Button
+                                      onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || '')}
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                    >
+                                      <Edit2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : null}
               </div>
