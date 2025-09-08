@@ -1,0 +1,97 @@
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Edit2, Check, X } from "lucide-react";
+
+interface MietvertragEditableFieldProps {
+  label: string;
+  value: string | number;
+  isEditing: boolean;
+  onEdit: () => void;
+  onSave: (value: string) => void;
+  onCancel: () => void;
+  type?: "text" | "number";
+  step?: string;
+  className?: string;
+  formatter?: (value: string | number) => string;
+  showLastUpdate?: string;
+}
+
+export function MietvertragEditableField({
+  label,
+  value,
+  isEditing,
+  onEdit,
+  onSave,
+  onCancel,
+  type = "text",
+  step,
+  className = "",
+  formatter,
+  showLastUpdate
+}: MietvertragEditableFieldProps) {
+  const [editValue, setEditValue] = useState(value?.toString() || "");
+
+  const handleEdit = () => {
+    setEditValue(value?.toString() || "");
+    onEdit();
+  };
+
+  const handleSave = () => {
+    onSave(editValue);
+  };
+
+  const displayValue = formatter ? formatter(value) : value?.toString() || "N/A";
+
+  return (
+    <div>
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      {isEditing ? (
+        <div className="flex items-center space-x-2">
+          <Input
+            type={type}
+            step={step}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            className="w-32 h-8"
+            placeholder={type === "number" ? "0.00" : ""}
+          />
+          <Button
+            onClick={handleSave}
+            size="sm"
+            className="h-8 w-8 p-0"
+          >
+            <Check className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={onCancel}
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <div className="flex items-center space-x-2">
+            <p className={`text-lg ${className}`}>{displayValue}</p>
+            <Button
+              onClick={handleEdit}
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+            >
+              <Edit2 className="h-3 w-3" />
+            </Button>
+          </div>
+          {showLastUpdate && (
+            <p className="text-xs text-muted-foreground">
+              Letzte Erhöhung: {showLastUpdate}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
