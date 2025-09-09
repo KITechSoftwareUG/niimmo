@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo, useCallback, useEffect } from "react";
+import * as React from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -85,23 +86,24 @@ interface ColumnConfig {
   sticky?: boolean;
   visible: boolean;
   sortable?: boolean;
+  groupable?: boolean;
 }
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
-  { field: 'immobilie.name', label: 'Objekt', width: 'w-40', sticky: true, visible: true, sortable: true },
-  { field: 'einheit.etage', label: 'Einheit', width: 'w-20', visible: true },
-  { field: 'mieter.name', label: 'Mieter', width: 'w-48', visible: true, sortable: true },
-  { field: 'vertrag.status', label: 'Status', width: 'w-24', visible: true, sortable: true },
-  { field: 'vertrag.kaltmiete', label: 'Kaltmiete', width: 'w-28', visible: true, sortable: true },
-  { field: 'vertrag.betriebskosten', label: 'NK', width: 'w-24', visible: true, sortable: true },
-  { field: 'zahlungen.aktuellerMonat', label: 'Aktuelle Miete', width: 'w-32', visible: true },
-  { field: 'vertrag.start_datum', label: 'Mietbeginn', width: 'w-28', visible: true, sortable: true },
-  { field: 'einheit.qm', label: 'qm', width: 'w-20', visible: false, sortable: true },
-  { field: 'vertrag.kaution_betrag', label: 'Kaution Soll', width: 'w-28', visible: false },
-  { field: 'vertrag.kaution_ist', label: 'Kaution Ist', width: 'w-28', visible: false },
-  { field: 'vertrag.lastschrift', label: 'Lastschrift', width: 'w-24', visible: false },
-  { field: 'mieter.hauptmail', label: 'E-Mail', width: 'w-48', visible: false },
-  { field: 'mieter.telnr', label: 'Telefon', width: 'w-32', visible: false },
+  { field: 'immobilie.name', label: 'Objekt', width: 'w-40', sticky: true, visible: true, sortable: true, groupable: true },
+  { field: 'einheit.etage', label: 'Einheit', width: 'w-20', visible: true, sortable: false },
+  { field: 'mieter.name', label: 'Mieter', width: 'w-48', visible: true, sortable: true, groupable: false },
+  { field: 'vertrag.status', label: 'Status', width: 'w-24', visible: true, sortable: true, groupable: true },
+  { field: 'vertrag.kaltmiete', label: 'Kaltmiete', width: 'w-28', visible: true, sortable: true, groupable: false },
+  { field: 'vertrag.betriebskosten', label: 'NK', width: 'w-24', visible: true, sortable: true, groupable: false },
+  { field: 'zahlungen.aktuellerMonat', label: 'Aktuelle Miete', width: 'w-32', visible: true, sortable: false },
+  { field: 'vertrag.start_datum', label: 'Mietbeginn', width: 'w-28', visible: true, sortable: true, groupable: false },
+  { field: 'einheit.qm', label: 'qm', width: 'w-20', visible: false, sortable: true, groupable: false },
+  { field: 'vertrag.kaution_betrag', label: 'Kaution Soll', width: 'w-28', visible: false, sortable: false },
+  { field: 'vertrag.kaution_ist', label: 'Kaution Ist', width: 'w-28', visible: false, sortable: false },
+  { field: 'vertrag.lastschrift', label: 'Lastschrift', width: 'w-24', visible: false, sortable: false },
+  { field: 'mieter.hauptmail', label: 'E-Mail', width: 'w-48', visible: false, sortable: false },
+  { field: 'mieter.telnr', label: 'Telefon', width: 'w-32', visible: false, sortable: false },
 ];
 
 export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMietUebersichtModalProps) => {
@@ -111,6 +113,8 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [groupBy, setGroupBy] = useState<string>('immobilie.name');
+  const [showGrouping, setShowGrouping] = useState<boolean>(true);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -241,6 +245,41 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
 
     return filtered;
   }, [tableData, getZahlungenFuerVertrag, searchQuery, sortField, sortDirection, statusFilter]);
+
+  // Group data if grouping is enabled
+  const groupedData = useMemo(() => {
+    if (!showGrouping || !groupBy) return { ungrouped: processedData };
+    
+    const groups: Record<string, TableRow[]> = {};
+    
+    processedData.forEach(row => {
+      let groupValue: string;
+      
+      if (groupBy === 'mieter.name') {
+        groupValue = row.mieter[0] ? `${row.mieter[0].nachname} ${row.mieter[0].vorname}` : 'Ohne Mieter';
+      } else if (groupBy === 'immobilie.name') {
+        groupValue = row.immobilie?.name || 'Ohne Objekt';
+      } else if (groupBy === 'vertrag.status') {
+        groupValue = row.vertrag.status || 'Ohne Status';
+      } else {
+        const fieldParts = groupBy.split('.');
+        groupValue = fieldParts.reduce((obj, key) => obj?.[key], row) || 'Nicht definiert';
+      }
+      
+      if (!groups[groupValue]) {
+        groups[groupValue] = [];
+      }
+      groups[groupValue].push(row);
+    });
+    
+    // Sort groups by group name
+    const sortedGroups: Record<string, TableRow[]> = {};
+    Object.keys(groups).sort((a, b) => a.localeCompare(b, 'de-DE', { numeric: true })).forEach(key => {
+      sortedGroups[key] = groups[key];
+    });
+    
+    return sortedGroups;
+  }, [processedData, showGrouping, groupBy]);
 
   // Editing functions
   const startEditing = useCallback((vertragId: string, field: string, currentValue: any) => {
@@ -693,6 +732,30 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               </SelectContent>
             </Select>
 
+            {/* Grouping Controls */}
+            <div className="flex items-center gap-2">
+              <Switch
+                id="grouping"
+                checked={showGrouping}
+                onCheckedChange={setShowGrouping}
+              />
+              <Label htmlFor="grouping" className="text-sm whitespace-nowrap">Gruppieren</Label>
+              {showGrouping && (
+                <Select value={groupBy} onValueChange={setGroupBy}>
+                  <SelectTrigger className="w-36 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {columns.filter(col => col.groupable).map((col) => (
+                      <SelectItem key={col.field} value={col.field}>
+                        {col.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
             {/* Column Visibility */}
             <Popover>
               <PopoverTrigger asChild>
@@ -727,7 +790,10 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
           
           {/* Stats */}
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <span>Zeige {processedData.length} von {tableData?.length || 0} Verträgen</span>
+            <span>Zeige {showGrouping ? Object.values(groupedData).flat().length : processedData.length} von {tableData?.length || 0} Verträgen</span>
+            {showGrouping && (
+              <span>In {Object.keys(groupedData).length} Gruppen</span>
+            )}
             {hasChanges && (
               <span className="text-amber-600 font-medium">
                 {editingCells.length} ungespeicherte Änderungen
@@ -776,47 +842,136 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                 </TableHeader>
 
                 <TableBody>
-                  {processedData.map((row, index) => (
-                    <TableRow 
-                      key={row.vertrag.id} 
-                      className="hover:bg-muted/30 transition-colors border-b"
-                      style={{ animationDelay: `${index * 0.01}s` }}
-                    >
-                      {visibleColumns.map((column) => {
-                        const isSticky = column.sticky;
-                        
-                        // Special handling for status column
-                        if (column.field === 'vertrag.status') {
-                          return (
-                            <TableCell 
-                              key={column.field}
-                              className={cn(
-                                "text-center border-r",
-                                isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                              )}
-                            >
-                              <div className="min-h-[32px] flex items-center justify-center">
-                                {getStatusBadge(row.vertrag.status)}
+                  {showGrouping ? (
+                    // Render grouped data
+                    Object.entries(groupedData).map(([groupName, groupRows]) => (
+                      <React.Fragment key={groupName}>
+                        {/* Group Header */}
+                        <TableRow className="bg-gradient-to-r from-primary/5 to-primary/10 border-b-2 border-primary/20 hover:bg-gradient-to-r hover:from-primary/10 hover:to-primary/15">
+                          <TableCell 
+                            colSpan={visibleColumns.length} 
+                            className="py-3 px-4 font-semibold text-primary"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Building2 className="h-4 w-4" />
+                                <span className="text-sm font-bold">
+                                  {groupBy === 'immobilie.name' && 'Objekt: '}
+                                  {groupBy === 'vertrag.status' && 'Status: '}
+                                  {groupName}
+                                </span>
                               </div>
-                            </TableCell>
-                          );
-                        }
+                              <Badge variant="secondary" className="text-xs">
+                                {groupRows.length} Verträge
+                              </Badge>
+                            </div>
+                          </TableCell>
+                        </TableRow>
                         
-                        return renderEditableCell(
-                          row, 
-                          column.field,
-                          cn(
-                            "text-center border-r",
-                            isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                          )
-                        );
-                      })}
-                    </TableRow>
-                  ))}
+                        {/* Group Rows */}
+                        {groupRows.map((row, index) => (
+                          <TableRow 
+                            key={row.vertrag.id} 
+                            className="hover:bg-muted/30 transition-colors border-b"
+                            style={{ animationDelay: `${index * 0.01}s` }}
+                          >
+                            {visibleColumns.map((column) => {
+                              const isSticky = column.sticky;
+                              
+                              // Special handling for status column
+                              if (column.field === 'vertrag.status') {
+                                return (
+                                  <TableCell 
+                                    key={column.field}
+                                    className={cn(
+                                      "text-center border-r",
+                                      isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                                    )}
+                                  >
+                                    <div className="min-h-[32px] flex items-center justify-center">
+                                      {getStatusBadge(row.vertrag.status)}
+                                    </div>
+                                  </TableCell>
+                                );
+                              }
+                              
+                              return renderEditableCell(
+                                row, 
+                                column.field,
+                                cn(
+                                  "text-center border-r",
+                                  isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                                )
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                        
+                        {/* Group Summary */}
+                        <TableRow className="bg-muted/20 border-b-2 border-muted">
+                          <TableCell 
+                            colSpan={visibleColumns.length} 
+                            className="py-2 px-4 text-xs text-muted-foreground"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span>Zwischensumme {groupName}:</span>
+                              <div className="flex gap-6">
+                                <span>
+                                  Gesamt Kaltmiete: €{groupRows.reduce((sum, row) => sum + (row.vertrag.kaltmiete || 0), 0).toLocaleString('de-DE')}
+                                </span>
+                                <span>
+                                  Aktuelle Zahlungen: €{groupRows.reduce((sum, row) => sum + (row.zahlungen.aktuellerMonat || 0), 0).toLocaleString('de-DE')}
+                                </span>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    // Render ungrouped data
+                    processedData.map((row, index) => (
+                      <TableRow 
+                        key={row.vertrag.id} 
+                        className="hover:bg-muted/30 transition-colors border-b"
+                        style={{ animationDelay: `${index * 0.01}s` }}
+                      >
+                        {visibleColumns.map((column) => {
+                          const isSticky = column.sticky;
+                          
+                          // Special handling for status column
+                          if (column.field === 'vertrag.status') {
+                            return (
+                              <TableCell 
+                                key={column.field}
+                                className={cn(
+                                  "text-center border-r",
+                                  isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                                )}
+                              >
+                                <div className="min-h-[32px] flex items-center justify-center">
+                                  {getStatusBadge(row.vertrag.status)}
+                                </div>
+                              </TableCell>
+                            );
+                          }
+                          
+                          return renderEditableCell(
+                            row, 
+                            column.field,
+                            cn(
+                              "text-center border-r",
+                              isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                            )
+                          );
+                        })}
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
 
-              {processedData.length === 0 && (
+              {(showGrouping ? Object.values(groupedData).flat().length === 0 : processedData.length === 0) && (
                 <div className="text-center py-20">
                   <div className="space-y-4">
                     <Building2 className="h-12 w-12 text-muted-foreground mx-auto" />
