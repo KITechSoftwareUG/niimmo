@@ -91,6 +91,14 @@ export function PaymentSplitModal({
     const roundedTotalSplitAmount = parseFloat(totalSplitAmount.toFixed(2));
     const difference = Math.abs(roundedOriginalAmount - roundedTotalSplitAmount);
     
+    console.log('Split Payment Debug:', {
+      originalAmount: roundedOriginalAmount,
+      totalSplitAmount: roundedTotalSplitAmount,
+      difference: difference,
+      splits: splits,
+      payment: payment
+    });
+    
     if (difference > 0.02) { // Slightly more tolerance for rounding
       toast({
         title: "Fehler",
@@ -111,51 +119,102 @@ export function PaymentSplitModal({
 
     setIsLoading(true);
     try {
-      // Delete original payment
+      console.log('Starting payment split for payment ID:', payment.id);
+      
+      // Prepare new payments first to validate data
+      const newPayments = splits.map((split, index) => {
+        const newPayment = {
+          buchungsdatum: payment.buchungsdatum,
+          mietvertrag_id: payment.mietvertrag_id,
+          empfaengername: payment.empfaengername,
+          kategorie: split.kategorie as "Miete" | "Mietkaution" | "Nichtmiete" | "Ignorieren" | "Rücklastschrift",
+          betrag: parseFloat(split.betrag.toFixed(2)), // Ensure proper rounding
+          verwendungszweck: split.verwendungszweck || payment.verwendungszweck || '',
+          iban: payment.iban,
+          zugeordneter_monat: payment.zugeordneter_monat,
+          import_datum: payment.import_datum || new Date().toISOString()
+        };
+        console.log(`Prepared split payment ${index + 1}:`, newPayment);
+        return newPayment;
+      });
+
+      // Validate required fields
+      const hasInvalidPayment = newPayments.some(p => 
+        !p.buchungsdatum || 
+        typeof p.betrag !== 'number' || 
+        p.betrag <= 0 ||
+        !p.kategorie
+      );
+      
+      if (hasInvalidPayment) {
+        throw new Error('Ungültige Zahlungsdaten. Bitte prüfen Sie alle Felder.');
+      }
+
+      // First, insert new split payments
+      console.log('Inserting split payments...');
+      const { data: insertedPayments, error: insertError } = await supabase
+        .from('zahlungen')
+        .insert(newPayments)
+        .select();
+
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        throw new Error(`Fehler beim Erstellen der Teilzahlungen: ${insertError.message}`);
+      }
+      
+      console.log('Successfully inserted payments:', insertedPayments);
+
+      // Only delete original payment after successful insert
+      console.log('Deleting original payment...');
       const { error: deleteError } = await supabase
         .from('zahlungen')
         .delete()
         .eq('id', payment.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Delete error:', deleteError);
+        // Try to rollback by deleting the inserted payments
+        console.log('Rolling back inserted payments...');
+        if (insertedPayments && insertedPayments.length > 0) {
+          const insertedIds = insertedPayments.map(p => p.id);
+          await supabase
+            .from('zahlungen')
+            .delete()
+            .in('id', insertedIds);
+        }
+        throw new Error(`Fehler beim Löschen der ursprünglichen Zahlung: ${deleteError.message}`);
+      }
 
-      const newPayments = splits.map(split => ({
-        buchungsdatum: payment.buchungsdatum,
-        mietvertrag_id: payment.mietvertrag_id,
-        empfaengername: payment.empfaengername,
-        kategorie: split.kategorie as "Miete" | "Mietkaution" | "Nichtmiete" | "Ignorieren" | "Rücklastschrift",
-        betrag: split.betrag,
-        verwendungszweck: split.verwendungszweck || payment.verwendungszweck,
-        iban: payment.iban,
-        zugeordneter_monat: payment.zugeordneter_monat,
-        import_datum: payment.import_datum
-      }));
-
-      const { error: insertError } = await supabase
-        .from('zahlungen')
-        .insert(newPayments);
-
-      if (insertError) throw insertError;
+      console.log('Successfully deleted original payment');
 
       toast({
         title: "Erfolgreich aufgeteilt",
         description: `Zahlung wurde in ${splits.length} Teilzahlungen aufgeteilt.`,
       });
 
-      // Refresh queries
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['mietvertrag-details', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] }),
-      ]);
+      // Refresh queries with error handling
+      console.log('Refreshing queries...');
+      try {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
+          queryClient.invalidateQueries({ queryKey: ['mietvertrag-details', vertragId] }),
+          queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] }),
+          queryClient.invalidateQueries({ queryKey: ['zahlungen'] }), // Also refresh general queries
+        ]);
+        console.log('Queries refreshed successfully');
+      } catch (refreshError) {
+        console.error('Error refreshing queries:', refreshError);
+        // Don't fail the operation if query refresh fails
+      }
 
       onClose();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error splitting payment:', error);
+      const errorMessage = error.message || 'Unbekannter Fehler beim Aufteilen der Zahlung.';
       toast({
-        title: "Fehler",
-        description: "Zahlung konnte nicht aufgeteilt werden.",
+        title: "Fehler beim Aufteilen",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -173,6 +232,25 @@ export function PaymentSplitModal({
       }
     ]);
   };
+
+  // Check if payment object is valid
+  if (!payment || !payment.id) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Fehler</DialogTitle>
+          </DialogHeader>
+          <div className="p-4">
+            <p className="text-destructive">Ungültige Zahlungsdaten. Bitte versuchen Sie es erneut.</p>
+            <Button onClick={onClose} className="mt-4 w-full">
+              Schließen
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
