@@ -803,172 +803,171 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         </div>
 
         {/* Table */}
-        <div className="flex-1 border rounded-lg bg-white">
-          <div className="h-[calc(95vh-180px)] overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="sticky top-0 z-50 bg-white border-b-2 shadow-lg backdrop-blur-sm hover:bg-white">
-                  {visibleColumns.map((column) => (
-                    <TableHead 
-                      key={column.field}
-                      className={cn(
-                        "sticky top-0 z-50 text-xs font-semibold text-center h-12 border-r bg-white/95 backdrop-blur-sm",
-                        column.width || "w-32",
-                        column.sticky && "sticky left-0 z-60 bg-white shadow-lg",
-                        column.sortable && "cursor-pointer hover:bg-muted/20 transition-colors"
-                      )}
-                      onClick={() => column.sortable && handleSort(column.field)}
-                    >
-                      <div className="flex items-center justify-center gap-1">
-                        <span>{column.label}</span>
-                        {column.sortable && (
-                          <div className="text-muted-foreground">
-                            {sortField === column.field ? (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3 w-3" />
-                              ) : (
-                                <ArrowDown className="h-3 w-3" />
-                              )
+        <div className="flex-1 border rounded-lg bg-white h-[calc(95vh-180px)] overflow-auto">
+          <table className="w-full caption-bottom text-sm border-collapse">
+            <thead>
+              <tr className="sticky top-0 z-50 bg-white border-b-2 shadow-lg backdrop-blur-sm hover:bg-white">
+                {visibleColumns.map((column) => (
+                  <th 
+                    key={column.field}
+                    className={cn(
+                      "sticky top-0 z-50 text-xs font-semibold text-center h-12 border-r bg-white/95 backdrop-blur-sm px-2 align-middle font-medium text-muted-foreground",
+                      column.width || "w-32",
+                      column.sticky && "sticky left-0 z-60 bg-white shadow-lg",
+                      column.sortable && "cursor-pointer hover:bg-muted/20 transition-colors"
+                    )}
+                    onClick={() => column.sortable && handleSort(column.field)}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      <span>{column.label}</span>
+                      {column.sortable && (
+                        <div className="text-muted-foreground">
+                          {sortField === column.field ? (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="h-3 w-3" />
                             ) : (
-                              <ArrowUpDown className="h-3 w-3" />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-
-                <TableBody>
-                  {showGrouping ? (
-                    // Render grouped data
-                    Object.entries(groupedData).map(([groupName, groupRows]) => (
-                      <React.Fragment key={groupName}>
-                        {/* Group Header */}
-                        <TableRow className="bg-gradient-to-r from-primary/5 to-primary/10 border-b-2 border-primary/20 hover:bg-gradient-to-r hover:from-primary/10 hover:to-primary/15">
-                          <TableCell 
-                            colSpan={visibleColumns.length} 
-                            className="py-3 px-4 font-semibold text-primary"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Building2 className="h-4 w-4" />
-                                <span className="text-sm font-bold">
-                                  {groupBy === 'immobilie.name' && 'Objekt: '}
-                                  {groupBy === 'vertrag.status' && 'Status: '}
-                                  {groupName}
-                                </span>
-                              </div>
-                              <Badge variant="secondary" className="text-xs">
-                                {groupRows.length} Verträge
-                              </Badge>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        
-                        {/* Group Rows */}
-                        {groupRows.map((row, index) => (
-                          <TableRow 
-                            key={row.vertrag.id} 
-                            className="hover:bg-muted/30 transition-colors border-b"
-                            style={{ animationDelay: `${index * 0.01}s` }}
-                          >
-                            {visibleColumns.map((column) => {
-                              const isSticky = column.sticky;
-                              
-                              // Special handling for status column
-                              if (column.field === 'vertrag.status') {
-                                return (
-                                  <TableCell 
-                                    key={column.field}
-                                    className={cn(
-                                      "text-center border-r",
-                                      isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                                    )}
-                                  >
-                                    <div className="min-h-[32px] flex items-center justify-center">
-                                      {getStatusBadge(row.vertrag.status)}
-                                    </div>
-                                  </TableCell>
-                                );
-                              }
-                              
-                              return renderEditableCell(
-                                row, 
-                                column.field,
-                                cn(
-                                  "text-center border-r",
-                                  isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                                )
-                              );
-                            })}
-                          </TableRow>
-                        ))}
-                        
-                        {/* Group Summary */}
-                        <TableRow className="bg-muted/20 border-b-2 border-muted">
-                          <TableCell 
-                            colSpan={visibleColumns.length} 
-                            className="py-2 px-4 text-xs text-muted-foreground"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span>Zwischensumme {groupName}:</span>
-                              <div className="flex gap-6">
-                                <span>
-                                  Gesamt Kaltmiete: €{groupRows.reduce((sum, row) => sum + (row.vertrag.kaltmiete || 0), 0).toLocaleString('de-DE')}
-                                </span>
-                                <span>
-                                  Aktuelle Zahlungen: €{groupRows.reduce((sum, row) => sum + (row.zahlungen.aktuellerMonat || 0), 0).toLocaleString('de-DE')}
-                                </span>
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      </React.Fragment>
-                    ))
-                  ) : (
-                    // Render ungrouped data
-                    processedData.map((row, index) => (
-                      <TableRow 
-                        key={row.vertrag.id} 
-                        className="hover:bg-muted/30 transition-colors border-b"
-                        style={{ animationDelay: `${index * 0.01}s` }}
-                      >
-                        {visibleColumns.map((column) => {
-                          const isSticky = column.sticky;
-                          
-                          // Special handling for status column
-                          if (column.field === 'vertrag.status') {
-                            return (
-                              <TableCell 
-                                key={column.field}
-                                className={cn(
-                                  "text-center border-r",
-                                  isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                                )}
-                              >
-                                <div className="min-h-[32px] flex items-center justify-center">
-                                  {getStatusBadge(row.vertrag.status)}
-                                </div>
-                              </TableCell>
-                            );
-                          }
-                          
-                          return renderEditableCell(
-                            row, 
-                            column.field,
-                            cn(
-                              "text-center border-r",
-                              isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                              <ArrowDown className="h-3 w-3" />
                             )
-                          );
-                        })}
-                      </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                          ) : (
+                            <ArrowUpDown className="h-3 w-3" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+                   {showGrouping ? (
+                     // Render grouped data
+                     Object.entries(groupedData).map(([groupName, groupRows]) => (
+                       <React.Fragment key={groupName}>
+                         {/* Group Header */}
+                         <tr className="bg-gradient-to-r from-primary/5 to-primary/10 border-b-2 border-primary/20 hover:bg-gradient-to-r hover:from-primary/10 hover:to-primary/15">
+                           <td 
+                             colSpan={visibleColumns.length} 
+                             className="py-3 px-4 font-semibold text-primary align-middle"
+                           >
+                             <div className="flex items-center justify-between">
+                               <div className="flex items-center gap-3">
+                                 <Building2 className="h-4 w-4" />
+                                 <span className="text-sm font-bold">
+                                   {groupBy === 'immobilie.name' && 'Objekt: '}
+                                   {groupBy === 'vertrag.status' && 'Status: '}
+                                   {groupName}
+                                 </span>
+                               </div>
+                               <Badge variant="secondary" className="text-xs">
+                                 {groupRows.length} Verträge
+                               </Badge>
+                             </div>
+                           </td>
+                         </tr>
+                         
+                         {/* Group Rows */}
+                         {groupRows.map((row, index) => (
+                           <tr 
+                             key={row.vertrag.id} 
+                             className="hover:bg-muted/30 transition-colors border-b"
+                             style={{ animationDelay: `${index * 0.01}s` }}
+                           >
+                             {visibleColumns.map((column) => {
+                               const isSticky = column.sticky;
+                               
+                               // Special handling for status column
+                               if (column.field === 'vertrag.status') {
+                                 return (
+                                   <td 
+                                     key={column.field}
+                                     className={cn(
+                                       "text-center border-r p-4 align-middle",
+                                       isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                                     )}
+                                   >
+                                     <div className="min-h-[32px] flex items-center justify-center">
+                                       {getStatusBadge(row.vertrag.status)}
+                                     </div>
+                                   </td>
+                                 );
+                               }
+                               
+                               return renderEditableCell(
+                                 row, 
+                                 column.field,
+                                 cn(
+                                   "text-center border-r",
+                                   isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                                 )
+                               );
+                             })}
+                           </tr>
+                         ))}
+                         
+                         {/* Group Summary */}
+                         <tr className="bg-muted/20 border-b-2 border-muted">
+                           <td 
+                             colSpan={visibleColumns.length} 
+                             className="py-2 px-4 text-xs text-muted-foreground align-middle"
+                           >
+                             <div className="flex items-center justify-between">
+                               <span>Zwischensumme {groupName}:</span>
+                               <div className="flex gap-6">
+                                 <span>
+                                   Gesamt Kaltmiete: €{groupRows.reduce((sum, row) => sum + (row.vertrag.kaltmiete || 0), 0).toLocaleString('de-DE')}
+                                 </span>
+                                 <span>
+                                   Aktuelle Zahlungen: €{groupRows.reduce((sum, row) => sum + (row.zahlungen.aktuellerMonat || 0), 0).toLocaleString('de-DE')}
+                                 </span>
+                               </div>
+                             </div>
+                           </td>
+                         </tr>
+                       </React.Fragment>
+                     ))
+                   ) : (
+                     // Render ungrouped data
+                     processedData.map((row, index) => (
+                       <tr 
+                         key={row.vertrag.id} 
+                         className="hover:bg-muted/30 transition-colors border-b"
+                         style={{ animationDelay: `${index * 0.01}s` }}
+                       >
+                         {visibleColumns.map((column) => {
+                           const isSticky = column.sticky;
+                           
+                           // Special handling for status column
+                           if (column.field === 'vertrag.status') {
+                             return (
+                               <td 
+                                 key={column.field}
+                                 className={cn(
+                                   "text-center border-r p-4 align-middle",
+                                   isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                                 )}
+                               >
+                                 <div className="min-h-[32px] flex items-center justify-center">
+                                   {getStatusBadge(row.vertrag.status)}
+                                 </div>
+                               </td>
+                             );
+                           }
+                           
+                           return renderEditableCell(
+                             row, 
+                             column.field,
+                             cn(
+                               "text-center border-r",
+                               isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
+                             )
+                           );
+                         })}
+                       </tr>
+                 ))
+               )}
+             </tbody>
+          </table>
 
           {(showGrouping ? Object.values(groupedData).flat().length === 0 : processedData.length === 0) && (
             <div className="text-center py-20">
@@ -989,26 +988,27 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         </div>
       </div>
 
-        {/* Footer */}
-        {hasChanges && (
-          <div className="px-6 py-3 border-t bg-amber-50 dark:bg-amber-950/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                <span>Sie haben {editingCells.length} ungespeicherte Änderungen</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={cancelAllEdits}>
-                  Abbrechen
-                </Button>
-                <Button size="sm" onClick={saveAllChanges} className="bg-green-600 hover:bg-green-700">
-                  Alle Änderungen speichern
-                </Button>
-              </div>
+      {/* Footer */}
+      {hasChanges && (
+        <div className="px-6 py-3 border-t bg-amber-50 dark:bg-amber-950/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+              <span>Sie haben {editingCells.length} ungespeicherte Änderungen</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={cancelAllEdits}>
+                Abbrechen
+              </Button>
+              <Button size="sm" onClick={saveAllChanges} className="bg-green-600 hover:bg-green-700">
+                Alle Änderungen speichern
+              </Button>
             </div>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-};
+        </div>
+      )}
+    </DialogContent>
+  </Dialog>
+);
+
+export { EditableMietUebersichtModal };
