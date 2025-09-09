@@ -447,367 +447,363 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
           </div>
         </DialogHeader>
         
-        <div className="flex-1 border rounded-lg bg-white">
-          {/* Native HTML table with proper sticky headers */}
-          <div className="h-[calc(90vh-140px)] overflow-auto">
-            <table className="w-full caption-bottom text-sm border-collapse">
-              {/* Sticky Header */}
-              <thead>
-                <tr className="sticky top-0 z-50 bg-white border-b-2 shadow-lg backdrop-blur-sm">
-                  <th className="sticky top-0 z-50 text-center text-xs w-32 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Objekt
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-12 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Einheit
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-16 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Etage
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-16 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    qm
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Nutzung
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-32 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    <button onClick={() => handleSort('mieter')} className="flex items-center gap-1 w-full justify-center">
-                      Mieter
-                      <SortIcon field="mieter" />
-                    </button>
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    <button onClick={() => handleSort('kaltmiete')} className="flex items-center gap-1 w-full justify-center">
-                      Kaltmiete
-                      <SortIcon field="kaltmiete" />
-                    </button>
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    <button onClick={() => handleSort('betriebskosten')} className="flex items-center gap-1 w-full justify-center">
-                      BK
-                      <SortIcon field="betriebskosten" />
-                    </button>
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-16 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Status
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-24 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Mietbeginn
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-24 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Mietende
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Kaution (S/I)
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-24 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    nächste mögl. Erhöh.
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    letzte Erhöhung
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-24 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Zahlung aktueller Monat
-                  </th>
-                  <th className="sticky top-0 z-50 text-center text-xs w-20 bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
-                    Zahlungen gesamt
-                  </th>
-                </tr>
-              </thead>
-                
-              <tbody>
-                   {organizedData.map((propertyGroup, groupIndex) => (
-                     propertyGroup.vertraege.map((vertrag, vertragIndex) => {
-                       const zahlungen = getZahlungenFuerVertrag(vertrag.id);
-                       const mieterName = getMieterNamen(vertrag.id);
-                       const isFirstInGroup = vertragIndex === 0;
+        <div className="flex-1 border rounded-lg bg-white h-[calc(90vh-140px)] overflow-auto">
+          <table className="w-full caption-bottom text-sm border-collapse">
+            <thead>
+              <tr className="sticky top-0 z-50 bg-white border-b-2 shadow-lg backdrop-blur-sm">
+                <th className="sticky top-0 z-50 text-center text-xs w-32 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Objekt
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-12 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Einheit
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-16 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Etage
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-16 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  qm
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Nutzung
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-32 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  <button onClick={() => handleSort('mieter')} className="flex items-center gap-1 w-full justify-center">
+                    Mieter
+                    <SortIcon field="mieter" />
+                  </button>
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  <button onClick={() => handleSort('kaltmiete')} className="flex items-center gap-1 w-full justify-center">
+                    Kaltmiete
+                    <SortIcon field="kaltmiete" />
+                  </button>
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  <button onClick={() => handleSort('betriebskosten')} className="flex items-center gap-1 w-full justify-center">
+                    BK
+                    <SortIcon field="betriebskosten" />
+                  </button>
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-16 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Status
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-24 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Mietbeginn
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-24 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Mietende
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Kaution (S/I)
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-24 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  nächste mögl. Erhöh.
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-20 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  letzte Erhöhung
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-24 border-r bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Zahlung aktueller Monat
+                </th>
+                <th className="sticky top-0 z-50 text-center text-xs w-20 bg-white/95 backdrop-blur-sm h-12 px-2 align-middle font-medium text-muted-foreground">
+                  Zahlungen gesamt
+                </th>
+              </tr>
+            </thead>
+            
+            <tbody>
+              {organizedData.map((propertyGroup, groupIndex) => (
+                propertyGroup.vertraege.map((vertrag, vertragIndex) => {
+                  const zahlungen = getZahlungenFuerVertrag(vertrag.id);
+                  const mieterName = getMieterNamen(vertrag.id);
+                  const isFirstInGroup = vertragIndex === 0;
 
-                       return (
-                         <tr 
-                           key={vertrag.id} 
-                           className={`border-b transition-colors hover:bg-muted/50 ${isFirstInGroup ? 'border-t-2 border-t-gray-300' : ''}`}
-                         >
-                           {/* Objekt Name - only show for first contract in group */}
-                           <td className="text-center text-xs border-r p-1 bg-gray-50/50 align-middle">
-                             {isFirstInGroup ? (
-                               <div className="font-medium">
-                                 <div className="text-xs font-semibold">{propertyGroup.immobilie.name}</div>
-                                 <div className="text-xs text-gray-600">{propertyGroup.immobilie.adresse}</div>
-                               </div>
-                             ) : (
-                               <div className="text-gray-300">↑</div>
-                             )}
-                           </td>
-                           
-                           {/* Einheit */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {vertrag.einheiten?.id?.toString()?.slice(-2) || '-'}
-                           </td>
-                           
-                           {/* Etage */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {isFieldEditing(vertrag.id, 'etage') ? (
-                               <Input
-                                 type="text"
-                                 value={getEditingValue(vertrag.id, 'etage') || ''}
-                                 onChange={(e) => updateEditingValue(vertrag.id, 'etage', e.target.value)}
-                                 className="h-6 text-xs text-center"
-                                 onBlur={() => cancelEdit(vertrag.id, 'etage')}
-                                 autoFocus
-                               />
-                             ) : (
-                               <div 
-                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                 onClick={() => isEditing && startEditing(vertrag.id, 'etage', vertrag.einheiten?.etage)}
-                               >
-                                 {vertrag.einheiten?.etage || '-'}
-                               </div>
-                             )}
-                           </td>
-                           
-                           {/* qm */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {isFieldEditing(vertrag.id, 'qm') ? (
-                               <Input
-                                 type="number"
-                                 step="0.1"
-                                 value={getEditingValue(vertrag.id, 'qm') || ''}
-                                 onChange={(e) => updateEditingValue(vertrag.id, 'qm', e.target.value)}
-                                 className="h-6 text-xs text-center"
-                                 onBlur={() => cancelEdit(vertrag.id, 'qm')}
-                                 autoFocus
-                               />
-                             ) : (
-                               <div 
-                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                 onClick={() => isEditing && startEditing(vertrag.id, 'qm', vertrag.einheiten?.qm)}
-                               >
-                                 {vertrag.einheiten?.qm || '-'}
-                               </div>
-                             )}
-                           </td>
-                           
-                           {/* Nutzung */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {isFieldEditing(vertrag.id, 'einheitentyp') ? (
-                               <Select 
-                                 value={getEditingValue(vertrag.id, 'einheitentyp') || ''} 
-                                 onValueChange={(value) => updateEditingValue(vertrag.id, 'einheitentyp', value)}
-                               >
-                                 <SelectTrigger className="h-6 text-xs">
-                                   <SelectValue />
-                                 </SelectTrigger>
-                                 <SelectContent>
-                                   <SelectItem value="Wohnung">Wohnung</SelectItem>
-                                   <SelectItem value="Gewerbe">Gewerbe</SelectItem>
-                                   <SelectItem value="Garage">Garage</SelectItem>
-                                   <SelectItem value="Keller">Keller</SelectItem>
-                                   <SelectItem value="Dachboden">Dachboden</SelectItem>
-                                 </SelectContent>
-                               </Select>
-                             ) : (
-                               <div 
-                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                 onClick={() => isEditing && startEditing(vertrag.id, 'einheitentyp', vertrag.einheiten?.einheitentyp)}
-                               >
-                                 {vertrag.einheiten?.einheitentyp || '-'}
-                               </div>
-                             )}
-                           </td>
-                           
-                           {/* Mieter */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             <div className="text-xs max-w-32 truncate" title={mieterName}>
-                               {mieterName}
-                             </div>
-                           </td>
-                           
-                           {/* Kaltmiete */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {isFieldEditing(vertrag.id, 'kaltmiete') ? (
-                               <Input
-                                 type="number"
-                                 step="0.01"
-                                 value={getEditingValue(vertrag.id, 'kaltmiete') || ''}
-                                 onChange={(e) => updateEditingValue(vertrag.id, 'kaltmiete', e.target.value)}
-                                 className="h-6 text-xs text-center"
-                                 onBlur={() => cancelEdit(vertrag.id, 'kaltmiete')}
-                                 autoFocus
-                               />
-                             ) : (
-                               <div 
-                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                 onClick={() => isEditing && startEditing(vertrag.id, 'kaltmiete', vertrag.kaltmiete)}
-                               >
-                                 {vertrag.kaltmiete ? `${Number(vertrag.kaltmiete).toLocaleString('de-DE')} €` : '-'}
-                               </div>
-                             )}
-                           </td>
-                           
-                           {/* Betriebskosten */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {isFieldEditing(vertrag.id, 'betriebskosten') ? (
-                               <Input
-                                 type="number"
-                                 step="0.01"
-                                 value={getEditingValue(vertrag.id, 'betriebskosten') || ''}
-                                 onChange={(e) => updateEditingValue(vertrag.id, 'betriebskosten', e.target.value)}
-                                 className="h-6 text-xs text-center"
-                                 onBlur={() => cancelEdit(vertrag.id, 'betriebskosten')}
-                                 autoFocus
-                               />
-                             ) : (
-                               <div 
-                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                 onClick={() => isEditing && startEditing(vertrag.id, 'betriebskosten', vertrag.betriebskosten)}
-                               >
-                                 {vertrag.betriebskosten ? `${Number(vertrag.betriebskosten).toLocaleString('de-DE')} €` : '-'}
-                               </div>
-                             )}
-                           </td>
-                           
-                           {/* Status */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-xs">
-                               {vertrag.status}
-                             </Badge>
-                           </td>
-                           
-                           {/* Mietbeginn */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {isFieldEditing(vertrag.id, 'startDatum') ? (
-                               <Input
-                                 type="date"
-                                 value={getEditingValue(vertrag.id, 'startDatum') || ''}
-                                 onChange={(e) => updateEditingValue(vertrag.id, 'startDatum', e.target.value)}
-                                 className="h-6 text-xs text-center"
-                                 onBlur={() => cancelEdit(vertrag.id, 'startDatum')}
-                                 autoFocus
-                               />
-                             ) : (
-                               <div 
-                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                 onClick={() => isEditing && startEditing(vertrag.id, 'startDatum', vertrag.start_datum)}
-                               >
-                                 {vertrag.start_datum 
-                                   ? new Date(vertrag.start_datum).toLocaleDateString('de-DE')
-                                   : '-'
-                                 }
-                               </div>
-                             )}
-                           </td>
-                           
-                           {/* Mietende */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {isFieldEditing(vertrag.id, 'endeDatum') ? (
-                               <Input
-                                 type="date"
-                                 value={getEditingValue(vertrag.id, 'endeDatum') || ''}
-                                 onChange={(e) => updateEditingValue(vertrag.id, 'endeDatum', e.target.value)}
-                                 className="h-6 text-xs text-center"
-                                 onBlur={() => cancelEdit(vertrag.id, 'endeDatum')}
-                                 autoFocus
-                               />
-                             ) : (
-                               <div 
-                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                 onClick={() => isEditing && startEditing(vertrag.id, 'endeDatum', vertrag.ende_datum)}
-                               >
-                                 {vertrag.ende_datum 
-                                   ? new Date(vertrag.ende_datum).toLocaleDateString('de-DE')
-                                   : '-'
-                                 }
-                               </div>
-                             )}
-                           </td>
-                           
-                           {/* Kaution (S/I) */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             <div className="text-xs">
-                               <div>
-                                 S: {getKautionSoll(vertrag)}
-                               </div>
-                               <div>
-                                 I: {getKautionIst(vertrag)}
-                               </div>
-                             </div>
-                           </td>
-                           
-                           {/* nächste mögl. Erhöhung */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {vertrag.letzte_mieterhoehung_am 
-                               ? (() => {
-                                   const letzteErhoehung = new Date(vertrag.letzte_mieterhoehung_am);
-                                   letzteErhoehung.setFullYear(letzteErhoehung.getFullYear() + 1);
-                                   letzteErhoehung.setDate(letzteErhoehung.getDate() + 1);
-                                   return letzteErhoehung.toLocaleDateString('de-DE');
-                                 })()
-                               : vertrag.start_datum 
-                                 ? (() => {
-                                     const startDatum = new Date(vertrag.start_datum);
-                                     startDatum.setFullYear(startDatum.getFullYear() + 1);
-                                     startDatum.setDate(startDatum.getDate() + 1);
-                                     return startDatum.toLocaleDateString('de-DE');
-                                   })()
-                                 : '-'
-                             }
-                           </td>
-                           
-                           {/* letzte Erhöhung */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             {isFieldEditing(vertrag.id, 'letzteMieterhoehung') ? (
-                               <Input
-                                 type="date"
-                                 value={getEditingValue(vertrag.id, 'letzteMieterhoehung') || ''}
-                                 onChange={(e) => updateEditingValue(vertrag.id, 'letzteMieterhoehung', e.target.value)}
-                                 className="h-6 text-xs text-center"
-                                 onBlur={() => cancelEdit(vertrag.id, 'letzteMieterhoehung')}
-                                 autoFocus
-                               />
-                             ) : (
-                               <div 
-                                 className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
-                                 onClick={() => isEditing && startEditing(vertrag.id, 'letzteMieterhoehung', vertrag.letzte_mieterhoehung_am)}
-                               >
-                                 {vertrag.letzte_mieterhoehung_am 
-                                   ? new Date(vertrag.letzte_mieterhoehung_am).toLocaleDateString('de-DE')
-                                   : '-'
-                                 }
-                               </div>
-                             )}
-                           </td>
-                           
-                           {/* Zahlung aktueller Monat */}
-                           <td className="text-center text-xs border-r p-1 align-middle">
-                             <div className="text-xs">
-                               {zahlungen.aktuellerMonat > 0 
-                                 ? `${zahlungen.aktuellerMonat.toLocaleString('de-DE')} €`
-                                 : '-'
-                               }
-                             </div>
-                           </td>
-                           
-                           {/* Zahlungen gesamt */}
-                           <td className="text-center text-xs align-middle">
-                             <div className="text-xs">
-                               {zahlungen.gesamt > 0 
-                                 ? `${zahlungen.gesamt.toLocaleString('de-DE')} €`
-                                 : '-'
-                               }
-                               {zahlungen.anzahlZahlungen > 0 && (
-                                 <div className="text-gray-500 text-xs">
-                                   ({zahlungen.anzahlZahlungen} Zahlungen)
-                                 </div>
-                               )}
-                             </div>
-                           </td>
-                         </tr>
-                       );
-                     })
-                   ))}
-                 </tbody>
-               </table>
-             </div>
-           </div>
+                  return (
+                    <tr 
+                      key={vertrag.id} 
+                      className={`border-b transition-colors hover:bg-muted/50 ${isFirstInGroup ? 'border-t-2 border-t-gray-300' : ''}`}
+                    >
+                      {/* Objekt Name - only show for first contract in group */}
+                      <td className="text-center text-xs border-r p-1 bg-gray-50/50 align-middle">
+                        {isFirstInGroup ? (
+                          <div className="font-medium">
+                            <div className="text-xs font-semibold">{propertyGroup.immobilie.name}</div>
+                            <div className="text-xs text-gray-600">{propertyGroup.immobilie.adresse}</div>
+                          </div>
+                        ) : (
+                          <div className="text-gray-300">↑</div>
+                        )}
+                      </td>
+                      
+                      {/* Einheit */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {vertrag.einheiten?.id?.toString()?.slice(-2) || '-'}
+                      </td>
+                      
+                      {/* Etage */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {isFieldEditing(vertrag.id, 'etage') ? (
+                          <Input
+                            type="text"
+                            value={getEditingValue(vertrag.id, 'etage') || ''}
+                            onChange={(e) => updateEditingValue(vertrag.id, 'etage', e.target.value)}
+                            className="h-6 text-xs text-center"
+                            onBlur={() => cancelEdit(vertrag.id, 'etage')}
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                            onClick={() => isEditing && startEditing(vertrag.id, 'etage', vertrag.einheiten?.etage)}
+                          >
+                            {vertrag.einheiten?.etage || '-'}
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* qm */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {isFieldEditing(vertrag.id, 'qm') ? (
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={getEditingValue(vertrag.id, 'qm') || ''}
+                            onChange={(e) => updateEditingValue(vertrag.id, 'qm', e.target.value)}
+                            className="h-6 text-xs text-center"
+                            onBlur={() => cancelEdit(vertrag.id, 'qm')}
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                            onClick={() => isEditing && startEditing(vertrag.id, 'qm', vertrag.einheiten?.qm)}
+                          >
+                            {vertrag.einheiten?.qm || '-'}
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Nutzung */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {isFieldEditing(vertrag.id, 'einheitentyp') ? (
+                          <Select 
+                            value={getEditingValue(vertrag.id, 'einheitentyp') || ''} 
+                            onValueChange={(value) => updateEditingValue(vertrag.id, 'einheitentyp', value)}
+                          >
+                            <SelectTrigger className="h-6 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Wohnung">Wohnung</SelectItem>
+                              <SelectItem value="Gewerbe">Gewerbe</SelectItem>
+                              <SelectItem value="Garage">Garage</SelectItem>
+                              <SelectItem value="Keller">Keller</SelectItem>
+                              <SelectItem value="Dachboden">Dachboden</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div 
+                            className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                            onClick={() => isEditing && startEditing(vertrag.id, 'einheitentyp', vertrag.einheiten?.einheitentyp)}
+                          >
+                            {vertrag.einheiten?.einheitentyp || '-'}
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Mieter */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        <div className="text-xs max-w-32 truncate" title={mieterName}>
+                          {mieterName}
+                        </div>
+                      </td>
+                      
+                      {/* Kaltmiete */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {isFieldEditing(vertrag.id, 'kaltmiete') ? (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={getEditingValue(vertrag.id, 'kaltmiete') || ''}
+                            onChange={(e) => updateEditingValue(vertrag.id, 'kaltmiete', e.target.value)}
+                            className="h-6 text-xs text-center"
+                            onBlur={() => cancelEdit(vertrag.id, 'kaltmiete')}
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                            onClick={() => isEditing && startEditing(vertrag.id, 'kaltmiete', vertrag.kaltmiete)}
+                          >
+                            {vertrag.kaltmiete ? `${Number(vertrag.kaltmiete).toLocaleString('de-DE')} €` : '-'}
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Betriebskosten */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {isFieldEditing(vertrag.id, 'betriebskosten') ? (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={getEditingValue(vertrag.id, 'betriebskosten') || ''}
+                            onChange={(e) => updateEditingValue(vertrag.id, 'betriebskosten', e.target.value)}
+                            className="h-6 text-xs text-center"
+                            onBlur={() => cancelEdit(vertrag.id, 'betriebskosten')}
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                            onClick={() => isEditing && startEditing(vertrag.id, 'betriebskosten', vertrag.betriebskosten)}
+                          >
+                            {vertrag.betriebskosten ? `${Number(vertrag.betriebskosten).toLocaleString('de-DE')} €` : '-'}
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Status */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-xs">
+                          {vertrag.status}
+                        </Badge>
+                      </td>
+                      
+                      {/* Mietbeginn */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {isFieldEditing(vertrag.id, 'startDatum') ? (
+                          <Input
+                            type="date"
+                            value={getEditingValue(vertrag.id, 'startDatum') || ''}
+                            onChange={(e) => updateEditingValue(vertrag.id, 'startDatum', e.target.value)}
+                            className="h-6 text-xs text-center"
+                            onBlur={() => cancelEdit(vertrag.id, 'startDatum')}
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                            onClick={() => isEditing && startEditing(vertrag.id, 'startDatum', vertrag.start_datum)}
+                          >
+                            {vertrag.start_datum 
+                              ? new Date(vertrag.start_datum).toLocaleDateString('de-DE')
+                              : '-'
+                            }
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Mietende */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {isFieldEditing(vertrag.id, 'endeDatum') ? (
+                          <Input
+                            type="date"
+                            value={getEditingValue(vertrag.id, 'endeDatum') || ''}
+                            onChange={(e) => updateEditingValue(vertrag.id, 'endeDatum', e.target.value)}
+                            className="h-6 text-xs text-center"
+                            onBlur={() => cancelEdit(vertrag.id, 'endeDatum')}
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                            onClick={() => isEditing && startEditing(vertrag.id, 'endeDatum', vertrag.ende_datum)}
+                          >
+                            {vertrag.ende_datum 
+                              ? new Date(vertrag.ende_datum).toLocaleDateString('de-DE')
+                              : '-'
+                            }
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Kaution (S/I) */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        <div className="text-xs">
+                          <div>
+                            S: {getKautionSoll(vertrag)}
+                          </div>
+                          <div>
+                            I: {getKautionIst(vertrag)}
+                          </div>
+                        </div>
+                      </td>
+                      
+                      {/* nächste mögl. Erhöhung */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {vertrag.letzte_mieterhoehung_am 
+                          ? (() => {
+                              const letzteErhoehung = new Date(vertrag.letzte_mieterhoehung_am);
+                              letzteErhoehung.setFullYear(letzteErhoehung.getFullYear() + 1);
+                              letzteErhoehung.setDate(letzteErhoehung.getDate() + 1);
+                              return letzteErhoehung.toLocaleDateString('de-DE');
+                            })()
+                          : vertrag.start_datum 
+                            ? (() => {
+                                const startDatum = new Date(vertrag.start_datum);
+                                startDatum.setFullYear(startDatum.getFullYear() + 1);
+                                startDatum.setDate(startDatum.getDate() + 1);
+                                return startDatum.toLocaleDateString('de-DE');
+                              })()
+                            : '-'
+                        }
+                      </td>
+                      
+                      {/* letzte Erhöhung */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        {isFieldEditing(vertrag.id, 'letzteMieterhoehung') ? (
+                          <Input
+                            type="date"
+                            value={getEditingValue(vertrag.id, 'letzteMieterhoehung') || ''}
+                            onChange={(e) => updateEditingValue(vertrag.id, 'letzteMieterhoehung', e.target.value)}
+                            className="h-6 text-xs text-center"
+                            onBlur={() => cancelEdit(vertrag.id, 'letzteMieterhoehung')}
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className={`cursor-pointer hover:bg-gray-100 p-1 rounded ${isEditing ? 'border border-dashed border-gray-300' : ''}`}
+                            onClick={() => isEditing && startEditing(vertrag.id, 'letzteMieterhoehung', vertrag.letzte_mieterhoehung_am)}
+                          >
+                            {vertrag.letzte_mieterhoehung_am 
+                              ? new Date(vertrag.letzte_mieterhoehung_am).toLocaleDateString('de-DE')
+                              : '-'
+                            }
+                          </div>
+                        )}
+                      </td>
+                      
+                      {/* Zahlung aktueller Monat */}
+                      <td className="text-center text-xs border-r p-1 align-middle">
+                        <div className="text-xs">
+                          {zahlungen.aktuellerMonat > 0 
+                            ? `${zahlungen.aktuellerMonat.toLocaleString('de-DE')} €`
+                            : '-'
+                          }
+                        </div>
+                      </td>
+                      
+                      {/* Zahlungen gesamt */}
+                      <td className="text-center text-xs align-middle">
+                        <div className="text-xs">
+                          {zahlungen.gesamt > 0 
+                            ? `${zahlungen.gesamt.toLocaleString('de-DE')} €`
+                            : '-'
+                          }
+                          {zahlungen.anzahlZahlungen > 0 && (
+                            <div className="text-gray-500 text-xs">
+                              ({zahlungen.anzahlZahlungen} Zahlungen)
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ))}
+            </tbody>
+          </table>
+        </div>
          </DialogContent>
        </Dialog>
      );
