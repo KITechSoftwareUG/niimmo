@@ -439,6 +439,12 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     if (field === 'zahlungen.aktuellerMonat') {
       return row.zahlungen.aktuellerMonat;
     }
+    if (field === 'einheit.etage') {
+      const etage = row.einheit?.etage || '';
+      const einheitId = row.einheit?.id || '';
+      const lastTwoDigits = einheitId.slice(-2);
+      return `${etage} (${lastTwoDigits})`;
+    }
     
     const fieldParts = field.split('.');
     return fieldParts.reduce((obj, key) => obj?.[key], row);
