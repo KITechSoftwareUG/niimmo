@@ -807,15 +807,15 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
           <ScrollArea className="h-[calc(95vh-180px)]">
             <div className="relative">
               <Table>
-                <TableHeader className="bg-muted/50 sticky top-0 z-20 border-b-2">
-                  <TableRow className="hover:bg-transparent border-b">
+                <TableHeader className="bg-muted/50 sticky top-0 z-30 border-b-2 shadow-md backdrop-blur-sm">
+                  <TableRow className="hover:bg-transparent border-b bg-muted/50">
                     {visibleColumns.map((column) => (
                       <TableHead 
                         key={column.field}
                         className={cn(
-                          "text-xs font-semibold text-center h-12 border-r",
+                          "text-xs font-semibold text-center h-12 border-r sticky top-0 z-30 bg-muted/50",
                           column.width || "w-32",
-                          column.sticky && "sticky left-0 z-30 bg-muted/80 shadow-lg",
+                          column.sticky && "sticky left-0 z-40 bg-muted/80 shadow-lg",
                           column.sortable && "cursor-pointer hover:bg-muted/70 transition-colors"
                         )}
                         onClick={() => column.sortable && handleSort(column.field)}

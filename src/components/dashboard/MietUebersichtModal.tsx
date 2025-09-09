@@ -454,63 +454,63 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
             <div className="border rounded-lg bg-white overflow-hidden">
               <Table>
                 {/* Fixed Header */}
-                <TableHeader className="sticky top-0 z-20 bg-white border-b-2 shadow-sm">
-                  <TableRow>
-                    <TableHead className="text-center text-xs w-32 border-r bg-white">
+                <TableHeader className="sticky top-0 z-30 bg-white border-b-2 shadow-md backdrop-blur-sm">
+                  <TableRow className="bg-white">
+                    <TableHead className="text-center text-xs w-32 border-r bg-white sticky top-0 z-30">
                       Objekt
                     </TableHead>
-                    <TableHead className="text-center text-xs w-12 border-r bg-white">
+                    <TableHead className="text-center text-xs w-12 border-r bg-white sticky top-0 z-30">
                       Einheit
                     </TableHead>
-                    <TableHead className="text-center text-xs w-16 border-r bg-white">
+                    <TableHead className="text-center text-xs w-16 border-r bg-white sticky top-0 z-30">
                       Etage
                     </TableHead>
-                    <TableHead className="text-center text-xs w-16 border-r bg-white">
+                    <TableHead className="text-center text-xs w-16 border-r bg-white sticky top-0 z-30">
                       qm
                     </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
                       Nutzung
                     </TableHead>
-                    <TableHead className="text-center text-xs w-32 border-r bg-white">
+                    <TableHead className="text-center text-xs w-32 border-r bg-white sticky top-0 z-30">
                       <button onClick={() => handleSort('mieter')} className="flex items-center gap-1 w-full justify-center">
                         Mieter
                         <SortIcon field="mieter" />
                       </button>
                     </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
                       <button onClick={() => handleSort('kaltmiete')} className="flex items-center gap-1 w-full justify-center">
                         Kaltmiete
                         <SortIcon field="kaltmiete" />
                       </button>
                     </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
                       <button onClick={() => handleSort('betriebskosten')} className="flex items-center gap-1 w-full justify-center">
                         BK
                         <SortIcon field="betriebskosten" />
                       </button>
                     </TableHead>
-                    <TableHead className="text-center text-xs w-16 border-r bg-white">
+                    <TableHead className="text-center text-xs w-16 border-r bg-white sticky top-0 z-30">
                       Status
                     </TableHead>
-                    <TableHead className="text-center text-xs w-24 border-r bg-white">
+                    <TableHead className="text-center text-xs w-24 border-r bg-white sticky top-0 z-30">
                       Mietbeginn
                     </TableHead>
-                    <TableHead className="text-center text-xs w-24 border-r bg-white">
+                    <TableHead className="text-center text-xs w-24 border-r bg-white sticky top-0 z-30">
                       Mietende
                     </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
                       Kaution (S/I)
                     </TableHead>
-                    <TableHead className="text-center text-xs w-24 border-r bg-white">
+                    <TableHead className="text-center text-xs w-24 border-r bg-white sticky top-0 z-30">
                       nächste mögl. Erhöh.
                     </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white">
+                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
                       letzte Erhöhung
                     </TableHead>
-                    <TableHead className="text-center text-xs w-24 border-r bg-white">
+                    <TableHead className="text-center text-xs w-24 border-r bg-white sticky top-0 z-30">
                       Zahlung aktueller Monat
                     </TableHead>
-                    <TableHead className="text-center text-xs w-20 bg-white">
+                    <TableHead className="text-center text-xs w-20 bg-white sticky top-0 z-30">
                       Zahlungen gesamt
                     </TableHead>
                   </TableRow>
