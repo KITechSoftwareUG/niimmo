@@ -967,48 +967,46 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                  ))
                )}
              </tbody>
-          </table>
+        </table>
 
-          {(showGrouping ? Object.values(groupedData).flat().length === 0 : processedData.length === 0) && (
-            <div className="text-center py-20">
-              <div className="space-y-4">
-                <Building2 className="h-12 w-12 text-muted-foreground mx-auto" />
-                <div>
-                  <h3 className="text-lg font-medium">Keine Verträge gefunden</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {searchQuery || statusFilter !== 'all' 
-                      ? 'Versuchen Sie es mit anderen Suchkriterien.' 
-                      : 'Es sind noch keine Mietverträge vorhanden.'
-                    }
-                  </p>
-                </div>
+        {(showGrouping ? Object.values(groupedData).flat().length === 0 : processedData.length === 0) && (
+          <div className="text-center py-20">
+            <div className="space-y-4">
+              <Building2 className="h-12 w-12 text-muted-foreground mx-auto" />
+              <div>
+                <h3 className="text-lg font-medium">Keine Verträge gefunden</h3>
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery || statusFilter !== 'all' 
+                    ? 'Versuchen Sie es mit anderen Suchkriterien.' 
+                    : 'Es sind noch keine Mietverträge vorhanden.'
+                  }
+                </p>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Footer */}
-      {hasChanges && (
-        <div className="px-6 py-3 border-t bg-amber-50 dark:bg-amber-950/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-              <span>Sie haben {editingCells.length} ungespeicherte Änderungen</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={cancelAllEdits}>
-                Abbrechen
-              </Button>
-              <Button size="sm" onClick={saveAllChanges} className="bg-green-600 hover:bg-green-700">
-                Alle Änderungen speichern
-              </Button>
+        {/* Footer */}
+        {hasChanges && (
+          <div className="px-6 py-3 border-t bg-amber-50 dark:bg-amber-950/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                <span>Sie haben {editingCells.length} ungespeicherte Änderungen</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={cancelAllEdits}>
+                  Abbrechen
+                </Button>
+                <Button size="sm" onClick={saveAllChanges} className="bg-green-600 hover:bg-green-700">
+                  Alle Änderungen speichern
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </DialogContent>
-  </Dialog>
-);
-
-export { EditableMietUebersichtModal };
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
