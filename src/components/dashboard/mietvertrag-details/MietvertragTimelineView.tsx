@@ -15,8 +15,10 @@ import {
   ArrowRightLeft, 
   AlertCircle,
   Mail,
-  Phone
+  Phone,
+  Split
 } from "lucide-react";
+import { PaymentSplitModal } from "../PaymentSplitModal";
 
 interface MietvertragTimelineViewProps {
   forderungen: any[];
@@ -44,6 +46,7 @@ export function MietvertragTimelineView({
   const [editingForderung, setEditingForderung] = useState<{ forderungId: string, field: 'betrag' | 'monat' } | null>(null);
   const [editForderungValue, setEditForderungValue] = useState<string>("");
   const [draggedPayment, setDraggedPayment] = useState<string | null>(null);
+  const [splittingPayment, setSplittingPayment] = useState<any | null>(null);
 
   // Drag and drop handlers
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, zahlungId: string) => {
@@ -462,8 +465,18 @@ export function MietvertragTimelineView({
                                     size="sm"
                                     variant="ghost"
                                     className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                                    title="Kategorie bearbeiten"
                                   >
                                     <Edit2 className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    onClick={() => setSplittingPayment(zahlung)}
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0 opacity-60 hover:opacity-100 text-blue-600 hover:text-blue-800"
+                                    title="Zahlung aufteilen"
+                                  >
+                                    <Split className="h-3 w-3" />
                                   </Button>
                                 </div>
                               )}
@@ -624,6 +637,15 @@ export function MietvertragTimelineView({
           </div>
         );
       })}
+      
+      {/* Payment Split Modal */}
+      <PaymentSplitModal
+        isOpen={!!splittingPayment}
+        onClose={() => setSplittingPayment(null)}
+        payment={splittingPayment}
+        vertragId={vertragId}
+        formatBetrag={formatBetrag}
+      />
     </div>
   );
 }
