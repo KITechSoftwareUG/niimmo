@@ -121,15 +121,38 @@ export function PaymentSplitModal({
     try {
       console.log('Starting payment split for payment ID:', payment.id);
       
+      // Create a unique timestamp for this split operation
+      const splitTimestamp = Date.now().toString();
+      
+      // Prepare original payment data for recovery
+      const originalPaymentData = {
+        buchungsdatum: payment.buchungsdatum,
+        mietvertrag_id: payment.mietvertrag_id,
+        empfaengername: payment.empfaengername,
+        kategorie: payment.kategorie,
+        betrag: parseFloat(originalAmount.toFixed(2)),
+        verwendungszweck: payment.verwendungszweck || '',
+        iban: payment.iban,
+        zugeordneter_monat: payment.zugeordneter_monat,
+        import_datum: payment.import_datum || new Date().toISOString()
+      };
+
       // Prepare new payments first to validate data
       const newPayments = splits.map((split, index) => {
+        // Create a verwendungszweck that includes original payment data for recovery
+        const splitMarker = `SPLIT_GROUP_${splitTimestamp}_ORIGINAL_${encodeURIComponent(JSON.stringify(originalPaymentData))}`;
+        const originalVerwendungszweck = split.verwendungszweck || payment.verwendungszweck || '';
+        const combinedVerwendungszweck = originalVerwendungszweck 
+          ? `${originalVerwendungszweck} | ${splitMarker}`
+          : splitMarker;
+
         const newPayment = {
           buchungsdatum: payment.buchungsdatum,
           mietvertrag_id: payment.mietvertrag_id,
           empfaengername: payment.empfaengername,
           kategorie: split.kategorie as "Miete" | "Mietkaution" | "Nichtmiete" | "Ignorieren" | "Rücklastschrift",
           betrag: parseFloat(split.betrag.toFixed(2)), // Ensure proper rounding
-          verwendungszweck: split.verwendungszweck || payment.verwendungszweck || '',
+          verwendungszweck: combinedVerwendungszweck,
           iban: payment.iban,
           zugeordneter_monat: payment.zugeordneter_monat,
           import_datum: payment.import_datum || new Date().toISOString()

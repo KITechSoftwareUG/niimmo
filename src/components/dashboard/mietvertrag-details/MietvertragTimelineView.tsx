@@ -16,9 +16,11 @@ import {
   AlertCircle,
   Mail,
   Phone,
-  Split
+  Split,
+  Undo2
 } from "lucide-react";
 import { PaymentSplitModal } from "../PaymentSplitModal";
+import { PaymentUndoSplitModal } from "../PaymentUndoSplitModal";
 
 interface MietvertragTimelineViewProps {
   forderungen: any[];
@@ -47,6 +49,7 @@ export function MietvertragTimelineView({
   const [editForderungValue, setEditForderungValue] = useState<string>("");
   const [draggedPayment, setDraggedPayment] = useState<string | null>(null);
   const [splittingPayment, setSplittingPayment] = useState<any | null>(null);
+  const [undoingSplitPayments, setUndoingSplitPayments] = useState<any[] | null>(null);
 
   // Drag and drop handlers
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, zahlungId: string) => {
@@ -248,6 +251,27 @@ export function MietvertragTimelineView({
     setEditingPayment(null);
     setEditPaymentValue('');
     setMietvertragSearchTerm('');
+  };
+
+  // Helper function to check if payment is from a split
+  const isSplitPayment = (zahlung: any) => {
+    const verwendungszweck = zahlung.verwendungszweck || '';
+    return verwendungszweck.includes('SPLIT_GROUP_');
+  };
+
+  // Helper function to get split group payments
+  const getSplitGroupPayments = (zahlung: any) => {
+    if (!isSplitPayment(zahlung)) return [];
+    
+    const verwendungszweck = zahlung.verwendungszweck || '';
+    const splitMatch = verwendungszweck.match(/SPLIT_GROUP_(\d+)_/);
+    if (!splitMatch) return [];
+    
+    const splitTimestamp = splitMatch[1];
+    return zahlungen.filter(z => {
+      const zVerwendungszweck = z.verwendungszweck || '';
+      return zVerwendungszweck.includes(`SPLIT_GROUP_${splitTimestamp}_`);
+    });
   };
 
   // Group data by months for timeline display
@@ -469,15 +493,27 @@ export function MietvertragTimelineView({
                                   >
                                     <Edit2 className="h-3 w-3" />
                                   </Button>
-                                  <Button
-                                    onClick={() => setSplittingPayment(zahlung)}
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 opacity-60 hover:opacity-100 text-blue-600 hover:text-blue-800"
-                                    title="Zahlung aufteilen"
-                                  >
-                                    <Split className="h-3 w-3" />
-                                  </Button>
+                                  {!isSplitPayment(zahlung) ? (
+                                    <Button
+                                      onClick={() => setSplittingPayment(zahlung)}
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0 opacity-60 hover:opacity-100 text-blue-600 hover:text-blue-800"
+                                      title="Zahlung aufteilen"
+                                    >
+                                      <Split className="h-3 w-3" />
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      onClick={() => setUndoingSplitPayments(getSplitGroupPayments(zahlung))}
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0 opacity-60 hover:opacity-100 text-orange-600 hover:text-orange-800"
+                                      title="Aufteilung rückgängig machen"
+                                    >
+                                      <Undo2 className="h-3 w-3" />
+                                    </Button>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -643,6 +679,15 @@ export function MietvertragTimelineView({
         isOpen={!!splittingPayment}
         onClose={() => setSplittingPayment(null)}
         payment={splittingPayment}
+        vertragId={vertragId}
+        formatBetrag={formatBetrag}
+      />
+
+      {/* Payment Undo Split Modal */}
+      <PaymentUndoSplitModal
+        isOpen={!!undoingSplitPayments}
+        onClose={() => setUndoingSplitPayments(null)}
+        splitPayments={undoingSplitPayments || []}
         vertragId={vertragId}
         formatBetrag={formatBetrag}
       />
