@@ -448,73 +448,75 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
           </div>
         </DialogHeader>
         
-        <div className="flex-1 max-h-[calc(90vh-100px)] overflow-y-auto">
-          <div className="p-4">
-            {/* Single Table with All Data and Sticky Headers */}
-            <div className="border rounded-lg bg-white overflow-hidden">
-              <Table>
-                {/* Fixed Header */}
-                <TableHeader className="sticky top-0 z-30 bg-white border-b-2 shadow-md backdrop-blur-sm">
-                  <TableRow className="bg-white">
-                    <TableHead className="text-center text-xs w-32 border-r bg-white sticky top-0 z-30">
-                      Objekt
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-12 border-r bg-white sticky top-0 z-30">
-                      Einheit
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-16 border-r bg-white sticky top-0 z-30">
-                      Etage
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-16 border-r bg-white sticky top-0 z-30">
-                      qm
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
-                      Nutzung
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-32 border-r bg-white sticky top-0 z-30">
-                      <button onClick={() => handleSort('mieter')} className="flex items-center gap-1 w-full justify-center">
-                        Mieter
-                        <SortIcon field="mieter" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
-                      <button onClick={() => handleSort('kaltmiete')} className="flex items-center gap-1 w-full justify-center">
-                        Kaltmiete
-                        <SortIcon field="kaltmiete" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
-                      <button onClick={() => handleSort('betriebskosten')} className="flex items-center gap-1 w-full justify-center">
-                        BK
-                        <SortIcon field="betriebskosten" />
-                      </button>
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-16 border-r bg-white sticky top-0 z-30">
-                      Status
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-24 border-r bg-white sticky top-0 z-30">
-                      Mietbeginn
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-24 border-r bg-white sticky top-0 z-30">
-                      Mietende
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
-                      Kaution (S/I)
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-24 border-r bg-white sticky top-0 z-30">
-                      nächste mögl. Erhöh.
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-20 border-r bg-white sticky top-0 z-30">
-                      letzte Erhöhung
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-24 border-r bg-white sticky top-0 z-30">
-                      Zahlung aktueller Monat
-                    </TableHead>
-                    <TableHead className="text-center text-xs w-20 bg-white sticky top-0 z-30">
-                      Zahlungen gesamt
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
+        <div className="flex-1 overflow-hidden">
+          {/* Single Table with All Data and Sticky Headers */}
+          <div className="h-[calc(90vh-100px)] overflow-auto">
+            <div className="p-4">
+              <div className="border rounded-lg bg-white overflow-hidden">
+                <div className="overflow-auto max-h-[calc(90vh-200px)]">
+                  <Table>
+                    {/* Fixed Header */}
+                    <TableHeader className="sticky top-0 z-50 bg-white border-b-2 shadow-lg">
+                      <TableRow className="bg-white">
+                        <TableHead className="text-center text-xs w-32 border-r bg-white">
+                          Objekt
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-12 border-r bg-white">
+                          Einheit
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-16 border-r bg-white">
+                          Etage
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-16 border-r bg-white">
+                          qm
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-20 border-r bg-white">
+                          Nutzung
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-32 border-r bg-white">
+                          <button onClick={() => handleSort('mieter')} className="flex items-center gap-1 w-full justify-center">
+                            Mieter
+                            <SortIcon field="mieter" />
+                          </button>
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-20 border-r bg-white">
+                          <button onClick={() => handleSort('kaltmiete')} className="flex items-center gap-1 w-full justify-center">
+                            Kaltmiete
+                            <SortIcon field="kaltmiete" />
+                          </button>
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-20 border-r bg-white">
+                          <button onClick={() => handleSort('betriebskosten')} className="flex items-center gap-1 w-full justify-center">
+                            BK
+                            <SortIcon field="betriebskosten" />
+                          </button>
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-16 border-r bg-white">
+                          Status
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-24 border-r bg-white">
+                          Mietbeginn
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-24 border-r bg-white">
+                          Mietende
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-20 border-r bg-white">
+                          Kaution (S/I)
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-24 border-r bg-white">
+                          nächste mögl. Erhöh.
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-20 border-r bg-white">
+                          letzte Erhöhung
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-24 border-r bg-white">
+                          Zahlung aktueller Monat
+                        </TableHead>
+                        <TableHead className="text-center text-xs w-20 bg-white">
+                          Zahlungen gesamt
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
                 
                 <TableBody>
                   {organizedData.map((propertyGroup, groupIndex) => (
@@ -807,7 +809,9 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                     })
                   ))}
                 </TableBody>
-              </Table>
+                  </Table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
