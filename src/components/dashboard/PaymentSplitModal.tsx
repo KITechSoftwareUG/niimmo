@@ -64,7 +64,7 @@ export function PaymentSplitModal({
       ...splits,
       {
         id: Date.now().toString(),
-        betrag: newSplitAmount,
+        betrag: parseFloat(newSplitAmount.toFixed(2)), // Round to 2 decimal places
         kategorie: "Miete",
         verwendungszweck: ""
       }
@@ -78,15 +78,23 @@ export function PaymentSplitModal({
 
   const updateSplit = (id: string, field: keyof PaymentSplit, value: string | number) => {
     setSplits(splits.map(split => 
-      split.id === id ? { ...split, [field]: value } : split
+      split.id === id ? { 
+        ...split, 
+        [field]: field === 'betrag' ? parseFloat(value.toString()) || 0 : value 
+      } : split
     ));
   };
 
   const handleSplitPayment = async () => {
-    if (Math.abs(remainingAmount) > 0.01) {
+    // Round values to avoid floating point precision issues
+    const roundedOriginalAmount = parseFloat(originalAmount.toFixed(2));
+    const roundedTotalSplitAmount = parseFloat(totalSplitAmount.toFixed(2));
+    const difference = Math.abs(roundedOriginalAmount - roundedTotalSplitAmount);
+    
+    if (difference > 0.02) { // Slightly more tolerance for rounding
       toast({
         title: "Fehler",
-        description: "Die Teilbeträge müssen exakt dem Gesamtbetrag entsprechen.",
+        description: `Die Teilbeträge (${formatBetrag(roundedTotalSplitAmount)}) müssen dem Gesamtbetrag (${formatBetrag(roundedOriginalAmount)}) entsprechen.`,
         variant: "destructive",
       });
       return;
@@ -202,8 +210,8 @@ export function PaymentSplitModal({
             </div>
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Verbleibt</p>
-              <p className={`text-lg font-semibold ${Math.abs(remainingAmount) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatBetrag(remainingAmount)}
+                <p className={`text-lg font-semibold ${Math.abs(parseFloat(originalAmount.toFixed(2)) - parseFloat(totalSplitAmount.toFixed(2))) <= 0.02 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatBetrag(remainingAmount)}
               </p>
             </div>
           </div>
@@ -292,7 +300,12 @@ export function PaymentSplitModal({
             </Button>
             <Button 
               onClick={handleSplitPayment}
-              disabled={Math.abs(remainingAmount) > 0.01 || splits.length <= 1 || isLoading}
+              disabled={(() => {
+                const roundedOriginalAmount = parseFloat(originalAmount.toFixed(2));
+                const roundedTotalSplitAmount = parseFloat(totalSplitAmount.toFixed(2));
+                const difference = Math.abs(roundedOriginalAmount - roundedTotalSplitAmount);
+                return difference > 0.02 || splits.length <= 1 || isLoading;
+              })()}
               className="min-w-[120px]"
             >
               {isLoading ? 'Wird aufgeteilt...' : 'Zahlung aufteilen'}
