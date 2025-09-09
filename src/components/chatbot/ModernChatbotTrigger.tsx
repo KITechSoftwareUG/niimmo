@@ -35,8 +35,8 @@ export function ModernChatbotTrigger() {
       {!isChatOpen && (
         <div className="fixed bottom-6 right-6 z-50">
           <div className="relative">
-            {/* Pulse ring effect */}
-            <div className="absolute -inset-2 bg-gradient-to-r from-red-600 to-red-900 rounded-full opacity-30 animate-ping"></div>
+            {/* Subtle ring effect */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-red-600 to-red-900 rounded-full opacity-20"></div>
             
             {/* Main button */}
             <Button
@@ -58,7 +58,7 @@ export function ModernChatbotTrigger() {
                 />
                 <Sparkles 
                   className={`absolute h-4 w-4 transition-all duration-300 ${
-                    isHovered ? 'scale-110 opacity-100 animate-pulse' : 'scale-75 opacity-0'
+                    isHovered ? 'scale-110 opacity-100' : 'scale-75 opacity-0'
                   }`}
                 />
               </div>
