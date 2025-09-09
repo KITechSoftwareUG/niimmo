@@ -803,43 +803,42 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-[calc(95vh-180px)]">
-            <div className="relative">
-              <Table>
-                <TableHeader className="bg-muted/50 sticky top-0 z-30 border-b-2 shadow-md backdrop-blur-sm">
-                  <TableRow className="hover:bg-transparent border-b bg-muted/50">
-                    {visibleColumns.map((column) => (
-                      <TableHead 
-                        key={column.field}
-                        className={cn(
-                          "text-xs font-semibold text-center h-12 border-r sticky top-0 z-30 bg-muted/50",
-                          column.width || "w-32",
-                          column.sticky && "sticky left-0 z-40 bg-muted/80 shadow-lg",
-                          column.sortable && "cursor-pointer hover:bg-muted/70 transition-colors"
-                        )}
-                        onClick={() => column.sortable && handleSort(column.field)}
-                      >
-                        <div className="flex items-center justify-center gap-1">
-                          <span>{column.label}</span>
-                          {column.sortable && (
-                            <div className="text-muted-foreground">
-                              {sortField === column.field ? (
-                                sortDirection === 'asc' ? (
-                                  <ArrowUp className="h-3 w-3" />
-                                ) : (
-                                  <ArrowDown className="h-3 w-3" />
-                                )
+        <div className="flex-1 border rounded-lg bg-white">
+          <div className="h-[calc(95vh-180px)] overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="sticky top-0 z-50 bg-white border-b-2 shadow-lg backdrop-blur-sm hover:bg-white">
+                  {visibleColumns.map((column) => (
+                    <TableHead 
+                      key={column.field}
+                      className={cn(
+                        "sticky top-0 z-50 text-xs font-semibold text-center h-12 border-r bg-white/95 backdrop-blur-sm",
+                        column.width || "w-32",
+                        column.sticky && "sticky left-0 z-60 bg-white shadow-lg",
+                        column.sortable && "cursor-pointer hover:bg-muted/20 transition-colors"
+                      )}
+                      onClick={() => column.sortable && handleSort(column.field)}
+                    >
+                      <div className="flex items-center justify-center gap-1">
+                        <span>{column.label}</span>
+                        {column.sortable && (
+                          <div className="text-muted-foreground">
+                            {sortField === column.field ? (
+                              sortDirection === 'asc' ? (
+                                <ArrowUp className="h-3 w-3" />
                               ) : (
-                                <ArrowUpDown className="h-3 w-3" />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
+                                <ArrowDown className="h-3 w-3" />
+                              )
+                            ) : (
+                              <ArrowUpDown className="h-3 w-3" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
 
                 <TableBody>
                   {showGrouping ? (
@@ -966,30 +965,29 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                           );
                         })}
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-
-              {(showGrouping ? Object.values(groupedData).flat().length === 0 : processedData.length === 0) && (
-                <div className="text-center py-20">
-                  <div className="space-y-4">
-                    <Building2 className="h-12 w-12 text-muted-foreground mx-auto" />
-                    <div>
-                      <h3 className="text-lg font-medium">Keine Verträge gefunden</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {searchQuery || statusFilter !== 'all' 
-                          ? 'Versuchen Sie es mit anderen Suchkriterien.' 
-                          : 'Es sind noch keine Mietverträge vorhanden.'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                ))
               )}
+            </TableBody>
+          </Table>
+
+          {(showGrouping ? Object.values(groupedData).flat().length === 0 : processedData.length === 0) && (
+            <div className="text-center py-20">
+              <div className="space-y-4">
+                <Building2 className="h-12 w-12 text-muted-foreground mx-auto" />
+                <div>
+                  <h3 className="text-lg font-medium">Keine Verträge gefunden</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {searchQuery || statusFilter !== 'all' 
+                      ? 'Versuchen Sie es mit anderen Suchkriterien.' 
+                      : 'Es sind noch keine Mietverträge vorhanden.'
+                    }
+                  </p>
+                </div>
+              </div>
             </div>
-          </ScrollArea>
+          )}
         </div>
+      </div>
 
         {/* Footer */}
         {hasChanges && (
