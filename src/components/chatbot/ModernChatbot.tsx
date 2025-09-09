@@ -29,8 +29,8 @@ interface ModernChatbotProps {
   onClose: () => void;
 }
 
-const CHAT_API_URL = "https://api.example.com/chat"; // Replace with actual API
-const NOTIFICATIONS_API_URL = "https://api.example.com/notifications"; // Replace with actual API
+const CHAT_API_URL = "https://k01-2025-u36730.vm.elestio.app/webhook/f7e1b37f-228d-488f-ae76-36f92bb02646/chat";
+const NOTIFICATIONS_API_URL = "https://k01-2025-u36730.vm.elestio.app/webhook/f7e1b37f-228d-488f-ae76-36f92bb02646/notifications";
 
 export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
