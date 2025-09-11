@@ -622,10 +622,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
       return row.einheit?.einheitIndex || 1;
     }
     if (field === 'einheit.etage') {
-      const etage = row.einheit?.etage || '';
-      const einheitId = row.einheit?.id || '';
-      const lastTwoDigits = einheitId.slice(-2);
-      return `${etage} (${lastTwoDigits})`;
+      return row.einheit?.etage || '';
     }
     
     const fieldParts = field.split('.');
