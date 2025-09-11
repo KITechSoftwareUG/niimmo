@@ -830,11 +830,21 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
   }
 
   // Check if this field has unsaved changes
-  const hasUnsavedChanges = editingCells.some(cell => 
-    cell.vertragId === vertragId && 
-    cell.field === field && 
-    cell.value !== cell.originalValue
-  );
+  const hasUnsavedChanges = editingCells.some(cell => {
+    if (cell.vertragId !== vertragId || cell.field !== field) return false;
+    
+    // For date fields, compare the formatted versions
+    if (fieldConfig?.type === 'date') {
+      const originalFormatted = formatDateForInput(cell.originalValue);
+      const currentFormatted = formatDateForInput(cell.value);
+      return originalFormatted !== currentFormatted;
+    }
+    
+    // For other fields, do a string comparison to avoid type issues
+    const originalStr = String(cell.originalValue || '');
+    const currentStr = String(cell.value || '');
+    return originalStr !== currentStr;
+  });
 
   return (
     <TableCell 
