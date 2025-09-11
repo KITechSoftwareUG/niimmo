@@ -52,24 +52,35 @@ export const ImmobilienDetail = ({
       } = await supabase.from('einheiten').select('*').eq('immobilie_id', immobilieId);
       if (error) throw error;
       
-      // Sortiere nach Einheitennummer (zaehler) aufsteigend
-      return data?.sort((a, b) => {
-        const getNumericValue = (zaehler: any) => {
-          if (!zaehler) return 0;
-          const numericValue = parseInt(zaehler.toString()) || 0;
-          return numericValue;
+      // Sortiere standardmäßig nach Einheitennummer (nummer) aufsteigend; Fallback erstellt_am, dann id
+      return (data || []).sort((a: any, b: any) => {
+        const extractNum = (val?: string | number) => {
+          if (val == null) return null;
+          const s = val.toString();
+          const match = s.match(/\d+/g);
+          if (match && match.length) {
+            return parseInt(match.join(''), 10);
+          }
+          return null;
         };
         
-        const aZaehler = getNumericValue(a.zaehler);
-        const bZaehler = getNumericValue(b.zaehler);
+        const aNum = extractNum(a.nummer);
+        const bNum = extractNum(b.nummer);
         
-        if (aZaehler !== bZaehler) {
-          return aZaehler - bZaehler;
+        if (aNum != null && bNum != null && aNum !== bNum) {
+          return aNum - bNum;
         }
+        if (aNum != null && bNum == null) return -1;
+        if (aNum == null && bNum != null) return 1;
         
-        // Falls gleich oder keine Zaehler, nach ID sortieren
-        return a.id.localeCompare(b.id);
-      }) || [];
+        // Fallback: nach Erstellungsdatum sortieren
+        const aCreated = a.erstellt_am ? new Date(a.erstellt_am).getTime() : 0;
+        const bCreated = b.erstellt_am ? new Date(b.erstellt_am).getTime() : 0;
+        if (aCreated !== bCreated) return aCreated - bCreated;
+        
+        // Letzter Fallback: ID
+        return (a.id || '').localeCompare(b.id || '');
+      });
     }
   });
   const {
