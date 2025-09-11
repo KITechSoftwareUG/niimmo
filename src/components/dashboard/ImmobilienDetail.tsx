@@ -52,20 +52,19 @@ export const ImmobilienDetail = ({
       } = await supabase.from('einheiten').select('*').eq('immobilie_id', immobilieId);
       if (error) throw error;
       
-      // Sortiere nach den letzten zwei Ziffern der Zaehler-Nummer, dann nach ID
+      // Sortiere nach Einheitennummer (zaehler) aufsteigend
       return data?.sort((a, b) => {
-        const getLastTwoDigits = (zaehler: any) => {
+        const getNumericValue = (zaehler: any) => {
           if (!zaehler) return 0;
-          const str = zaehler.toString();
-          const lastTwo = str.slice(-2);
-          return parseInt(lastTwo) || 0;
+          const numericValue = parseInt(zaehler.toString()) || 0;
+          return numericValue;
         };
         
-        const aLastTwo = getLastTwoDigits(a.zaehler);
-        const bLastTwo = getLastTwoDigits(b.zaehler);
+        const aZaehler = getNumericValue(a.zaehler);
+        const bZaehler = getNumericValue(b.zaehler);
         
-        if (aLastTwo !== bLastTwo) {
-          return aLastTwo - bLastTwo;
+        if (aZaehler !== bZaehler) {
+          return aZaehler - bZaehler;
         }
         
         // Falls gleich oder keine Zaehler, nach ID sortieren
