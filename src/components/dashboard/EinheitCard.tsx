@@ -179,6 +179,10 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
         </CardHeader>
         
         <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">Einheits-ID</span>
+            <span className="text-sm font-semibold">{einheitIndex}</span>
+          </div>
           {einheit.qm && (
             <div className="flex items-center space-x-2">
               <Square className="h-4 w-4 text-gray-500" />
