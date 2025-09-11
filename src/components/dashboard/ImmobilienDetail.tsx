@@ -49,11 +49,28 @@ export const ImmobilienDetail = ({
       const {
         data,
         error
-      } = await supabase.from('einheiten').select('*').eq('immobilie_id', immobilieId).order('id', {
-        ascending: true
-      });
+      } = await supabase.from('einheiten').select('*').eq('immobilie_id', immobilieId);
       if (error) throw error;
-      return data;
+      
+      // Sortiere nach den letzten zwei Ziffern der Zaehler-Nummer, dann nach ID
+      return data?.sort((a, b) => {
+        const getLastTwoDigits = (zaehler: any) => {
+          if (!zaehler) return 0;
+          const str = zaehler.toString();
+          const lastTwo = str.slice(-2);
+          return parseInt(lastTwo) || 0;
+        };
+        
+        const aLastTwo = getLastTwoDigits(a.zaehler);
+        const bLastTwo = getLastTwoDigits(b.zaehler);
+        
+        if (aLastTwo !== bLastTwo) {
+          return aLastTwo - bLastTwo;
+        }
+        
+        // Falls gleich oder keine Zaehler, nach ID sortieren
+        return a.id.localeCompare(b.id);
+      }) || [];
     }
   });
   const {
