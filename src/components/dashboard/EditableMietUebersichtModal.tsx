@@ -254,9 +254,12 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     // Create processed data with einheit indices
     let filtered = tableData.map(vertrag => {
       const immobilieId = vertrag.einheiten?.immobilie_id;
-      const einheitIndex = immobilieId 
+      const fullIndex = immobilieId 
         ? immobilieGroups[immobilieId].findIndex(v => v.id === vertrag.id) + 1
         : 1;
+      
+      // Remove last two digits from the index
+      const einheitIndex = fullIndex < 100 ? '' : Math.floor(fullIndex / 100).toString();
 
       const zahlungen = getZahlungenFuerVertrag(vertrag.id);
       
