@@ -117,6 +117,7 @@ const parseDateFromInput = (dateString: string): string | null => {
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { field: 'immobilie.name', label: 'Objekt', width: 'w-40', sticky: true, visible: true, sortable: true, groupable: true },
+  { field: 'einheit.einheitIndex', label: 'Einheits-ID', width: 'w-24', visible: true, sortable: true, groupable: false },
   { field: 'einheit.etage', label: 'Einheit', width: 'w-20', visible: true, sortable: false },
   { field: 'mieter.name', label: 'Mieter', width: 'w-48', visible: true, sortable: true, groupable: false },
   { field: 'vertrag.status', label: 'Status', width: 'w-24', visible: true, sortable: true, groupable: true },
@@ -135,7 +136,7 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
 export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMietUebersichtModalProps) => {
   const [editingCells, setEditingCells] = useState<EditingCell[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<string>('immobilie.name');
+  const [sortField, setSortField] = useState<string>('einheit.einheitIndex');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -145,7 +146,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch all data with relations
+  // Fetch all data with relations - only active and terminated contracts
   const { data: tableData, isLoading } = useQuery({
     queryKey: ['editable-miet-uebersicht'],
     queryFn: async () => {
@@ -161,6 +162,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
             mieter (*)
           )
         `)
+        .in('status', ['aktiv', 'gekuendigt'])
         .order('start_datum', { ascending: false });
       
       if (error) throw error;
@@ -205,12 +207,65 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
   const processedData: TableRow[] = useMemo(() => {
     if (!tableData) return [];
 
+    // First, group by immobilie to assign sequential einheit indices
+    const immobilieGroups: Record<string, any[]> = {};
+    tableData.forEach(vertrag => {
+      const immobilieId = vertrag.einheiten?.immobilie_id;
+      if (immobilieId) {
+        if (!immobilieGroups[immobilieId]) {
+          immobilieGroups[immobilieId] = [];
+        }
+        immobilieGroups[immobilieId].push(vertrag);
+      }
+    });
+
+    // Sort units within each immobilie by unit number with fallbacks
+    Object.keys(immobilieGroups).forEach(immobilieId => {
+      immobilieGroups[immobilieId].sort((a, b) => {
+        const extractNum = (val?: string | number) => {
+          if (val == null) return null;
+          const s = val.toString();
+          const match = s.match(/\d+/g);
+          if (match && match.length) {
+            return parseInt(match.join(''), 10);
+          }
+          return null;
+        };
+
+        const aNum = extractNum(a.einheiten?.nummer);
+        const bNum = extractNum(b.einheiten?.nummer);
+
+        if (aNum != null && bNum != null && aNum !== bNum) {
+          return aNum - bNum;
+        }
+        if (aNum != null && bNum == null) return -1;
+        if (aNum == null && bNum != null) return 1;
+
+        // Fallback: creation date
+        const aCreated = a.einheiten?.erstellt_am ? new Date(a.einheiten.erstellt_am).getTime() : 0;
+        const bCreated = b.einheiten?.erstellt_am ? new Date(b.einheiten.erstellt_am).getTime() : 0;
+        if (aCreated !== bCreated) return aCreated - bCreated;
+
+        // Last fallback: ID
+        return (a.einheiten?.id || '').localeCompare(b.einheiten?.id || '');
+      });
+    });
+
+    // Create processed data with einheit indices
     let filtered = tableData.map(vertrag => {
+      const immobilieId = vertrag.einheiten?.immobilie_id;
+      const einheitIndex = immobilieId 
+        ? immobilieGroups[immobilieId].findIndex(v => v.id === vertrag.id) + 1
+        : 1;
+
       const zahlungen = getZahlungenFuerVertrag(vertrag.id);
       
       return {
         vertrag,
-        einheit: vertrag.einheiten,
+        einheit: {
+          ...vertrag.einheiten,
+          einheitIndex
+        },
         immobilie: vertrag.einheiten?.immobilien,
         mieter: vertrag.mietvertrag_mieter?.map((mm: any) => mm.mieter) || [],
         zahlungen
@@ -249,6 +304,18 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         } else if (sortField === 'zahlungen.aktuellerMonat') {
           valueA = a.zahlungen.aktuellerMonat;
           valueB = b.zahlungen.aktuellerMonat;
+        } else if (sortField === 'einheit.einheitIndex') {
+          // Primary sort by immobilie name, then by einheit index
+          const immobilieA = a.immobilie?.name || '';
+          const immobilieB = b.immobilie?.name || '';
+          const immobilieCompare = immobilieA.localeCompare(immobilieB, 'de-DE');
+          
+          if (immobilieCompare !== 0) {
+            return sortDirection === 'asc' ? immobilieCompare : -immobilieCompare;
+          }
+          
+          valueA = a.einheit?.einheitIndex || 0;
+          valueB = b.einheit?.einheitIndex || 0;
         } else {
           const fieldParts = sortField.split('.');
           valueA = fieldParts.reduce((obj, key) => obj?.[key], a);
@@ -547,6 +614,9 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     }
     if (field === 'zahlungen.aktuellerMonat') {
       return row.zahlungen.aktuellerMonat;
+    }
+    if (field === 'einheit.einheitIndex') {
+      return row.einheit?.einheitIndex || 1;
     }
     if (field === 'einheit.etage') {
       const etage = row.einheit?.etage || '';
