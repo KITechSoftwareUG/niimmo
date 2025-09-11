@@ -18,13 +18,16 @@ export const FaelligkeitsIndicator = ({ forderung }: FaelligkeitsIndicatorProps)
   const forderungsMonat = parseInt(month);
   const forderungsJahr = parseInt(year);
   
-  // Due date is always the 10th of the demand month
+  // Due date is always the 10th of the demand month (use calculated date, not database date)
   const faelligkeitsdatum = new Date(forderungsJahr, forderungsMonat - 1, 10);
   const tagebisFaellig = Math.ceil((faelligkeitsdatum.getTime() - heute.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Check if it's actually due based on calculated date, not just database flag
+  const istTatsaechlichFaellig = tagebisFaellig <= 0;
 
-  if (forderung.ist_faellig) {
-    const faelligSeit = forderung.faellig_seit ? new Date(forderung.faellig_seit) : faelligkeitsdatum;
-    const tageFaellig = Math.ceil((heute.getTime() - faelligSeit.getTime()) / (1000 * 60 * 60 * 24));
+  // Use calculated logic instead of database flag for more accuracy
+  if (istTatsaechlichFaellig) {
+    const tageFaellig = Math.abs(tagebisFaellig);
     
     return (
       <div className="flex items-center space-x-2">
@@ -39,16 +42,7 @@ export const FaelligkeitsIndicator = ({ forderung }: FaelligkeitsIndicatorProps)
     );
   }
 
-  if (tagebisFaellig <= 0) {
-    return (
-      <div className="flex items-center space-x-2">
-        <Badge variant="outline" className="flex items-center space-x-1 border-orange-500 text-orange-600">
-          <Clock className="h-3 w-3" />
-          <span>Wird heute fällig</span>
-        </Badge>
-      </div>
-    );
-  }
+  // This case is now handled above, so this block is removed
 
   if (tagebisFaellig <= 3) {
     return (
