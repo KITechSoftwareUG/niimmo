@@ -17,6 +17,10 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
 
 interface EditableMietUebersichtModalProps {
   open: boolean;
@@ -66,8 +70,8 @@ const EDITABLE_FIELDS: Record<string, FieldConfig> = {
   'vertrag.kaltmiete': { label: 'Kaltmiete', type: 'number', table: 'mietvertrag', category: 'contract', format: (val) => `€${Number(val).toLocaleString('de-DE')}` },
   'vertrag.betriebskosten': { label: 'Betriebskosten', type: 'number', table: 'mietvertrag', category: 'contract', format: (val) => `€${Number(val).toLocaleString('de-DE')}` },
   'vertrag.status': { label: 'Status', type: 'select', table: 'mietvertrag', category: 'contract', options: ['aktiv', 'inaktiv', 'gekündigt'] },
-  'vertrag.start_datum': { label: 'Mietbeginn', type: 'date', table: 'mietvertrag', category: 'contract', format: (val) => new Date(val).toLocaleDateString('de-DE') },
-  'vertrag.ende_datum': { label: 'Mietende', type: 'date', table: 'mietvertrag', category: 'contract', format: (val) => new Date(val).toLocaleDateString('de-DE') },
+  'vertrag.start_datum': { label: 'Mietbeginn', type: 'date', table: 'mietvertrag', category: 'contract', format: (val) => formatDateForDisplay(val) },
+  'vertrag.ende_datum': { label: 'Mietende', type: 'date', table: 'mietvertrag', category: 'contract', format: (val) => formatDateForDisplay(val) },
   'vertrag.kaution_betrag': { label: 'Kaution Soll', type: 'number', table: 'mietvertrag', category: 'contract', format: (val) => `€${Number(val).toLocaleString('de-DE')}` },
   'vertrag.kaution_ist': { label: 'Kaution Ist', type: 'number', table: 'mietvertrag', category: 'contract', format: (val) => `€${Number(val).toLocaleString('de-DE')}` },
   'vertrag.lastschrift': { label: 'Lastschrift', type: 'boolean', table: 'mietvertrag', category: 'contract', format: (val) => val ? 'Ja' : 'Nein' },
@@ -88,6 +92,28 @@ interface ColumnConfig {
   sortable?: boolean;
   groupable?: boolean;
 }
+
+// Date utility functions
+const formatDateForInput = (date: string | Date | null): string => {
+  if (!date) return '';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+  return format(d, 'yyyy-MM-dd');
+};
+
+const formatDateForDisplay = (date: string | Date | null): string => {
+  if (!date) return '';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+  return format(d, 'dd.MM.yyyy', { locale: de });
+};
+
+const parseDateFromInput = (dateString: string): string | null => {
+  if (!dateString) return null;
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return null;
+  return format(d, 'yyyy-MM-dd');
+};
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { field: 'immobilie.name', label: 'Objekt', width: 'w-40', sticky: true, visible: true, sortable: true, groupable: true },
@@ -289,9 +315,17 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     
     if (existingIndex >= 0) return;
     
+    const fieldConfig = EDITABLE_FIELDS[field];
+    let editValue = currentValue;
+    
+    // Format value for editing based on field type
+    if (fieldConfig?.type === 'date' && currentValue) {
+      editValue = formatDateForInput(currentValue);
+    }
+    
     setEditingCells(prev => [
       ...prev,
-      { vertragId, field, value: currentValue, originalValue: currentValue }
+      { vertragId, field, value: editValue, originalValue: currentValue }
     ]);
   }, [editingCells]);
 
@@ -373,6 +407,8 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
           processedValue = parseFloat(cell.value) || null;
         } else if (fieldConfig.type === 'boolean') {
           processedValue = Boolean(cell.value);
+        } else if (fieldConfig.type === 'date') {
+          processedValue = parseDateFromInput(cell.value);
         }
 
         updatesByTable[table as keyof typeof updatesByTable].get(recordId)[dbField] = processedValue;
@@ -558,11 +594,71 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         );
       }
 
+      // Handle date input with proper date picker
+      if (fieldConfig.type === 'date') {
+        const dateValue = editValue ? new Date(editValue) : null;
+        
+        return (
+          <TableCell className={className}>
+            <div className="flex items-center gap-1">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "h-8 text-xs justify-start text-left font-normal border-primary",
+                      !dateValue && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {dateValue ? formatDateForDisplay(dateValue) : "Datum wählen"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateValue}
+                    onSelect={(date) => {
+                      if (date) {
+                        updateEditingValue(vertragId, field, formatDateForInput(date));
+                      }
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                    locale={de}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  const finalValue = editValue ? parseDateFromInput(editValue) : null;
+                  updateEditingValue(vertragId, field, finalValue);
+                  cancelEdit(vertragId, field);
+                }}
+                className="h-8 w-8 p-0"
+              >
+                <Check className="h-3 w-3 text-green-600" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => cancelEdit(vertragId, field)}
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-3 w-3 text-red-600" />
+              </Button>
+            </div>
+          </TableCell>
+        );
+      }
+
       return (
         <TableCell className={className}>
           <div className="flex items-center gap-1">
             <Input
-              type={fieldConfig.type === 'number' ? 'number' : fieldConfig.type === 'date' ? 'date' : 'text'}
+              type={fieldConfig.type === 'number' ? 'number' : 'text'}
               step={fieldConfig.type === 'number' ? '0.01' : undefined}
               value={editValue || ''}
               onChange={(e) => updateEditingValue(vertragId, field, e.target.value)}
@@ -598,7 +694,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     if (fieldConfig.format && value) {
       displayValue = fieldConfig.format(value);
     } else if (fieldConfig.type === 'date' && value) {
-      displayValue = new Date(value).toLocaleDateString('de-DE');
+      displayValue = formatDateForDisplay(value);
     } else if (fieldConfig.type === 'boolean') {
       displayValue = value ? 'Ja' : 'Nein';
     }
