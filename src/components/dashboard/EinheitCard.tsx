@@ -42,9 +42,10 @@ interface EinheitCardProps {
     adresse: string;
   };
   openMietvertragId?: string | null;
+  einheitIndex: number;
 }
 
-export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId }: EinheitCardProps) => {
+export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, einheitIndex }: EinheitCardProps) => {
   const [showHistorie, setShowHistorie] = useState(false);
   const [showMietvertragDetails, setShowMietvertragDetails] = useState(false);
   const [autoOpenContract, setAutoOpenContract] = useState(false);
@@ -118,12 +119,6 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId }: 
     return <Badge>{vertrag.status}</Badge>;
   };
 
-  const getEinheitNumber = (id: string) => {
-    // Extract numeric part from UUID and use last 2 digits
-    const numericPart = id.replace(/[^0-9]/g, '');
-    const lastTwoDigits = numericPart.slice(-2);
-    return parseInt(lastTwoDigits) || 1; // Default to 1 if no digits found
-  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -169,8 +164,11 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId }: 
             <div className="flex items-center space-x-2">
               <Home className="h-5 w-5 text-blue-600" />
               <CardTitle className="text-lg">
-                {einheit.nummer ? `Einheit ${einheit.nummer}` : `Einheit ${getEinheitNumber(einheit.id)}`}
+                Einheit {einheitIndex}
               </CardTitle>
+              <Badge variant="outline" className="ml-2">
+                ID: {einheitIndex}
+              </Badge>
             </div>
             {getStatusBadge()}
           </div>

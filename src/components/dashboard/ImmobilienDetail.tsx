@@ -336,7 +336,7 @@ export const ImmobilienDetail = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {einheiten?.map(einheit => {
+          {einheiten?.map((einheit, index) => {
           // Find the most current rental contract for this unit
           // Priority: 1. Active contracts, 2. Most recent terminated, 3. Most recent by start date
           const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
@@ -356,7 +356,13 @@ export const ImmobilienDetail = ({
             }
           }
           return <div key={einheit.id} ref={el => einheitRefs.current[einheit.id] = el} className="transition-transform duration-300">
-                <EinheitCard einheit={einheit} vertrag={vertrag} immobilie={immobilie} openMietvertragId={openMietvertragId} />
+                <EinheitCard 
+                  einheit={einheit} 
+                  vertrag={vertrag} 
+                  immobilie={immobilie} 
+                  openMietvertragId={openMietvertragId}
+                  einheitIndex={index + 1}
+                />
               </div>;
         })}
         </div>
