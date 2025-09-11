@@ -117,7 +117,7 @@ const parseDateFromInput = (dateString: string): string | null => {
 
 const DEFAULT_COLUMNS: ColumnConfig[] = [
   { field: 'immobilie.name', label: 'Objekt', width: 'w-40', sticky: true, visible: true, sortable: true, groupable: true },
-  { field: 'einheit.einheitIndex', label: 'Einheits-ID', width: 'w-24', visible: true, sortable: true, groupable: false },
+  { field: 'einheit.einheitIndex', label: 'Einheit', width: 'w-24', visible: true, sortable: true, groupable: false },
   { field: 'einheit.etage', label: 'Einheit', width: 'w-20', visible: true, sortable: false },
   { field: 'mieter.name', label: 'Mieter', width: 'w-48', visible: true, sortable: true, groupable: false },
   { field: 'vertrag.status', label: 'Status', width: 'w-24', visible: true, sortable: true, groupable: true },
@@ -819,31 +819,39 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
       );
     }
 
-    // Display mode
-    let displayValue = value;
-    if (fieldConfig.format && value) {
-      displayValue = fieldConfig.format(value);
-    } else if (fieldConfig.type === 'date' && value) {
-      displayValue = formatDateForDisplay(value);
-    } else if (fieldConfig.type === 'boolean') {
-      displayValue = value ? 'Ja' : 'Nein';
-    }
+  // Display mode
+  let displayValue = value;
+  if (fieldConfig.format && value) {
+    displayValue = fieldConfig.format(value);
+  } else if (fieldConfig.type === 'date' && value) {
+    displayValue = formatDateForDisplay(value);
+  } else if (fieldConfig.type === 'boolean') {
+    displayValue = value ? 'Ja' : 'Nein';
+  }
 
-    return (
-      <TableCell 
-        className={cn(
-          "text-sm cursor-pointer hover:bg-muted/50 transition-colors group relative",
-          fieldConfig.required && !value && "border-l-2 border-l-red-500",
-          className
-        )}
-        onClick={() => startEditing(vertragId, field, value)}
-      >
-        <div className="min-h-[32px] flex items-center justify-between">
-          <span>{displayValue || '-'}</span>
-          <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity ml-2" />
-        </div>
-      </TableCell>
-    );
+  // Check if this field has unsaved changes
+  const hasUnsavedChanges = editingCells.some(cell => 
+    cell.vertragId === vertragId && 
+    cell.field === field && 
+    cell.value !== cell.originalValue
+  );
+
+  return (
+    <TableCell 
+      className={cn(
+        "text-sm cursor-pointer hover:bg-muted/50 transition-colors group relative",
+        fieldConfig.required && !value && "border-l-2 border-l-red-500",
+        hasUnsavedChanges && "border-l-2 border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20",
+        className
+      )}
+      onClick={() => startEditing(vertragId, field, value)}
+    >
+      <div className="min-h-[32px] flex items-center justify-between">
+        <span>{displayValue || '-'}</span>
+        <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity ml-2" />
+      </div>
+    </TableCell>
+  );
   };
 
   // Get status badge
