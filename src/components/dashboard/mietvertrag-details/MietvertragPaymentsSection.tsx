@@ -45,8 +45,19 @@ export function MietvertragPaymentsSection({
     return forderungsDatum >= startDatum;
   });
   
-  const faelligeForderungen = alleForderungenAbStart.filter(f => f.ist_faellig === true);
-  const nichtFaelligeForderungen = alleForderungenAbStart.filter(f => f.ist_faellig !== true);
+  // Berechne Fälligkeit basierend auf tatsächlichem Datum (10. des Monats)
+  const faelligeForderungen = alleForderungenAbStart.filter(f => {
+    if (!f.sollmonat) return false;
+    const [year, month] = f.sollmonat.split('-');
+    const faelligkeitsdatum = new Date(parseInt(year), parseInt(month) - 1, 10);
+    return faelligkeitsdatum <= heute;
+  });
+  const nichtFaelligeForderungen = alleForderungenAbStart.filter(f => {
+    if (!f.sollmonat) return false;
+    const [year, month] = f.sollmonat.split('-');
+    const faelligkeitsdatum = new Date(parseInt(year), parseInt(month) - 1, 10);
+    return faelligkeitsdatum > heute;
+  });
   
   const faelligeForderungenBetrag = faelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
   const nichtFaelligeForderungenBetrag = nichtFaelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
