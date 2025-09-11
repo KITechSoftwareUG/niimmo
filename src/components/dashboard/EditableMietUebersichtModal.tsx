@@ -535,7 +535,6 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                 variant="ghost"
                 onClick={() => {
                   updateEditingValue(vertragId, field, editValue);
-                  cancelEdit(vertragId, field);
                 }}
                 className="h-8 w-8 p-0"
               >
@@ -575,7 +574,6 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                 variant="ghost"
                 onClick={() => {
                   updateEditingValue(vertragId, field, editValue);
-                  cancelEdit(vertragId, field);
                 }}
                 className="h-8 w-8 p-0"
               >
@@ -635,7 +633,6 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                 onClick={() => {
                   const finalValue = editValue ? parseDateFromInput(editValue) : null;
                   updateEditingValue(vertragId, field, finalValue);
-                  cancelEdit(vertragId, field);
                 }}
                 className="h-8 w-8 p-0"
               >
@@ -670,7 +667,6 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               variant="ghost"
               onClick={() => {
                 updateEditingValue(vertragId, field, editValue);
-                cancelEdit(vertragId, field);
               }}
               className="h-8 w-8 p-0"
             >
