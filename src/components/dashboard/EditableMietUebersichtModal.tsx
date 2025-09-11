@@ -358,6 +358,79 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     return editingCells.some(cell => cell.vertragId === vertragId && cell.field === field);
   }, [editingCells]);
 
+  // Save a single field
+  const saveSingleField = async (vertragId: string, field: string) => {
+    const editingCell = editingCells.find(cell => cell.vertragId === vertragId && cell.field === field);
+    if (!editingCell) return;
+
+    try {
+      const fieldConfig = EDITABLE_FIELDS[field];
+      if (!fieldConfig) return;
+
+      const table = fieldConfig.table;
+      let recordId: string | undefined;
+      let dbField: string;
+
+      // Determine record ID and database field name
+      if (field.startsWith('vertrag.')) {
+        recordId = vertragId;
+        dbField = field.replace('vertrag.', '');
+      } else if (field.startsWith('einheit.')) {
+        const row = processedData.find(r => r.vertrag.id === vertragId);
+        recordId = row?.einheit?.id;
+        dbField = field.replace('einheit.', '');
+      } else if (field.startsWith('immobilie.')) {
+        const row = processedData.find(r => r.vertrag.id === vertragId);
+        recordId = row?.immobilie?.id;
+        dbField = field.replace('immobilie.', '');
+      } else if (field.startsWith('mieter.')) {
+        const row = processedData.find(r => r.vertrag.id === vertragId);
+        recordId = row?.mieter?.[0]?.id;
+        dbField = field.replace('mieter.', '');
+      }
+
+      if (!recordId) return;
+
+      // Convert value based on field type
+      let processedValue = editingCell.value;
+      if (fieldConfig.type === 'number') {
+        processedValue = parseFloat(editingCell.value) || null;
+      } else if (fieldConfig.type === 'boolean') {
+        processedValue = Boolean(editingCell.value);
+      } else if (fieldConfig.type === 'date') {
+        processedValue = parseDateFromInput(editingCell.value);
+      }
+
+      // Save to database
+      const { error } = await supabase
+        .from(table as any)
+        .update({ [dbField]: processedValue })
+        .eq('id', recordId);
+
+      if (error) throw error;
+
+      // Clear this specific editing cell
+      setEditingCells(prev => prev.filter(cell => !(cell.vertragId === vertragId && cell.field === field)));
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: ['editable-miet-uebersicht'] });
+      queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+
+      toast({
+        title: "Erfolgreich gespeichert",
+        description: `${fieldConfig.label} wurde aktualisiert.`,
+      });
+
+    } catch (error) {
+      console.error('Fehler beim Speichern:', error);
+      toast({
+        title: "Fehler beim Speichern",
+        description: "Die Änderung konnte nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Save changes with optimistic updates
   const saveAllChanges = async () => {
     try {
@@ -533,9 +606,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  updateEditingValue(vertragId, field, editValue);
-                }}
+                onClick={() => saveSingleField(vertragId, field)}
                 className="h-8 w-8 p-0"
               >
                 <Check className="h-3 w-3 text-green-600" />
@@ -572,9 +643,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  updateEditingValue(vertragId, field, editValue);
-                }}
+                onClick={() => saveSingleField(vertragId, field)}
                 className="h-8 w-8 p-0"
               >
                 <Check className="h-3 w-3 text-green-600" />
@@ -630,10 +699,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  const finalValue = editValue ? parseDateFromInput(editValue) : null;
-                  updateEditingValue(vertragId, field, finalValue);
-                }}
+                onClick={() => saveSingleField(vertragId, field)}
                 className="h-8 w-8 p-0"
               >
                 <Check className="h-3 w-3 text-green-600" />
@@ -662,16 +728,14 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               className="h-8 text-xs border-primary"
               autoFocus
             />
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                updateEditingValue(vertragId, field, editValue);
-              }}
-              className="h-8 w-8 p-0"
-            >
-              <Check className="h-3 w-3 text-green-600" />
-            </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => saveSingleField(vertragId, field)}
+                className="h-8 w-8 p-0"
+              >
+                <Check className="h-3 w-3 text-green-600" />
+              </Button>
             <Button
               size="sm"
               variant="ghost"
