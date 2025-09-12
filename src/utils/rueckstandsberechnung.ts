@@ -124,6 +124,23 @@ export const calculateMietvertragRueckstand = (
   // Berechne Gesamtforderungen
   const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
   
+  // Debug: Log der Berechnungsschritte
+  console.log('=== RÜCKSTANDSBERECHNUNG DEBUG ===');
+  console.log('Alle eingegangenen Zahlungen:', zahlungen.length);
+  console.log('Relevante Zahlungen (nach Filtern):', relevanteZahlungen.length);
+  console.log('Verarbeitete Zahlungen:', verarbeiteteZahlungen.length);
+  console.log('Fällige Forderungen:', relevanteForderungen.length);
+  
+  console.log('Detaillierte Zahlungen:');
+  relevanteZahlungen.forEach(z => {
+    console.log(`- ${z.buchungsdatum}: ${z.betrag}€ (${z.kategorie}) - Monat: ${z.zugeordneter_monat}`);
+  });
+  
+  console.log('Verarbeitete Zahlungen:');
+  verarbeiteteZahlungen.forEach(z => {
+    console.log(`- ${z.buchungsdatum}: ${z.betrag}€ (${z.kategorie}) - Monat: ${z.zugeordneter_monat}${z._verschoben_von ? ` (verschoben von ${z._verschoben_von})` : ''}`);
+  });
+
   // Berechne Gesamtzahlungen mit 6-Tage-Wartezeit bei Lastschrift
   let gesamtZahlungen = 0;
   for (const zahlung of verarbeiteteZahlungen) {
@@ -142,6 +159,9 @@ export const calculateMietvertragRueckstand = (
       gesamtZahlungen += (Number(zahlung.betrag) || 0);
     }
   }
+  
+  console.log('Berechnete Gesamtzahlungen:', gesamtZahlungen);
+  console.log('=== ENDE DEBUG ===');
   
   const rueckstand = gesamtForderungen - gesamtZahlungen;
   
