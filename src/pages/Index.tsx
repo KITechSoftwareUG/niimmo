@@ -20,6 +20,7 @@ const Index = () => {
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
   const [navigationSource, setNavigationSource] = useState<'dashboard' | 'immobilie'>('dashboard');
+  const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
   const {
     data: immobilien,
     isLoading,
@@ -96,6 +97,12 @@ const Index = () => {
       setSelectedEinheit(null);
       setSelectedMietvertrag(null);
       setNavigationSource('dashboard');
+      // After returning, scroll to the Rückstände section if it was open
+      setTimeout(() => {
+        if (rueckstaendeOpen) {
+          document.getElementById('rueckstaende-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 0);
     } else {
       // Coming from immobilie view, go back to immobilie view
       setSelectedMietvertrag(null);
@@ -147,7 +154,11 @@ const Index = () => {
     return <ImmobilienDetail immobilieId={selectedImmobilie} onBack={handleBackClick} filters={{
       mietstatus: "all",
       zahlungsstatus: "all"
-    }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} />;
+    }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} onContractModalClose={() => {
+      if (navigationSource === 'dashboard') {
+        handleBackClick();
+      }
+    }} />;
   }
   return <div className="min-h-screen modern-dashboard-bg">
       <div className="container mx-auto p-8">
@@ -187,7 +198,11 @@ const Index = () => {
 
         {/* Fehlende Mietzahlungen Übersicht */}
         <div className="mb-6">
-          <FehlendeMietzahlungen onMietvertragClick={handleMietvertragClick} />
+          <FehlendeMietzahlungen 
+            open={rueckstaendeOpen}
+            onOpenChange={setRueckstaendeOpen}
+            onMietvertragClick={(id) => { setRueckstaendeOpen(true); handleMietvertragClick(id); }} 
+          />
         </div>
 
         {/* Mögliche Mieterhöhungen */}

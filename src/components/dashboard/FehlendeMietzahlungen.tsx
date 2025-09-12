@@ -10,13 +10,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface FehlendeMietzahlungenProps {
   onMietvertragClick?: (mietvertragId: string) => void;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 type SortOption = 'object' | 'amount' | 'mahnstufe' | 'tenant';
 type SortDirection = 'asc' | 'desc';
 
-export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlungenProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, onOpenChange }: FehlendeMietzahlungenProps) => {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen ?? false);
+  const isOpen = open ?? internalOpen;
+  const setIsOpen = onOpenChange ?? setInternalOpen;
   const [sortBy, setSortBy] = useState<SortOption>('amount');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const { data: fehlendeMietzahlungen, isLoading, error } = useRueckstaende();
@@ -89,7 +94,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick }: FehlendeMietzahlun
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="glass-card p-6 rounded-2xl border border-red-100 bg-red-50/30">
+      <div id="rueckstaende-section" className="glass-card p-6 rounded-2xl border border-red-100 bg-red-50/30">
         <CollapsibleTrigger className="w-full">
           {/* Header */}
           <div className="flex items-center justify-between mb-4 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>

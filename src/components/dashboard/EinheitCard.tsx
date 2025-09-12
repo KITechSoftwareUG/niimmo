@@ -43,9 +43,10 @@ interface EinheitCardProps {
   };
   openMietvertragId?: string | null;
   einheitIndex: number;
+  onContractModalClose?: () => void;
 }
 
-export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, einheitIndex }: EinheitCardProps) => {
+export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, einheitIndex, onContractModalClose }: EinheitCardProps) => {
   const [showHistorie, setShowHistorie] = useState(false);
   const [showMietvertragDetails, setShowMietvertragDetails] = useState(false);
   const [autoOpenContract, setAutoOpenContract] = useState(false);
@@ -329,7 +330,10 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
       {vertrag && (
         <MietvertragDetailsModal
           isOpen={showMietvertragDetails}
-          onClose={() => setShowMietvertragDetails(false)}
+          onClose={() => {
+            setShowMietvertragDetails(false);
+            onContractModalClose?.();
+          }}
           vertragId={vertrag.id}
           einheit={einheit}
           immobilie={immobilie}

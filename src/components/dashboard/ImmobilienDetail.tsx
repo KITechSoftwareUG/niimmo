@@ -16,12 +16,14 @@ interface ImmobilienDetailProps {
   };
   scrollToEinheitId?: string | null;
   openMietvertragId?: string | null;
+  onContractModalClose?: () => void;
 }
 export const ImmobilienDetail = ({
   immobilieId,
   onBack,
   scrollToEinheitId,
-  openMietvertragId
+  openMietvertragId,
+  onContractModalClose
 }: ImmobilienDetailProps) => {
   const einheitRefs = useRef<{
     [key: string]: HTMLDivElement | null;
@@ -373,6 +375,7 @@ export const ImmobilienDetail = ({
                   immobilie={immobilie} 
                   openMietvertragId={openMietvertragId}
                   einheitIndex={index + 1}
+                  onContractModalClose={onContractModalClose}
                 />
               </div>;
         })}
