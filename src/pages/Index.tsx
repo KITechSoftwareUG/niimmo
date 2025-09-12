@@ -7,6 +7,7 @@ import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlun
 import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
+import { MietvertragDetail } from "@/components/dashboard/MietvertragDetail";
 import { MietUebersichtModal } from "@/components/dashboard/MietUebersichtModal";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { MieterhöhungenSection } from "@/components/dashboard/MieterhöhungenSection";
@@ -150,6 +151,17 @@ const Index = () => {
   if (showAnalytics) {
     return <Analytics onBack={() => setShowAnalytics(false)} />;
   }
+
+  // Mietvertrag-Detail-Ansicht anzeigen (wenn direkt von Rückständen oder Suchfunktion navigiert)
+  if (selectedMietvertrag && navigationSource === 'dashboard') {
+    return (
+      <MietvertragDetail 
+        vertragId={selectedMietvertrag} 
+        onBack={handleBackClick}
+      />
+    );
+  }
+
   if (selectedImmobilie) {
     return <ImmobilienDetail immobilieId={selectedImmobilie} onBack={handleBackClick} filters={{
       mietstatus: "all",
