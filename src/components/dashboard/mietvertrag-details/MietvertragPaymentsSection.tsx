@@ -131,13 +131,7 @@ export function MietvertragPaymentsSection({
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   )}
                 </div>
-                {nichtFaelligeForderungenBetrag > 0 && (
-                  <div className="text-right">
-                    <p className={`${rueckstand > 0 ? 'text-yellow-700' : 'text-green-700'} text-xs`}>
-                      + {formatBetrag(nichtFaelligeForderungenBetrag)} noch nicht fällig
-                    </p>
-                  </div>
-                )}
+                {/* Alle Forderungen sind nun fällig - kein "noch nicht fällig" Text mehr nötig */}
               </div>
               <div className="space-y-2">
                 <p className={`text-sm font-medium ${rueckstand > 0 ? 'text-yellow-700' : 'text-green-700'}`}>
