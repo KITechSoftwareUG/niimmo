@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { calculateMietvertragRueckstand } from "@/utils/rueckstandsberechnung";
 import { MietvertragTimelineView } from "./MietvertragTimelineView";
-import { Plus, TrendingDown, TrendingUp, AlertCircle } from "lucide-react";
+import { Plus, TrendingDown, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
 
 interface MietvertragPaymentsSectionProps {
   vertrag: any;
@@ -117,29 +117,33 @@ export function MietvertragPaymentsSection({
               </div>
             </div>
 
-            {/* Rückstand */}
+            {/* Rückstand / Guthaben */}
             <div className={`metric-card p-6 rounded-xl transition-all duration-300 hover:scale-[1.02] ${
               rueckstand > 0 
                 ? 'border-yellow-400/30 bg-gradient-to-br from-yellow-50/80 via-yellow-25/40 to-transparent' 
-                : 'border-primary/20 bg-gradient-to-br from-primary/5 via-primary/3 to-transparent'
+                : 'border-green-400/30 bg-gradient-to-br from-green-50/80 via-green-25/40 to-transparent'
             }`}>
               <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-lg ${rueckstand > 0 ? 'bg-yellow-100' : 'bg-primary/10'}`}>
-                  <TrendingDown className={`h-5 w-5 ${rueckstand > 0 ? 'text-yellow-600' : 'text-primary'}`} />
+                <div className={`p-3 rounded-lg ${rueckstand > 0 ? 'bg-yellow-100' : 'bg-green-100'}`}>
+                  {rueckstand > 0 ? (
+                    <TrendingDown className="h-5 w-5 text-yellow-600" />
+                  ) : (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  )}
                 </div>
                 {nichtFaelligeForderungenBetrag > 0 && (
                   <div className="text-right">
-                    <p className="text-xs text-primary">
+                    <p className={`${rueckstand > 0 ? 'text-yellow-700' : 'text-green-700'} text-xs`}>
                       + {formatBetrag(nichtFaelligeForderungenBetrag)} noch nicht fällig
                     </p>
                   </div>
                 )}
               </div>
               <div className="space-y-2">
-                <p className={`text-sm font-medium ${rueckstand > 0 ? 'text-yellow-700' : 'text-primary'}`}>
-                  {rueckstand > 0 ? 'Rückstand' : 'Kein Rückstand'}
+                <p className={`text-sm font-medium ${rueckstand > 0 ? 'text-yellow-700' : 'text-green-700'}`}>
+                  {rueckstand > 0 ? 'Rückstand' : (rueckstand < 0 ? 'Guthaben' : 'Kein Rückstand')}
                 </p>
-                <p className={`text-2xl font-bold ${rueckstand > 0 ? 'text-yellow-800' : 'text-primary'}`}>
+                <p className={`text-2xl font-bold ${rueckstand > 0 ? 'text-yellow-800' : 'text-green-800'}`}>
                   {formatBetrag(Math.abs(rueckstand))}
                 </p>
               </div>
