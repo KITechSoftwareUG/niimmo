@@ -105,8 +105,16 @@ const Index = () => {
         }
       }, 0);
     } else {
-      // Coming from immobilie view, go back to immobilie view
-      setSelectedMietvertrag(null);
+      // Coming from immobilie view
+      if (selectedMietvertrag) {
+        // Close contract view/modal within immobilie context
+        setSelectedMietvertrag(null);
+      } else {
+        // Go back to main dashboard overview
+        setSelectedImmobilie(null);
+        setSelectedEinheit(null);
+        setNavigationSource('dashboard');
+      }
     }
     // Refresh the immobilien data when going back
     refetch();
