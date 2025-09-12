@@ -17,9 +17,8 @@ export const calculateMietvertragRueckstand = (
   const heute = new Date();
   const istLastschrift = mietvertrag.lastschrift || false;
   
-  // Bestimme Startdatum: später von Jan 2025 oder Mietvertragsbeginn
-  const mietvertragStart = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2025-01-01');
-  const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
+  // Bestimme Startdatum: Mietvertragsbeginn (ohne künstliche Begrenzung auf 2025)
+  const startDatum = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2024-01-01');
   
   // Filtere Forderungen ab Startdatum - alle Forderungen im Zeitraum
   const alleForderungenAbStart = forderungen.filter(f => {
