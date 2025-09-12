@@ -160,15 +160,6 @@ const Index = () => {
     return <Analytics onBack={() => setShowAnalytics(false)} />;
   }
 
-  // Mietvertrag-Detail-Ansicht anzeigen (wenn direkt von Rückständen oder Suchfunktion navigiert)
-  if (selectedMietvertrag && navigationSource === 'dashboard') {
-    return (
-      <MietvertragDetail 
-        vertragId={selectedMietvertrag} 
-        onBack={handleBackClick}
-      />
-    );
-  }
 
   if (selectedImmobilie) {
     return <ImmobilienDetail immobilieId={selectedImmobilie} onBack={handleBackClick} filters={{
