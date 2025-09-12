@@ -105,9 +105,7 @@ const Index = () => {
         }
       }, 0);
     } else {
-      // Coming from immobilie view, go back to main dashboard
-      setSelectedImmobilie(null);
-      setSelectedEinheit(null);
+      // Coming from immobilie view, go back to immobilie view
       setSelectedMietvertrag(null);
     }
     // Refresh the immobilien data when going back
