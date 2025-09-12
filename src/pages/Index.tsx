@@ -19,6 +19,7 @@ const Index = () => {
   const [selectedMietvertrag, setSelectedMietvertrag] = useState<string | null>(null);
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
+  const [navigationSource, setNavigationSource] = useState<'dashboard' | 'immobilie'>('dashboard');
   const {
     data: immobilien,
     isLoading,
@@ -86,11 +87,19 @@ const Index = () => {
     setSelectedImmobilie(immobilieId);
     setSelectedEinheit(einheitId || null);
     setSelectedMietvertrag(null);
+    setNavigationSource('immobilie');
   };
   const handleBackClick = () => {
-    setSelectedImmobilie(null);
-    setSelectedEinheit(null);
-    setSelectedMietvertrag(null);
+    if (navigationSource === 'dashboard') {
+      // Coming from dashboard (e.g., Rückstände), go back to dashboard
+      setSelectedImmobilie(null);
+      setSelectedEinheit(null);
+      setSelectedMietvertrag(null);
+      setNavigationSource('dashboard');
+    } else {
+      // Coming from immobilie view, go back to immobilie view
+      setSelectedMietvertrag(null);
+    }
     // Refresh the immobilien data when going back
     refetch();
   };
@@ -98,6 +107,7 @@ const Index = () => {
     setSelectedImmobilie(immobilieId);
     setSelectedEinheit(einheitId);
     setSelectedMietvertrag(mietvertragId);
+    setNavigationSource('dashboard');
   };
   const handleMietvertragClick = async (mietvertragId: string) => {
     // Fetch the rental contract to get einheit_id and immobilie_id
@@ -113,6 +123,7 @@ const Index = () => {
       setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);
       setSelectedEinheit(mietvertrag.einheit_id); // Set to unit ID for proper scrolling
       setSelectedMietvertrag(mietvertragId); // Set contract ID to open modal
+      setNavigationSource('dashboard');
     }
   };
 
