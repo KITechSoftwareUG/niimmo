@@ -234,9 +234,9 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                               {rueckstand.ist_guthaben ? 'Guthaben: ' : 'Rückstand: '}
                               {formatBetrag(rueckstand.fehlend_betrag)}
                               {!rueckstand.ist_guthaben && rueckstand.noch_nicht_faellige_forderungen_betrag > 0 && (
-                                <span className="text-orange-600 ml-1 font-normal">
-                                  ({formatBetrag(rueckstand.noch_nicht_faellige_forderungen_betrag)} offen)
-                                </span>
+                                 <span className="text-orange-600 ml-1 font-normal">
+                                   ({formatBetrag(rueckstand.noch_nicht_faellige_forderungen_betrag)} noch nicht fällig)
+                                 </span>
                               )}
                             </p>
                           </div>
