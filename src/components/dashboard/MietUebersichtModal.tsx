@@ -537,7 +537,7 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
                       
                       {/* Einheit */}
                       <td className="text-center text-xs border-r p-1 align-middle">
-                        {vertragIndex + 1}
+                        {vertrag.einheiten?.id?.toString()?.slice(-2) || '-'}
                       </td>
                       
                       {/* Etage */}
