@@ -163,6 +163,24 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
 
   console.log('Rendering MieterhöhungenSection - isOpen:', isOpen, 'eligibleContracts:', eligibleContracts.length);
 
+  const mieterhöhungsBedingungen = [
+    "Mindestens 15 Monate seit der letzten Mieterhöhung vergangen",
+    "Mietvertrag besteht seit mindestens 15 Monaten",
+    "Maximal 20% Erhöhung innerhalb von 3 Jahren",
+    "Ortsübliche Vergleichsmiete als Grundlage",
+    "Schriftliche Ankündigung mit 3-monatiger Vorlaufzeit",
+    "Begründung der Mieterhöhung erforderlich"
+  ];
+
+  const handleSendRentIncrease = async () => {
+    try {
+      // TODO: Implementierung für das Versenden von Mieterhöhungen
+      console.log('Sende Mieterhöhungen für', eligibleContracts.length, 'Verträge');
+    } catch (error) {
+      console.error('Fehler beim Versenden der Mieterhöhungen:', error);
+    }
+  };
+
   return (
     <Card>
       <CardHeader 
@@ -184,62 +202,86 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
               {eligibleContracts.length}
             </Badge>
           </div>
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSendRentIncrease();
+              }}
+              disabled={eligibleContracts.length === 0}
+            >
+              Mieterhöhung versenden
+            </Button>
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </div>
         </CardTitle>
       </CardHeader>
       
       {isOpen && (
         <CardContent className="pt-0">
-          <div className="space-y-3">
-            {eligibleContracts.map((contract) => {
-                const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
-                const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
-                const unitId = contractDetails?.einheiten?.id || 'N/A';
-                const tenantName = contractDetails?.mietvertrag_mieter?.[0]?.mieter 
-                  ? `${contractDetails.mietvertrag_mieter[0].mieter.vorname} ${contractDetails.mietvertrag_mieter[0].mieter.nachname}`
-                  : 'Unbekannt';
-
-                return (
-                  <div
-                    key={contract.mietvertrag_id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{propertyName}</span>
-                        <Badge variant="outline">Einheit {unitId.slice(-8)}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-1">
-                        Mieter: {tenantName}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Aktuelle Kaltmiete: {contract.current_kaltmiete.toFixed(2)}€
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {contract.reason}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Badge variant="default" className="bg-green-100 text-green-800">
-                        Möglich
-                      </Badge>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onContractClick?.(contract.mietvertrag_id)}
-                      >
-                        Öffnen
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Bedingungen für Mieterhöhungen */}
+            <div>
+              <h4 className="font-medium mb-3 text-sm">Bedingungen für Mieterhöhungen:</h4>
+              <ul className="space-y-2">
+                {mieterhöhungsBedingungen.map((bedingung, index) => (
+                  <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
+                    {bedingung}
+                  </li>
+                ))}
+              </ul>
             </div>
+
+            {/* Berechtigte Verträge */}
+            <div>
+              <h4 className="font-medium mb-3 text-sm">Berechtigte Verträge ({eligibleContracts.length}):</h4>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {eligibleContracts.map((contract) => {
+                    const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
+                    const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
+                    const unitId = contractDetails?.einheiten?.id || 'N/A';
+                    const tenantName = contractDetails?.mietvertrag_mieter?.[0]?.mieter 
+                      ? `${contractDetails.mietvertrag_mieter[0].mieter.vorname} ${contractDetails.mietvertrag_mieter[0].mieter.nachname}`
+                      : 'Unbekannt';
+
+                    return (
+                      <div
+                        key={contract.mietvertrag_id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-sm">{propertyName}</span>
+                            <Badge variant="outline" className="text-xs">Einheit {unitId.slice(-8)}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-1">
+                            {tenantName}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {contract.current_kaltmiete.toFixed(2)}€/Monat
+                          </p>
+                        </div>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onContractClick?.(contract.mietvertrag_id)}
+                        >
+                          Öffnen
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
         </CardContent>
       )}
     </Card>
