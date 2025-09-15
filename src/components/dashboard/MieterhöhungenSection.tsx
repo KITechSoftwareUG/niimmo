@@ -224,6 +224,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
 
   console.log('Rendering MieterhöhungenSection - isOpen:', isOpen, 'eligibleContracts:', eligibleContracts.length);
 
+  return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card>
         <CardHeader className="p-0">
@@ -334,4 +335,5 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
         </CollapsibleContent>
       </Card>
     </Collapsible>
+  );
 }

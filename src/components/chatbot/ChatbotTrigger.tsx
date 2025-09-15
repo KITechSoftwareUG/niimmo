@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
-import { Chatbot } from "./Chatbot";
+import { ImprovedChatbot } from "./ImprovedChatbot";
 
 export function ChatbotTrigger() {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -20,7 +20,7 @@ export function ChatbotTrigger() {
         </div>
       )}
       
-      <Chatbot 
+      <ImprovedChatbot 
         isOpen={isChatOpen} 
         onClose={() => setIsChatOpen(false)} 
       />
