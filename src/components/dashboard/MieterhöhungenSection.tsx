@@ -23,8 +23,27 @@ interface MieterhöhungenSectionProps {
 
 export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showConditions, setShowConditions] = useState(false);
 
   console.log('MieterhöhungenSection: Component rendering, isOpen:', isOpen);
+
+  const mieterhöhungsBedingungen = [
+    "Mindestens 15 Monate seit der letzten Mieterhöhung vergangen",
+    "Mietvertrag besteht seit mindestens 15 Monaten", 
+    "Maximal 20% Erhöhung innerhalb von 3 Jahren",
+    "Ortsübliche Vergleichsmiete als Grundlage",
+    "Schriftliche Ankündigung mit 3-monatiger Vorlaufzeit",
+    "Begründung der Mieterhöhung erforderlich"
+  ];
+
+  const handleSendRentIncrease = async (contractId: string) => {
+    try {
+      console.log('Sende Mieterhöhung für Vertrag:', contractId);
+      // TODO: Implementierung für das Versenden einer spezifischen Mieterhöhung
+    } catch (error) {
+      console.error('Fehler beim Versenden der Mieterhöhung:', error);
+    }
+  };
 
   const { data: eligibilityData, isLoading, error: eligibilityError } = useQuery({
     queryKey: ['rent-increase-eligibility'],
@@ -163,24 +182,6 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
 
   console.log('Rendering MieterhöhungenSection - isOpen:', isOpen, 'eligibleContracts:', eligibleContracts.length);
 
-  const mieterhöhungsBedingungen = [
-    "Mindestens 15 Monate seit der letzten Mieterhöhung vergangen",
-    "Mietvertrag besteht seit mindestens 15 Monaten",
-    "Maximal 20% Erhöhung innerhalb von 3 Jahren",
-    "Ortsübliche Vergleichsmiete als Grundlage",
-    "Schriftliche Ankündigung mit 3-monatiger Vorlaufzeit",
-    "Begründung der Mieterhöhung erforderlich"
-  ];
-
-  const handleSendRentIncrease = async () => {
-    try {
-      // TODO: Implementierung für das Versenden von Mieterhöhungen
-      console.log('Sende Mieterhöhungen für', eligibleContracts.length, 'Verträge');
-    } catch (error) {
-      console.error('Fehler beim Versenden der Mieterhöhungen:', error);
-    }
-  };
-
   return (
     <Card>
       <CardHeader 
@@ -202,47 +203,52 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
               {eligibleContracts.length}
             </Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSendRentIncrease();
-              }}
-              disabled={eligibleContracts.length === 0}
-            >
-              Mieterhöhung versenden
-            </Button>
-            {isOpen ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </div>
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
         </CardTitle>
       </CardHeader>
       
       {isOpen && (
         <CardContent className="pt-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Bedingungen für Mieterhöhungen */}
+          <div className="space-y-6">
+            {/* Bedingungen für Mieterhöhungen - ausklappbar */}
             <div>
-              <h4 className="font-medium mb-3 text-sm">Bedingungen für Mieterhöhungen:</h4>
-              <ul className="space-y-2">
-                {mieterhöhungsBedingungen.map((bedingung, index) => (
-                  <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
-                    {bedingung}
-                  </li>
-                ))}
-              </ul>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowConditions(!showConditions);
+                }}
+                className="mb-3 p-0 h-auto font-medium hover:bg-transparent"
+              >
+                {showConditions ? (
+                  <ChevronDown className="h-4 w-4 mr-2" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 mr-2" />
+                )}
+                Bedingungen für Mieterhöhungen anzeigen
+              </Button>
+              
+              {showConditions && (
+                <ul className="space-y-2 ml-6">
+                  {mieterhöhungsBedingungen.map((bedingung, index) => (
+                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
+                      {bedingung}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
-            {/* Berechtigte Verträge */}
+            {/* Berechtigte Verträge mit individuellen Buttons */}
             <div>
               <h4 className="font-medium mb-3 text-sm">Berechtigte Verträge ({eligibleContracts.length}):</h4>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
+              <div className="space-y-3">
                 {eligibleContracts.map((contract) => {
                     const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
                     const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
@@ -269,13 +275,22 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
                           </p>
                         </div>
                         
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onContractClick?.(contract.mietvertrag_id)}
-                        >
-                          Öffnen
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => handleSendRentIncrease(contract.mietvertrag_id)}
+                          >
+                            Mieterhöhung versenden
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onContractClick?.(contract.mietvertrag_id)}
+                          >
+                            Öffnen
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
