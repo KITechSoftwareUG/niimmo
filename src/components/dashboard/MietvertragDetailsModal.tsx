@@ -15,14 +15,16 @@ interface MietvertragDetailsModalProps {
   vertragId: string;
   einheit?: any;
   immobilie?: any;
+  highlightContract?: boolean;
 }
 
-export default function MietvertragDetailsModal({
-  isOpen,
-  onClose,
-  vertragId,
-  einheit,
-  immobilie
+export default function MietvertragDetailsModal({ 
+  isOpen, 
+  onClose, 
+  vertragId, 
+  einheit, 
+  immobilie,
+  highlightContract = false
 }: MietvertragDetailsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();

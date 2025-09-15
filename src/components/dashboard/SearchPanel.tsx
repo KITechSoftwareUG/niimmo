@@ -65,14 +65,30 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
   const handleMieterClick = (mieter: any) => {
     const mietvertragId = mieter.mietvertrag_mieter[0]?.mietvertrag?.id;
     if (mietvertragId) {
-      onMietvertragClick(mietvertragId);
-      setSearchTerm("");
+      // Add loading feedback
+      const button = document.querySelector(`[data-mieter-id="${mieter.id}"]`);
+      if (button) {
+        button.classList.add('animate-pulse', 'opacity-75');
+      }
+      
+      setTimeout(() => {
+        onMietvertragClick(mietvertragId);
+        setSearchTerm("");
+      }, 200);
     }
   };
 
   const handleImmobilieClick = (immobilieId: string, einheitId?: string) => {
-    onImmobilieSelect(immobilieId, einheitId);
-    setSearchTerm("");
+    // Add loading feedback  
+    const button = document.querySelector(`[data-immobilie-id="${immobilieId}"]`);
+    if (button) {
+      button.classList.add('animate-pulse', 'opacity-75');
+    }
+    
+    setTimeout(() => {
+      onImmobilieSelect(immobilieId, einheitId);
+      setSearchTerm("");
+    }, 200);
   };
   const getFirstResult = () => {
     if (!searchResults) return null;
@@ -137,7 +153,8 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
                   {searchResults.mieter.map((mieter) => (
                     <div
                       key={mieter.id}
-                      className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all cursor-pointer"
+                      data-mieter-id={mieter.id}
+                      className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-red-300 transition-all cursor-pointer transform hover:scale-[1.02]"
                       onClick={() => handleMieterClick(mieter)}
                     >
                       <div className="flex items-center justify-between">
@@ -186,7 +203,8 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
                   {searchResults.immobilien.map((immobilie) => (
                     <div
                       key={immobilie.id}
-                      className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all cursor-pointer"
+                      data-immobilie-id={immobilie.id}
+                      className="p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-blue-300 transition-all cursor-pointer transform hover:scale-[1.02]"
                       onClick={() => handleImmobilieClick(immobilie.id)}
                     >
                       <div className="flex items-center justify-between">

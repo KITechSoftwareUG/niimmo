@@ -135,7 +135,7 @@ export const ImmobilienDetail = ({
   const gesamtWarmmiete = gesamtKaltmiete + gesamtBetriebskosten;
   const gesamtQm = einheiten?.reduce((sum, einheit) => sum + (einheit.qm || 0), 0) || 0;
 
-  // Scroll to specific unit if scrollToEinheitId is provided
+  // Scroll to specific unit if scrollToEinheitId is provided with enhanced highlighting
   useEffect(() => {
     if (scrollToEinheitId && einheiten && !einheitenLoading) {
       const timer = setTimeout(() => {
@@ -145,12 +145,22 @@ export const ImmobilienDetail = ({
             behavior: 'smooth',
             block: 'center'
           });
-          // Add a temporary highlight effect
-          targetElement.style.transform = 'scale(1.02)';
-          targetElement.style.transition = 'transform 0.3s ease';
+          
+          // Apply search highlight animation class
+          targetElement.classList.add('animate-search-highlight');
+          targetElement.style.border = '3px solid #ef4444';
+          targetElement.style.borderRadius = '12px';
+          targetElement.style.zIndex = '10';
+          targetElement.style.position = 'relative';
+          
+          // Reset after enhanced duration
           setTimeout(() => {
-            targetElement.style.transform = 'scale(1)';
-          }, 1000);
+            targetElement.classList.remove('animate-search-highlight');
+            targetElement.style.border = '';
+            targetElement.style.borderRadius = '';
+            targetElement.style.zIndex = '';
+            targetElement.style.position = '';
+          }, 4000);
         }
       }, 100);
       return () => clearTimeout(timer);

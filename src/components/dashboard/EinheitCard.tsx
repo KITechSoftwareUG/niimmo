@@ -50,13 +50,23 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
   const [showHistorie, setShowHistorie] = useState(false);
   const [showMietvertragDetails, setShowMietvertragDetails] = useState(false);
   const [autoOpenContract, setAutoOpenContract] = useState(false);
+  const [showContractHighlight, setShowContractHighlight] = useState(false);
   const { toast } = useToast();
 
-  // Check if this contract should be automatically opened
+  // Check if this contract should be automatically opened with highlighting
   useEffect(() => {
     if (openMietvertragId && vertrag?.id === openMietvertragId) {
       setAutoOpenContract(true);
       setShowMietvertragDetails(true);
+      
+      // Show contract highlight animation after card opens
+      setTimeout(() => {
+        setShowContractHighlight(true);
+        // Remove highlight after animation
+        setTimeout(() => {
+          setShowContractHighlight(false);
+        }, 3000);
+      }, 500);
     }
   }, [openMietvertragId, vertrag?.id]);
 
@@ -257,8 +267,19 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
               )}
 
               {/* Mietinformationen */}
-              <div className="space-y-2 pt-2 border-t border-gray-100">
-                <div className="text-sm font-medium text-gray-700 mb-2">Mietinformationen</div>
+              <div className={`space-y-2 pt-2 border-t border-gray-100 transition-all duration-500 ${
+                showContractHighlight 
+                  ? 'animate-contract-found border-4 border-red-500 bg-red-50 shadow-lg rounded-lg p-3' 
+                  : ''
+              }`}>
+                <div className="text-sm font-medium text-gray-700 mb-2">
+                  Mietinformationen
+                  {showContractHighlight && (
+                    <span className="ml-2 text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-bounce-in">
+                      Gefunden!
+                    </span>
+                  )}
+                </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
@@ -325,11 +346,13 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
           isOpen={showMietvertragDetails}
           onClose={() => {
             setShowMietvertragDetails(false);
+            setShowContractHighlight(false); // Reset highlight when modal closes
             onContractModalClose?.();
           }}
           vertragId={vertrag.id}
           einheit={einheit}
           immobilie={immobilie}
+          highlightContract={showContractHighlight}
         />
       )}
     </>
