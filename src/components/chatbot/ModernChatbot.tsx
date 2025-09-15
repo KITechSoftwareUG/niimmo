@@ -36,7 +36,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      text: "Hallo! Ich bin Ihr KI-Assistent für die Immobilienverwaltung. Wie kann ich Ihnen heute helfen?",
+      text: "Hallo! Ich bin Chilla, dein KI‑Assistent für die Immobilienverwaltung. Wie kann ich dir heute helfen?",
       isUser: false,
       timestamp: new Date(),
       isNotification: false
@@ -201,7 +201,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
 
   return (
     <div className="fixed bottom-4 right-4 w-[450px] h-[580px] z-50 animate-scale-in">
-      <Card className="h-full flex flex-col shadow-2xl border-0 overflow-hidden backdrop-blur-xl bg-white/95 dark:bg-gray-900/95">
+      <Card className="h-full flex flex-col min-h-0 shadow-2xl border-0 overflow-hidden backdrop-blur-xl bg-white/95 dark:bg-gray-900/95">
         {/* Header */}
         <CardHeader className="bg-gradient-to-r from-red-600 to-red-900 text-white p-4 flex-shrink-0 backdrop-blur-sm">
           <div className="flex items-center justify-between">
@@ -212,9 +212,9 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
               <div>
                 <h3 className="font-bold text-lg flex items-center gap-2">
                   <Zap className="h-4 w-4" />
-                  KI-Assistent
+                  Chilla
                 </h3>
-                <p className="text-sm text-red-100">Immobilienverwaltung</p>
+                <p className="text-sm text-red-100">Dein KI‑Assistent</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -240,8 +240,8 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
         </CardHeader>
 
         {/* Messages */}
-        <CardContent className="flex-1 flex flex-col p-0 bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50">
-          <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
+        <CardContent className="flex-1 min-h-0 flex flex-col p-0 bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50">
+          <ScrollArea ref={scrollAreaRef} className="flex-1 h-full p-4">
             <div className="space-y-4">
               {messages.map((message, index) => (
                 <div
@@ -294,7 +294,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
                         <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                         <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                       </div>
-                      <span className="text-sm">KI denkt nach...</span>
+                      <span className="text-sm">Chilla denkt nach...</span>
                     </div>
                   </div>
                 </div>
@@ -310,7 +310,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Stellen Sie Ihre Frage..."
+                placeholder="Frag Chilla etwas…"
                 disabled={isLoading}
                 className="flex-1 border-2 border-gray-200 dark:border-gray-700 focus:border-red-500 dark:focus:border-red-400 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm transition-all duration-200"
               />
