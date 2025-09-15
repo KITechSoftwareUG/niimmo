@@ -124,7 +124,7 @@ const Index = () => {
       .from('mietvertrag')
       .select(`einheit_id, einheiten (immobilie_id)`)
       .eq('id', mietvertragId)
-      .single();
+      .maybeSingle(); // Use maybeSingle to handle cases where no data exists
       
     if (mietvertrag?.einheit_id && mietvertrag.einheiten?.immobilie_id) {
       setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);

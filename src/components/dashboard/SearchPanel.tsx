@@ -20,7 +20,7 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
     queryFn: async () => {
       if (!searchTerm || searchTerm.length < 2) return { mieter: [], immobilien: [] };
 
-      // Suche Mieter
+      // Suche Mieter (inklusive beendete Mietverträge)
       const { data: mieter, error: mieterError } = await supabase
         .from('mieter')
         .select(`
@@ -32,6 +32,7 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
             mietvertrag_id,
             mietvertrag!inner(
               id,
+              status,
               einheit_id,
               einheiten!inner(
                 immobilie_id,
@@ -143,13 +144,28 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
                         <div>
                           <p className="font-medium text-gray-900">
                             {mieter.vorname} {mieter.nachname}
+                            {mieter.mietvertrag_mieter[0]?.mietvertrag?.status === 'beendet' && 
+                              <span className="ml-2 text-xs text-gray-500">(ehemaliger Mieter)</span>
+                            }
                           </p>
                           <p className="text-sm text-gray-600">{mieter.hauptmail}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              mieter.mietvertrag_mieter[0]?.mietvertrag?.status === 'beendet' 
+                                ? 'border-gray-400 text-gray-600' 
+                                : ''
+                            }`}
+                          >
                             {mieter.mietvertrag_mieter[0]?.mietvertrag?.einheiten?.immobilien?.name || 'Unbekannt'}
                           </Badge>
+                          {mieter.mietvertrag_mieter[0]?.mietvertrag?.status === 'beendet' && (
+                            <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-700">
+                              beendet
+                            </Badge>
+                          )}
                           <ArrowRight className="h-4 w-4 text-gray-400" />
                         </div>
                       </div>

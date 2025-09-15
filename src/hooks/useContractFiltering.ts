@@ -34,19 +34,26 @@ export const useContractFiltering = <T extends FilterableItem>(
 
     let result = [...data];
 
-    // Apply status filter (always exclude ended contracts)
-    result = result.filter(item => {
-      const status = item.vertrag?.status || item.status;
-      return status === 'aktiv' || status === 'gekuendigt';
-    });
-
-    // Apply specific status filter
-    if (filters.mietstatus !== "all") {
+    // Apply status filter (include all contracts by default, can be filtered specifically)
+    // No automatic exclusion of ended contracts anymore
+    if (filters.mietstatus === "aktiv") {
       result = result.filter(item => {
         const status = item.vertrag?.status || item.status;
-        return status === filters.mietstatus;
+        return status === 'aktiv';
+      });
+    } else if (filters.mietstatus === "gekuendigt") {
+      result = result.filter(item => {
+        const status = item.vertrag?.status || item.status;
+        return status === 'gekuendigt';
+      });
+    } else if (filters.mietstatus === "beendet") {
+      result = result.filter(item => {
+        const status = item.vertrag?.status || item.status;
+        return status === 'beendet';
       });
     }
+
+    // Additional specific status filter is handled above now
 
     // Apply search filter
     if (searchTerm) {

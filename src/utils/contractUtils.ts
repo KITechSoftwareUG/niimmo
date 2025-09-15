@@ -16,12 +16,21 @@ export interface SortConfig {
 }
 
 /**
- * Filters contracts based on status (active + terminated only, excluding ended contracts)
+ * Filters contracts to include all relevant statuses (active, terminated, and ended)
+ * For search functionality, we want to include all contracts
+ */
+export const filterAllContracts = (contracts: any[]): any[] => {
+  return contracts.filter(contract => 
+    contract.status === 'aktiv' || contract.status === 'gekuendigt' || contract.status === 'beendet'
+  );
+};
+
+/**
+ * Legacy function kept for backward compatibility - now includes ended contracts
+ * @deprecated Use filterAllContracts instead
  */
 export const filterActiveAndTerminatedContracts = (contracts: any[]): any[] => {
-  return contracts.filter(contract => 
-    contract.status === 'aktiv' || contract.status === 'gekuendigt'
-  );
+  return filterAllContracts(contracts);
 };
 
 /**
@@ -72,7 +81,7 @@ export const sortPropertiesByName = (properties: any[]): any[] => {
 
 /**
  * Gets the most current rental contract for a unit
- * Priority: 1. Active contracts, 2. Most recent by start date
+ * Priority: 1. Active contracts, 2. Terminated contracts, 3. Most recent ended contract by start date
  */
 export const getCurrentContract = (contracts: any[]): any | null => {
   if (contracts.length === 0) return null;
@@ -81,7 +90,11 @@ export const getCurrentContract = (contracts: any[]): any | null => {
   const activeContract = contracts.find(c => c.status === 'aktiv');
   if (activeContract) return activeContract;
   
-  // If no active contract, find the most recent one by start date
+  // Second, try to find a terminated contract
+  const terminatedContract = contracts.find(c => c.status === 'gekuendigt');
+  if (terminatedContract) return terminatedContract;
+  
+  // Finally, if only ended contracts, find the most recent one by start date
   return contracts.reduce((latest, current) => {
     const latestDate = latest.start_datum ? new Date(latest.start_datum) : new Date(0);
     const currentDate = current.start_datum ? new Date(current.start_datum) : new Date(0);
