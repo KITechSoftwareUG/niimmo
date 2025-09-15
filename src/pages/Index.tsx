@@ -7,13 +7,12 @@ import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlun
 import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
-import { MietvertragDetail } from "@/components/dashboard/MietvertragDetail";
-import { MietUebersichtModal } from "@/components/dashboard/MietUebersichtModal";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { MieterhöhungenSection } from "@/components/dashboard/MieterhöhungenSection";
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3, ArrowLeft } from "lucide-react";
+import { Loader2, Building2, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
   const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
@@ -74,16 +73,10 @@ const Index = () => {
     enabled: !!immobilien
   });
 
-  // Sort immobilien alphabetically by name (ascending)
+  // Sort immobilien using centralized utility
   const sortedImmobilien = useMemo(() => {
     if (!immobilien) return [];
-    return [...immobilien].sort((a, b) => {
-      // Use natural sorting for names with numbers (e.g., "Objekt 1", "Objekt 2", "Objekt 10")
-      return a.name.localeCompare(b.name, undefined, {
-        numeric: true,
-        sensitivity: 'base'
-      });
-    });
+    return sortPropertiesByName(immobilien);
   }, [immobilien]);
   const handleImmobilieClick = (immobilieId: string, einheitId?: string) => {
     setSelectedImmobilie(immobilieId);
@@ -125,20 +118,18 @@ const Index = () => {
     setSelectedMietvertrag(mietvertragId);
     setNavigationSource('dashboard');
   };
+
   const handleMietvertragClick = async (mietvertragId: string) => {
-    // Fetch the rental contract to get einheit_id and immobilie_id
-    const {
-      data: mietvertrag
-    } = await supabase.from('mietvertrag').select(`
-        einheit_id,
-        einheiten (
-          immobilie_id
-        )
-      `).eq('id', mietvertragId).single();
+    const { data: mietvertrag } = await supabase
+      .from('mietvertrag')
+      .select(`einheit_id, einheiten (immobilie_id)`)
+      .eq('id', mietvertragId)
+      .single();
+      
     if (mietvertrag?.einheit_id && mietvertrag.einheiten?.immobilie_id) {
       setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);
-      setSelectedEinheit(mietvertrag.einheit_id); // Set to unit ID for proper scrolling
-      setSelectedMietvertrag(mietvertragId); // Set contract ID to open modal
+      setSelectedEinheit(mietvertrag.einheit_id);
+      setSelectedMietvertrag(mietvertragId);
       setNavigationSource('dashboard');
     }
   };
@@ -234,11 +225,16 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-            {sortedImmobilien?.map((immobilie, index) => <div key={immobilie.id} className="glass-card rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer" style={{
-            animationDelay: `${index * 0.1}s`
-          }} onClick={() => handleImmobilieClick(immobilie.id)}>
+            {sortedImmobilien?.map((immobilie, index) => (
+              <div 
+                key={immobilie.id} 
+                className="glass-card rounded-2xl overflow-hidden group hover:shadow-xl transition-all duration-300 cursor-pointer" 
+                style={{ animationDelay: `${index * 0.1}s` }} 
+                onClick={() => handleImmobilieClick(immobilie.id)}
+              >
                 <ImmobilienCard immobilie={immobilie} onClick={() => handleImmobilieClick(immobilie.id)} />
-              </div>)}
+              </div>
+            ))}
           </div>
         </div>
 

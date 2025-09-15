@@ -1,16 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Building2, Save, X, Edit3, Check, Filter, Search, ArrowUpDown, ArrowUp, ArrowDown, Eye, EyeOff, Settings, RotateCcw } from "lucide-react";
+import { Loader2, Save, X, Edit3, Check, Filter, Search, ArrowUpDown, ArrowUp, ArrowDown, Eye, EyeOff, Settings, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useMemo, useCallback, useEffect } from "react";
-import * as React from "react";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -21,29 +19,14 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react";
+import { useEditableField } from "@/hooks/useEditableField";
+import { useContractFiltering } from "@/hooks/useContractFiltering";
+import { formatDateForInput, formatDateForDisplay, parseInputDate } from "@/utils/dateUtils";
+import { formatCurrency, formatArea } from "@/utils/contractUtils";
 
 interface EditableMietUebersichtModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-interface EditingCell {
-  vertragId: string;
-  field: string;
-  value: any;
-  originalValue: any;
-}
-
-interface TableRow {
-  vertrag: any;
-  einheit: any;
-  immobilie: any;
-  mieter: any[];
-  zahlungen: {
-    aktuellerMonat: number;
-    gesamt: number;
-    anzahlZahlungen: number;
-  };
 }
 
 interface FieldConfig {
@@ -63,17 +46,17 @@ const EDITABLE_FIELDS: Record<string, FieldConfig> = {
   
   // Einheit fields  
   'einheit.etage': { label: 'Etage', type: 'text', table: 'einheiten', category: 'unit' },
-  'einheit.qm': { label: 'Quadratmeter', type: 'number', table: 'einheiten', category: 'unit', format: (val) => `${val} m²` },
+  'einheit.qm': { label: 'Quadratmeter', type: 'number', table: 'einheiten', category: 'unit', format: formatArea },
   'einheit.einheitentyp': { label: 'Nutzung', type: 'select', table: 'einheiten', category: 'unit', options: ['Wohnung', 'Gewerbe', 'Garage', 'Keller', 'Dachboden'] },
   
   // Mietvertrag fields
-  'vertrag.kaltmiete': { label: 'Kaltmiete', type: 'number', table: 'mietvertrag', category: 'contract', format: (val) => `€${Number(val).toLocaleString('de-DE')}` },
-  'vertrag.betriebskosten': { label: 'Betriebskosten', type: 'number', table: 'mietvertrag', category: 'contract', format: (val) => `€${Number(val).toLocaleString('de-DE')}` },
-  'vertrag.status': { label: 'Status', type: 'select', table: 'mietvertrag', category: 'contract', options: ['aktiv', 'inaktiv', 'gekündigt'] },
-  'vertrag.start_datum': { label: 'Mietbeginn', type: 'date', table: 'mietvertrag', category: 'contract', format: (val) => formatDateForDisplay(val) },
-  'vertrag.ende_datum': { label: 'Mietende', type: 'date', table: 'mietvertrag', category: 'contract', format: (val) => formatDateForDisplay(val) },
-  'vertrag.kaution_betrag': { label: 'Kaution Soll', type: 'number', table: 'mietvertrag', category: 'contract', format: (val) => `€${Number(val).toLocaleString('de-DE')}` },
-  'vertrag.kaution_ist': { label: 'Kaution Ist', type: 'number', table: 'mietvertrag', category: 'contract', format: (val) => `€${Number(val).toLocaleString('de-DE')}` },
+  'vertrag.kaltmiete': { label: 'Kaltmiete', type: 'number', table: 'mietvertrag', category: 'contract', format: formatCurrency },
+  'vertrag.betriebskosten': { label: 'Betriebskosten', type: 'number', table: 'mietvertrag', category: 'contract', format: formatCurrency },
+  'vertrag.status': { label: 'Status', type: 'select', table: 'mietvertrag', category: 'contract', options: ['aktiv', 'inaktiv', 'gekuendigt'] },
+  'vertrag.start_datum': { label: 'Mietbeginn', type: 'date', table: 'mietvertrag', category: 'contract', format: formatDateForDisplay },
+  'vertrag.ende_datum': { label: 'Mietende', type: 'date', table: 'mietvertrag', category: 'contract', format: formatDateForDisplay },
+  'vertrag.kaution_betrag': { label: 'Kaution Soll', type: 'number', table: 'mietvertrag', category: 'contract', format: formatCurrency },
+  'vertrag.kaution_ist': { label: 'Kaution Ist', type: 'number', table: 'mietvertrag', category: 'contract', format: formatCurrency },
   'vertrag.lastschrift': { label: 'Lastschrift', type: 'boolean', table: 'mietvertrag', category: 'contract', format: (val) => val ? 'Ja' : 'Nein' },
   
   // Mieter fields
@@ -93,1169 +76,515 @@ interface ColumnConfig {
   groupable?: boolean;
 }
 
-// Date utility functions
-const formatDateForInput = (date: string | Date | null): string => {
-  if (!date) return '';
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return '';
-  return format(d, 'yyyy-MM-dd');
-};
-
-const formatDateForDisplay = (date: string | Date | null): string => {
-  if (!date) return '';
-  const d = new Date(date);
-  if (isNaN(d.getTime())) return '';
-  return format(d, 'dd.MM.yyyy', { locale: de });
-};
-
-const parseDateFromInput = (dateString: string): string | null => {
-  if (!dateString) return null;
-  const d = new Date(dateString);
-  if (isNaN(d.getTime())) return null;
-  return format(d, 'yyyy-MM-dd');
-};
-
 const DEFAULT_COLUMNS: ColumnConfig[] = [
-  { field: 'immobilie.name', label: 'Objekt', width: 'w-40', sticky: true, visible: true, sortable: true, groupable: true },
-  { field: 'einheit.einheitIndex', label: 'Einheit', width: 'w-24', visible: true, sortable: true, groupable: false },
-  { field: 'einheit.etage', label: 'Einheit', width: 'w-20', visible: true, sortable: false },
-  { field: 'mieter.name', label: 'Mieter', width: 'w-48', visible: true, sortable: true, groupable: false },
-  { field: 'vertrag.status', label: 'Status', width: 'w-24', visible: true, sortable: true, groupable: true },
-  { field: 'vertrag.kaltmiete', label: 'Kaltmiete', width: 'w-28', visible: true, sortable: true, groupable: false },
-  { field: 'vertrag.betriebskosten', label: 'NK', width: 'w-24', visible: true, sortable: true, groupable: false },
-  { field: 'zahlungen.aktuellerMonat', label: 'Aktuelle Miete', width: 'w-32', visible: true, sortable: false },
-  { field: 'vertrag.start_datum', label: 'Mietbeginn', width: 'w-28', visible: true, sortable: true, groupable: false },
-  { field: 'einheit.qm', label: 'qm', width: 'w-20', visible: false, sortable: true, groupable: false },
-  { field: 'vertrag.kaution_betrag', label: 'Kaution Soll', width: 'w-28', visible: false, sortable: false },
-  { field: 'vertrag.kaution_ist', label: 'Kaution Ist', width: 'w-28', visible: false, sortable: false },
-  { field: 'vertrag.lastschrift', label: 'Lastschrift', width: 'w-24', visible: false, sortable: false },
-  { field: 'mieter.hauptmail', label: 'E-Mail', width: 'w-48', visible: false, sortable: false },
-  { field: 'mieter.telnr', label: 'Telefon', width: 'w-32', visible: false, sortable: false },
+  { field: 'immobilie.name', label: 'Objekt', width: '150px', sticky: true, visible: true, sortable: true, groupable: true },
+  { field: 'einheit.nummer', label: 'Einheit', width: '80px', visible: true, sortable: true },
+  { field: 'einheit.etage', label: 'Etage', width: '80px', visible: true, sortable: true },
+  { field: 'einheit.qm', label: 'Qm', width: '80px', visible: true, sortable: true },
+  { field: 'vertrag.status', label: 'Status', width: '100px', visible: true, sortable: true, groupable: true },
+  { field: 'vertrag.kaltmiete', label: 'Kaltmiete', width: '100px', visible: true, sortable: true },
+  { field: 'vertrag.betriebskosten', label: 'NK', width: '100px', visible: true, sortable: true },
+  { field: 'vertrag.start_datum', label: 'Mietbeginn', width: '120px', visible: true, sortable: true },
+  { field: 'vertrag.ende_datum', label: 'Mietende', width: '120px', visible: true, sortable: true },
+  { field: 'mieter.name', label: 'Mieter', width: '200px', visible: true, sortable: true },
+  { field: 'mieter.hauptmail', label: 'E-Mail', width: '200px', visible: false, sortable: true },
+  { field: 'mieter.telnr', label: 'Telefon', width: '120px', visible: false, sortable: true },
+  { field: 'vertrag.kaution_betrag', label: 'Kaution Soll', width: '120px', visible: false, sortable: true },
+  { field: 'vertrag.kaution_ist', label: 'Kaution Ist', width: '120px', visible: false, sortable: true },
 ];
 
 export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMietUebersichtModalProps) => {
-  const [editingCells, setEditingCells] = useState<EditingCell[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<string>('einheit.einheitIndex');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  // Column visibility and configuration
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [groupBy, setGroupBy] = useState<string>('immobilie.name');
-  const [showGrouping, setShowGrouping] = useState<boolean>(true);
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
 
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  // Use centralized hooks
+  const editingHook = useEditableField();
+  const {
+    filteredData,
+    filters,
+    setFilters,
+    sortConfig,
+    handleSort,
+    searchTerm,
+    setSearchTerm,
+    resetFilters,
+    totalCount,
+    filteredCount
+  } = useContractFiltering(tableData); // Use the loaded data
 
-  // Fetch all data with relations - only active and terminated contracts
+  // Data fetching
   const { data: tableData, isLoading } = useQuery({
-    queryKey: ['editable-miet-uebersicht'],
+    queryKey: ['mietvertrag-mit-details'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch all data with relations
+      const { data: mietvertraege, error } = await supabase
         .from('mietvertrag')
         .select(`
           *,
-          einheiten:einheit_id (
-            *,
-            immobilien:immobilie_id (*)
+          einheiten (*,
+            immobilien (*)
           ),
           mietvertrag_mieter (
             mieter (*)
           )
         `)
-        .in('status', ['aktiv', 'gekuendigt'])
-        .order('start_datum', { ascending: false });
-      
+        .neq('status', 'beendet'); // Exclude ended contracts
+
       if (error) throw error;
-      return data;
-    }
-  });
 
-  const { data: zahlungenData } = useQuery({
-    queryKey: ['zahlungen-overview'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('zahlungen')
-        .select('*')
-        .order('buchungsdatum', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  // Helper function to get payments for a contract
-  const getZahlungenFuerVertrag = useCallback((vertragId: string) => {
-    if (!zahlungenData) return { aktuellerMonat: 0, gesamt: 0, anzahlZahlungen: 0 };
-    
-    const vertragsZahlungen = zahlungenData.filter(z => z.mietvertrag_id === vertragId);
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    
-    const aktuellerMonat = vertragsZahlungen
-      .filter(z => z.zugeordneter_monat === currentMonth || z.buchungsdatum?.startsWith(currentMonth))
-      .reduce((sum, z) => sum + Number(z.betrag), 0);
-    
-    const gesamt = vertragsZahlungen.reduce((sum, z) => sum + Number(z.betrag), 0);
-    
-    return {
-      aktuellerMonat,
-      gesamt,
-      anzahlZahlungen: vertragsZahlungen.length
-    };
-  }, [zahlungenData]);
-
-  // Process and filter data
-  const processedData: TableRow[] = useMemo(() => {
-    if (!tableData) return [];
-
-    // First, group by immobilie to assign sequential einheit indices
-    const immobilieGroups: Record<string, any[]> = {};
-    tableData.forEach(vertrag => {
-      const immobilieId = vertrag.einheiten?.immobilie_id;
-      if (immobilieId) {
-        if (!immobilieGroups[immobilieId]) {
-          immobilieGroups[immobilieId] = [];
-        }
-        immobilieGroups[immobilieId].push(vertrag);
-      }
-    });
-
-    // Sort units within each immobilie by unit number with fallbacks
-    Object.keys(immobilieGroups).forEach(immobilieId => {
-      immobilieGroups[immobilieId].sort((a, b) => {
-        const extractNum = (val?: string | number) => {
-          if (val == null) return null;
-          const s = val.toString();
-          const match = s.match(/\d+/g);
-          if (match && match.length) {
-            return parseInt(match.join(''), 10);
-          }
-          return null;
-        };
-
-        const aNum = extractNum(a.einheiten?.nummer);
-        const bNum = extractNum(b.einheiten?.nummer);
-
-        if (aNum != null && bNum != null && aNum !== bNum) {
-          return aNum - bNum;
-        }
-        if (aNum != null && bNum == null) return -1;
-        if (aNum == null && bNum != null) return 1;
-
-        // Fallback: creation date
-        const aCreated = a.einheiten?.erstellt_am ? new Date(a.einheiten.erstellt_am).getTime() : 0;
-        const bCreated = b.einheiten?.erstellt_am ? new Date(b.einheiten.erstellt_am).getTime() : 0;
-        if (aCreated !== bCreated) return aCreated - bCreated;
-
-        // Last fallback: ID
-        return (a.einheiten?.id || '').localeCompare(b.einheiten?.id || '');
-      });
-    });
-
-    // Create processed data with einheit indices
-    let filtered = tableData.map(vertrag => {
-      const immobilieId = vertrag.einheiten?.immobilie_id;
-      const fullIndex = immobilieId 
-        ? immobilieGroups[immobilieId].findIndex(v => v.id === vertrag.id) + 1
-        : 1;
-      
-      // Remove last two digits from the index
-      const einheitIndex = fullIndex < 100 ? '' : Math.floor(fullIndex / 100).toString();
-
-      const zahlungen = getZahlungenFuerVertrag(vertrag.id);
-      
-      return {
+      // Transform data to match expected structure
+      return mietvertraege?.map(vertrag => ({
         vertrag,
-        einheit: {
-          ...vertrag.einheiten,
-          einheitIndex
-        },
+        einheit: vertrag.einheiten,
         immobilie: vertrag.einheiten?.immobilien,
         mieter: vertrag.mietvertrag_mieter?.map((mm: any) => mm.mieter) || [],
-        zahlungen
+      })) || [];
+    },
+    enabled: open
+  });
+
+  // Memoized summary calculations
+  const summaryData = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) {
+      return {
+        totalUnits: 0,
+        activeContracts: 0,
+        terminatedContracts: 0,
+        totalColdRent: 0,
+        totalOperatingCosts: 0,
+        totalWarmRent: 0,
+        totalArea: 0
       };
-    });
-
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(row => row.vertrag.status === statusFilter);
     }
 
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(row => {
-        const searchableText = [
-          row.immobilie?.name,
-          row.immobilie?.adresse,
-          row.einheit?.etage,
-          ...row.mieter.map(m => `${m.vorname} ${m.nachname}`),
-          row.vertrag.status
-        ].join(' ').toLowerCase();
-        
-        return searchableText.includes(query);
-      });
-    }
+    return filteredData.reduce((acc, row) => {
+      const kaltmiete = row.vertrag?.kaltmiete || 0;
+      const betriebskosten = row.vertrag?.betriebskosten || 0;
+      const qm = row.einheit?.qm || 0;
 
-    // Apply sorting
-    if (sortField) {
-      filtered.sort((a, b) => {
-        let valueA: any, valueB: any;
-        
-        if (sortField === 'mieter.name') {
-          valueA = a.mieter[0] ? `${a.mieter[0].nachname} ${a.mieter[0].vorname}` : '';
-          valueB = b.mieter[0] ? `${b.mieter[0].nachname} ${b.mieter[0].vorname}` : '';
-        } else if (sortField === 'zahlungen.aktuellerMonat') {
-          valueA = a.zahlungen.aktuellerMonat;
-          valueB = b.zahlungen.aktuellerMonat;
-        } else if (sortField === 'einheit.einheitIndex') {
-          // Primary sort by immobilie name, then by einheit index
-          const immobilieA = a.immobilie?.name || '';
-          const immobilieB = b.immobilie?.name || '';
-          const immobilieCompare = immobilieA.localeCompare(immobilieB, 'de-DE');
-          
-          if (immobilieCompare !== 0) {
-            return sortDirection === 'asc' ? immobilieCompare : -immobilieCompare;
-          }
-          
-          valueA = a.einheit?.einheitIndex || 0;
-          valueB = b.einheit?.einheitIndex || 0;
-        } else {
-          const fieldParts = sortField.split('.');
-          valueA = fieldParts.reduce((obj, key) => obj?.[key], a);
-          valueB = fieldParts.reduce((obj, key) => obj?.[key], b);
-        }
-
-        if (typeof valueA === 'string' && typeof valueB === 'string') {
-          return sortDirection === 'asc' 
-            ? valueA.localeCompare(valueB, 'de-DE', { numeric: true })
-            : valueB.localeCompare(valueA, 'de-DE', { numeric: true });
-        }
-        
-        if (typeof valueA === 'number' && typeof valueB === 'number') {
-          return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
-        }
-
-        return 0;
-      });
-    }
-
-    return filtered;
-  }, [tableData, getZahlungenFuerVertrag, searchQuery, sortField, sortDirection, statusFilter]);
-
-  // Group data if grouping is enabled
-  const groupedData = useMemo(() => {
-    if (!showGrouping || !groupBy) return { ungrouped: processedData };
-    
-    const groups: Record<string, TableRow[]> = {};
-    
-    processedData.forEach(row => {
-      let groupValue: string;
-      
-      if (groupBy === 'mieter.name') {
-        groupValue = row.mieter[0] ? `${row.mieter[0].nachname} ${row.mieter[0].vorname}` : 'Ohne Mieter';
-      } else if (groupBy === 'immobilie.name') {
-        groupValue = row.immobilie?.name || 'Ohne Objekt';
-      } else if (groupBy === 'vertrag.status') {
-        groupValue = row.vertrag.status || 'Ohne Status';
-      } else {
-        const fieldParts = groupBy.split('.');
-        groupValue = fieldParts.reduce((obj, key) => obj?.[key], row) || 'Nicht definiert';
-      }
-      
-      if (!groups[groupValue]) {
-        groups[groupValue] = [];
-      }
-      groups[groupValue].push(row);
-    });
-    
-    // Sort groups by group name
-    const sortedGroups: Record<string, TableRow[]> = {};
-    Object.keys(groups).sort((a, b) => a.localeCompare(b, 'de-DE', { numeric: true })).forEach(key => {
-      sortedGroups[key] = groups[key];
-    });
-    
-    return sortedGroups;
-  }, [processedData, showGrouping, groupBy]);
-
-  // Editing functions
-  const startEditing = useCallback((vertragId: string, field: string, currentValue: any) => {
-    const existingIndex = editingCells.findIndex(
-      cell => cell.vertragId === vertragId && cell.field === field
-    );
-    
-    if (existingIndex >= 0) return;
-    
-    const fieldConfig = EDITABLE_FIELDS[field];
-    let editValue = currentValue;
-    
-    // Format value for editing based on field type
-    if (fieldConfig?.type === 'date' && currentValue) {
-      editValue = formatDateForInput(currentValue);
-    }
-    
-    setEditingCells(prev => [
-      ...prev,
-      { vertragId, field, value: editValue, originalValue: currentValue }
-    ]);
-  }, [editingCells]);
-
-  const updateEditingValue = useCallback((vertragId: string, field: string, value: any) => {
-    setEditingCells(prev =>
-      prev.map(cell =>
-        cell.vertragId === vertragId && cell.field === field
-          ? { ...cell, value }
-          : cell
-      )
-    );
-  }, []);
-
-  const cancelEdit = useCallback((vertragId: string, field: string) => {
-    setEditingCells(prev =>
-      prev.filter(cell => !(cell.vertragId === vertragId && cell.field === field))
-    );
-  }, []);
-
-  const cancelAllEdits = useCallback(() => {
-    setEditingCells([]);
-  }, []);
-
-  const getEditingValue = useCallback((vertragId: string, field: string) => {
-    const cell = editingCells.find(c => c.vertragId === vertragId && c.field === field);
-    return cell ? cell.value : null;
-  }, [editingCells]);
-
-  const isFieldEditing = useCallback((vertragId: string, field: string) => {
-    return editingCells.some(cell => cell.vertragId === vertragId && cell.field === field);
-  }, [editingCells]);
-
-  // Save a single field
-  const saveSingleField = async (vertragId: string, field: string) => {
-    const editingCell = editingCells.find(cell => cell.vertragId === vertragId && cell.field === field);
-    if (!editingCell) return;
-
-    try {
-      const fieldConfig = EDITABLE_FIELDS[field];
-      if (!fieldConfig) return;
-
-      const table = fieldConfig.table;
-      let recordId: string | undefined;
-      let dbField: string;
-
-      // Determine record ID and database field name
-      if (field.startsWith('vertrag.')) {
-        recordId = vertragId;
-        dbField = field.replace('vertrag.', '');
-      } else if (field.startsWith('einheit.')) {
-        const row = processedData.find(r => r.vertrag.id === vertragId);
-        recordId = row?.einheit?.id;
-        dbField = field.replace('einheit.', '');
-      } else if (field.startsWith('immobilie.')) {
-        const row = processedData.find(r => r.vertrag.id === vertragId);
-        recordId = row?.immobilie?.id;
-        dbField = field.replace('immobilie.', '');
-      } else if (field.startsWith('mieter.')) {
-        const row = processedData.find(r => r.vertrag.id === vertragId);
-        recordId = row?.mieter?.[0]?.id;
-        dbField = field.replace('mieter.', '');
-      }
-
-      if (!recordId) return;
-
-      // Convert value based on field type
-      let processedValue = editingCell.value;
-      if (fieldConfig.type === 'number') {
-        processedValue = parseFloat(editingCell.value) || null;
-      } else if (fieldConfig.type === 'boolean') {
-        processedValue = Boolean(editingCell.value);
-      } else if (fieldConfig.type === 'date') {
-        processedValue = parseDateFromInput(editingCell.value);
-      }
-
-      // Save to database
-      const { error } = await supabase
-        .from(table as any)
-        .update({ [dbField]: processedValue })
-        .eq('id', recordId);
-
-      if (error) throw error;
-
-      // Clear this specific editing cell
-      setEditingCells(prev => prev.filter(cell => !(cell.vertragId === vertragId && cell.field === field)));
-
-      // Refresh data
-      queryClient.invalidateQueries({ queryKey: ['editable-miet-uebersicht'] });
-      queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
-
-      toast({
-        title: "Erfolgreich gespeichert",
-        description: `${fieldConfig.label} wurde aktualisiert.`,
-      });
-
-    } catch (error) {
-      console.error('Fehler beim Speichern:', error);
-      toast({
-        title: "Fehler beim Speichern",
-        description: "Die Änderung konnte nicht gespeichert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Save changes with optimistic updates
-  const saveAllChanges = async () => {
-    try {
-      const updatesByTable = {
-        mietvertrag: new Map(),
-        einheiten: new Map(),
-        immobilien: new Map(),
-        mieter: new Map()
+      return {
+        totalUnits: acc.totalUnits + 1,
+        activeContracts: acc.activeContracts + (row.vertrag?.status === 'aktiv' ? 1 : 0),
+        terminatedContracts: acc.terminatedContracts + (row.vertrag?.status === 'gekuendigt' ? 1 : 0),
+        totalColdRent: acc.totalColdRent + kaltmiete,
+        totalOperatingCosts: acc.totalOperatingCosts + betriebskosten,
+        totalWarmRent: acc.totalWarmRent + kaltmiete + betriebskosten,
+        totalArea: acc.totalArea + qm
       };
+    }, {
+      totalUnits: 0,
+      activeContracts: 0,
+      terminatedContracts: 0,
+      totalColdRent: 0,
+      totalOperatingCosts: 0,
+      totalWarmRent: 0,
+      totalArea: 0
+    });
+  }, [filteredData]);
 
-      // Group updates by table and record ID
-      editingCells.forEach(cell => {
-        const fieldConfig = EDITABLE_FIELDS[cell.field];
-        if (!fieldConfig) return;
-
-        const table = fieldConfig.table;
-        let recordId: string | undefined;
-        let dbField: string;
-
-        // Determine record ID and database field name
-        if (cell.field.startsWith('vertrag.')) {
-          recordId = cell.vertragId;
-          dbField = cell.field.replace('vertrag.', '');
-        } else if (cell.field.startsWith('einheit.')) {
-          const row = processedData.find(r => r.vertrag.id === cell.vertragId);
-          recordId = row?.einheit?.id;
-          dbField = cell.field.replace('einheit.', '');
-        } else if (cell.field.startsWith('immobilie.')) {
-          const row = processedData.find(r => r.vertrag.id === cell.vertragId);
-          recordId = row?.immobilie?.id;
-          dbField = cell.field.replace('immobilie.', '');
-        } else if (cell.field.startsWith('mieter.')) {
-          const row = processedData.find(r => r.vertrag.id === cell.vertragId);
-          recordId = row?.mieter?.[0]?.id;
-          dbField = cell.field.replace('mieter.', '');
-        }
-
-        if (!recordId) return;
-
-        if (!updatesByTable[table as keyof typeof updatesByTable].has(recordId)) {
-          updatesByTable[table as keyof typeof updatesByTable].set(recordId, {});
-        }
-
-        // Convert value based on field type
-        let processedValue = cell.value;
-        if (fieldConfig.type === 'number') {
-          processedValue = parseFloat(cell.value) || null;
-        } else if (fieldConfig.type === 'boolean') {
-          processedValue = Boolean(cell.value);
-        } else if (fieldConfig.type === 'date') {
-          processedValue = parseDateFromInput(cell.value);
-        }
-
-        updatesByTable[table as keyof typeof updatesByTable].get(recordId)[dbField] = processedValue;
-      });
-
-      // Execute updates for each table
-      for (const [tableName, updates] of Object.entries(updatesByTable)) {
-        for (const [recordId, updateData] of updates) {
-          if (Object.keys(updateData).length === 0) continue;
-
-          const { error } = await supabase
-            .from(tableName as any)
-            .update(updateData)
-            .eq('id', recordId);
-
-          if (error) throw error;
-        }
-      }
-
-      // Clear editing state
-      setEditingCells([]);
-
-      // Refresh data
-      queryClient.invalidateQueries({ queryKey: ['editable-miet-uebersicht'] });
-      queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
-
-      toast({
-        title: "Erfolgreich gespeichert",
-        description: `${editingCells.length} Änderungen wurden gespeichert.`,
-      });
-
-    } catch (error) {
-      console.error('Fehler beim Speichern:', error);
-      toast({
-        title: "Fehler beim Speichern",
-        description: "Die Änderungen konnten nicht gespeichert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle column visibility
-  const toggleColumn = (field: string) => {
+  // Column management
+  const toggleColumnVisibility = useCallback((field: string) => {
     setColumns(prev => prev.map(col => 
       col.field === field ? { ...col, visible: !col.visible } : col
     ));
-  };
+  }, []);
 
-  // Handle sorting
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
+  const resetColumns = useCallback(() => {
+    setColumns(DEFAULT_COLUMNS);
+  }, []);
 
-  // Get field value from row
-  const getFieldValue = (row: TableRow, field: string) => {
-    if (field === 'mieter.name') {
-      return row.mieter[0] ? `${row.mieter[0].vorname} ${row.mieter[0].nachname}` : '';
+  // Get visible columns
+  const visibleColumns = useMemo(() => 
+    columns.filter(col => col.visible), 
+    [columns]
+  );
+
+  // Render cell content
+  const renderCellContent = useCallback((row: any, field: string) => {
+    const [object, property] = field.split('.');
+    let value;
+
+    switch (object) {
+      case 'immobilie':
+        value = row.immobilie?.[property];
+        break;
+      case 'einheit':
+        value = row.einheit?.[property];
+        break;
+      case 'vertrag':
+        value = row.vertrag?.[property];
+        break;
+      case 'mieter':
+        if (property === 'name') {
+          const mieter = row.mieter?.[0];
+          value = mieter ? `${mieter.vorname || ''} ${mieter.nachname || ''}`.trim() : '';
+        } else {
+          value = row.mieter?.[0]?.[property];
+        }
+        break;
+      default:
+        value = '';
     }
-    if (field === 'zahlungen.aktuellerMonat') {
-      return row.zahlungen.aktuellerMonat;
+
+    const fieldConfig = EDITABLE_FIELDS[field];
+    if (fieldConfig?.format && value != null) {
+      return fieldConfig.format(value);
     }
-    if (field === 'einheit.einheitIndex') {
-      return row.einheit?.einheitIndex || 1;
-    }
-    if (field === 'einheit.etage') {
-      return row.einheit?.etage || '';
-    }
-    
-    const fieldParts = field.split('.');
-    return fieldParts.reduce((obj, key) => obj?.[key], row);
-  };
+
+    return value || '';
+  }, []);
 
   // Render editable cell
-  const renderEditableCell = (row: TableRow, field: string, className: string = "") => {
+  const renderEditableCell = useCallback((row: any, field: string) => {
+    const recordId = getRecordId(row, field);
+    const isEditing = editingHook.isFieldEditing(recordId, field);
+    const currentValue = renderCellContent(row, field);
+    const editingValue = editingHook.getEditingValue(recordId, field);
     const fieldConfig = EDITABLE_FIELDS[field];
-    const value = getFieldValue(row, field);
-    const vertragId = row.vertrag.id;
-    const isActive = isFieldEditing(vertragId, field);
-    const editValue = isActive ? getEditingValue(vertragId, field) : value;
 
     if (!fieldConfig) {
-      // Handle non-editable display fields
-      let displayValue = value;
-      if (field === 'zahlungen.aktuellerMonat' && typeof value === 'number') {
-        displayValue = `€${value.toLocaleString('de-DE')}`;
-      } else if (field === 'mieter.name') {
-        displayValue = value || '-';
-      }
-      
+      return <span className="text-gray-500">{currentValue}</span>;
+    }
+
+    if (isEditing) {
       return (
-        <TableCell className={cn("text-sm", className)}>
-          <div className="min-h-[32px] flex items-center">
-            {displayValue || '-'}
-          </div>
-        </TableCell>
+        <div className="flex items-center gap-2">
+          {renderEditInput(recordId, field, fieldConfig, editingValue || currentValue)}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleSaveField(recordId, field, fieldConfig)}
+            className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+          >
+            <Check className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => editingHook.cancelEdit(recordId, field)}
+            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       );
     }
 
-    if (isActive) {
-      if (fieldConfig.type === 'select' && fieldConfig.options) {
-        return (
-          <TableCell className={className}>
-            <div className="flex items-center gap-1">
-              <Select 
-                value={editValue || ''} 
-                onValueChange={(val) => updateEditingValue(vertragId, field, val)}
-              >
-                <SelectTrigger className="h-8 text-xs border-primary">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {fieldConfig.options.map(option => (
-                    <SelectItem key={option} value={option}>{option}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => saveSingleField(vertragId, field)}
-                className="h-8 w-8 p-0"
-              >
-                <Check className="h-3 w-3 text-green-600" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => cancelEdit(vertragId, field)}
-                className="h-8 w-8 p-0"
-              >
-                <X className="h-3 w-3 text-red-600" />
-              </Button>
-            </div>
-          </TableCell>
-        );
-      }
-
-      if (fieldConfig.type === 'boolean') {
-        return (
-          <TableCell className={className}>
-            <div className="flex items-center gap-1">
-              <Select 
-                value={editValue ? 'true' : 'false'} 
-                onValueChange={(val) => updateEditingValue(vertragId, field, val === 'true')}
-              >
-                <SelectTrigger className="h-8 text-xs border-primary">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Ja</SelectItem>
-                  <SelectItem value="false">Nein</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => saveSingleField(vertragId, field)}
-                className="h-8 w-8 p-0"
-              >
-                <Check className="h-3 w-3 text-green-600" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => cancelEdit(vertragId, field)}
-                className="h-8 w-8 p-0"
-              >
-                <X className="h-3 w-3 text-red-600" />
-              </Button>
-            </div>
-          </TableCell>
-        );
-      }
-
-      // Handle date input with proper date picker
-      if (fieldConfig.type === 'date') {
-        const dateValue = editValue ? new Date(editValue) : null;
-        
-        return (
-          <TableCell className={className}>
-            <div className="flex items-center gap-1">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "h-8 text-xs justify-start text-left font-normal border-primary",
-                      !dateValue && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-3 w-3" />
-                    {dateValue ? formatDateForDisplay(dateValue) : "Datum wählen"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateValue}
-                    onSelect={(date) => {
-                      if (date) {
-                        updateEditingValue(vertragId, field, formatDateForInput(date));
-                      }
-                    }}
-                    initialFocus
-                    className="pointer-events-auto"
-                    locale={de}
-                  />
-                </PopoverContent>
-              </Popover>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => saveSingleField(vertragId, field)}
-                className="h-8 w-8 p-0"
-              >
-                <Check className="h-3 w-3 text-green-600" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => cancelEdit(vertragId, field)}
-                className="h-8 w-8 p-0"
-              >
-                <X className="h-3 w-3 text-red-600" />
-              </Button>
-            </div>
-          </TableCell>
-        );
-      }
-
-      return (
-        <TableCell className={className}>
-          <div className="flex items-center gap-1">
-            <Input
-              type={fieldConfig.type === 'number' ? 'number' : 'text'}
-              step={fieldConfig.type === 'number' ? '0.01' : undefined}
-              value={editValue || ''}
-              onChange={(e) => updateEditingValue(vertragId, field, e.target.value)}
-              className="h-8 text-xs border-primary"
-              autoFocus
-            />
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => saveSingleField(vertragId, field)}
-                className="h-8 w-8 p-0"
-              >
-                <Check className="h-3 w-3 text-green-600" />
-              </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => cancelEdit(vertragId, field)}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-3 w-3 text-red-600" />
-            </Button>
-          </div>
-        </TableCell>
-      );
-    }
-
-  // Display mode
-  let displayValue = value;
-  if (fieldConfig.format && value) {
-    displayValue = fieldConfig.format(value);
-  } else if (fieldConfig.type === 'date' && value) {
-    displayValue = formatDateForDisplay(value);
-  } else if (fieldConfig.type === 'boolean') {
-    displayValue = value ? 'Ja' : 'Nein';
-  }
-
-  // Check if this field has unsaved changes
-  const hasUnsavedChanges = editingCells.some(cell => {
-    if (cell.vertragId !== vertragId || cell.field !== field) return false;
-    
-    // For date fields, compare the formatted versions
-    if (fieldConfig?.type === 'date') {
-      const originalFormatted = formatDateForInput(cell.originalValue);
-      const currentFormatted = formatDateForInput(cell.value);
-      return originalFormatted !== currentFormatted;
-    }
-    
-    // For other fields, do a string comparison to avoid type issues
-    const originalStr = String(cell.originalValue || '');
-    const currentStr = String(cell.value || '');
-    return originalStr !== currentStr;
-  });
-
-  return (
-    <TableCell 
-      className={cn(
-        "text-sm cursor-pointer hover:bg-muted/50 transition-colors group relative",
-        fieldConfig.required && !value && "border-l-2 border-l-red-500",
-        hasUnsavedChanges && "border-l-2 border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20",
-        className
-      )}
-      onClick={() => startEditing(vertragId, field, value)}
-    >
-      <div className="min-h-[32px] flex items-center justify-between">
-        <span>{displayValue || '-'}</span>
-        <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity ml-2" />
+    return (
+      <div 
+        className="flex items-center justify-between group cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
+        onClick={() => editingHook.startEditing(recordId, field, getRawValue(row, field))}
+      >
+        <span>{currentValue}</span>
+        <Edit3 className="h-3 w-3 opacity-0 group-hover:opacity-100 text-gray-400 transition-opacity" />
       </div>
-    </TableCell>
-  );
+    );
+  }, [editingHook]);
+
+  // Helper functions
+  const getRecordId = (row: any, field: string): string => {
+    const [object] = field.split('.');
+    switch (object) {
+      case 'immobilie':
+        return row.immobilie?.id || '';
+      case 'einheit':
+        return row.einheit?.id || '';
+      case 'vertrag':
+        return row.vertrag?.id || '';
+      case 'mieter':
+        return row.mieter?.[0]?.id || '';
+      default:
+        return '';
+    }
   };
 
-  // Get status badge
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "destructive" | "secondary" | "outline"> = {
-      'aktiv': 'default',
-      'inaktiv': 'secondary',
-      'gekündigt': 'destructive'
+  const getRawValue = (row: any, field: string) => {
+    const [object, property] = field.split('.');
+    switch (object) {
+      case 'immobilie':
+        return row.immobilie?.[property];
+      case 'einheit':
+        return row.einheit?.[property];
+      case 'vertrag':
+        return row.vertrag?.[property];
+      case 'mieter':
+        return row.mieter?.[0]?.[property];
+      default:
+        return '';
+    }
+  };
+
+  const handleSaveField = async (recordId: string, field: string, fieldConfig: FieldConfig) => {
+    await editingHook.saveSingleField(recordId, field, fieldConfig);
+  };
+
+  const renderEditInput = (recordId: string, field: string, fieldConfig: FieldConfig, value: any) => {
+    const commonProps = {
+      value: value || '',
+      onChange: (e: any) => {
+        const newValue = e.target ? e.target.value : e;
+        editingHook.updateValue(recordId, field, newValue);
+      },
+      className: "h-8 text-sm",
+      autoFocus: true
     };
-    
-    const variant = variants[status] || 'secondary';
-    
-    return (
-      <Badge variant={variant} className="text-xs">
-        {status}
-      </Badge>
-    );
+
+    switch (fieldConfig.type) {
+      case 'select':
+        return (
+          <Select 
+            value={value || ''} 
+            onValueChange={(newValue) => editingHook.updateValue(recordId, field, newValue)}
+          >
+            <SelectTrigger className="h-8 text-sm w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {fieldConfig.options?.map(option => (
+                <SelectItem key={option} value={option}>{option}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      case 'boolean':
+        return (
+          <Switch
+            checked={!!value}
+            onCheckedChange={(checked) => editingHook.updateValue(recordId, field, checked)}
+          />
+        );
+      case 'date':
+        return (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn("h-8 text-sm justify-start text-left font-normal", !value && "text-muted-foreground")}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {value ? format(new Date(value), "dd.MM.yyyy", { locale: de }) : "Datum wählen"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={value ? new Date(value) : undefined}
+                onSelect={(date) => {
+                  if (date) {
+                    editingHook.updateValue(recordId, field, formatDateForInput(date));
+                  }
+                }}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
+        );
+      case 'number':
+        return <Input {...commonProps} type="number" step="0.01" />;
+      case 'email':
+        return <Input {...commonProps} type="email" />;
+      case 'tel':
+        return <Input {...commonProps} type="tel" />;
+      default:
+        return <Input {...commonProps} type="text" />;
+    }
+  };
+
+  // Sort icon component
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortConfig.field !== field) return <ArrowUpDown className="h-4 w-4" />;
+    return sortConfig.direction === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
   };
 
   if (isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Lade Mietübersicht...
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center space-y-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-              <p className="text-muted-foreground">Daten werden geladen...</p>
-            </div>
+        <DialogContent className="max-w-7xl max-h-[90vh]">
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  const visibleColumns = columns.filter(col => col.visible);
-  const hasChanges = editingCells.length > 0;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] max-h-[95vh] overflow-hidden p-0">
-        
-        {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-background to-muted/30">
+      <DialogContent className="max-w-7xl max-h-[90vh] p-0">
+        <DialogHeader className="px-6 py-4 border-b">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Building2 className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold">
-                  Mietübersicht
-                </DialogTitle>
-                <p className="text-sm text-muted-foreground">
-                  {processedData.length} Verträge • Alle Felder direkt editierbar
-                </p>
-              </div>
-            </div>
-            
+            <DialogTitle className="text-2xl font-bold">Mietübersicht - Bearbeitbar</DialogTitle>
             <div className="flex items-center gap-2">
-              {hasChanges && (
-                <>
-                  <Badge variant="secondary" className="animate-pulse">
-                    {editingCells.length} Änderungen
-                  </Badge>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={cancelAllEdits}
-                    className="gap-2"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    Zurücksetzen
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={saveAllChanges}
-                    className="gap-2 bg-green-600 hover:bg-green-700"
-                  >
-                    <Save className="h-4 w-4" />
-                    Speichern ({editingCells.length})
-                  </Button>
-                </>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetFilters}
+                className="text-sm"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Filter zurücksetzen
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowColumnSettings(!showColumnSettings)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Spalten
+              </Button>
+              {editingHook.hasUnsavedChanges && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={editingHook.discardAllChanges}
+                >
+                  Alle Änderungen verwerfen
+                </Button>
               )}
             </div>
           </div>
         </DialogHeader>
 
-        {/* Controls */}
-        <div className="px-6 py-3 border-b bg-muted/30 space-y-3">
-          <div className="flex items-center gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Suchen nach Objekt, Mieter, Adresse..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9"
-              />
-            </div>
-            
-            {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40 h-9">
-                <SelectValue placeholder="Status filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Status</SelectItem>
-                <SelectItem value="aktiv">Aktiv</SelectItem>
-                <SelectItem value="inaktiv">Inaktiv</SelectItem>
-                <SelectItem value="gekündigt">Gekündigt</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Grouping Controls */}
-            <div className="flex items-center gap-2">
-              <Switch
-                id="grouping"
-                checked={showGrouping}
-                onCheckedChange={setShowGrouping}
-              />
-              <Label htmlFor="grouping" className="text-sm whitespace-nowrap">Gruppieren</Label>
-              {showGrouping && (
-                <Select value={groupBy} onValueChange={setGroupBy}>
-                  <SelectTrigger className="w-36 h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {columns.filter(col => col.groupable).map((col) => (
-                      <SelectItem key={col.field} value={col.field}>
-                        {col.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {/* Column Visibility */}
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Settings className="h-4 w-4" />
-                  Spalten ({visibleColumns.length})
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80">
-                <div className="space-y-4">
-                  <h4 className="font-medium text-sm">Sichtbare Spalten</h4>
-                  <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
-                    {columns.map((column) => (
-                      <div key={column.field} className="flex items-center space-x-2">
-                        <Switch
-                          id={column.field}
-                          checked={column.visible}
-                          onCheckedChange={() => toggleColumn(column.field)}
-                          disabled={column.sticky}
-                        />
-                        <Label htmlFor={column.field} className="text-sm flex-1">
-                          {column.label}
-                          {column.sticky && <span className="text-muted-foreground ml-1">(fixiert)</span>}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-          
-          {/* Stats */}
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <span>Zeige {showGrouping ? Object.values(groupedData).flat().length : processedData.length} von {tableData?.length || 0} Verträgen</span>
-            {showGrouping && (
-              <span>In {Object.keys(groupedData).length} Gruppen</span>
-            )}
-            {hasChanges && (
-              <span className="text-amber-600 font-medium">
-                {editingCells.length} ungespeicherte Änderungen
-              </span>
-            )}
+        {/* Summary Stats */}
+        <div className="px-6 py-4 bg-gray-50 border-b">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            <Card className="p-3">
+              <div className="text-sm font-medium text-gray-600">Einheiten</div>
+              <div className="text-xl font-bold">{summaryData.totalUnits}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-green-600">Aktiv</div>
+              <div className="text-xl font-bold text-green-700">{summaryData.activeContracts}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-yellow-600">Gekündigt</div>
+              <div className="text-xl font-bold text-yellow-700">{summaryData.terminatedContracts}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-blue-600">Kaltmiete</div>
+              <div className="text-xl font-bold text-blue-700">{formatCurrency(summaryData.totalColdRent)}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-purple-600">NK</div>
+              <div className="text-xl font-bold text-purple-700">{formatCurrency(summaryData.totalOperatingCosts)}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-red-600">Warmmiete</div>
+              <div className="text-xl font-bold text-red-700">{formatCurrency(summaryData.totalWarmRent)}</div>
+            </Card>
+            <Card className="p-3">
+              <div className="text-sm font-medium text-gray-600">Fläche</div>
+              <div className="text-xl font-bold">{formatArea(summaryData.totalArea)}</div>
+            </Card>
           </div>
         </div>
 
+        {/* Filters and Search */}
+        <div className="px-6 py-4 border-b bg-white">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Suchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-400" />
+              <Select
+                value={filters.mietstatus}
+                onValueChange={(value) => setFilters({ ...filters, mietstatus: value as any })}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alle Status</SelectItem>
+                  <SelectItem value="aktiv">Aktiv</SelectItem>
+                  <SelectItem value="gekuendigt">Gekündigt</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-sm text-gray-500">
+              {filteredCount} von {totalCount} Einträgen
+            </div>
+          </div>
+        </div>
+
+        {/* Column Settings */}
+        {showColumnSettings && (
+          <div className="px-6 py-4 bg-gray-50 border-b">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-medium">Spalten anpassen</h3>
+              <Button variant="outline" size="sm" onClick={resetColumns}>
+                Zurücksetzen
+              </Button>
+            </div>
+            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {columns.map(column => (
+                <div key={column.field} className="flex items-center space-x-2">
+                  <Switch
+                    checked={column.visible}
+                    onCheckedChange={() => toggleColumnVisibility(column.field)}
+                  />
+                  <Label className="text-sm">{column.label}</Label>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Table */}
-        <div className="flex-1 border rounded-lg bg-white h-[calc(95vh-180px)] overflow-auto">
-          <table className="w-full caption-bottom text-sm border-collapse">
-            <thead>
-              <tr className="sticky top-0 z-50 bg-white border-b-2 shadow-lg backdrop-blur-sm hover:bg-white">
-                {visibleColumns.map((column) => (
-                  <th 
-                    key={column.field}
-                    className={cn(
-                      "sticky top-0 z-50 text-xs font-semibold text-center h-12 border-r bg-white/95 backdrop-blur-sm px-2 align-middle font-medium text-muted-foreground",
-                      column.width || "w-32",
-                      column.sticky && "sticky left-0 z-60 bg-white shadow-lg",
-                      column.sortable && "cursor-pointer hover:bg-muted/20 transition-colors"
-                    )}
-                    onClick={() => column.sortable && handleSort(column.field)}
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      <span>{column.label}</span>
-                      {column.sortable && (
-                        <div className="text-muted-foreground">
-                          {sortField === column.field ? (
-                            sortDirection === 'asc' ? (
-                              <ArrowUp className="h-3 w-3" />
-                            ) : (
-                              <ArrowDown className="h-3 w-3" />
-                            )
-                          ) : (
-                            <ArrowUpDown className="h-3 w-3" />
-                          )}
-                        </div>
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {visibleColumns.map(column => (
+                    <TableHead 
+                      key={column.field}
+                      className={cn(
+                        "text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-50",
+                        column.sticky && "sticky left-0 bg-white z-10",
+                        column.width && `w-[${column.width}]`
                       )}
-                    </div>
-                  </th>
+                      onClick={() => column.sortable && handleSort(column.field)}
+                    >
+                      <div className="flex items-center justify-between">
+                        {column.label}
+                        {column.sortable && <SortIcon field={column.field} />}
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredData?.map((row: any, index: number) => (
+                  <TableRow key={`${row.vertrag?.id || index}`} className="hover:bg-gray-50">
+                    {visibleColumns.map(column => (
+                      <TableCell 
+                        key={column.field}
+                        className={cn(
+                          "text-sm p-2",
+                          column.sticky && "sticky left-0 bg-white z-10"
+                        )}
+                      >
+                        {EDITABLE_FIELDS[column.field] ? 
+                          renderEditableCell(row, column.field) : 
+                          renderCellContent(row, column.field)
+                        }
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </tr>
-            </thead>
-
-            <tbody>
-                   {showGrouping ? (
-                     // Render grouped data
-                     Object.entries(groupedData).map(([groupName, groupRows]) => (
-                       <React.Fragment key={groupName}>
-                         {/* Group Header */}
-                         <tr className="bg-gradient-to-r from-primary/5 to-primary/10 border-b-2 border-primary/20 hover:bg-gradient-to-r hover:from-primary/10 hover:to-primary/15">
-                           <td 
-                             colSpan={visibleColumns.length} 
-                             className="py-3 px-4 font-semibold text-primary align-middle"
-                           >
-                             <div className="flex items-center justify-between">
-                               <div className="flex items-center gap-3">
-                                 <Building2 className="h-4 w-4" />
-                                 <span className="text-sm font-bold">
-                                   {groupBy === 'immobilie.name' && 'Objekt: '}
-                                   {groupBy === 'vertrag.status' && 'Status: '}
-                                   {groupName}
-                                 </span>
-                               </div>
-                               <Badge variant="secondary" className="text-xs">
-                                 {groupRows.length} Verträge
-                               </Badge>
-                             </div>
-                           </td>
-                         </tr>
-                         
-                         {/* Group Rows */}
-                         {groupRows.map((row, index) => (
-                           <tr 
-                             key={row.vertrag.id} 
-                             className="hover:bg-muted/30 transition-colors border-b"
-                             style={{ animationDelay: `${index * 0.01}s` }}
-                           >
-                             {visibleColumns.map((column) => {
-                               const isSticky = column.sticky;
-                               
-                               // Special handling for status column
-                               if (column.field === 'vertrag.status') {
-                                 return (
-                                   <td 
-                                     key={column.field}
-                                     className={cn(
-                                       "text-center border-r p-4 align-middle",
-                                       isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                                     )}
-                                   >
-                                     <div className="min-h-[32px] flex items-center justify-center">
-                                       {getStatusBadge(row.vertrag.status)}
-                                     </div>
-                                   </td>
-                                 );
-                               }
-                               
-                               return renderEditableCell(
-                                 row, 
-                                 column.field,
-                                 cn(
-                                   "text-center border-r",
-                                   isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                                 )
-                               );
-                             })}
-                           </tr>
-                         ))}
-                         
-                         {/* Group Summary */}
-                         <tr className="bg-muted/20 border-b-2 border-muted">
-                           <td 
-                             colSpan={visibleColumns.length} 
-                             className="py-2 px-4 text-xs text-muted-foreground align-middle"
-                           >
-                             <div className="flex items-center justify-between">
-                               <span>Zwischensumme {groupName}:</span>
-                               <div className="flex gap-6">
-                                 <span>
-                                   Gesamt Kaltmiete: €{groupRows.reduce((sum, row) => sum + (row.vertrag.kaltmiete || 0), 0).toLocaleString('de-DE')}
-                                 </span>
-                                 <span>
-                                   Aktuelle Zahlungen: €{groupRows.reduce((sum, row) => sum + (row.zahlungen.aktuellerMonat || 0), 0).toLocaleString('de-DE')}
-                                 </span>
-                               </div>
-                             </div>
-                           </td>
-                         </tr>
-                       </React.Fragment>
-                     ))
-                   ) : (
-                     // Render ungrouped data
-                     processedData.map((row, index) => (
-                       <tr 
-                         key={row.vertrag.id} 
-                         className="hover:bg-muted/30 transition-colors border-b"
-                         style={{ animationDelay: `${index * 0.01}s` }}
-                       >
-                         {visibleColumns.map((column) => {
-                           const isSticky = column.sticky;
-                           
-                           // Special handling for status column
-                           if (column.field === 'vertrag.status') {
-                             return (
-                               <td 
-                                 key={column.field}
-                                 className={cn(
-                                   "text-center border-r p-4 align-middle",
-                                   isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                                 )}
-                               >
-                                 <div className="min-h-[32px] flex items-center justify-center">
-                                   {getStatusBadge(row.vertrag.status)}
-                                 </div>
-                               </td>
-                             );
-                           }
-                           
-                           return renderEditableCell(
-                             row, 
-                             column.field,
-                             cn(
-                               "text-center border-r",
-                               isSticky && "sticky left-0 z-10 bg-background/95 shadow-lg"
-                             )
-                           );
-                         })}
-                       </tr>
-                 ))
-               )}
-             </tbody>
-        </table>
-
-        {(showGrouping ? Object.values(groupedData).flat().length === 0 : processedData.length === 0) && (
-          <div className="text-center py-20">
-            <div className="space-y-4">
-              <Building2 className="h-12 w-12 text-muted-foreground mx-auto" />
-              <div>
-                <h3 className="text-lg font-medium">Keine Verträge gefunden</h3>
-                <p className="text-sm text-muted-foreground">
-                  {searchQuery || statusFilter !== 'all' 
-                    ? 'Versuchen Sie es mit anderen Suchkriterien.' 
-                    : 'Es sind noch keine Mietverträge vorhanden.'
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-        {/* Footer */}
-        {hasChanges && (
-          <div className="px-6 py-3 border-t bg-amber-50 dark:bg-amber-950/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
-                <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
-                <span>Sie haben {editingCells.length} ungespeicherte Änderungen</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={cancelAllEdits}>
-                  Abbrechen
-                </Button>
-                <Button size="sm" onClick={saveAllChanges} className="bg-green-600 hover:bg-green-700">
-                  Alle Änderungen speichern
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

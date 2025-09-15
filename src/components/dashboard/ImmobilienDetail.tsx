@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { EinheitCard } from "./EinheitCard";
-import { ArrowLeft, Building, MapPin, Calendar, Info, Euro, Home, TrendingUp } from "lucide-react";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Building, MapPin, Calendar, Info, Euro, Home, TrendingUp, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useRef } from "react";
+import { sortUnitsByNumber, getCurrentContract, filterActiveAndTerminatedContracts } from "@/utils/contractUtils";
 interface ImmobilienDetailProps {
   immobilieId: string;
   onBack: () => void;
@@ -48,41 +48,15 @@ export const ImmobilienDetail = ({
   } = useQuery({
     queryKey: ['einheiten', immobilieId],
     queryFn: async () => {
-      const {
-        data,
-        error
-      } = await supabase.from('einheiten').select('*').eq('immobilie_id', immobilieId);
+      const { data, error } = await supabase
+        .from('einheiten')
+        .select('*')
+        .eq('immobilie_id', immobilieId);
+      
       if (error) throw error;
       
-      // Sortiere standardmäßig nach Einheitennummer (nummer) aufsteigend; Fallback erstellt_am, dann id
-      return (data || []).sort((a: any, b: any) => {
-        const extractNum = (val?: string | number) => {
-          if (val == null) return null;
-          const s = val.toString();
-          const match = s.match(/\d+/g);
-          if (match && match.length) {
-            return parseInt(match.join(''), 10);
-          }
-          return null;
-        };
-        
-        const aNum = extractNum(a.nummer);
-        const bNum = extractNum(b.nummer);
-        
-        if (aNum != null && bNum != null && aNum !== bNum) {
-          return aNum - bNum;
-        }
-        if (aNum != null && bNum == null) return -1;
-        if (aNum == null && bNum != null) return 1;
-        
-        // Fallback: nach Erstellungsdatum sortieren
-        const aCreated = a.erstellt_am ? new Date(a.erstellt_am).getTime() : 0;
-        const bCreated = b.erstellt_am ? new Date(b.erstellt_am).getTime() : 0;
-        if (aCreated !== bCreated) return aCreated - bCreated;
-        
-        // Letzter Fallback: ID
-        return (a.id || '').localeCompare(b.id || '');
-      });
+      // Use centralized sorting utility
+      return sortUnitsByNumber(data || []);
     }
   });
   const {
@@ -92,39 +66,43 @@ export const ImmobilienDetail = ({
     queryFn: async () => {
       const einheitIds = einheiten?.map(e => e.id) || [];
       if (einheitIds.length === 0) return [];
-      const {
-        data: vertraege,
-        error: vertraegeError
-      } = await supabase.from('mietvertrag').select('*').in('einheit_id', einheitIds).neq('status', 'beendet'); // Beendete Mietverträge ausschließen
+      
+      const { data: vertraege, error: vertraegeError } = await supabase
+        .from('mietvertrag')
+        .select('*')
+        .in('einheit_id', einheitIds)
+        .neq('status', 'beendet'); // Exclude ended contracts
 
       if (vertraegeError) throw vertraegeError;
+      
       const vertragIds = vertraege?.map(v => v.id) || [];
       if (vertragIds.length === 0) return vertraege;
-      const {
-        data: mietvertragMieter,
-        error: mmError
-      } = await supabase.from('mietvertrag_mieter').select(`
-          mietvertrag_id,
-          mieter_id
-        `).in('mietvertrag_id', vertragIds);
+      
+      const { data: mietvertragMieter, error: mmError } = await supabase
+        .from('mietvertrag_mieter')
+        .select(`mietvertrag_id, mieter_id`)
+        .in('mietvertrag_id', vertragIds);
+      
       if (mmError) throw mmError;
+      
       const mieterIds = mietvertragMieter?.map(mm => mm.mieter_id) || [];
       if (mieterIds.length === 0) return vertraege;
-      const {
-        data: mieter,
-        error: mieterError
-      } = await supabase.from('mieter').select('id, vorname, nachname, hauptmail, telnr').in('id', mieterIds);
+      
+      const { data: mieter, error: mieterError } = await supabase
+        .from('mieter')
+        .select('id, vorname, nachname, hauptmail, telnr')
+        .in('id', mieterIds);
+      
       if (mieterError) throw mieterError;
+      
       return vertraege?.map(vertrag => {
         const allMieterForVertrag = mietvertragMieter?.filter(mm => mm.mietvertrag_id === vertrag.id) || [];
         const mieterData = allMieterForVertrag.map(mvMieter => {
           const mieterInfo = mieter?.find(m => m.id === mvMieter.mieter_id);
           return mieterInfo;
         }).filter(Boolean);
-        return {
-          ...vertrag,
-          mieter: mieterData
-        };
+        
+        return { ...vertrag, mieter: mieterData };
       }) || [];
     },
     enabled: !!einheiten
@@ -138,10 +116,13 @@ export const ImmobilienDetail = ({
     queryFn: async () => {
       const einheitIds = einheiten?.map(e => e.id) || [];
       if (einheitIds.length === 0) return [];
-      const {
-        data,
-        error
-      } = await supabase.from('mietvertrag').select('kaltmiete, betriebskosten, status').in('einheit_id', einheitIds).in('status', ['aktiv', 'gekuendigt']);
+      
+      const { data, error } = await supabase
+        .from('mietvertrag')
+        .select('kaltmiete, betriebskosten, status')
+        .in('einheit_id', einheitIds)
+        .in('status', ['aktiv', 'gekuendigt']);
+      
       if (error) throw error;
       return data || [];
     },
@@ -350,25 +331,16 @@ export const ImmobilienDetail = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {einheiten?.map((einheit, index) => {
-          // Find the most current rental contract for this unit
-          // Priority: 1. Active contracts, 2. Most recent terminated, 3. Most recent by start date
-          const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
-          let vertrag = null;
-          if (vertraegeForEinheit.length > 0) {
-            // First, try to find an active contract
-            const activeVertrag = vertraegeForEinheit.find(v => v.status === 'aktiv');
-            if (activeVertrag) {
-              vertrag = activeVertrag;
-            } else {
-              // If no active contract, find the most recent one by start date
-              vertrag = vertraegeForEinheit.reduce((latest, current) => {
-                const latestDate = latest.start_datum ? new Date(latest.start_datum) : new Date(0);
-                const currentDate = current.start_datum ? new Date(current.start_datum) : new Date(0);
-                return currentDate > latestDate ? current : latest;
-              });
-            }
-          }
-          return <div key={einheit.id} ref={el => einheitRefs.current[einheit.id] = el} className="transition-transform duration-300">
+            // Find the most current rental contract for this unit using centralized utility
+            const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
+            const vertrag = getCurrentContract(vertraegeForEinheit);
+            
+            return (
+              <div 
+                key={einheit.id} 
+                ref={el => einheitRefs.current[einheit.id] = el} 
+                className="transition-transform duration-300"
+              >
                 <EinheitCard 
                   einheit={einheit} 
                   vertrag={vertrag} 
@@ -377,8 +349,9 @@ export const ImmobilienDetail = ({
                   einheitIndex={index + 1}
                   onContractModalClose={onContractModalClose}
                 />
-              </div>;
-        })}
+              </div>
+            );
+          })}
         </div>
 
         {(!einheiten || einheiten.length === 0) && <div className="text-center py-12">
