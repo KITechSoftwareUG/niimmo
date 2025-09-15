@@ -70,8 +70,7 @@ export const ImmobilienDetail = ({
       const { data: vertraege, error: vertraegeError } = await supabase
         .from('mietvertrag')
         .select('*')
-        .in('einheit_id', einheitIds)
-        .neq('status', 'beendet'); // Exclude ended contracts
+        .in('einheit_id', einheitIds); // Include all contracts including ended ones
 
       if (vertraegeError) throw vertraegeError;
       
@@ -121,7 +120,7 @@ export const ImmobilienDetail = ({
         .from('mietvertrag')
         .select('kaltmiete, betriebskosten, status')
         .in('einheit_id', einheitIds)
-        .in('status', ['aktiv', 'gekuendigt']);
+        .in('status', ['aktiv', 'gekuendigt', 'beendet']); // Include all contract types
       
       if (error) throw error;
       return data || [];
