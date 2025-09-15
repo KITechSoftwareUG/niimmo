@@ -19,7 +19,7 @@ const Index = () => {
   const [selectedMietvertrag, setSelectedMietvertrag] = useState<string | null>(null);
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
-  const [navigationSource, setNavigationSource] = useState<'dashboard' | 'immobilie'>('dashboard');
+  const [navigationSource, setNavigationSource] = useState<'dashboard' | 'immobilie' | 'search'>('dashboard');
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
   const {
     data: immobilien,
@@ -97,6 +97,16 @@ const Index = () => {
           document.getElementById('rueckstaende-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 0);
+    } else if (navigationSource === 'search') {
+      // Coming from search, go back to dashboard and scroll to search
+      setSelectedImmobilie(null);
+      setSelectedEinheit(null);
+      setSelectedMietvertrag(null);
+      setNavigationSource('dashboard');
+      // Scroll to search panel after returning
+      setTimeout(() => {
+        document.getElementById('search-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 0);
     } else {
       // Coming from immobilie view
       if (selectedMietvertrag) {
@@ -134,6 +144,28 @@ const Index = () => {
     }
   };
 
+  const handleSearchMietvertragClick = async (mietvertragId: string) => {
+    const { data: mietvertrag } = await supabase
+      .from('mietvertrag')
+      .select(`einheit_id, einheiten (immobilie_id)`)
+      .eq('id', mietvertragId)
+      .maybeSingle();
+      
+    if (mietvertrag?.einheit_id && mietvertrag.einheiten?.immobilie_id) {
+      setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);
+      setSelectedEinheit(mietvertrag.einheit_id);
+      setSelectedMietvertrag(mietvertragId);
+      setNavigationSource('search');
+    }
+  };
+
+  const handleSearchImmobilieClick = (immobilieId: string, einheitId?: string) => {
+    setSelectedImmobilie(immobilieId);
+    setSelectedEinheit(einheitId || null);
+    setSelectedMietvertrag(null);
+    setNavigationSource('search');
+  };
+
   const handleRentIncreaseContractClick = (contractId: string) => {
     handleMietvertragClick(contractId);
   };
@@ -157,7 +189,7 @@ const Index = () => {
       mietstatus: "all",
       zahlungsstatus: "all"
     }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} onContractModalClose={() => {
-      if (navigationSource === 'dashboard') {
+      if (navigationSource === 'dashboard' || navigationSource === 'search') {
         handleBackClick();
       }
     }} />;
@@ -213,10 +245,12 @@ const Index = () => {
         </div>
 
         {/* Suchfunktion */}
-        <SearchPanel 
-          onImmobilieSelect={handleImmobilieClick}
-          onMietvertragClick={handleMietvertragClick}
-        />
+        <div id="search-panel">
+          <SearchPanel 
+            onImmobilieSelect={handleSearchImmobilieClick}
+            onMietvertragClick={handleSearchMietvertragClick}
+          />
+        </div>
 
         {/* Immobilien Grid */}
         <div className="mb-6">
