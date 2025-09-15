@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface RentIncreaseEligibility {
   mietvertrag_id: string;
@@ -24,6 +25,7 @@ interface MieterhöhungenSectionProps {
 export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showConditions, setShowConditions] = useState(false);
+  const { toast } = useToast();
 
   console.log('MieterhöhungenSection: Component rendering, isOpen:', isOpen);
 
@@ -69,9 +71,19 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
       if (error) throw error;
 
       console.log('Mieterhöhung erfolgreich versendet:', data);
-      // TODO: Toast notification oder andere UI-Feedback hinzufügen
+      
+      toast({
+        title: "Mieterhöhung versendet",
+        description: `Benachrichtigung für ${mieterName} wurde erfolgreich erstellt.`,
+      });
     } catch (error) {
       console.error('Fehler beim Versenden der Mieterhöhung:', error);
+      
+      toast({
+        title: "Fehler beim Versenden",
+        description: "Die Mieterhöhung konnte nicht versendet werden. Bitte versuchen Sie es erneut.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -200,13 +212,21 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
     );
   }
 
-  const handleToggle = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleToggle = () => {
     console.log('Toggle clicked - before:', isOpen);
     setIsOpen(prev => {
-      console.log('Toggle clicked - after:', !prev);
-      return !prev;
+      const newValue = !prev;
+      console.log('Toggle clicked - after:', newValue);
+      return newValue;
+    });
+  };
+
+  const handleConditionsToggle = () => {
+    console.log('Conditions toggle clicked - before:', showConditions);
+    setShowConditions(prev => {
+      const newValue = !prev;
+      console.log('Conditions toggle clicked - after:', newValue);
+      return newValue;
     });
   };
 
@@ -221,7 +241,8 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
-            handleToggle(e as any);
+            e.preventDefault();
+            handleToggle();
           }
         }}
       >
@@ -249,10 +270,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowConditions(!showConditions);
-                }}
+                onClick={handleConditionsToggle}
                 className="mb-3 p-0 h-auto font-medium hover:bg-transparent"
               >
                 {showConditions ? (
