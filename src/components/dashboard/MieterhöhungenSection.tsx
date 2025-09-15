@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+
 
 interface RentIncreaseEligibility {
   mietvertrag_id: string;
@@ -209,59 +209,61 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
   console.log('Rendering MieterhöhungenSection - isOpen:', isOpen, 'eligibleContracts:', eligibleContracts.length);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card>
-        <CardHeader className="p-0">
-          <CollapsibleTrigger asChild>
-            <div className="cursor-pointer hover:bg-muted/50 transition-colors select-none px-6 py-4">
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Mögliche Mieterhöhungen
-                  <Badge variant="secondary" className="ml-2">
-                    {eligibleContracts.length}
-                  </Badge>
-                </div>
-                {isOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </CardTitle>
+    <Card>
+      <CardHeader className="p-0">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full cursor-pointer hover:bg-muted/50 transition-colors select-none px-6 py-4 text-left"
+        >
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Mögliche Mieterhöhungen
+              <Badge variant="secondary" className="ml-2">
+                {eligibleContracts.length}
+              </Badge>
             </div>
-          </CollapsibleTrigger>
-        </CardHeader>
-        
-        <CollapsibleContent>
-          <CardContent className="pt-0">
-            <div className="space-y-6">
-              {/* Bedingungen für Mieterhöhungen - ausklappbar */}
-              <div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleConditionsToggle}
-                  className="mb-3 p-0 h-auto font-medium hover:bg-transparent"
-                >
-                  {showConditions ? (
-                    <ChevronDown className="h-4 w-4 mr-2" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 mr-2" />
-                  )}
-                  Bedingungen für Mieterhöhungen anzeigen
-                </Button>
-                
-                {showConditions && (
-                  <ul className="space-y-2 ml-6">
-                    {mieterhöhungsBedingungen.map((bedingung, index) => (
-                      <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
-                        {bedingung}
-                      </li>
-                    ))}
-                  </ul>
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </CardTitle>
+        </button>
+      </CardHeader>
+      
+      {isOpen && (
+        <CardContent className="pt-0">
+          <div className="space-y-6">
+            {/* Bedingungen für Mieterhöhungen - ausklappbar */}
+            <div>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleConditionsToggle();
+                }}
+                className="mb-3 p-0 h-auto font-medium hover:bg-transparent text-left flex items-center bg-transparent border-0 cursor-pointer"
+              >
+                {showConditions ? (
+                  <ChevronDown className="h-4 w-4 mr-2" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 mr-2" />
                 )}
-              </div>
+                Bedingungen für Mieterhöhungen anzeigen
+              </button>
+              
+              {showConditions && (
+                <ul className="space-y-2 ml-6">
+                  {mieterhöhungsBedingungen.map((bedingung, index) => (
+                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
+                      {bedingung}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
   
               {/* Berechtigte Verträge mit individuellen Buttons */}
               <div>
@@ -320,8 +322,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
               </div>
             </div>
           </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+        )}
+    </Card>
   );
 }
