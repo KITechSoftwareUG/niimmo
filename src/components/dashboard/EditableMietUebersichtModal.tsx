@@ -100,18 +100,6 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
 
   // Use centralized hooks
   const editingHook = useEditableField();
-  const {
-    filteredData,
-    filters,
-    setFilters,
-    sortConfig,
-    handleSort,
-    searchTerm,
-    setSearchTerm,
-    resetFilters,
-    totalCount,
-    filteredCount
-  } = useContractFiltering(tableData); // Use the loaded data
 
   // Data fetching
   const { data: tableData, isLoading } = useQuery({
@@ -143,6 +131,20 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     },
     enabled: open
   });
+
+  // Use centralized filtering with the loaded data
+  const {
+    filteredData,
+    filters,
+    setFilters,
+    sortConfig,
+    handleSort,
+    searchTerm,
+    setSearchTerm,
+    resetFilters,
+    totalCount,
+    filteredCount
+  } = useContractFiltering(tableData);
 
   // Memoized summary calculations
   const summaryData = useMemo(() => {
