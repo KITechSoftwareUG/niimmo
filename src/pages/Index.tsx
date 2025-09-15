@@ -189,9 +189,7 @@ const Index = () => {
       mietstatus: "all",
       zahlungsstatus: "all"
     }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} onContractModalClose={() => {
-      if (navigationSource === 'dashboard' || navigationSource === 'search') {
-        handleBackClick();
-      }
+      setSelectedMietvertrag(null);
     }} />;
   }
   return <div className="min-h-screen modern-dashboard-bg">
