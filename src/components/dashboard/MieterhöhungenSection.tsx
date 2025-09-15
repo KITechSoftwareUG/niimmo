@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface RentIncreaseEligibility {
   mietvertrag_id: string;
@@ -212,15 +213,6 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
     );
   }
 
-  const handleToggle = () => {
-    console.log('Toggle clicked - before:', isOpen);
-    setIsOpen(prev => {
-      const newValue = !prev;
-      console.log('Toggle clicked - after:', newValue);
-      return newValue;
-    });
-  };
-
   const handleConditionsToggle = () => {
     console.log('Conditions toggle clicked - before:', showConditions);
     setShowConditions(prev => {
@@ -232,121 +224,114 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
 
   console.log('Rendering MieterhöhungenSection - isOpen:', isOpen, 'eligibleContracts:', eligibleContracts.length);
 
-  return (
-    <Card>
-      <CardHeader 
-        className="cursor-pointer hover:bg-muted/50 transition-colors select-none"
-        onClick={handleToggle}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleToggle();
-          }
-        }}
-      >
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Mögliche Mieterhöhungen
-            <Badge variant="secondary" className="ml-2">
-              {eligibleContracts.length}
-            </Badge>
-          </div>
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </CardTitle>
-      </CardHeader>
-      
-      {isOpen && (
-        <CardContent className="pt-0">
-          <div className="space-y-6">
-            {/* Bedingungen für Mieterhöhungen - ausklappbar */}
-            <div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleConditionsToggle}
-                className="mb-3 p-0 h-auto font-medium hover:bg-transparent"
-              >
-                {showConditions ? (
-                  <ChevronDown className="h-4 w-4 mr-2" />
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card>
+        <CardHeader className="p-0">
+          <CollapsibleTrigger asChild>
+            <div className="cursor-pointer hover:bg-muted/50 transition-colors select-none px-6 py-4">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Mögliche Mieterhöhungen
+                  <Badge variant="secondary" className="ml-2">
+                    {eligibleContracts.length}
+                  </Badge>
+                </div>
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 mr-2" />
+                  <ChevronRight className="h-4 w-4" />
                 )}
-                Bedingungen für Mieterhöhungen anzeigen
-              </Button>
-              
-              {showConditions && (
-                <ul className="space-y-2 ml-6">
-                  {mieterhöhungsBedingungen.map((bedingung, index) => (
-                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                      <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
-                      {bedingung}
-                    </li>
-                  ))}
-                </ul>
-              )}
+              </CardTitle>
             </div>
-
-            {/* Berechtigte Verträge mit individuellen Buttons */}
-            <div>
-              <h4 className="font-medium mb-3 text-sm">Berechtigte Verträge ({eligibleContracts.length}):</h4>
-              <div className="space-y-3">
-                {eligibleContracts.map((contract) => {
-                    const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
-                    const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
-                    const unitId = contractDetails?.einheiten?.id || 'N/A';
-                    const tenantName = contractDetails?.mietvertrag_mieter?.[0]?.mieter 
-                      ? `${contractDetails.mietvertrag_mieter[0].mieter.vorname} ${contractDetails.mietvertrag_mieter[0].mieter.nachname}`
-                      : 'Unbekannt';
-
-                    return (
-                      <div
-                        key={contract.mietvertrag_id}
-                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-sm">{propertyName}</span>
-                            <Badge variant="outline" className="text-xs">Einheit {unitId.slice(-8)}</Badge>
+          </CollapsibleTrigger>
+        </CardHeader>
+        
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            <div className="space-y-6">
+              {/* Bedingungen für Mieterhöhungen - ausklappbar */}
+              <div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleConditionsToggle}
+                  className="mb-3 p-0 h-auto font-medium hover:bg-transparent"
+                >
+                  {showConditions ? (
+                    <ChevronDown className="h-4 w-4 mr-2" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 mr-2" />
+                  )}
+                  Bedingungen für Mieterhöhungen anzeigen
+                </Button>
+                
+                {showConditions && (
+                  <ul className="space-y-2 ml-6">
+                    {mieterhöhungsBedingungen.map((bedingung, index) => (
+                      <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 bg-primary rounded-full mt-2 flex-shrink-0" />
+                        {bedingung}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+  
+              {/* Berechtigte Verträge mit individuellen Buttons */}
+              <div>
+                <h4 className="font-medium mb-3 text-sm">Berechtigte Verträge ({eligibleContracts.length}):</h4>
+                <div className="space-y-3">
+                  {eligibleContracts.map((contract) => {
+                      const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
+                      const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
+                      const unitId = contractDetails?.einheiten?.id || 'N/A';
+                      const tenantName = contractDetails?.mietvertrag_mieter?.[0]?.mieter 
+                        ? `${contractDetails.mietvertrag_mieter[0].mieter.vorname} ${contractDetails.mietvertrag_mieter[0].mieter.nachname}`
+                        : 'Unbekannt';
+  
+                      return (
+                        <div
+                          key={contract.mietvertrag_id}
+                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-sm">{propertyName}</span>
+                              <Badge variant="outline" className="text-xs">Einheit {unitId.slice(-8)}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-1">
+                              {tenantName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {contract.current_kaltmiete.toFixed(2)}€/Monat
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-1">
-                            {tenantName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {contract.current_kaltmiete.toFixed(2)}€/Monat
-                          </p>
+                          
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleSendRentIncrease(contract.mietvertrag_id)}
+                            >
+                              Mieterhöhung versenden
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onContractClick?.(contract.mietvertrag_id)}
+                            >
+                              Öffnen
+                            </Button>
+                          </div>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleSendRentIncrease(contract.mietvertrag_id)}
-                          >
-                            Mieterhöhung versenden
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onContractClick?.(contract.mietvertrag_id)}
-                          >
-                            Öffnen
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      )}
-    </Card>
-  );
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
 }
