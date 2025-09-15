@@ -39,7 +39,37 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
   const handleSendRentIncrease = async (contractId: string) => {
     try {
       console.log('Sende Mieterhöhung für Vertrag:', contractId);
-      // TODO: Implementierung für das Versenden einer spezifischen Mieterhöhung
+      
+      // Finde Vertragsdaten
+      const contract = eligibleContracts.find(c => c.mietvertrag_id === contractId);
+      const contractDetails = contractsData?.find(c => c.id === contractId);
+      
+      if (!contract || !contractDetails) {
+        throw new Error('Vertragsdaten nicht gefunden');
+      }
+
+      const mieterName = contractDetails.mietvertrag_mieter?.[0]?.mieter 
+        ? `${contractDetails.mietvertrag_mieter[0].mieter.vorname} ${contractDetails.mietvertrag_mieter[0].mieter.nachname}`
+        : 'Unbekannt';
+      const immobilieName = contractDetails.einheiten?.immobilien?.name || 'Unbekannt';
+      const einheitId = contractDetails.einheiten?.id || 'N/A';
+
+      // Rufe Edge Function auf
+      const { data, error } = await supabase.functions.invoke('send-rent-increase-notification', {
+        body: {
+          vertragId: contractId,
+          mieterName,
+          immobilieName,
+          einheitId,
+          aktuelleKaltmiete: contract.current_kaltmiete,
+          aktuelleBetriebskosten: contractDetails.betriebskosten || 0
+        }
+      });
+
+      if (error) throw error;
+
+      console.log('Mieterhöhung erfolgreich versendet:', data);
+      // TODO: Toast notification oder andere UI-Feedback hinzufügen
     } catch (error) {
       console.error('Fehler beim Versenden der Mieterhöhung:', error);
     }
