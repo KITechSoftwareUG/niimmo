@@ -340,9 +340,19 @@ export const ImmobilienDetail = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {einheiten?.map((einheit, index) => {
-            // Find the most current rental contract for this unit using centralized utility
+            // Find all rental contracts for this unit
             const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
-            const vertrag = getCurrentContract(vertraegeForEinheit);
+            
+            // Default to the most current contract
+            let vertrag = getCurrentContract(vertraegeForEinheit);
+            
+            // If a specific contract is requested (e.g., via search), prefer that one
+            if (openMietvertragId) {
+              const targeted = vertraegeForEinheit.find(v => v.id === openMietvertragId);
+              if (targeted) {
+                vertrag = targeted;
+              }
+            }
             
             return (
               <div 
