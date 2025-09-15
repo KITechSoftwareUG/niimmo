@@ -419,25 +419,25 @@ export function MietvertragTimelineView({
                           <div className="flex-1">
                             <div className="flex items-center mb-2">
                               <div className={`rounded-full p-1.5 mr-2 ${
-                                zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
+                                zahlung.kategorie === 'Mietkaution' 
                                   ? 'bg-blue-100' 
                                   : 'bg-green-100'
                               }`}>
                                 <span className={`text-xs ${
-                                  zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
+                                  zahlung.kategorie === 'Mietkaution' 
                                     ? 'text-blue-600' 
                                     : 'text-green-600'
                                 }`}>💰</span>
                               </div>
                               <p className={`font-semibold text-sm ${
-                                zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
+                                zahlung.kategorie === 'Mietkaution' 
                                   ? 'text-blue-600' 
                                   : 'text-green-600'
                               }`}>Zahlung</p>
                             </div>
 
                             <p className={`text-xl font-bold mb-1 ${
-                              zahlung.kategorie === 'Kaution' || zahlung.kategorie === 'Mietkaution' 
+                              zahlung.kategorie === 'Mietkaution' 
                                 ? 'text-blue-700' 
                                 : 'text-green-700'
                             }`}>
@@ -466,7 +466,6 @@ export function MietvertragTimelineView({
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="Miete">Miete</SelectItem>
-                                      <SelectItem value="Kaution">Kaution</SelectItem>
                                       <SelectItem value="Mietkaution">Mietkaution</SelectItem>
                                       <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
                                       <SelectItem value="Ignorieren">Ignorieren</SelectItem>
