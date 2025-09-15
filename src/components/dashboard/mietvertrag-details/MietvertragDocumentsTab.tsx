@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download } from "lucide-react";
+import { FileText, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 interface MietvertragDocumentsTabProps {
   dokumente: any[];
@@ -13,13 +15,52 @@ export function MietvertragDocumentsTab({
   formatDatum
 }: MietvertragDocumentsTabProps) {
   const { toast } = useToast();
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   const handleDownload = async (dokument: any) => {
-    try {
-      // Implementation for document download
+    if (!dokument || !dokument.pfad) {
       toast({
-        title: "Download gestartet",
-        description: `${dokument.titel} wird heruntergeladen.`,
+        title: "Fehler",
+        description: "Dokument-Pfad nicht gefunden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDownloading(dokument.id);
+    try {
+      // Create a signed URL for private bucket access
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('dokumente')
+        .createSignedUrl(dokument.pfad, 60); // Valid for 60 seconds
+
+      if (signedUrlError) {
+        console.error('Signed URL Error:', signedUrlError);
+        toast({
+          variant: "destructive",
+          title: "Download fehlgeschlagen",
+          description: `Fehler beim Download: ${signedUrlError.message}`
+        });
+        return;
+      }
+
+      // Download using the signed URL
+      const response = await fetch(signedUrlData.signedUrl);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = dokument.titel || 'dokument';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download erfolgreich",
+        description: `${dokument.titel} wurde heruntergeladen.`,
       });
     } catch (error) {
       console.error('Download error:', error);
@@ -28,6 +69,8 @@ export function MietvertragDocumentsTab({
         description: "Dokument konnte nicht heruntergeladen werden.",
         variant: "destructive",
       });
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -62,10 +105,15 @@ export function MietvertragDocumentsTab({
                     onClick={() => handleDownload(dok)}
                     size="sm"
                     variant="outline"
+                    disabled={downloading === dok.id}
                     className="flex items-center space-x-2"
                   >
-                    <Download className="h-4 w-4" />
-                    <span>Download</span>
+                    {downloading === dok.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    <span>{downloading === dok.id ? 'Lädt...' : 'Download'}</span>
                   </Button>
                 </div>
               ))}

@@ -1,13 +1,76 @@
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Eye, Calendar } from "lucide-react";
+import { FileText, Download, Eye, Calendar, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface DocumentsListProps {
   dokumente: any[];
 }
 
 export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
+  const { toast } = useToast();
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  const handleDownload = async (dokument: any) => {
+    if (!dokument || !dokument.pfad) {
+      toast({
+        title: "Fehler",
+        description: "Dokument-Pfad nicht gefunden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDownloading(dokument.id);
+    try {
+      // Create a signed URL for private bucket access
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('dokumente')
+        .createSignedUrl(dokument.pfad, 60); // Valid for 60 seconds
+
+      if (signedUrlError) {
+        console.error('Signed URL Error:', signedUrlError);
+        toast({
+          variant: "destructive",
+          title: "Download fehlgeschlagen",
+          description: `Fehler beim Download: ${signedUrlError.message}`
+        });
+        return;
+      }
+
+      // Download using the signed URL
+      const response = await fetch(signedUrlData.signedUrl);
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = dokument.titel || 'dokument';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download erfolgreich",
+        description: `${dokument.titel} wurde heruntergeladen.`,
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Fehler",
+        description: "Dokument konnte nicht heruntergeladen werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   if (!dokumente || dokumente.length === 0) {
     return (
       <Card className="elegant-card border-0 shadow-lg rounded-2xl overflow-hidden">
@@ -100,11 +163,16 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                     {dokument.dateityp?.toUpperCase() || 'UNBEKANNT'}
                   </Badge>
                   <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <button className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200">
-                      <Eye className="h-4 w-4 text-blue-600" />
-                    </button>
-                    <button className="p-2 bg-green-100 hover:bg-green-200 rounded-lg transition-colors duration-200">
-                      <Download className="h-4 w-4 text-green-600" />
+                    <button 
+                      onClick={() => handleDownload(dokument)}
+                      disabled={downloading === dokument.id}
+                      className="p-2 bg-green-100 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors duration-200"
+                    >
+                      {downloading === dokument.id ? (
+                        <Loader2 className="h-4 w-4 text-green-600 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 text-green-600" />
+                      )}
                     </button>
                   </div>
                 </div>
