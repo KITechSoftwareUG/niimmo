@@ -131,7 +131,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
       }
 
       const data = await response.json();
-      const aiResponse = data.response || data.message || data.text || "Entschuldigung, ich konnte keine passende Antwort generieren.";
+      const aiResponse = data.output || data.response || data.message || data.text || "Entschuldigung, ich konnte keine passende Antwort generieren.";
       
       const aiMessage: Message = {
         id: `ai-${Date.now()}`,
