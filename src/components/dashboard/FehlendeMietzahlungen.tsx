@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Eye, Euro, Calendar, User, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, Eye, Euro, Calendar, User, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Filter } from "lucide-react";
 import { useRueckstaende } from "@/hooks/useRueckstaende";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -17,6 +17,8 @@ interface FehlendeMietzahlungenProps {
 
 type SortOption = 'object' | 'amount' | 'mahnstufe' | 'tenant';
 type SortDirection = 'asc' | 'desc';
+type AmountFilter = 'all' | 'debt' | 'credit';
+type MinAmountFilter = 'all' | 'over100';
 
 export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, onOpenChange }: FehlendeMietzahlungenProps) => {
   const [internalOpen, setInternalOpen] = useState(defaultOpen ?? false);
@@ -24,12 +26,30 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
   const setIsOpen = onOpenChange ?? setInternalOpen;
   const [sortBy, setSortBy] = useState<SortOption>('amount');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [amountFilter, setAmountFilter] = useState<AmountFilter>('all');
+  const [minAmountFilter, setMinAmountFilter] = useState<MinAmountFilter>('all');
   const { data: fehlendeMietzahlungen, isLoading, error } = useRueckstaende();
 
   const sortedFehlendeMietzahlungen = useMemo(() => {
     if (!fehlendeMietzahlungen) return [];
     
-    const sorted = [...fehlendeMietzahlungen].sort((a, b) => {
+    // 1. Filter out zero amounts first
+    let filtered = fehlendeMietzahlungen.filter(item => item.fehlend_betrag !== 0);
+    
+    // 2. Apply amount type filter (debt/credit)
+    if (amountFilter === 'debt') {
+      filtered = filtered.filter(item => !item.ist_guthaben);
+    } else if (amountFilter === 'credit') {
+      filtered = filtered.filter(item => item.ist_guthaben);
+    }
+    
+    // 3. Apply minimum amount filter (>100€)
+    if (minAmountFilter === 'over100') {
+      filtered = filtered.filter(item => item.fehlend_betrag > 100);
+    }
+    
+    // 4. Sort the filtered results
+    const sorted = [...filtered].sort((a, b) => {
       let comparison = 0;
       
       switch (sortBy) {
@@ -57,7 +77,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
     });
     
     return sorted;
-  }, [fehlendeMietzahlungen, sortBy, sortDirection]);
+  }, [fehlendeMietzahlungen, sortBy, sortDirection, amountFilter, minAmountFilter]);
 
   const gesamtRueckstand = fehlendeMietzahlungen?.reduce((sum, item) => {
     return sum + (item.ist_guthaben ? -item.fehlend_betrag : item.fehlend_betrag);
@@ -168,13 +188,60 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                   Mieter {getSortIcon('tenant')}
                 </Button>
               </div>
-              <div className="text-xs text-gray-500">
-                {sortedFehlendeMietzahlungen.length} Einträge sortiert nach{' '}
-                {sortBy === 'object' && 'Objekt'}
-                {sortBy === 'amount' && 'Betrag'}
-                {sortBy === 'mahnstufe' && 'Mahnstufe'}
-                {sortBy === 'tenant' && 'Mieter'}
-                {' '}({sortDirection === 'asc' ? 'aufsteigend' : 'absteigend'})
+              
+              {/* Filter Controls */}
+              <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex items-center gap-1 text-sm text-gray-600">
+                  <Filter className="h-4 w-4" />
+                  <span>Filter:</span>
+                </div>
+                
+                <Select value={amountFilter} onValueChange={(value: AmountFilter) => setAmountFilter(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle</SelectItem>
+                    <SelectItem value="debt">Nur Rückstände</SelectItem>
+                    <SelectItem value="credit">Nur Guthaben</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={minAmountFilter} onValueChange={(value: MinAmountFilter) => setMinAmountFilter(value)}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alle Beträge</SelectItem>
+                    <SelectItem value="over100">Über 100€</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex justify-between items-center mt-2">
+                <div className="text-xs text-gray-500">
+                  {sortedFehlendeMietzahlungen.length} Einträge {amountFilter !== 'all' || minAmountFilter !== 'all' ? '(gefiltert) ' : ''}sortiert nach{' '}
+                  {sortBy === 'object' && 'Objekt'}
+                  {sortBy === 'amount' && 'Betrag'}
+                  {sortBy === 'mahnstufe' && 'Mahnstufe'}
+                  {sortBy === 'tenant' && 'Mieter'}
+                  {' '}({sortDirection === 'asc' ? 'aufsteigend' : 'absteigend'})
+                </div>
+                
+                {/* Reset Filter Button */}
+                {(amountFilter !== 'all' || minAmountFilter !== 'all') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setAmountFilter('all');
+                      setMinAmountFilter('all');
+                    }}
+                    className="text-xs"
+                  >
+                    Filter zurücksetzen
+                  </Button>
+                )}
               </div>
             </div>
           )}
