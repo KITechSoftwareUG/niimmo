@@ -474,6 +474,12 @@ export default function MietvertragDetailsModal({
               <MietvertragDocumentsTab
                 dokumente={dokumente || []}
                 formatDatum={formatDatum}
+                onDocumentsChange={() => {
+                  // Refresh documents query when categories are changed
+                  queryClient.invalidateQueries({ 
+                    queryKey: ['mietvertrag-dokumente', vertragId] 
+                  });
+                }}
               />
             </TabsContent>
           </Tabs>
