@@ -30,9 +30,12 @@ export const calculateMietvertragRueckstand = (
       return false;
     }
     const forderungsDatum = new Date(f.sollmonat + '-01');
-    const istValid = forderungsDatum >= startDatum;
+    // Prüfe ob die Forderung im gleichen Monat/Jahr wie das Startdatum oder später ist
+    const forderungsMonatJahr = `${forderungsDatum.getFullYear()}-${String(forderungsDatum.getMonth() + 1).padStart(2, '0')}`;
+    const startMonatJahr = `${startDatum.getFullYear()}-${String(startDatum.getMonth() + 1).padStart(2, '0')}`;
+    const istValid = forderungsMonatJahr >= startMonatJahr;
     if (!istValid) {
-      console.log('DEBUG Forderung vor Startdatum gefiltert:', f.sollmonat, 'Startdatum:', startDatum);
+      console.log('DEBUG Forderung vor Startmonat gefiltert:', f.sollmonat, 'Startmonat:', startMonatJahr);
     }
     return istValid;
   });
