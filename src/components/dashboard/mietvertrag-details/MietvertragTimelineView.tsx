@@ -17,7 +17,9 @@ import {
   Mail,
   Phone,
   Split,
-  Undo2
+  Undo2,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { PaymentSplitModal } from "../PaymentSplitModal";
 import { PaymentUndoSplitModal } from "../PaymentUndoSplitModal";
@@ -50,6 +52,7 @@ export function MietvertragTimelineView({
   const [draggedPayment, setDraggedPayment] = useState<string | null>(null);
   const [splittingPayment, setSplittingPayment] = useState<any | null>(null);
   const [undoingSplitPayments, setUndoingSplitPayments] = useState<any[] | null>(null);
+  const [showIgnoredPayments, setShowIgnoredPayments] = useState(false);
 
   // Drag and drop handlers
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, zahlungId: string) => {
@@ -312,8 +315,34 @@ export function MietvertragTimelineView({
     );
   }
 
+  const hasIgnoredPayments = zahlungen.some(z => z.kategorie === 'Ignorieren');
+
   return (
     <div className="relative px-8 py-8">
+      {/* Toggle for ignored payments */}
+      {hasIgnoredPayments && (
+        <div className="mb-6 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowIgnoredPayments(!showIgnoredPayments)}
+            className="flex items-center space-x-2 text-muted-foreground hover:text-foreground"
+          >
+            {showIgnoredPayments ? (
+              <>
+                <EyeOff className="h-4 w-4" />
+                <span>Ignorierte ausblenden</span>
+              </>
+            ) : (
+              <>
+                <Eye className="h-4 w-4" />
+                <span>Ignorierte anzeigen</span>
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+      
       {/* Central Timeline */}
       <div className="absolute left-1/2 top-0 w-0.5 bg-gradient-to-b from-blue-400 via-indigo-400 to-purple-400 h-full transform -translate-x-0.5 z-0 opacity-60"></div>
 
@@ -407,42 +436,64 @@ export function MietvertragTimelineView({
               <div className="pl-10">
                 {zahlungenData.length > 0 ? (
                   <div className="space-y-3">
-                    {zahlungenData.map((zahlung: any) => (
-                      <div
-                        key={zahlung.id}
-                        className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-move"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, zahlung.id)}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center mb-2">
-                              <div className={`rounded-full p-1.5 mr-2 ${
-                                zahlung.kategorie === 'Mietkaution' 
-                                  ? 'bg-blue-100' 
-                                  : 'bg-green-100'
-                              }`}>
-                                <span className={`text-xs ${
-                                  zahlung.kategorie === 'Mietkaution' 
-                                    ? 'text-blue-600' 
-                                    : 'text-green-600'
-                                }`}>💰</span>
+                    {zahlungenData
+                      .filter(zahlung => {
+                        // Filtere ignorierte Zahlungen basierend auf Toggle-Zustand
+                        if (zahlung.kategorie === 'Ignorieren' && !showIgnoredPayments) {
+                          return false;
+                        }
+                        return true;
+                      })
+                      .map((zahlung: any) => {
+                        const isIgnored = zahlung.kategorie === 'Ignorieren';
+                        return (
+                          <div
+                            key={zahlung.id}
+                            className={`w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-move transition-all duration-300 ${
+                              isIgnored 
+                                ? 'opacity-20 hover:opacity-60 border-dashed border-gray-300 bg-gray-50/50' 
+                                : ''
+                            }`}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, zahlung.id)}
+                            onDragEnd={handleDragEnd}
+                          >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center mb-2">
+                                <div className={`rounded-full p-1.5 mr-2 ${
+                                  zahlung.kategorie === 'Ignorieren' 
+                                    ? 'bg-gray-100' 
+                                    : zahlung.kategorie === 'Mietkaution' 
+                                      ? 'bg-blue-100' 
+                                      : 'bg-green-100'
+                                }`}>
+                                  <span className={`text-xs ${
+                                    zahlung.kategorie === 'Ignorieren' 
+                                      ? 'text-gray-400' 
+                                      : zahlung.kategorie === 'Mietkaution' 
+                                        ? 'text-blue-600' 
+                                        : 'text-green-600'
+                                  }`}>💰</span>
+                                </div>
+                                <p className={`font-semibold text-sm ${
+                                  zahlung.kategorie === 'Ignorieren' 
+                                    ? 'text-gray-400' 
+                                    : zahlung.kategorie === 'Mietkaution' 
+                                      ? 'text-blue-600' 
+                                      : 'text-green-600'
+                                }`}>Zahlung</p>
                               </div>
-                              <p className={`font-semibold text-sm ${
-                                zahlung.kategorie === 'Mietkaution' 
-                                  ? 'text-blue-600' 
-                                  : 'text-green-600'
-                              }`}>Zahlung</p>
-                            </div>
 
-                            <p className={`text-xl font-bold mb-1 ${
-                              zahlung.kategorie === 'Mietkaution' 
-                                ? 'text-blue-700' 
-                                : 'text-green-700'
-                            }`}>
-                              {formatBetrag(Number(zahlung.betrag))}
-                            </p>
+                              <p className={`text-xl font-bold mb-1 ${
+                                zahlung.kategorie === 'Ignorieren' 
+                                  ? 'text-gray-400' 
+                                  : zahlung.kategorie === 'Mietkaution' 
+                                    ? 'text-blue-700' 
+                                    : 'text-green-700'
+                              }`}>
+                                {formatBetrag(Number(zahlung.betrag))}
+                              </p>
 
                             <p className="text-sm text-muted-foreground mb-1">
                               {formatDatum(zahlung.buchungsdatum)}
@@ -480,7 +531,14 @@ export function MietvertragTimelineView({
                                 </div>
                               ) : (
                                 <div className="flex items-center space-x-1">
-                                  <Badge variant="outline" className="text-sm">
+                                  <Badge 
+                                    variant={zahlung.kategorie === 'Ignorieren' ? 'secondary' : 'outline'} 
+                                    className={`text-sm ${
+                                      zahlung.kategorie === 'Ignorieren' 
+                                        ? 'bg-gray-100 text-gray-400 border-gray-200' 
+                                        : ''
+                                    }`}
+                                  >
                                     {zahlung.kategorie || 'Sonstige'}
                                   </Badge>
                                   <Button
@@ -662,9 +720,10 @@ export function MietvertragTimelineView({
                               )}
                             </div>
                           </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : null}
               </div>
