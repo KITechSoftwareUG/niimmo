@@ -21,11 +21,23 @@ export const calculateMietvertragRueckstand = (
   const startDatum = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2024-01-01');
   
   // Filtere Forderungen ab Startdatum - alle Forderungen im Zeitraum
+  console.log('DEBUG Forderungen gesamt:', forderungen.length, forderungen.map(f => ({ id: f.id, sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })));
+  console.log('DEBUG Startdatum:', startDatum);
+  
   const alleForderungenAbStart = forderungen.filter(f => {
-    if (!f.sollmonat) return false;
+    if (!f.sollmonat) {
+      console.log('DEBUG Forderung ohne sollmonat gefiltert:', f);
+      return false;
+    }
     const forderungsDatum = new Date(f.sollmonat + '-01');
-    return forderungsDatum >= startDatum;
+    const istValid = forderungsDatum >= startDatum;
+    if (!istValid) {
+      console.log('DEBUG Forderung vor Startdatum gefiltert:', f.sollmonat, 'Startdatum:', startDatum);
+    }
+    return istValid;
   });
+  
+  console.log('DEBUG Gefilterte Forderungen:', alleForderungenAbStart.length, alleForderungenAbStart.map(f => ({ id: f.id, sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })));
   
   // Vereinfachte Vorauszahlungs-Logik basierend auf zugeordneter_monat aus DB
   const processVorauszahlungen = (zahlungen: any[], forderungen: any[]) => {
