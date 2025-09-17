@@ -34,16 +34,12 @@ export function MietvertragPaymentsSection({
   
   const { gesamtForderungen, gesamtZahlungen, rueckstand } = rueckstandsBerechnung;
   
-  // Berechne Fälligkeitsinformationen
-  const heute = new Date();
-  const mietvertragStart = vertrag?.start_datum ? new Date(vertrag.start_datum) : new Date('2025-01-01');
-  const startDatum = mietvertragStart > new Date('2025-01-01') ? mietvertragStart : new Date('2025-01-01');
-  
+  // Alle Forderungen verwenden - ohne Filterung nach Startdatum
   const alleForderungenAbStart = (forderungen || []).filter(f => {
-    if (!f.sollmonat) return false;
-    const forderungsDatum = new Date(f.sollmonat + '-01');
-    return forderungsDatum >= startDatum;
+    return f.sollmonat; // Nur Forderungen mit sollmonat
   });
+  
+  const heute = new Date();
   
   // Berechne Fälligkeit basierend auf tatsächlichem Datum (10. des Monats)
   const faelligeForderungen = alleForderungenAbStart.filter(f => {
