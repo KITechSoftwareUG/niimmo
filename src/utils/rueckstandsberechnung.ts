@@ -18,29 +18,18 @@ export const calculateMietvertragRueckstand = (
   const istLastschrift = mietvertrag.lastschrift || false;
   
   // Bestimme Startdatum: Mietvertragsbeginn (ohne künstliche Begrenzung auf 2025)
-  const startDatum = mietvertrag.start_datum ? new Date(mietvertrag.start_datum) : new Date('2024-01-01');
-  
-  // Filtere Forderungen ab Startdatum - alle Forderungen im Zeitraum
+  // Alle Forderungen verwenden - ohne Filterung nach Startdatum
   console.log('DEBUG Forderungen gesamt:', forderungen.length, forderungen.map(f => ({ id: f.id, sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })));
-  console.log('DEBUG Startdatum:', startDatum);
   
   const alleForderungenAbStart = forderungen.filter(f => {
     if (!f.sollmonat) {
       console.log('DEBUG Forderung ohne sollmonat gefiltert:', f);
       return false;
     }
-    const forderungsDatum = new Date(f.sollmonat + '-01');
-    // Prüfe ob die Forderung im gleichen Monat/Jahr wie das Startdatum oder später ist
-    const forderungsMonatJahr = `${forderungsDatum.getFullYear()}-${String(forderungsDatum.getMonth() + 1).padStart(2, '0')}`;
-    const startMonatJahr = `${startDatum.getFullYear()}-${String(startDatum.getMonth() + 1).padStart(2, '0')}`;
-    const istValid = forderungsMonatJahr >= startMonatJahr;
-    if (!istValid) {
-      console.log('DEBUG Forderung vor Startmonat gefiltert:', f.sollmonat, 'Startmonat:', startMonatJahr);
-    }
-    return istValid;
+    return true; // Alle Forderungen mit sollmonat einbeziehen
   });
   
-  console.log('DEBUG Gefilterte Forderungen:', alleForderungenAbStart.length, alleForderungenAbStart.map(f => ({ id: f.id, sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })));
+  console.log('DEBUG Alle verwendeten Forderungen:', alleForderungenAbStart.length, alleForderungenAbStart.map(f => ({ id: f.id, sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })));
   
   // Vereinfachte Vorauszahlungs-Logik basierend auf zugeordneter_monat aus DB
   const processVorauszahlungen = (zahlungen: any[], forderungen: any[]) => {
@@ -89,15 +78,11 @@ export const calculateMietvertragRueckstand = (
     return verarbeiteteZahlungen;
   };
 
-  // Filtere Zahlungen ab Startdatum und nach Kategorie
+  // Filtere Zahlungen nach Kategorie (ohne Zeitraum-Filter)
   const relevanteZahlungen = zahlungen.filter(z => {
     if (!z.buchungsdatum) return false;
     
-    // Zeitraum-Filter
-    const zahlungsDatum = new Date(z.buchungsdatum);
-    if (zahlungsDatum < startDatum) return false;
-    
-    // Kategorie-Filter (exakt wie im Modal) - Mietkaution ausschließen
+    // Nur Kategorie-Filter (exakt wie im Modal) - Mietkaution ausschließen
     return z.kategorie === 'Miete' || 
            z.kategorie === 'Rücklastschrift' ||
            z.kategorie === null || 
