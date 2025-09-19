@@ -112,7 +112,12 @@ export const calculateMietvertragRueckstand = (
     }
   }
   
-  const rueckstand = gesamtForderungen - gesamtZahlungen;
+  // Berechne Rücklastschrift-Gebühren (diese werden immer abgezogen)
+  const ruecklastschriftGebuehren = zahlungen
+    .filter(z => z.kategorie === 'Rücklastschrift')
+    .reduce((sum, z) => sum + (Number(z.ruecklastschrift_gebuehr) || 0), 0);
+  
+  const rueckstand = gesamtForderungen - gesamtZahlungen - ruecklastschriftGebuehren;
   
   return { gesamtForderungen, gesamtZahlungen, rueckstand };
 };
@@ -122,4 +127,11 @@ export const calculateMieteZahlungen = (zahlungen: any[]): number => {
   return zahlungen
     .filter(z => z.kategorie === 'Miete')
     .reduce((sum, z) => sum + (Number(z.betrag) || 0), 0);
+};
+
+// Berechnung der gesamten Rücklastschrift-Gebühren
+export const calculateRuecklastschriftGebuehren = (zahlungen: any[]): number => {
+  return zahlungen
+    .filter(z => z.kategorie === 'Rücklastschrift')
+    .reduce((sum, z) => sum + (Number(z.ruecklastschrift_gebuehr) || 0), 0);
 };

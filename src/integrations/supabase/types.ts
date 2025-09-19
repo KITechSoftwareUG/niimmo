@@ -568,6 +568,7 @@ export type Database = {
           import_datum: string | null
           kategorie: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id: string | null
+          ruecklastschrift_gebuehr: number | null
           verwendungszweck: string | null
           zugeordneter_monat: string | null
         }
@@ -580,6 +581,7 @@ export type Database = {
           import_datum?: string | null
           kategorie?: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id?: string | null
+          ruecklastschrift_gebuehr?: number | null
           verwendungszweck?: string | null
           zugeordneter_monat?: string | null
         }
@@ -592,6 +594,7 @@ export type Database = {
           import_datum?: string | null
           kategorie?: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id?: string | null
+          ruecklastschrift_gebuehr?: number | null
           verwendungszweck?: string | null
           zugeordneter_monat?: string | null
         }
