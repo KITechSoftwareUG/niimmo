@@ -90,8 +90,9 @@ export function MietvertragContractInfo({
                 onEdit={() => onStartEdit('neue_anschrift')}
                 onSave={(value) => onEditMietvertrag('neue_anschrift', value)}
                 onCancel={onCancelEdit}
-                type="text"
+                type="textarea"
                 className="text-muted-foreground"
+                placeholder="Straße und Hausnummer&#10;Postleitzahl Ort&#10;z.B. Musterstraße 123&#10;12345 Musterstadt"
               />
             </div>
           </>

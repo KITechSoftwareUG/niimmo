@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Edit2, Check, X } from "lucide-react";
 
 interface MietvertragEditableFieldProps {
@@ -10,11 +11,12 @@ interface MietvertragEditableFieldProps {
   onEdit: () => void;
   onSave: (value: string) => void;
   onCancel: () => void;
-  type?: "text" | "number";
+  type?: "text" | "number" | "textarea";
   step?: string;
   className?: string;
   formatter?: (value: string | number) => string;
   showLastUpdate?: string;
+  placeholder?: string;
 }
 
 export function MietvertragEditableField({
@@ -28,7 +30,8 @@ export function MietvertragEditableField({
   step,
   className = "",
   formatter,
-  showLastUpdate
+  showLastUpdate,
+  placeholder
 }: MietvertragEditableFieldProps) {
   const [editValue, setEditValue] = useState(value?.toString() || "");
 
@@ -47,30 +50,42 @@ export function MietvertragEditableField({
     <div>
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       {isEditing ? (
-        <div className="flex items-center space-x-2">
-          <Input
-            type={type}
-            step={step}
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            className="w-32 h-8"
-            placeholder={type === "number" ? "0.00" : ""}
-          />
-          <Button
-            onClick={handleSave}
-            size="sm"
-            className="h-8 w-8 p-0"
-          >
-            <Check className="h-4 w-4" />
-          </Button>
-          <Button
-            onClick={onCancel}
-            size="sm"
-            variant="outline"
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+        <div className={`flex ${type === "textarea" ? "flex-col" : "items-center"} space-x-2 ${type === "textarea" ? "space-x-0 space-y-2" : ""}`}>
+          {type === "textarea" ? (
+            <Textarea
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="min-h-[80px] resize-none"
+              placeholder={placeholder || ""}
+              rows={3}
+            />
+          ) : (
+            <Input
+              type={type}
+              step={step}
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="w-32 h-8"
+              placeholder={type === "number" ? "0.00" : placeholder || ""}
+            />
+          )}
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={handleSave}
+              size="sm"
+              className="h-8 w-8 p-0"
+            >
+              <Check className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={onCancel}
+              size="sm"
+              variant="outline"
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-1">
