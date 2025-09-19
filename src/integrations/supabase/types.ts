@@ -360,6 +360,7 @@ export type Database = {
           kaution_betrag: number | null
           kaution_gezahlt_am: string | null
           kaution_ist: number | null
+          kaution_status: string | null
           kuendigungsdatum: string | null
           lastschrift: boolean
           letzte_mahnung_am: string | null
@@ -392,6 +393,7 @@ export type Database = {
           kaution_betrag?: number | null
           kaution_gezahlt_am?: string | null
           kaution_ist?: number | null
+          kaution_status?: string | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
           letzte_mahnung_am?: string | null
@@ -424,6 +426,7 @@ export type Database = {
           kaution_betrag?: number | null
           kaution_gezahlt_am?: string | null
           kaution_ist?: number | null
+          kaution_status?: string | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
           letzte_mahnung_am?: string | null
