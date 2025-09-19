@@ -29,6 +29,7 @@ interface MietvertragTimelineViewProps {
   zahlungen: any[];
   allMietvertraege?: any[];
   vertragId: string;
+  vertrag?: any;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
 }
@@ -38,6 +39,7 @@ export function MietvertragTimelineView({
   zahlungen,
   allMietvertraege,
   vertragId,
+  vertrag,
   formatDatum,
   formatBetrag
 }: MietvertragTimelineViewProps) {
@@ -277,6 +279,17 @@ export function MietvertragTimelineView({
     });
   };
 
+  // Helper function to check if lastschrift payment should be shown as "open"
+  const isLastschriftPendingPayment = (zahlung: any) => {
+    if (!vertrag?.lastschrift) return false;
+    
+    const buchungsdatum = new Date(zahlung.buchungsdatum);
+    const heute = new Date();
+    const daysDifference = Math.floor((heute.getTime() - buchungsdatum.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return daysDifference <= 4;
+  };
+
   // Group data by months for timeline display
   const monthlyData = new Map();
 
@@ -446,20 +459,31 @@ export function MietvertragTimelineView({
                       })
                       .map((zahlung: any) => {
                         const isIgnored = zahlung.kategorie === 'Ignorieren';
+                        const isLastschriftPending = isLastschriftPendingPayment(zahlung);
                         return (
                           <div
                             key={zahlung.id}
                             className={`w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-move transition-all duration-300 ${
                               isIgnored 
                                 ? 'opacity-20 hover:opacity-60 border-dashed border-gray-300 bg-gray-50/50' 
+                                : isLastschriftPending
+                                ? 'border-orange-300 bg-orange-50/30'
                                 : ''
                             }`}
                             draggable
                             onDragStart={(e) => handleDragStart(e, zahlung.id)}
                             onDragEnd={handleDragEnd}
                           >
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                             <div className="flex-1">
+                               {/* Lastschrift Pending Indicator */}
+                               {isLastschriftPending && (
+                                 <div className="mb-2">
+                                   <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300">
+                                     Lastschrift ausstehend
+                                   </Badge>
+                                 </div>
+                               )}
                               <div className="flex items-center mb-2">
                                 <div className={`rounded-full p-1.5 mr-2 ${
                                   zahlung.kategorie === 'Ignorieren' 

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { calculateMietvertragRueckstand } from "@/utils/rueckstandsberechnung";
 import { MietvertragTimelineView } from "./MietvertragTimelineView";
 import { Plus, TrendingDown, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
@@ -147,15 +148,29 @@ export function MietvertragPaymentsSection({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Zahlungen & Forderungen Timeline</CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCreateForderung}
-              className="modern-button-ghost hover:bg-primary/5 hover:border-primary/20"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Forderung erstellen
-            </Button>
+            <div className="flex items-center space-x-4">
+              {/* Lastschrift Status */}
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Lastschrift:</span>
+                <Switch 
+                  checked={vertrag?.lastschrift || false} 
+                  disabled={true}
+                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted"
+                />
+                <span className={`text-sm font-medium ${vertrag?.lastschrift ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {vertrag?.lastschrift ? 'Aktiv' : 'Inaktiv'}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCreateForderung}
+                className="modern-button-ghost hover:bg-primary/5 hover:border-primary/20"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Forderung erstellen
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-6">
@@ -164,6 +179,7 @@ export function MietvertragPaymentsSection({
             zahlungen={zahlungen}
             allMietvertraege={allMietvertraege}
             vertragId={vertragId}
+            vertrag={vertrag}
             formatDatum={formatDatum}
             formatBetrag={formatBetrag}
           />
