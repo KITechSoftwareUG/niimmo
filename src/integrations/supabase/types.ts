@@ -366,6 +366,7 @@ export type Database = {
           letzte_mieterhoehung_am: string | null
           mahnstufe: number | null
           naechste_mahnung_am: string | null
+          neue_anschrift: string | null
           start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
           strom_auszug: number | null
@@ -397,6 +398,7 @@ export type Database = {
           letzte_mieterhoehung_am?: string | null
           mahnstufe?: number | null
           naechste_mahnung_am?: string | null
+          neue_anschrift?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           strom_auszug?: number | null
@@ -428,6 +430,7 @@ export type Database = {
           letzte_mieterhoehung_am?: string | null
           mahnstufe?: number | null
           naechste_mahnung_am?: string | null
+          neue_anschrift?: string | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           strom_auszug?: number | null
@@ -688,7 +691,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+        Returns: unknown
       }
       sparsevec_out: {
         Args: { "": unknown }

@@ -13,12 +13,12 @@ interface MietvertragOverviewTabProps {
   vertragId: string;
   immobilie?: any;
   einheit?: any;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | null;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | null;
   editingKaution: 'soll' | 'ist' | null;
   editingMeter: string | null;
   editingMeterNumber: string | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten') => void;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift') => void;
   onCancelEdit: () => void;
   onEditKaution: (field: 'soll' | 'ist', value: string) => void;
   onStartEditKaution: (field: 'soll' | 'ist') => void;

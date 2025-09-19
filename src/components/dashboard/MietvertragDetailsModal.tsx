@@ -31,7 +31,7 @@ export default function MietvertragDetailsModal({
   
   // Simplified state management
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
-  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | null>(null);
+  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | null>(null);
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
   const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
@@ -449,7 +449,7 @@ export default function MietvertragDetailsModal({
                 editingMietvertrag={editingMietvertrag}
                 editingKaution={editingKaution}
                 onEditMietvertrag={handleEditMietvertrag}
-                onStartEdit={setEditingMietvertrag}
+                onStartEdit={(field) => setEditingMietvertrag(field)}
                 onCancelEdit={() => setEditingMietvertrag(null)}
                 onEditKaution={handleEditKaution}
                 onStartEditKaution={setEditingKaution}

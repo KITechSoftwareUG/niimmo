@@ -5,9 +5,9 @@ import { MietvertragEditableField } from "./MietvertragEditableField";
 
 interface MietvertragContractInfoProps {
   vertrag: any;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten') => void;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | null;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift') => void;
   onCancelEdit: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
@@ -77,6 +77,25 @@ export function MietvertragContractInfo({
             </p>
           </div>
         </div>
+        
+        {/* Show neue_anschrift field only for terminated or ended contracts */}
+        {(vertrag.status === 'beendet' || vertrag.status === 'gekuendigt') && (
+          <>
+            <Separator />
+            <div className="grid grid-cols-1 gap-4">
+              <MietvertragEditableField
+                label="Neue Anschrift"
+                value={vertrag.neue_anschrift || ''}
+                isEditing={editingMietvertrag === 'neue_anschrift'}
+                onEdit={() => onStartEdit('neue_anschrift')}
+                onSave={(value) => onEditMietvertrag('neue_anschrift', value)}
+                onCancel={onCancelEdit}
+                type="text"
+                className="text-muted-foreground"
+              />
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
