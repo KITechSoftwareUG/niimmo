@@ -222,8 +222,28 @@ export default function MietvertragDetailsModal({
   });
 
   // Event handlers
-  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten', value: string) => {
+  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift', value: string) => {
     try {
+      // Handle text fields separately
+      if (field === 'neue_anschrift') {
+        const { error } = await supabase
+          .from('mietvertrag')
+          .update({ [field]: value.trim() })
+          .eq('id', vertragId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Aktualisiert",
+          description: "Neue Anschrift wurde erfolgreich aktualisiert.",
+        });
+
+        setEditingMietvertrag(null);
+        await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+        return;
+      }
+
+      // Handle numeric fields (kaltmiete, betriebskosten)
       const numericValue = parseFloat(value);
       if (isNaN(numericValue)) {
         toast({
