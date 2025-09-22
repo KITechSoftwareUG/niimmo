@@ -5,9 +5,9 @@ import { MietvertragEditableField } from "./MietvertragEditableField";
 
 interface MietvertragContractInfoProps {
   vertrag: any;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift') => void;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr') => void;
   onCancelEdit: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
@@ -77,6 +77,26 @@ export function MietvertragContractInfo({
             </p>
           </div>
         </div>
+        
+        {/* Show Rücklastschrift-Gebühr only for contracts with Lastschrift */}
+        {vertrag.lastschrift && (
+          <>
+            <Separator />
+            <div className="grid grid-cols-1 gap-4">
+              <MietvertragEditableField
+                label="Rücklastschrift-Gebühr"
+                value={Number(vertrag.ruecklastschrift_gebuehr || 7.50)}
+                isEditing={editingMietvertrag === 'ruecklastschrift_gebuehr'}
+                onEdit={() => onStartEdit('ruecklastschrift_gebuehr')}
+                onSave={(value) => onEditMietvertrag('ruecklastschrift_gebuehr', value)}
+                onCancel={onCancelEdit}
+                type="number"
+                step="0.01"
+                formatter={formatBetrag}
+              />
+            </div>
+          </>
+        )}
         
         {/* Show neue_anschrift field only for terminated or ended contracts */}
         {(vertrag.status === 'beendet' || vertrag.status === 'gekuendigt') && (

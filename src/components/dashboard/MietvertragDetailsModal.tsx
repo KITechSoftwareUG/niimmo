@@ -31,7 +31,7 @@ export default function MietvertragDetailsModal({
   
   // Simplified state management
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
-  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | null>(null);
+  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null>(null);
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
   const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
@@ -222,7 +222,7 @@ export default function MietvertragDetailsModal({
   });
 
   // Event handlers
-  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift', value: string) => {
+  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr', value: string) => {
     try {
       // Handle text fields separately
       if (field === 'neue_anschrift') {
@@ -243,7 +243,7 @@ export default function MietvertragDetailsModal({
         return;
       }
 
-      // Handle numeric fields (kaltmiete, betriebskosten)
+      // Handle numeric fields (kaltmiete, betriebskosten, ruecklastschrift_gebuehr)
       const numericValue = parseFloat(value);
       if (isNaN(numericValue)) {
         toast({
@@ -259,9 +259,10 @@ export default function MietvertragDetailsModal({
       
       const updateData: any = { [field]: numericValue };
       
-      // Check if this is a rent increase
-      const isIncrease = (field === 'kaltmiete' && numericValue > oldKaltmiete) || 
-                        (field === 'betriebskosten' && numericValue > oldBetriebskosten);
+      // Check if this is a rent increase (not for ruecklastschrift_gebuehr)
+      const isIncrease = field !== 'ruecklastschrift_gebuehr' && 
+                        ((field === 'kaltmiete' && numericValue > oldKaltmiete) || 
+                         (field === 'betriebskosten' && numericValue > oldBetriebskosten));
       
       if (isIncrease) {
         updateData.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
@@ -280,9 +281,12 @@ export default function MietvertragDetailsModal({
           description: `${field === 'kaltmiete' ? 'Kaltmiete' : 'Betriebskosten'} wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt.`,
         });
       } else {
+        const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : 
+                         field === 'betriebskosten' ? 'Betriebskosten' : 
+                         'Rücklastschrift-Gebühr';
         toast({
           title: "Aktualisiert",
-          description: `${field === 'kaltmiete' ? 'Kaltmiete' : 'Betriebskosten'} wurde erfolgreich aktualisiert.`,
+          description: `${fieldName} wurde erfolgreich aktualisiert.`,
         });
       }
 
@@ -291,9 +295,13 @@ export default function MietvertragDetailsModal({
 
     } catch (error) {
       console.error('Fehler beim Aktualisieren:', error);
+      const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : 
+                       field === 'betriebskosten' ? 'Betriebskosten' : 
+                       field === 'neue_anschrift' ? 'Neue Anschrift' :
+                       'Rücklastschrift-Gebühr';
       toast({
         title: "Fehler",
-        description: `${field === 'kaltmiete' ? 'Kaltmiete' : 'Betriebskosten'} konnte nicht aktualisiert werden.`,
+        description: `${fieldName} konnte nicht aktualisiert werden.`,
         variant: "destructive",
       });
     }

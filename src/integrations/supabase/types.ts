@@ -368,6 +368,7 @@ export type Database = {
           mahnstufe: number | null
           naechste_mahnung_am: string | null
           neue_anschrift: string | null
+          ruecklastschrift_gebuehr: number | null
           start_datum: string | null
           status: Database["public"]["Enums"]["mietstatus"] | null
           strom_auszug: number | null
@@ -401,6 +402,7 @@ export type Database = {
           mahnstufe?: number | null
           naechste_mahnung_am?: string | null
           neue_anschrift?: string | null
+          ruecklastschrift_gebuehr?: number | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           strom_auszug?: number | null
@@ -434,6 +436,7 @@ export type Database = {
           mahnstufe?: number | null
           naechste_mahnung_am?: string | null
           neue_anschrift?: string | null
+          ruecklastschrift_gebuehr?: number | null
           start_datum?: string | null
           status?: Database["public"]["Enums"]["mietstatus"] | null
           strom_auszug?: number | null
