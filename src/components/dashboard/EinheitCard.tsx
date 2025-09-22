@@ -1,10 +1,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail, Gauge, Droplet, Thermometer, Zap, Flame } from "lucide-react";
 import { useState, useEffect } from "react";
 import { EinheitHistorieView } from "./EinheitHistorieView";
 import MietvertragDetailsModal from "./MietvertragDetailsModal";
+import { NewTenantContractDialog } from "./NewTenantContractDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -49,6 +51,7 @@ interface EinheitCardProps {
 export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, einheitIndex, onContractModalClose }: EinheitCardProps) => {
   const [showHistorie, setShowHistorie] = useState(false);
   const [showMietvertragDetails, setShowMietvertragDetails] = useState(false);
+  const [showNewTenantDialog, setShowNewTenantDialog] = useState(false);
   const [autoOpenContract, setAutoOpenContract] = useState(false);
   const [showContractHighlight, setShowContractHighlight] = useState(false);
   const { toast } = useToast();
@@ -337,6 +340,23 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
               </span>
             </div>
           )}
+
+          {/* Show "Neuen Mieter anlegen" button for terminated contracts only */}
+          {vertrag && (vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') && (
+            <div className="pt-3 border-t border-gray-200">
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNewTenantDialog(true);
+                }}
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                size="sm"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Neuen Mieter anlegen
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
       
@@ -355,6 +375,14 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
           highlightContract={showContractHighlight}
         />
       )}
+
+      {/* New Tenant Contract Dialog */}
+      <NewTenantContractDialog
+        isOpen={showNewTenantDialog}
+        onClose={() => setShowNewTenantDialog(false)}
+        einheitId={einheit.id}
+        immobilie={immobilie}
+      />
     </>
   );
 };
