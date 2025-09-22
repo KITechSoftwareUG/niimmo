@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Building2, UserPlus, FileText } from "lucide-react";
+import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Building2, UserPlus, FileText, XCircle } from "lucide-react";
 import { useState } from "react";
 import { NewTenantContractDialog } from "./NewTenantContractDialog";
 import MietvertragDetailsModal from "./MietvertragDetailsModal";
+import { TerminationDialog } from "./termination/TerminationDialog";
 
 interface UnitManagementCardProps {
   einheit: {
@@ -47,6 +48,7 @@ export const UnitManagementCard = ({
 }: UnitManagementCardProps) => {
   const [showNewTenantDialog, setShowNewTenantDialog] = useState(false);
   const [showContractDetails, setShowContractDetails] = useState(false);
+  const [showTerminationDialog, setShowTerminationDialog] = useState(false);
 
   const getStatusColor = () => {
     if (!vertrag) return "border-red-500 bg-red-50";
@@ -85,6 +87,11 @@ export const UnitManagementCard = ({
 
   const handleNewContract = () => {
     setShowNewTenantDialog(false);
+    onContractChange?.();
+  };
+
+  const handleTerminationSuccess = () => {
+    setShowTerminationDialog(false);
     onContractChange?.();
   };
 
@@ -203,15 +210,30 @@ export const UnitManagementCard = ({
           <div className="pt-3 border-t space-y-2">
             {/* Show contract details button for existing contracts */}
             {vertrag && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowContractDetails(true)}
-                className="w-full"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Vertrag anzeigen
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowContractDetails(true)}
+                  className="w-full"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Vertrag anzeigen
+                </Button>
+
+                {/* Show termination button for active contracts */}
+                {vertrag.status === 'aktiv' && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowTerminationDialog(true)}
+                    className="w-full"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Vertrag kündigen
+                  </Button>
+                )}
+              </div>
             )}
 
             {/* Show new tenant button for terminated contracts or vacant units */}
@@ -238,13 +260,24 @@ export const UnitManagementCard = ({
       />
 
       {vertrag && (
-        <MietvertragDetailsModal
-          isOpen={showContractDetails}
-          onClose={() => setShowContractDetails(false)}
-          vertragId={vertrag.id}
-          einheit={einheit}
-          immobilie={immobilie}
-        />
+        <>
+          <MietvertragDetailsModal
+            isOpen={showContractDetails}
+            onClose={() => setShowContractDetails(false)}
+            vertragId={vertrag.id}
+            einheit={einheit}
+            immobilie={immobilie}
+          />
+
+          <TerminationDialog
+            isOpen={showTerminationDialog}
+            onClose={() => setShowTerminationDialog(false)}
+            vertragId={vertrag.id}
+            einheit={einheit}
+            immobilie={immobilie}
+            onTerminationSuccess={handleTerminationSuccess}
+          />
+        </>
       )}
     </>
   );
