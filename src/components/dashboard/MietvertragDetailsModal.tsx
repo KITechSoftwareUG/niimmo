@@ -3,11 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Loader2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Building2, Loader2, AlertCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CreateForderungModal } from "./CreateForderungModal";
 import { MietvertragOverviewTab } from "./mietvertrag-details/MietvertragOverviewTab";
 import { MietvertragDocumentsTab } from "./mietvertrag-details/MietvertragDocumentsTab";
+import { TerminationDialog } from "./termination/TerminationDialog";
 
 interface MietvertragDetailsModalProps {
   isOpen: boolean;
@@ -35,6 +37,7 @@ export default function MietvertragDetailsModal({
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
   const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
+  const [showTerminationDialog, setShowTerminationDialog] = useState(false);
   
   // Set up real-time subscriptions for instant updates when this modal is open
   useEffect(() => {
@@ -421,6 +424,16 @@ export default function MietvertragDetailsModal({
     }
   };
 
+  const handleTerminationSuccess = () => {
+    setShowTerminationDialog(false);
+    queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+    queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+    toast({
+      title: "Kündigung erfolgreich",
+      description: "Der Mietvertrag wurde erfolgreich gekündigt.",
+    });
+  };
+
   // Loading state
   if (vertragLoading) {
     return (
@@ -511,6 +524,20 @@ export default function MietvertragDetailsModal({
               />
             </TabsContent>
           </Tabs>
+
+          {/* Termination Button for Active Contracts */}
+          {vertrag?.status === 'aktiv' && (
+            <div className="pt-4 border-t border-border">
+              <Button
+                variant="destructive"
+                onClick={() => setShowTerminationDialog(true)}
+                className="w-full"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Mietvertrag kündigen
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Create Forderung Modal */}
@@ -520,6 +547,16 @@ export default function MietvertragDetailsModal({
           mietvertragId={vertragId}
           currentKaltmiete={Number(vertrag?.kaltmiete || 0)}
           currentBetriebskosten={Number(vertrag?.betriebskosten || 0)}
+        />
+
+        {/* Termination Dialog */}
+        <TerminationDialog
+          isOpen={showTerminationDialog}
+          onClose={() => setShowTerminationDialog(false)}
+          vertragId={vertragId}
+          einheit={einheit}
+          immobilie={immobilie}
+          onTerminationSuccess={handleTerminationSuccess}
         />
       </DialogContent>
     </Dialog>
