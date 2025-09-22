@@ -196,8 +196,6 @@ export function MietvertragTimelineView({
     } else if (field === 'monat') {
       const monthValue = zahlung?.zugeordneter_monat || zahlung?.buchungsdatum?.slice(0, 7) || '';
       setEditPaymentValue(monthValue);
-    } else if (field === 'gebuehr') {
-      setEditPaymentValue(zahlung?.ruecklastschrift_gebuehr?.toString() || '0');
     } else {
       setEditPaymentValue(currentValue || '');
     }
@@ -217,8 +215,6 @@ export function MietvertragTimelineView({
         updateData.zugeordneter_monat = valueToSave;
       } else if (editingPayment.field === 'mietvertrag') {
         updateData.mietvertrag_id = valueToSave;
-      } else if (editingPayment.field === 'gebuehr') {
-        updateData.ruecklastschrift_gebuehr = parseFloat(valueToSave) || 0;
       }
 
       const { error } = await supabase
@@ -525,41 +521,7 @@ export function MietvertragTimelineView({
                                 {formatBetrag(Number(zahlung.betrag))}
                               </p>
 
-                            {/* Rücklastschrift Fee Input */}
-                            {zahlung.kategorie === 'Rücklastschrift' && (
-                              <div className="mt-2">
-                                {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'gebuehr' ? (
-                                  <div className="flex items-center space-x-1">
-                                    <span className="text-xs text-red-600">Gebühr:</span>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      value={editPaymentValue}
-                                      onChange={(e) => setEditPaymentValue(e.target.value)}
-                                      className="w-20 h-6 text-xs"
-                                      placeholder="0.00"
-                                    />
-                                    <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
-                                      <Check className="h-3 w-3" />
-                                    </Button>
-                                    <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center space-x-1">
-                                    <span className="text-xs text-red-600">Gebühr:</span>
-                                    <Badge 
-                                      variant="outline" 
-                                      className="text-xs cursor-pointer hover:bg-red-50 border-red-200 text-red-700"
-                                      onClick={() => handleEditPaymentField(zahlung.id, 'gebuehr', zahlung.ruecklastschrift_gebuehr?.toString() || '0')}
-                                    >
-                                      {formatBetrag(Number(zahlung.ruecklastschrift_gebuehr || 0))}
-                                    </Badge>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                            {/* Rücklastschrift fees are now handled automatically via database trigger */}
 
                             <p className="text-sm text-muted-foreground mb-1">
                               {formatDatum(zahlung.buchungsdatum)}
