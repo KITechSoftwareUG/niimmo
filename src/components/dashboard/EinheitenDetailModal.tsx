@@ -1,10 +1,12 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Home, Square, Users, Calendar, Euro, User, Building, MapPin, Copy, Phone, Mail, ChevronDown, Hash, Layers } from "lucide-react";
+import { Home, Square, Users, Calendar, Euro, User, Building, MapPin, Copy, Phone, Mail, ChevronDown, Hash, Layers, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { TerminationDialog } from "./termination/TerminationDialog";
 
 interface EinheitenDetailModalProps {
   isOpen: boolean;
@@ -37,6 +39,7 @@ interface EinheitenDetailModalProps {
     name: string;
     adresse: string;
   };
+  onContractChange?: () => void;
 }
 
 export const EinheitenDetailModal = ({ 
@@ -44,10 +47,17 @@ export const EinheitenDetailModal = ({
   onClose, 
   einheit, 
   vertrag, 
-  immobilie 
+  immobilie,
+  onContractChange 
 }: EinheitenDetailModalProps) => {
   const { toast } = useToast();
   const [isEinheitDetailsExpanded, setIsEinheitDetailsExpanded] = useState(false);
+  const [showTerminationDialog, setShowTerminationDialog] = useState(false);
+  const handleTerminationSuccess = () => {
+    setShowTerminationDialog(false);
+    onContractChange?.();
+  };
+
   const getStatusColor = () => {
     if (!vertrag) return "bg-red-100 text-red-800";
     if (vertrag.status === 'aktiv') return "bg-green-100 text-green-800";
@@ -282,8 +292,34 @@ export const EinheitenDetailModal = ({
               </div>
             </div>
           )}
+
+          {/* Action Buttons for active contracts */}
+          {vertrag && vertrag.status === 'aktiv' && (
+            <div className="pt-4 border-t border-gray-200">
+              <Button
+                variant="destructive"
+                onClick={() => setShowTerminationDialog(true)}
+                className="w-full"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Mietvertrag kündigen
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
+
+      {/* Termination Dialog */}
+      {vertrag && (
+        <TerminationDialog
+          isOpen={showTerminationDialog}
+          onClose={() => setShowTerminationDialog(false)}
+          vertragId={vertrag.id}
+          einheit={einheit}
+          immobilie={immobilie}
+          onTerminationSuccess={handleTerminationSuccess}
+        />
+      )}
     </Dialog>
   );
 };

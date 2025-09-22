@@ -9,16 +9,31 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ArrowLeft, FileText, User, Euro, Calendar, CheckCircle, XCircle, FolderOpen } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { DokumentenModal } from "./DokumentenModal";
+import { TerminationDialog } from "./termination/TerminationDialog";
 
 interface MietvertragDetailViewProps {
   einheitId: string;
   onBack: () => void;
   einheit?: any;
   immobilie?: any;
+  onContractChange?: () => void;
 }
 
-export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }: MietvertragDetailViewProps) => {
+export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie, onContractChange }: MietvertragDetailViewProps) => {
   const [selectedMietvertragId, setSelectedMietvertragId] = useState<string | null>(null);
+  const [showTerminationDialog, setShowTerminationDialog] = useState(false);
+  const [terminationVertragId, setTerminationVertragId] = useState<string | null>(null);
+  const handleTerminationClick = (vertragId: string) => {
+    setTerminationVertragId(vertragId);
+    setShowTerminationDialog(true);
+  };
+
+  const handleTerminationSuccess = () => {
+    setShowTerminationDialog(false);
+    setTerminationVertragId(null);
+    onContractChange?.();
+  };
+
   const { data: alleMietvertraege, isLoading: vertraegeLoading } = useQuery({
     queryKey: ['alle-mietvertrag-einheit', einheitId],
     queryFn: async () => {
@@ -347,7 +362,7 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
           </div>
 
           {/* Dokumente Button */}
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t space-y-2">
             <Button 
               onClick={() => setSelectedMietvertragId(vertrag.id)}
               className="w-full bg-blue-600 hover:bg-blue-700"
@@ -355,6 +370,18 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
               <FolderOpen className="h-4 w-4 mr-2" />
               Dokumente anzeigen
             </Button>
+            
+            {/* Termination Button for active contracts */}
+            {vertrag.status === 'aktiv' && isAktuell && (
+              <Button
+                variant="destructive"
+                onClick={() => handleTerminationClick(vertrag.id)}
+                className="w-full"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Mietvertrag kündigen
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -455,6 +482,21 @@ export const MietvertragDetailView = ({ einheitId, onBack, einheit, immobilie }:
             mietvertragId={selectedMietvertragId}
             einheit={einheit}
             immobilie={immobilie}
+          />
+        )}
+
+        {/* Termination Dialog */}
+        {terminationVertragId && (
+          <TerminationDialog
+            isOpen={showTerminationDialog}
+            onClose={() => {
+              setShowTerminationDialog(false);
+              setTerminationVertragId(null);
+            }}
+            vertragId={terminationVertragId}
+            einheit={einheit}
+            immobilie={immobilie}
+            onTerminationSuccess={handleTerminationSuccess}
           />
         )}
       </div>
