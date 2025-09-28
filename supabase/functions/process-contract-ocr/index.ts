@@ -96,7 +96,16 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI Gateway error:", response.status, errorText);
-      throw new Error(`AI processing failed: ${response.statusText}`);
+      
+      // Handle specific AI Gateway errors
+      if (response.status === 400) {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error?.message?.includes("Failed to extract")) {
+          throw new Error("Das hochgeladene Dokument konnte nicht verarbeitet werden. Bitte stellen Sie sicher, dass es sich um ein gültiges PDF-Dokument mit lesbarem Text handelt.");
+        }
+      }
+      
+      throw new Error(`AI-Verarbeitung fehlgeschlagen: ${response.statusText}`);
     }
 
     const aiResult = await response.json();
