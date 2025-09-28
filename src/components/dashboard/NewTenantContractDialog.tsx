@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { Loader2, User, Users, Plus, Check, Calendar, Euro, FileUp, X, Building2, Zap, Crown, UserCheck } from "lucide-react";
+import { Loader2, User, Users, Plus, Check, Calendar, Euro, FileUp, X, Building2, Zap, Crown, UserCheck, Upload, CheckCircle, AlertCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { OCRProcessingService } from "@/services/ocrProcessingService";
 
 interface NewTenantContractDialogProps {
   isOpen: boolean;
@@ -96,6 +97,9 @@ export const NewTenantContractDialog = ({
   
   // Document upload state
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [processingOCR, setProcessingOCR] = useState(false);
+  const [ocrResults, setOcrResults] = useState<any>(null);
+  const [dragActive, setDragActive] = useState(false);
   
   // Query existing tenants for selection
   const { data: existingTenants, isLoading: tenantsLoading } = useQuery({
@@ -141,6 +145,9 @@ export const NewTenantContractDialog = ({
         warmwasser_einzug: ''
       });
       setUploadedFiles([]);
+      setProcessingOCR(false);
+      setOcrResults(null);
+      setDragActive(false);
     }
   }, [isOpen]);
 
@@ -195,11 +202,81 @@ export const NewTenantContractDialog = ({
     return contractData.kaltmiete && contractData.betriebskosten && contractData.start_datum;
   };
 
-  const handleFileUpload = (files: FileList | null) => {
-    if (files) {
+  const handleFileUpload = async (files: FileList | null) => {
+    if (files && files.length > 0) {
       const newFiles = Array.from(files);
       setUploadedFiles(prev => [...prev, ...newFiles]);
+      
+      // Automatically process first PDF file for OCR
+      const pdfFile = newFiles.find(file => file.type === 'application/pdf');
+      if (pdfFile) {
+        await processDocumentOCR(pdfFile);
+      }
     }
+  };
+
+  const processDocumentOCR = async (file: File) => {
+    setProcessingOCR(true);
+    setOcrResults(null);
+    
+    try {
+      const result = await OCRProcessingService.processContractDocument(file);
+      console.log('OCR Result:', result);
+      
+      if (result.success && result.extractedData) {
+        setOcrResults(result);
+        
+        // Auto-fill form fields with extracted data
+        const formattedData = OCRProcessingService.formatDataForForm(result.extractedData);
+        
+        setContractData(prev => ({
+          ...prev,
+          ...formattedData
+        }));
+        
+        // Auto-fill tenant data if extracted
+        if (result.extractedData.mieter_vorname && result.extractedData.mieter_nachname) {
+          setNewTenants(prev => [{
+            ...prev[0],
+            vorname: result.extractedData.mieter_vorname || prev[0].vorname,
+            nachname: result.extractedData.mieter_nachname || prev[0].nachname
+          }, ...prev.slice(1)]);
+        }
+        
+        toast({
+          title: "Dokument erfolgreich verarbeitet!",
+          description: `${result.fieldsExtracted || 0} Felder wurden automatisch ausgefüllt.`,
+        });
+      } else {
+        toast({
+          title: "OCR-Verarbeitung fehlgeschlagen",
+          description: result.error || "Das Dokument konnte nicht verarbeitet werden.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error('OCR processing error:', error);
+      toast({
+        title: "Fehler bei der Dokumentenverarbeitung",
+        description: error.message || "Ein unerwarteter Fehler ist aufgetreten.",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingOCR(false);
+    }
+  };
+
+  const handleDragEvents = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    handleDragEvents(e);
+    setDragActive(false);
+    
+    const files = e.dataTransfer.files;
+    handleFileUpload(files);
   };
 
   const removeFile = (index: number) => {
@@ -725,31 +802,104 @@ export const NewTenantContractDialog = ({
       <div>
         <Label>Dokumente hochladen (optional)</Label>
         <div className="mt-2">
+          {/* Drag & Drop Upload Area */}
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-all ${
+              dragActive 
+                ? 'border-primary bg-primary/5' 
+                : processingOCR 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-300 hover:border-gray-400'
+            }`}
+            onDragEnter={(e) => { handleDragEvents(e); setDragActive(true); }}
+            onDragLeave={(e) => { handleDragEvents(e); setDragActive(false); }}
+            onDragOver={handleDragEvents}
+            onDrop={handleDrop}
+          >
+            {processingOCR ? (
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+                <p className="text-sm text-blue-700 font-medium">
+                  Dokument wird intelligent verarbeitet...
+                </p>
+                <p className="text-xs text-blue-600">
+                  Mietvertragsdaten werden automatisch extrahiert
+                </p>
+              </div>
+            ) : (
+              <>
+                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+                <p className="text-sm text-gray-600 mb-2">
+                  Dokumente hier hineinziehen oder klicken zum Auswählen
+                </p>
+                <p className="text-xs text-gray-500">
+                  PDF, DOC, DOCX, JPG, PNG bis 20MB
+                </p>
+              </>
+            )}
+          </div>
+          
           <Input
             type="file"
             multiple
             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
             onChange={(e) => handleFileUpload(e.target.files)}
-            className="mb-4"
+            className="mt-3"
           />
           
-          <div className="text-sm text-muted-foreground mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          {/* OCR Results Display */}
+          {ocrResults && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-green-800">
+                  Automatische Extraktion erfolgreich
+                </span>
+              </div>
+              <div className="text-sm text-green-700">
+                <p>
+                  <strong>{ocrResults.fieldsExtracted || 0} Felder</strong> wurden automatisch 
+                  aus dem Dokument extrahiert und in das Formular übernommen.
+                </p>
+                {ocrResults.confidence && (
+                  <p className="mt-1">
+                    Erkennungsqualität: <strong>{ocrResults.confidence === 'high' ? 'Hoch' : 'Mittel'}</strong>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Processing Info */}
+          <div className="text-sm text-muted-foreground mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-center gap-2 mb-2">
-              <FileUp className="h-4 w-4 text-blue-600" />
-              <span className="font-medium text-blue-800">OCR-Integration verfügbar</span>
+              <Zap className="h-4 w-4 text-blue-600" />
+              <span className="font-medium text-blue-800">Intelligente Dokumentenverarbeitung</span>
             </div>
             <p className="text-blue-700">
-              PDF-Mietverträge werden automatisch ausgelesen und relevante Daten (Miete, Kaution, Daten) 
-              werden in die Vertragsfelder übernommen. Überprüfen Sie die Daten vor dem Speichern.
+              PDF-Mietverträge werden automatisch mit KI analysiert. Relevante Daten wie Miete, 
+              Kaution, Daten und Mieterdaten werden erkannt und automatisch in die Felder übertragen.
             </p>
           </div>
           
+          {/* Uploaded Files List */}
           {uploadedFiles.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Ausgewählte Dateien:</p>
+            <div className="space-y-2 mt-4">
+              <p className="text-sm text-muted-foreground">Hochgeladene Dateien:</p>
               {uploadedFiles.map((file, index) => (
-                <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
-                  <span className="text-sm">{file.name}</span>
+                <div key={index} className="flex items-center justify-between bg-muted p-3 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileUp className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium">{file.name}</span>
+                    <span className="text-xs text-gray-500">
+                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                    {file.type === 'application/pdf' && (
+                      <Badge variant="secondary" className="text-xs">
+                        OCR verarbeitet
+                      </Badge>
+                    )}
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -780,6 +930,12 @@ export const NewTenantContractDialog = ({
             <p>Mietbeginn: {contractData.start_datum}</p>
             {contractData.ende_datum && <p>Mietende: {contractData.ende_datum}</p>}
             {uploadedFiles.length > 0 && <p>Dokumente: {uploadedFiles.length}</p>}
+            {ocrResults && (
+              <div className="flex items-center gap-1 text-green-600">
+                <CheckCircle className="h-3 w-3" />
+                <span>OCR-Verarbeitung erfolgreich</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

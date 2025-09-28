@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       await supabase
         .from('system_logs')
         .insert({
-          message: `FEHLER bei Fälligkeitsprüfung: ${error.message}`
+          message: `FEHLER bei Fälligkeitsprüfung: ${error instanceof Error ? error.message : 'Unknown error'}`
         });
     } catch (logError) {
       console.error('Konnte Fehler-Log nicht schreiben:', logError);
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString()
       }),
       {

@@ -50,11 +50,17 @@ Deno.serve(async (req) => {
       throw new Error('Keine Mieter-Daten gefunden')
     }
 
+    // Hole den ersten Mieter
+    const mieterRecord = mieterData[0];
+    if (!mieterRecord?.mieter) {
+      throw new Error('Mieter-Informationen nicht vollständig')
+    }
+    const mieter = mieterRecord.mieter as any;
+
     // Berechne Gesamtbetrag der offenen Forderungen
     const gesamtbetrag = forderungen.reduce((sum, f) => sum + parseFloat(f.sollbetrag), 0);
     
     // Erstelle Mahnung-Nachricht
-    const mieter = mieterData[0].mieter;
     const mahnungstext = generateMahnungstext(mahnstufe, mieter, vertragData, forderungen, gesamtbetrag);
 
     // Log die Mahnung in system_logs
@@ -100,7 +106,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
         status: 500,

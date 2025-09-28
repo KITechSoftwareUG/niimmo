@@ -1,37 +1,43 @@
 interface OCRProcessingResult {
   success: boolean;
   extractedData?: {
-    kaltmiete?: string;
-    betriebskosten?: string;
-    kaution_betrag?: string;
+    kaltmiete?: number;
+    betriebskosten?: number;
+    kaution_betrag?: number;
     start_datum?: string;
     ende_datum?: string;
-    mieter_name?: string;
     mieter_vorname?: string;
+    mieter_nachname?: string;
+    verwendungszweck?: string;
   };
   error?: string;
+  confidence?: 'high' | 'medium' | 'low';
+  fieldsExtracted?: number;
 }
 
 export class OCRProcessingService {
-  private static WEBHOOK_URL = 'https://your-n8n-instance.com/webhook/ocr-contract'; // Replace with actual n8n webhook URL
-
   static async processContractDocument(file: File): Promise<OCRProcessingResult> {
     try {
+      console.log('Starting OCR processing for:', file.name);
+      
       // Convert file to base64 for API transmission
       const base64 = await this.fileToBase64(file);
       
-      const response = await fetch(this.WEBHOOK_URL, {
+      // Use Supabase edge function for processing
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/process-contract-ocr`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
-          fileContent: base64,
-          timestamp: new Date().toISOString(),
-          source: 'lovable-rental-management'
+          fileContent: base64
         })
       });
 
@@ -40,11 +46,9 @@ export class OCRProcessingService {
       }
 
       const result = await response.json();
+      console.log('OCR processing result:', result);
       
-      return {
-        success: true,
-        extractedData: result.extractedData || {}
-      };
+      return result;
 
     } catch (error: any) {
       console.error('OCR Processing Error:', error);
@@ -94,5 +98,21 @@ export class OCRProcessingService {
     }
 
     return true;
+  }
+
+  /**
+   * Format extracted data for form fields
+   */
+  static formatDataForForm(data: any) {
+    const formatted: any = {};
+    
+    if (data.kaltmiete) formatted.kaltmiete = data.kaltmiete.toString();
+    if (data.betriebskosten) formatted.betriebskosten = data.betriebskosten.toString();
+    if (data.kaution_betrag) formatted.kaution_betrag = data.kaution_betrag.toString();
+    if (data.start_datum) formatted.start_datum = data.start_datum;
+    if (data.ende_datum) formatted.ende_datum = data.ende_datum;
+    if (data.verwendungszweck) formatted.verwendungszweck = data.verwendungszweck;
+    
+    return formatted;
   }
 }
