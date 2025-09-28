@@ -224,7 +224,13 @@ export const NewTenantContractDialog = ({
       // Automatically process first PDF file for OCR
       const pdfFile = newFiles.find(file => file.type === 'application/pdf');
       if (pdfFile) {
+        toast({
+          title: 'PDF erkannt',
+          description: 'PDF-Unterstützung ist experimentell. Für beste Ergebnisse bitte ein klares JPG/PNG hochladen.',
+        });
         await processDocumentOCR(pdfFile);
+      } else if (newFiles[0]) {
+        await processDocumentOCR(newFiles[0]);
       }
     }
   };
