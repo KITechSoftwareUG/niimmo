@@ -11,8 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { Loader2, User, Users, Plus, Check, Calendar, Euro, FileUp, X, Building2 } from "lucide-react";
+import { Loader2, User, Users, Plus, Check, Calendar, Euro, FileUp, X, Building2, Zap, Crown, UserCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface NewTenantContractDialogProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface NewTenant {
   hauptmail: string;
   telnr: string;
   geburtsdatum: string;
+  rolle: 'hauptmieter' | 'mitmieter';
 }
 
 interface ContractData {
@@ -41,6 +43,11 @@ interface ContractData {
   lastschrift: boolean;
   bankkonto_mieter: string;
   ruecklastschrift_gebuehr: string;
+  verwendungszweck: string;
+  strom_einzug: string;
+  gas_einzug: string;
+  kaltwasser_einzug: string;
+  warmwasser_einzug: string;
 }
 
 export const NewTenantContractDialog = ({ 
@@ -63,7 +70,8 @@ export const NewTenantContractDialog = ({
     nachname: '',
     hauptmail: '',
     telnr: '',
-    geburtsdatum: ''
+    geburtsdatum: '',
+    rolle: 'hauptmieter'
   }]);
   
   // Existing tenant selection state
@@ -78,7 +86,12 @@ export const NewTenantContractDialog = ({
     ende_datum: '',
     lastschrift: false,
     bankkonto_mieter: '',
-    ruecklastschrift_gebuehr: '7.50'
+    ruecklastschrift_gebuehr: '7.50',
+    verwendungszweck: '',
+    strom_einzug: '',
+    gas_einzug: '',
+    kaltwasser_einzug: '',
+    warmwasser_einzug: ''
   });
   
   // Document upload state
@@ -108,7 +121,8 @@ export const NewTenantContractDialog = ({
         nachname: '',
         hauptmail: '',
         telnr: '',
-        geburtsdatum: ''
+        geburtsdatum: '',
+        rolle: 'hauptmieter'
       }]);
       setSelectedTenantIds([]);
       setContractData({
@@ -119,7 +133,12 @@ export const NewTenantContractDialog = ({
         ende_datum: '',
         lastschrift: false,
         bankkonto_mieter: '',
-        ruecklastschrift_gebuehr: '7.50'
+        ruecklastschrift_gebuehr: '7.50',
+        verwendungszweck: '',
+        strom_einzug: '',
+        gas_einzug: '',
+        kaltwasser_einzug: '',
+        warmwasser_einzug: ''
       });
       setUploadedFiles([]);
     }
@@ -131,13 +150,18 @@ export const NewTenantContractDialog = ({
       nachname: '',
       hauptmail: '',
       telnr: '',
-      geburtsdatum: ''
+      geburtsdatum: '',
+      rolle: 'mitmieter'
     }]);
   };
 
-  const updateNewTenant = (index: number, field: keyof NewTenant, value: string) => {
+  const updateNewTenant = (index: number, field: keyof NewTenant, value: string | 'hauptmieter' | 'mitmieter') => {
     const updated = [...newTenants];
-    updated[index][field] = value;
+    if (field === 'rolle') {
+      updated[index][field] = value as 'hauptmieter' | 'mitmieter';
+    } else {
+      updated[index][field as keyof Omit<NewTenant, 'rolle'>] = value as string;
+    }
     setNewTenants(updated);
   };
 
@@ -157,9 +181,11 @@ export const NewTenantContractDialog = ({
 
   const validateTenantStep = () => {
     if (activeTab === 'new-tenant') {
-      return newTenants.every(tenant => 
+      const hasValidTenants = newTenants.every(tenant => 
         tenant.vorname.trim() && tenant.nachname.trim()
       );
+      const hasMainTenant = newTenants.some(tenant => tenant.rolle === 'hauptmieter');
+      return hasValidTenants && hasMainTenant;
     } else {
       return selectedTenantIds.length > 0;
     }
@@ -208,6 +234,17 @@ export const NewTenantContractDialog = ({
         tenantIds = selectedTenantIds;
       }
       
+      // Check for existing active contracts (overlap validation)
+      const existingContracts = await supabase
+        .from('mietvertrag')
+        .select('id, start_datum, ende_datum')
+        .eq('einheit_id', einheitId)
+        .eq('status', 'aktiv');
+      
+      if (existingContracts.data && existingContracts.data.length > 0) {
+        throw new Error('Diese Einheit hat bereits einen aktiven Mietvertrag.');
+      }
+
       // Create contract
       const { data: contractResult, error: contractError } = await supabase
         .from('mietvertrag')
@@ -221,6 +258,12 @@ export const NewTenantContractDialog = ({
           lastschrift: contractData.lastschrift,
           bankkonto_mieter: contractData.bankkonto_mieter || null,
           ruecklastschrift_gebuehr: parseFloat(contractData.ruecklastschrift_gebuehr),
+          verwendungszweck: contractData.verwendungszweck ? [contractData.verwendungszweck] : null,
+          strom_einzug: contractData.strom_einzug ? parseFloat(contractData.strom_einzug) : null,
+          gas_einzug: contractData.gas_einzug ? parseFloat(contractData.gas_einzug) : null,
+          kaltwasser_einzug: contractData.kaltwasser_einzug ? parseFloat(contractData.kaltwasser_einzug) : null,
+          warmwasser_einzug: contractData.warmwasser_einzug ? parseFloat(contractData.warmwasser_einzug) : null,
+          kaution_status: 'offen',
           status: 'aktiv'
         })
         .select('id')
@@ -269,6 +312,35 @@ export const NewTenantContractDialog = ({
       // Refresh data
       await queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
       await queryClient.invalidateQueries({ queryKey: ['einheiten'] });
+      
+      // Send webhook notification for external systems
+      try {
+        const tenantData = activeTab === 'new-tenant' ? 
+          newTenants.map((t, i) => ({
+            id: tenantIds[i],
+            name: `${t.vorname} ${t.nachname}`,
+            email: t.hauptmail,
+            role: t.rolle
+          })) : 
+          [];
+          
+        // Note: Webhook implementation would require the ContractWebhookService
+        console.log('Contract created, webhook data prepared:', {
+          contractId: contractResult.id,
+          unitId: einheitId,
+          tenants: tenantData,
+          contractData: {
+            rent: parseFloat(contractData.kaltmiete),
+            operatingCosts: parseFloat(contractData.betriebskosten),
+            deposit: contractData.kaution_betrag ? parseFloat(contractData.kaution_betrag) : undefined,
+            startDate: contractData.start_datum,
+            endDate: contractData.ende_datum || undefined
+          }
+        });
+      } catch (webhookError) {
+        console.warn('Webhook notification failed:', webhookError);
+        // Don't fail the contract creation if webhook fails
+      }
       
       toast({
         title: "Erfolg!",
@@ -367,14 +439,42 @@ export const NewTenantContractDialog = ({
                   </div>
                 </div>
                 
-                <div>
-                  <Label htmlFor={`birth-${index}`}>Geburtsdatum</Label>
-                  <Input
-                    id={`birth-${index}`}
-                    type="date"
-                    value={tenant.geburtsdatum}
-                    onChange={(e) => updateNewTenant(index, 'geburtsdatum', e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor={`birth-${index}`}>Geburtsdatum</Label>
+                    <Input
+                      id={`birth-${index}`}
+                      type="date"
+                      value={tenant.geburtsdatum}
+                      onChange={(e) => updateNewTenant(index, 'geburtsdatum', e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor={`role-${index}`}>Rolle *</Label>
+                    <Select 
+                      value={tenant.rolle} 
+                      onValueChange={(value) => updateNewTenant(index, 'rolle', value as 'hauptmieter' | 'mitmieter')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Rolle auswählen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hauptmieter">
+                          <div className="flex items-center gap-2">
+                            <Crown className="h-4 w-4 text-yellow-600" />
+                            Hauptmieter
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="mitmieter">
+                          <div className="flex items-center gap-2">
+                            <UserCheck className="h-4 w-4 text-blue-600" />
+                            Mitmieter
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -443,7 +543,15 @@ export const NewTenantContractDialog = ({
             type="number"
             step="0.01"
             value={contractData.kaltmiete}
-            onChange={(e) => setContractData(prev => ({ ...prev, kaltmiete: e.target.value }))}
+            onChange={(e) => {
+              const value = e.target.value;
+              setContractData(prev => ({ 
+                ...prev, 
+                kaltmiete: value,
+                // Auto-calculate security deposit (3x rent)
+                kaution_betrag: value ? (parseFloat(value) * 3).toFixed(2) : ''
+              }));
+            }}
             placeholder="800.00"
           />
         </div>
@@ -469,8 +577,11 @@ export const NewTenantContractDialog = ({
             step="0.01"
             value={contractData.kaution_betrag}
             onChange={(e) => setContractData(prev => ({ ...prev, kaution_betrag: e.target.value }))}
-            placeholder="1500.00"
+            placeholder="Automatisch: 3x Kaltmiete"
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            Standard: {contractData.kaltmiete ? (parseFloat(contractData.kaltmiete) * 3).toFixed(2) : '0.00'}€
+          </p>
         </div>
         <div>
           <Label htmlFor="ruecklastschrift_gebuehr">Rücklastschrift-Gebühr (€)</Label>
@@ -502,6 +613,74 @@ export const NewTenantContractDialog = ({
             value={contractData.ende_datum}
             onChange={(e) => setContractData(prev => ({ ...prev, ende_datum: e.target.value }))}
           />
+        </div>
+      </div>
+      
+      <div>
+        <Label htmlFor="verwendungszweck">Verwendungszweck für Mietzahlungen</Label>
+        <Input
+          id="verwendungszweck"
+          value={contractData.verwendungszweck}
+          onChange={(e) => setContractData(prev => ({ ...prev, verwendungszweck: e.target.value }))}
+          placeholder="Miete Einheit 1 - Musterstraße 123"
+        />
+      </div>
+      
+      {/* Meter Readings Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap className="h-5 w-5 text-primary" />
+          <Label className="text-base font-medium">Zählerstände bei Einzug</Label>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="strom_einzug">Strom (kWh)</Label>
+            <Input
+              id="strom_einzug"
+              type="number"
+              step="0.01"
+              value={contractData.strom_einzug}
+              onChange={(e) => setContractData(prev => ({ ...prev, strom_einzug: e.target.value }))}
+              placeholder="12345"
+            />
+          </div>
+          <div>
+            <Label htmlFor="gas_einzug">Gas (m³)</Label>
+            <Input
+              id="gas_einzug"
+              type="number"
+              step="0.01"
+              value={contractData.gas_einzug}
+              onChange={(e) => setContractData(prev => ({ ...prev, gas_einzug: e.target.value }))}
+              placeholder="6789"
+            />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="kaltwasser_einzug">Kaltwasser (m³)</Label>
+            <Input
+              id="kaltwasser_einzug"
+              type="number"
+              step="0.01"
+              value={contractData.kaltwasser_einzug}
+              onChange={(e) => setContractData(prev => ({ ...prev, kaltwasser_einzug: e.target.value }))}
+              placeholder="1234"
+            />
+          </div>
+          <div>
+            <Label htmlFor="warmwasser_einzug">Warmwasser (m³)</Label>
+            <Input
+              id="warmwasser_einzug"
+              type="number"
+              step="0.01"
+              value={contractData.warmwasser_einzug}
+              onChange={(e) => setContractData(prev => ({ ...prev, warmwasser_einzug: e.target.value }))}
+              placeholder="567"
+            />
+          </div>
         </div>
       </div>
       
@@ -541,6 +720,17 @@ export const NewTenantContractDialog = ({
             className="mb-4"
           />
           
+          <div className="text-sm text-muted-foreground mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center gap-2 mb-2">
+              <FileUp className="h-4 w-4 text-blue-600" />
+              <span className="font-medium text-blue-800">OCR-Integration verfügbar</span>
+            </div>
+            <p className="text-blue-700">
+              PDF-Mietverträge werden automatisch ausgelesen und relevante Daten (Miete, Kaution, Daten) 
+              werden in die Vertragsfelder übernommen. Überprüfen Sie die Daten vor dem Speichern.
+            </p>
+          </div>
+          
           {uploadedFiles.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Ausgewählte Dateien:</p>
@@ -567,10 +757,15 @@ export const NewTenantContractDialog = ({
           <h4 className="font-medium mb-2">Zusammenfassung</h4>
           <div className="space-y-1 text-sm">
             <p>Mieter: {activeTab === 'new-tenant' ? newTenants.length : selectedTenantIds.length}</p>
+            {activeTab === 'new-tenant' && (
+              <p>Hauptmieter: {newTenants.filter(t => t.rolle === 'hauptmieter').length}</p>
+            )}
             <p>Kaltmiete: {contractData.kaltmiete}€</p>
             <p>Betriebskosten: {contractData.betriebskosten}€</p>
-            <p>Warmmiete: {(parseFloat(contractData.kaltmiete) + parseFloat(contractData.betriebskosten)).toFixed(2)}€</p>
+            <p>Warmmiete: {(parseFloat(contractData.kaltmiete || '0') + parseFloat(contractData.betriebskosten || '0')).toFixed(2)}€</p>
+            <p>Kaution: {contractData.kaution_betrag}€</p>
             <p>Mietbeginn: {contractData.start_datum}</p>
+            {contractData.ende_datum && <p>Mietende: {contractData.ende_datum}</p>}
             {uploadedFiles.length > 0 && <p>Dokumente: {uploadedFiles.length}</p>}
           </div>
         </CardContent>

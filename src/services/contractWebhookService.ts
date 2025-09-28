@@ -1,0 +1,78 @@
+interface ContractCreatedPayload {
+  contractId: string;
+  unitId: string;
+  tenants: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    role: string;
+  }>;
+  contractData: {
+    rent: number;
+    operatingCosts: number;
+    deposit?: number;
+    startDate: string;
+    endDate?: string;
+  };
+  property: {
+    name: string;
+    address: string;
+  };
+  timestamp: string;
+}
+
+export class ContractWebhookService {
+  private static WEBHOOK_URL = process.env.VITE_CONTRACT_WEBHOOK_URL || 'https://your-external-system.com/webhook/contract-created';
+
+  static async notifyContractCreated(payload: ContractCreatedPayload): Promise<boolean> {
+    try {
+      const response = await fetch(this.WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Source': 'lovable-rental-management'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        console.error('Webhook notification failed:', response.statusText);
+        return false;
+      }
+
+      console.log('Contract creation webhook sent successfully');
+      return true;
+
+    } catch (error: any) {
+      console.error('Webhook error:', error);
+      return false;
+    }
+  }
+
+  static async notifyContractTerminated(contractId: string, terminationDate: string): Promise<boolean> {
+    try {
+      const payload = {
+        contractId,
+        terminationDate,
+        event: 'contract_terminated',
+        timestamp: new Date().toISOString(),
+        source: 'lovable-rental-management'
+      };
+
+      const response = await fetch(this.WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Source': 'lovable-rental-management'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      return response.ok;
+
+    } catch (error: any) {
+      console.error('Termination webhook error:', error);
+      return false;
+    }
+  }
+}
