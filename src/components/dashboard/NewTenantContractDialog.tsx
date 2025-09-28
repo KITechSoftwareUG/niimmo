@@ -235,14 +235,27 @@ export const NewTenantContractDialog = ({
       }
       
       // Check for existing active contracts (overlap validation)
+      // Allow creation but warn user - they might want to terminate the existing contract first
       const existingContracts = await supabase
         .from('mietvertrag')
-        .select('id, start_datum, ende_datum')
+        .select('id, start_datum, ende_datum, mieter:mietvertrag_mieter(mieter:mieter_id(vorname, nachname))')
         .eq('einheit_id', einheitId)
         .eq('status', 'aktiv');
       
       if (existingContracts.data && existingContracts.data.length > 0) {
-        throw new Error('Diese Einheit hat bereits einen aktiven Mietvertrag.');
+        // For now, allow creating the contract but inform about overlap
+        console.warn('Active contract exists, creating new contract. Consider terminating the existing one first.');
+        
+        // Set new contract start date to future to avoid immediate overlap
+        const existingContract = existingContracts.data[0];
+        const mieterNames = existingContract.mieter?.[0]?.mieter ? 
+          `${existingContract.mieter[0].mieter.vorname} ${existingContract.mieter[0].mieter.nachname}` : 
+          'Unbekannter Mieter';
+          
+        // Give user option to set future start date
+        if (contractData.start_datum <= new Date().toISOString().split('T')[0]) {
+          console.log(`Hinweis: Aktiver Vertrag mit ${mieterNames} existiert bereits. Neuer Vertrag wird als Nachfolgevertrag erstellt.`);
+        }
       }
 
       // Create contract

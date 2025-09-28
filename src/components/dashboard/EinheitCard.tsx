@@ -341,9 +341,38 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
             </div>
           )}
 
-          {/* Show "Neuen Mieter anlegen" button for terminated contracts only */}
-          {vertrag && (vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') && (
-            <div className="pt-3 border-t border-gray-200">
+          {/* New contract button - available for all states */}
+          <div className="pt-3 border-t border-gray-200 space-y-2">
+            {/* Show different button text based on contract status */}
+            {!vertrag && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNewTenantDialog(true);
+                }}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                size="sm"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Neuen Mietvertrag erstellen
+              </Button>
+            )}
+            
+            {vertrag && vertrag.status === 'aktiv' && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNewTenantDialog(true);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                size="sm"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Nachmieter anlegen
+              </Button>
+            )}
+            
+            {vertrag && (vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') && (
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -355,8 +384,8 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
                 <User className="h-4 w-4 mr-2" />
                 Neuen Mieter anlegen
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
       
