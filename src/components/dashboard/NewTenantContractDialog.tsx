@@ -61,9 +61,10 @@ export const NewTenantContractDialog = ({
   const queryClient = useQueryClient();
   
   // State for tabs and forms
+  const [inputMode, setInputMode] = useState<'manual' | 'upload'>('manual');
   const [activeTab, setActiveTab] = useState("new-tenant");
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'tenant' | 'contract' | 'documents'>('tenant');
+  const [step, setStep] = useState<'tenant' | 'contract' | 'documents' | 'upload'>('tenant');
   
   // New tenant form state
   const [newTenants, setNewTenants] = useState<NewTenant[]>([{
@@ -118,6 +119,7 @@ export const NewTenantContractDialog = ({
   // Reset form when dialog opens/closes
   useEffect(() => {
     if (isOpen) {
+      setInputMode('manual');
       setStep('tenant');
       setActiveTab('new-tenant');
       setNewTenants([{
@@ -150,6 +152,18 @@ export const NewTenantContractDialog = ({
       setDragActive(false);
     }
   }, [isOpen]);
+
+  const handleInputModeChange = (mode: 'manual' | 'upload') => {
+    setInputMode(mode);
+    if (mode === 'upload') {
+      setStep('upload');
+    } else {
+      setStep('tenant');
+    }
+    // Reset any OCR results when switching modes
+    setOcrResults(null);
+    setUploadedFiles([]);
+  };
 
   const addNewTenant = () => {
     setNewTenants([...newTenants, {
@@ -202,7 +216,7 @@ export const NewTenantContractDialog = ({
     return contractData.kaltmiete && contractData.betriebskosten && contractData.start_datum;
   };
 
-  const handleFileUpload = async (files: FileList | null) => {
+  const handleFileUpload = async (files: FileList | File[] | null) => {
     if (files && files.length > 0) {
       const newFiles = Array.from(files);
       setUploadedFiles(prev => [...prev, ...newFiles]);
@@ -797,6 +811,166 @@ export const NewTenantContractDialog = ({
     </div>
   );
 
+  const renderUploadStep = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileUp className="h-5 w-5" />
+            Dokument hochladen und automatisch ausfüllen
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Laden Sie einen Mietvertrag hoch. Die KI extrahiert automatisch alle relevanten Daten.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {/* Drag & Drop Upload Area */}
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
+              dragActive 
+                ? 'border-primary bg-primary/5' 
+                : processingOCR 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-300 hover:border-gray-400'
+            }`}
+            onDragEnter={(e) => { handleDragEvents(e); setDragActive(true); }}
+            onDragLeave={(e) => { handleDragEvents(e); setDragActive(false); }}
+            onDragOver={handleDragEvents}
+            onDrop={handleDrop}
+          >
+            {processingOCR ? (
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+                <div className="text-center">
+                  <p className="text-lg font-medium text-blue-700 mb-2">
+                    Dokument wird intelligent verarbeitet...
+                  </p>
+                  <p className="text-sm text-blue-600">
+                    Mietvertragsdaten werden automatisch extrahiert
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <Upload className="h-16 w-16 text-gray-400" />
+                <div className="text-center">
+                  <p className="text-lg font-medium text-gray-700 mb-2">
+                    Mietvertrag hochladen
+                  </p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Dokumente hier hineinziehen oder klicken zum Auswählen
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    PDF, DOC, DOCX, JPG, PNG bis 20MB
+                  </p>
+                </div>
+                
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    handleFileUpload(files);
+                  }}
+                  style={{ display: 'none' }}
+                  id="file-upload-input"
+                />
+                
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    const input = document.getElementById('file-upload-input') as HTMLInputElement;
+                    input?.click();
+                  }}
+                  className="mt-2"
+                >
+                  Dateien auswählen
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* OCR Results Display */}
+          {ocrResults && (
+            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-green-800">
+                  Automatische Extraktion erfolgreich!
+                </span>
+              </div>
+              <div className="text-sm text-green-700">
+                <p className="mb-2">
+                  <strong>{ocrResults.fieldsExtracted || 0} Felder</strong> wurden automatisch 
+                  aus dem Dokument extrahiert. Sie können die Daten im nächsten Schritt überprüfen und bearbeiten.
+                </p>
+                {ocrResults.confidence && (
+                  <p>
+                    Erkennungsqualität: <strong>{ocrResults.confidence === 'high' ? 'Hoch' : 'Mittel'}</strong>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Uploaded Files List */}
+          {uploadedFiles.length > 0 && (
+            <div className="space-y-2 mt-6">
+              <p className="text-sm font-medium text-gray-700">Hochgeladene Dateien:</p>
+              {uploadedFiles.map((file, index) => (
+                <div key={index} className="flex items-center justify-between bg-muted p-3 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileUp className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium">{file.name}</span>
+                    <span className="text-xs text-gray-500">
+                      ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                    {file.type === 'application/pdf' && (
+                      <Badge variant="secondary" className="text-xs">
+                        OCR verarbeitet
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFile(index)}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Manual Override Option */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-800">
+                  Lieber manuell ausfüllen?
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Sie können jederzeit zur manuellen Eingabe wechseln
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => handleInputModeChange('manual')}
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                Manuell ausfüllen
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderDocumentsStep = () => (
     <div className="space-y-4">
       <div>
@@ -957,60 +1131,165 @@ export const NewTenantContractDialog = ({
           )}
         </DialogHeader>
         
-        {/* Step indicators */}
-        <div className="flex items-center justify-between mb-6">
-          {['tenant', 'contract', 'documents'].map((stepName, index) => (
-            <div key={stepName} className="flex items-center">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step === stepName ? 'bg-primary text-primary-foreground' : 
-                ['tenant', 'contract', 'documents'].indexOf(step) > index ? 'bg-primary text-primary-foreground' : 
-                'bg-muted text-muted-foreground'
-              }`}>
-                {index + 1}
-              </div>
-              {index < 2 && (
-                <div className={`w-16 h-0.5 mx-2 ${
-                  ['tenant', 'contract', 'documents'].indexOf(step) > index ? 'bg-primary' : 'bg-muted'
-                }`} />
-              )}
-            </div>
-          ))}
+        {/* Input Mode Selection */}
+        <div className="mb-6">
+          <Label className="text-base font-medium mb-3 block">
+            Wie möchten Sie die Vertragsdaten eingeben?
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            <Card 
+              className={`cursor-pointer transition-all ${
+                inputMode === 'manual' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+              }`}
+              onClick={() => handleInputModeChange('manual')}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    inputMode === 'manual' ? 'bg-primary' : 'bg-gray-300'
+                  }`} />
+                  <div>
+                    <p className="font-medium">Manuell eingeben</p>
+                    <p className="text-sm text-muted-foreground">
+                      Alle Daten selbst eingeben
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card 
+              className={`cursor-pointer transition-all ${
+                inputMode === 'upload' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+              }`}
+              onClick={() => handleInputModeChange('upload')}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    inputMode === 'upload' ? 'bg-primary' : 'bg-gray-300'
+                  }`} />
+                  <div>
+                    <p className="font-medium">Dokument hochladen</p>
+                    <p className="text-sm text-muted-foreground">
+                      KI extrahiert Daten automatisch
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
         
+        {/* Step indicators - only show for manual mode */}
+        {inputMode === 'manual' && (
+          <div className="flex items-center justify-between mb-6">
+            {['tenant', 'contract', 'documents'].map((stepName, index) => (
+              <div key={stepName} className="flex items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  step === stepName ? 'bg-primary text-primary-foreground' : 
+                  ['tenant', 'contract', 'documents'].indexOf(step) > index ? 'bg-primary text-primary-foreground' : 
+                  'bg-muted text-muted-foreground'
+                }`}>
+                  {index + 1}
+                </div>
+                {index < 2 && (
+                  <div className={`w-16 h-0.5 mx-2 ${
+                    ['tenant', 'contract', 'documents'].indexOf(step) > index ? 'bg-primary' : 'bg-muted'
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Upload mode step indicator */}
+        {inputMode === 'upload' && (
+          <div className="flex items-center justify-center mb-6">
+            <div className="flex items-center gap-4">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                step === 'upload' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
+                1
+              </div>
+              <div className={`w-16 h-0.5 ${
+                ocrResults ? 'bg-primary' : 'bg-muted'
+              }`} />
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                ocrResults && step !== 'upload' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
+                2
+              </div>
+            </div>
+          </div>
+        )}
+        
+        
         <div className="space-y-6">
-          {step === 'tenant' && renderTenantStep()}
-          {step === 'contract' && renderContractStep()}
-          {step === 'documents' && renderDocumentsStep()}
+          {inputMode === 'upload' ? (
+            <>
+              {step === 'upload' && renderUploadStep()}
+              {step === 'contract' && renderContractStep()}
+              {step === 'documents' && renderDocumentsStep()}
+            </>
+          ) : (
+            <>
+              {step === 'tenant' && renderTenantStep()}
+              {step === 'contract' && renderContractStep()}
+              {step === 'documents' && renderDocumentsStep()}
+            </>
+          )}
           
           <div className="flex justify-between pt-4 border-t">
             <Button 
               variant="outline" 
               onClick={() => {
-                if (step === 'tenant') {
-                  onClose();
-                } else if (step === 'contract') {
-                  setStep('tenant');
+                if (inputMode === 'upload') {
+                  if (step === 'upload') {
+                    onClose();
+                  } else if (step === 'contract') {
+                    setStep('upload');
+                  } else {
+                    setStep('contract');
+                  }
                 } else {
-                  setStep('contract');
+                  if (step === 'tenant') {
+                    onClose();
+                  } else if (step === 'contract') {
+                    setStep('tenant');
+                  } else {
+                    setStep('contract');
+                  }
                 }
               }}
             >
-              {step === 'tenant' ? 'Abbrechen' : 'Zurück'}
+              {(step === 'tenant' && inputMode === 'manual') || (step === 'upload' && inputMode === 'upload') ? 'Abbrechen' : 'Zurück'}
             </Button>
             
             <Button
               onClick={() => {
-                if (step === 'tenant' && validateTenantStep()) {
-                  setStep('contract');
-                } else if (step === 'contract' && validateContractStep()) {
-                  setStep('documents');
-                } else if (step === 'documents') {
-                  createContract();
+                if (inputMode === 'upload') {
+                  if (step === 'upload' && ocrResults) {
+                    setStep('contract');
+                  } else if (step === 'contract' && validateContractStep()) {
+                    setStep('documents');
+                  } else if (step === 'documents') {
+                    createContract();
+                  }
+                } else {
+                  if (step === 'tenant' && validateTenantStep()) {
+                    setStep('contract');
+                  } else if (step === 'contract' && validateContractStep()) {
+                    setStep('documents');
+                  } else if (step === 'documents') {
+                    createContract();
+                  }
                 }
               }}
               disabled={
                 isLoading || 
-                (step === 'tenant' && !validateTenantStep()) ||
+                (inputMode === 'upload' && step === 'upload' && !ocrResults) ||
+                (inputMode === 'manual' && step === 'tenant' && !validateTenantStep()) ||
                 (step === 'contract' && !validateContractStep())
               }
             >
@@ -1021,6 +1300,8 @@ export const NewTenantContractDialog = ({
                 </>
               ) : step === 'documents' ? (
                 'Vertrag erstellen'
+              ) : inputMode === 'upload' && step === 'upload' ? (
+                ocrResults ? 'Daten überprüfen' : 'Dokument hochladen'
               ) : (
                 'Weiter'
               )}
