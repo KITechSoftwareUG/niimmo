@@ -20,10 +20,19 @@ export class OCRProcessingService {
     try {
       console.log('Starting OCR processing for:', file.name);
 
-      // Convert file to base64 for API transmission (without data: prefix)
-      const base64 = await this.fileToBase64(file);
+      let textContent = '';
+      let base64 = '';
 
-      // Invoke Supabase Edge Function (use Supabase SDK, not env vars)
+      // Handle PDF files by extracting text
+      if (file.type === 'application/pdf') {
+        textContent = await this.extractTextFromPDF(file);
+        console.log('Extracted text from PDF:', textContent.length, 'characters');
+      } else {
+        // Convert non-PDF files to base64 for image processing
+        base64 = await this.fileToBase64(file);
+      }
+
+      // Invoke Supabase Edge Function
       const { data, error } = await (await import('@/integrations/supabase/client'))
         .supabase.functions.invoke('process-contract-ocr', {
           body: {
@@ -31,6 +40,7 @@ export class OCRProcessingService {
             fileType: file.type,
             fileSize: file.size,
             fileContent: base64,
+            textContent: textContent,
           },
         });
 
@@ -46,6 +56,38 @@ export class OCRProcessingService {
         success: false,
         error: error.message || 'OCR processing failed',
       };
+    }
+  }
+
+  private static async extractTextFromPDF(file: File): Promise<string> {
+    try {
+      // Dynamically import PDF.js
+      const pdfjsLib = await import('pdfjs-dist');
+      
+      // Set up worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      let fullText = '';
+      
+      // Extract text from each page (limit to first 5 pages for performance)
+      const numPages = Math.min(pdf.numPages, 5);
+      
+      for (let i = 1; i <= numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += `\n\nSeite ${i}:\n${pageText}`;
+      }
+      
+      return fullText.trim();
+    } catch (error) {
+      console.error('PDF text extraction failed:', error);
+      throw new Error('PDF-Textauslese fehlgeschlagen. Bitte lade ein JPG/PNG hoch oder probiere ein anderes PDF.');
     }
   }
 
