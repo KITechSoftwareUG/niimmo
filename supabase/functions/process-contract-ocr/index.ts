@@ -22,7 +22,7 @@ serve(async (req) => {
   }
 
   try {
-    const { fileContent, fileName, fileType } = await req.json();
+    const { fileContent, fileName, fileType, textContent } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -65,47 +65,59 @@ serve(async (req) => {
         "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Bitte analysiere dieses Mietvertragsdokument und extrahiere die relevanten Daten:"
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${fileType};base64,${fileContent}`
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: systemPrompt
+            },
+            textContent && typeof textContent === 'string' && textContent.trim().length > 0
+              ? {
+                  role: "user",
+                  content: `Bitte analysiere dieses Mietvertragsdokument (Textauszug):\n\n${textContent}`
                 }
-              }
-            ]
-          }
-        ],
-        max_tokens: 1000,
-        temperature: 0.1
-      }),
+              : {
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: "Bitte analysiere dieses Mietvertragsdokument und extrahiere die relevanten Daten:"
+                    },
+                    {
+                      type: "image_url",
+                      image_url: {
+                        url: `data:${fileType};base64,${fileContent}`
+                      }
+                    }
+                  ]
+                }
+          ],
+          max_tokens: 1000,
+          temperature: 0.1
+        }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI Gateway error:", response.status, errorText);
-      
-      // Handle specific AI Gateway errors
-      if (response.status === 400) {
-        const errorData = JSON.parse(errorText);
-        if (errorData.error?.message?.includes("Failed to extract")) {
-          throw new Error("Das hochgeladene Dokument konnte nicht verarbeitet werden. Bitte stellen Sie sicher, dass es sich um ein gültiges PDF-Dokument mit lesbarem Text handelt.");
+
+      let friendly = "AI-Verarbeitung fehlgeschlagen.";
+      try {
+        if (response.status === 400) {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error?.message?.includes("Failed to extract")) {
+            friendly = "Das hochgeladene PDF konnte nicht als Bild gelesen werden. Bitte lade ein klares JPG/PNG hoch oder ein textbasiertes PDF.";
+          }
         }
+      } catch (_) {
+        // ignore JSON parse error of errorText
       }
-      
-      throw new Error(`AI-Verarbeitung fehlgeschlagen: ${response.statusText}`);
+
+      return new Response(
+        JSON.stringify({ success: false, error: friendly, extractedData: {}, fieldsExtracted: 0, confidence: 'low' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
     }
 
     const aiResult = await response.json();
@@ -195,7 +207,7 @@ serve(async (req) => {
         extractedData: {}
       }),
       {
-        status: 500,
+        status: 200,
         headers: { 
           ...corsHeaders, 
           "Content-Type": "application/json" 
