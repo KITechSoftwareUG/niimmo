@@ -19,4 +19,10 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    target: 'esnext', // Support top-level await for PDF.js
+  },
+  optimizeDeps: {
+    exclude: ['pdfjs-dist'], // Exclude PDF.js from pre-bundling
+  },
 }));
