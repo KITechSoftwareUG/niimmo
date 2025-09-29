@@ -221,7 +221,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
   const saveField = async (recordId: string, field: string, table: string, value: any) => {
     try {
       const { error } = await supabase
-        .from(table)
+        .from(table as any)
         .update({ [field]: value })
         .eq('id', recordId);
 
