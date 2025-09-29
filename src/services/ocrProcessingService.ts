@@ -32,18 +32,24 @@ export class OCRProcessingService {
         base64 = await this.fileToBase64(file);
       }
 
-      // If PDF has no text, skip server OCR and let user continue manually
+      // If PDF has no text, render first page as image and continue with OCR backend
       if (file.type === 'application/pdf' && (!textContent || textContent.trim().length < 30)) {
-        console.warn('PDF enthält keinen verwertbaren Text, überspringe OCR-Backend.');
-        return { success: false, error: 'Keine verwertbaren Vertragsdaten im PDF gefunden. Bitte fülle die Felder manuell aus.' };
+        console.warn('PDF enthält keinen verwertbaren Text. Rendere erste Seite als Bild für OCR.');
+        base64 = await this.renderPdfFirstPageToPngBase64(file);
+        if (!base64) {
+          return { success: false, error: 'PDF konnte nicht für OCR vorbereitet werden. Bitte lade ein klares Bild (JPG/PNG) oder ein textbasiertes PDF hoch.' };
+        }
       }
+
+      // Prepare fileType based on whether we rendered an image fallback
+      const effectiveFileType = (file.type === 'application/pdf' && (!textContent || textContent.trim().length < 30)) ? 'image/png' : file.type;
 
       // Invoke Supabase Edge Function (für Bild-OCR oder wenn Text vorhanden ist)
       const { data, error } = await (await import('@/integrations/supabase/client'))
         .supabase.functions.invoke('process-contract-ocr', {
           body: {
             fileName: file.name,
-            fileType: file.type,
+            fileType: effectiveFileType,
             fileSize: file.size,
             fileContent: base64,
             textContent: textContent,
@@ -106,6 +112,39 @@ export class OCRProcessingService {
       console.error('PDF text extraction failed:', error);
       return '';
 
+    }
+  }
+
+  private static async renderPdfFirstPageToPngBase64(file: File): Promise<string> {
+    try {
+      let pdfjsLib: any;
+      try {
+        pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
+      } catch (_) {
+        pdfjsLib = await import('pdfjs-dist/build/pdf');
+      }
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/legacy/build/pdf.worker.min.js',
+          import.meta.url
+        ).toString();
+      }
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const context = canvas.getContext('2d');
+      if (!context) return '';
+      await page.render({ canvasContext: context, viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/png');
+      const commaIdx = dataUrl.indexOf(',');
+      return commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : '';
+    } catch (e) {
+      console.error('PDF first page render failed:', e);
+      return '';
     }
   }
 
