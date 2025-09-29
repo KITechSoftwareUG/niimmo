@@ -266,19 +266,37 @@ export const NewTenantContractDialog = ({
           description: `${result.fieldsExtracted || 0} Felder wurden automatisch ausgefüllt.`,
         });
       } else {
-        toast({
-          title: "OCR-Verarbeitung fehlgeschlagen",
-          description: result.error || "Das Dokument konnte nicht verarbeitet werden.",
-          variant: "destructive"
-        });
+        if (file.type === 'application/pdf') {
+          toast({
+            title: "Keine Daten im PDF gefunden",
+            description: result.error || "Bitte fülle die Felder manuell aus.",
+          });
+          setInputMode('manual');
+          setStep('tenant');
+        } else {
+          toast({
+            title: "OCR-Verarbeitung fehlgeschlagen",
+            description: result.error || "Das Dokument konnte nicht verarbeitet werden.",
+            variant: "destructive"
+          });
+        }
       }
     } catch (error: any) {
       console.error('OCR processing error:', error);
-      toast({
-        title: "Fehler bei der Dokumentenverarbeitung",
-        description: error.message || "Ein unerwarteter Fehler ist aufgetreten.",
-        variant: "destructive"
-      });
+      if (file.type === 'application/pdf') {
+        toast({
+          title: "PDF konnte nicht verarbeitet werden",
+          description: "Bitte fülle die Felder manuell aus oder probiere ein anderes PDF.",
+        });
+        setInputMode('manual');
+        setStep('tenant');
+      } else {
+        toast({
+          title: "Fehler bei der Dokumentenverarbeitung",
+          description: error.message || "Ein unerwarteter Fehler ist aufgetreten.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setProcessingOCR(false);
     }

@@ -32,7 +32,13 @@ export class OCRProcessingService {
         base64 = await this.fileToBase64(file);
       }
 
-      // Invoke Supabase Edge Function
+      // If PDF has no text, skip server OCR and let user continue manually
+      if (file.type === 'application/pdf' && (!textContent || textContent.trim().length < 30)) {
+        console.warn('PDF enthält keinen verwertbaren Text, überspringe OCR-Backend.');
+        return { success: false, error: 'Keine verwertbaren Vertragsdaten im PDF gefunden. Bitte fülle die Felder manuell aus.' };
+      }
+
+      // Invoke Supabase Edge Function (für Bild-OCR oder wenn Text vorhanden ist)
       const { data, error } = await (await import('@/integrations/supabase/client'))
         .supabase.functions.invoke('process-contract-ocr', {
           body: {
@@ -93,7 +99,8 @@ export class OCRProcessingService {
       return fullText.trim();
     } catch (error) {
       console.error('PDF text extraction failed:', error);
-      throw new Error('PDF-Textauslese fehlgeschlagen. Bitte lade ein JPG/PNG hoch oder probiere ein anderes PDF.');
+      return '';
+
     }
   }
 
