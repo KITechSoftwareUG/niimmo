@@ -236,26 +236,21 @@ export const UnitManagementCard = ({
               </div>
             )}
 
-            {/* Show new contract button for all states */}
-            <Button
-              onClick={() => setShowNewTenantDialog(true)}
-              className={`w-full ${
-                !vertrag 
-                  ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                  : vertrag.status === 'aktiv'
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+            {/* Show new contract button only for vacant or terminated contracts */}
+            {(!vertrag || vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') && (
+              <Button
+                onClick={() => setShowNewTenantDialog(true)}
+                className={`w-full ${
+                  !vertrag 
+                    ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
                     : 'bg-orange-600 hover:bg-orange-700 text-white'
-              }`}
-              size="sm"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              {!vertrag 
-                ? 'Neuen Mietvertrag erstellen'
-                : vertrag.status === 'aktiv'
-                  ? 'Nachmieter anlegen'
-                  : 'Neuen Mieter anlegen'
-              }
-            </Button>
+                }`}
+                size="sm"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Neuen Mietvertrag anlegen
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

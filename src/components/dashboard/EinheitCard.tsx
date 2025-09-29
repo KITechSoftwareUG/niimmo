@@ -341,51 +341,26 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
             </div>
           )}
 
-          {/* New contract button - available for all states */}
-          <div className="pt-3 border-t border-gray-200 space-y-2">
-            {/* Show different button text based on contract status */}
-            {!vertrag && (
+          {/* New contract button - only for vacant or terminated contracts */}
+          {(!vertrag || vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') && (
+            <div className="pt-3 border-t border-gray-200 space-y-2">
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowNewTenantDialog(true);
                 }}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                className={`w-full ${
+                  !vertrag 
+                    ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                    : 'bg-orange-600 hover:bg-orange-700 text-white'
+                }`}
                 size="sm"
               >
                 <User className="h-4 w-4 mr-2" />
-                Neuen Mietvertrag erstellen
+                Neuen Mietvertrag anlegen
               </Button>
-            )}
-            
-            {vertrag && vertrag.status === 'aktiv' && (
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowNewTenantDialog(true);
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                size="sm"
-              >
-                <User className="h-4 w-4 mr-2" />
-                Nachmieter anlegen
-              </Button>
-            )}
-            
-            {vertrag && (vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') && (
-              <Button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowNewTenantDialog(true);
-                }}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                size="sm"
-              >
-                <User className="h-4 w-4 mr-2" />
-                Neuen Mieter anlegen
-              </Button>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
       
