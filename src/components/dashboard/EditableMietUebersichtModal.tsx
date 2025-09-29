@@ -680,11 +680,11 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                            <TableCell className="text-center text-sm font-medium">
                              {contractIndex + 1}
                            </TableCell>
-                           <TableCell>
-                             <Badge variant="outline" className="text-xs">
-                               Einheit {contractIndex + 1}
-                             </Badge>
-                           </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                Einheit {row.einheitId.slice(-4)}
+                              </Badge>
+                            </TableCell>
                            <TableCell>
                              {renderEditableCell(row, 'etage', 'einheiten', row.einheitId, row.etage)}
                            </TableCell>
