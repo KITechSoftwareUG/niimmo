@@ -61,8 +61,14 @@ export class OCRProcessingService {
 
   private static async extractTextFromPDF(file: File): Promise<string> {
     try {
-      // Dynamically import PDF.js
-      const pdfjsLib = await import('pdfjs-dist');
+      // Dynamically import PDF.js (prefer legacy build for better bundler compatibility)
+      let pdfjsLib: any;
+      try {
+        pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
+      } catch (e) {
+        console.warn('Falling back to non-legacy pdfjs-dist build:', e);
+        pdfjsLib = await import('pdfjs-dist/build/pdf');
+      }
       
       // Set up worker
       pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
