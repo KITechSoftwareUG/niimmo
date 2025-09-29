@@ -76,8 +76,13 @@ export class OCRProcessingService {
         pdfjsLib = await import('pdfjs-dist/build/pdf');
       }
       
-      // Set up worker
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
+      // Set up worker using bundled version
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/legacy/build/pdf.worker.min.js',
+          import.meta.url
+        ).toString();
+      }
 
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
