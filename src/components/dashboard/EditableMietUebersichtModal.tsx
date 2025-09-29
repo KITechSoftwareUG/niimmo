@@ -1,16 +1,15 @@
-import React from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, RotateCcw, Edit3, Check, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Search, RotateCcw, Edit3, Check, X, ChevronDown, ChevronRight, CalendarIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useState, useMemo, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatArea } from "@/utils/contractUtils";
@@ -18,7 +17,6 @@ import { formatDateForDisplay, formatDateForInput } from "@/utils/dateUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -38,7 +36,42 @@ interface EditingState {
 interface GroupedData {
   objektName: string;
   objektId: string;
-  contracts: any[];
+  objektAdresse: string;
+  contracts: ContractData[];
+}
+
+interface ContractData {
+  // Contract identifiers
+  contractId: string;
+  objektId: string;
+  objektName: string;
+  objektAdresse: string;
+  einheitId: string;
+  mieterId: string;
+  
+  // Unit information
+  etage: string;
+  qm: number;
+  einheitentyp: string;
+  
+  // Contract details
+  status: string;
+  kaltmiete: number;
+  betriebskosten: number;
+  warmmiete: number;
+  mietbeginn: string | null;
+  mietende: string | null;
+  kautionSoll: number;
+  kautionIst: number;
+  lastschrift: boolean;
+  letzteErhoehung: string | null;
+  
+  // Tenant information
+  mieterVorname: string;
+  mieterNachname: string;
+  mieterEmail: string;
+  mieterTelefon: string;
+  mieterGeburtsdatum: string | null;
 }
 
 export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMietUebersichtModalProps) => {
@@ -114,7 +147,6 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         
         // Unit data
         einheitId: vertrag.einheiten.id,
-        einheitNummer: vertrag.einheiten.id.slice(-8),
         etage: vertrag.einheiten.etage || '',
         qm: vertrag.einheiten.qm || 0,
         einheitentyp: vertrag.einheiten.einheitentyp || 'Wohnung',
@@ -142,7 +174,6 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         const searchLower = searchTerm.toLowerCase();
         return (
           row.objektName.toLowerCase().includes(searchLower) ||
-          row.einheitNummer.toLowerCase().includes(searchLower) ||
           `${row.mieterVorname} ${row.mieterNachname}`.toLowerCase().includes(searchLower) ||
           row.mieterEmail.toLowerCase().includes(searchLower) ||
           row.objektAdresse.toLowerCase().includes(searchLower)
@@ -161,6 +192,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         grouped.push({
           objektName: row.objektName,
           objektId: row.objektId,
+          objektAdresse: row.objektAdresse,
           contracts: [row]
         });
       }
@@ -644,18 +676,18 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                       
                       {/* Group Content */}
                       {expandedGroups.has(group.objektId) && group.contracts.map((row, contractIndex) => (
-                        <TableRow key={row.contractId} className="hover:bg-gray-50">
-                          <TableCell className="text-center text-sm font-medium">
-                            {contractIndex + 1}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              {row.einheitNummer}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {renderEditableCell(row, 'etage', 'einheiten', row.einheitId, row.etage)}
-                          </TableCell>
+                         <TableRow key={row.contractId} className="hover:bg-gray-50">
+                           <TableCell className="text-center text-sm font-medium">
+                             {contractIndex + 1}
+                           </TableCell>
+                           <TableCell>
+                             <Badge variant="outline" className="text-xs">
+                               Einheit {contractIndex + 1}
+                             </Badge>
+                           </TableCell>
+                           <TableCell>
+                             {renderEditableCell(row, 'etage', 'einheiten', row.einheitId, row.etage)}
+                           </TableCell>
                           <TableCell>
                             {renderEditableCell(row, 'qm', 'einheiten', row.einheitId, row.qm)}
                           </TableCell>
