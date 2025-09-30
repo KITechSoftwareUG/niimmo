@@ -1,12 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Edit3, Check, X, Eye } from "lucide-react";
+import { FileText, Download, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Edit3, X, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { PdfPreviewModal } from "../PdfPreviewModal";
 
 interface MietvertragDocumentsTabProps {
   dokumente: any[];
@@ -38,7 +37,35 @@ export function MietvertragDocumentsTab({
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [updatingCategory, setUpdatingCategory] = useState<string | null>(null);
-  const [previewDocument, setPreviewDocument] = useState<any | null>(null);
+  
+  const handlePreview = async (dokument: any) => {
+    try {
+      // Create a signed URL for the PDF
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('dokumente')
+        .createSignedUrl(dokument.pfad, 3600); // Valid for 1 hour
+
+      if (signedUrlError) {
+        console.error('Signed URL Error:', signedUrlError);
+        toast({
+          variant: "destructive",
+          title: "Vorschau fehlgeschlagen",
+          description: `Fehler: ${signedUrlError.message}`
+        });
+        return;
+      }
+
+      // Open PDF in new tab
+      window.open(signedUrlData.signedUrl, '_blank');
+    } catch (error) {
+      console.error('Preview error:', error);
+      toast({
+        title: "Fehler",
+        description: "PDF-Vorschau konnte nicht geöffnet werden.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Sort documents
   const sortedDokumente = useMemo(() => {
@@ -320,7 +347,7 @@ export function MietvertragDocumentsTab({
                         <div className="flex items-center gap-2">
                           {dok.dateityp === 'application/pdf' && (
                             <Button
-                              onClick={() => setPreviewDocument(dok)}
+                              onClick={() => handlePreview(dok)}
                               size="sm"
                               variant="outline"
                               disabled={updatingCategory === dok.id}
@@ -420,7 +447,7 @@ export function MietvertragDocumentsTab({
                     <div className="flex items-center gap-2">
                       {dok.dateityp === 'application/pdf' && (
                         <Button
-                          onClick={() => setPreviewDocument(dok)}
+                          onClick={() => handlePreview(dok)}
                           size="sm"
                           variant="outline"
                           disabled={updatingCategory === dok.id}
@@ -458,12 +485,6 @@ export function MietvertragDocumentsTab({
           )}
         </CardContent>
       </Card>
-
-      <PdfPreviewModal
-        isOpen={!!previewDocument}
-        onClose={() => setPreviewDocument(null)}
-        dokument={previewDocument}
-      />
     </div>
   );
 }
