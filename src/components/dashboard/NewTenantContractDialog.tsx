@@ -241,7 +241,10 @@ export const NewTenantContractDialog = ({
       const result = await OCRProcessingService.processContractDocument(file);
       console.log('OCR Result:', result);
       
-      if (result.success && result.extractedData) {
+      // Check if any data was extracted (even if result.success is false)
+      const hasExtractedData = result.extractedData && (result.fieldsExtracted ?? 0) > 0;
+      
+      if (hasExtractedData) {
         setOcrResults(result);
         
         // Auto-fill form fields with extracted data
@@ -266,10 +269,11 @@ export const NewTenantContractDialog = ({
           description: `${result.fieldsExtracted || 0} Felder wurden automatisch ausgefüllt.`,
         });
       } else {
+        // Only show error if NO data was extracted at all
         if (file.type === 'application/pdf') {
           toast({
-            title: "Keine Daten im PDF gefunden",
-            description: result.error || "Bitte fülle die Felder manuell aus.",
+            title: "Keine verwertbaren Daten gefunden",
+            description: "Bitte fülle die Felder manuell aus.",
           });
           setInputMode('manual');
           setStep('tenant');
