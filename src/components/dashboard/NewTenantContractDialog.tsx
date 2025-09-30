@@ -1148,7 +1148,7 @@ export const NewTenantContractDialog = ({
           </DialogTitle>
           {immobilie && (
             <p className="text-sm text-muted-foreground">
-              {immobilie.name} - {immobilie.adresse}
+              {immobilie.name} - {immobilie.adresse} - Einheit {einheitId.slice(-2)}
             </p>
           )}
         </DialogHeader>
