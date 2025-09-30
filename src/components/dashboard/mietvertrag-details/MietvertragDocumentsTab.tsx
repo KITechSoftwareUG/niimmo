@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Edit3, Check, X } from "lucide-react";
+import { FileText, Download, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Edit3, Check, X, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { PdfPreviewModal } from "../PdfPreviewModal";
 
 interface MietvertragDocumentsTabProps {
   dokumente: any[];
@@ -37,6 +38,7 @@ export function MietvertragDocumentsTab({
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [updatingCategory, setUpdatingCategory] = useState<string | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<any | null>(null);
 
   // Sort documents
   const sortedDokumente = useMemo(() => {
@@ -315,20 +317,35 @@ export function MietvertragDocumentsTab({
                           </div>
                         </div>
                         
-                        <Button
-                          onClick={() => handleDownload(dok)}
-                          size="sm"
-                          variant="outline"
-                          disabled={downloading === dok.id || updatingCategory === dok.id}
-                          className="flex items-center space-x-2"
-                        >
-                          {downloading === dok.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Download className="h-4 w-4" />
+                        <div className="flex items-center gap-2">
+                          {dok.dateityp === 'application/pdf' && (
+                            <Button
+                              onClick={() => setPreviewDocument(dok)}
+                              size="sm"
+                              variant="outline"
+                              disabled={updatingCategory === dok.id}
+                              className="flex items-center space-x-2"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span>Vorschau</span>
+                            </Button>
                           )}
-                          <span>{downloading === dok.id ? 'Lädt...' : 'Download'}</span>
-                        </Button>
+                          
+                          <Button
+                            onClick={() => handleDownload(dok)}
+                            size="sm"
+                            variant="outline"
+                            disabled={downloading === dok.id || updatingCategory === dok.id}
+                            className="flex items-center space-x-2"
+                          >
+                            {downloading === dok.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                            <span>{downloading === dok.id ? 'Lädt...' : 'Download'}</span>
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -400,20 +417,35 @@ export function MietvertragDocumentsTab({
                       </div>
                     </div>
                     
-                    <Button
-                      onClick={() => handleDownload(dok)}
-                      size="sm"
-                      variant="outline"
-                      disabled={downloading === dok.id || updatingCategory === dok.id}
-                      className="flex items-center space-x-2"
-                    >
-                      {downloading === dok.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
+                    <div className="flex items-center gap-2">
+                      {dok.dateityp === 'application/pdf' && (
+                        <Button
+                          onClick={() => setPreviewDocument(dok)}
+                          size="sm"
+                          variant="outline"
+                          disabled={updatingCategory === dok.id}
+                          className="flex items-center space-x-2"
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span>Vorschau</span>
+                        </Button>
                       )}
-                      <span>{downloading === dok.id ? 'Lädt...' : 'Download'}</span>
-                    </Button>
+                      
+                      <Button
+                        onClick={() => handleDownload(dok)}
+                        size="sm"
+                        variant="outline"
+                        disabled={downloading === dok.id || updatingCategory === dok.id}
+                        className="flex items-center space-x-2"
+                      >
+                        {downloading === dok.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                        <span>{downloading === dok.id ? 'Lädt...' : 'Download'}</span>
+                      </Button>
+                    </div>
                   </div>
                 ))
               )}
@@ -426,6 +458,12 @@ export function MietvertragDocumentsTab({
           )}
         </CardContent>
       </Card>
+
+      <PdfPreviewModal
+        isOpen={!!previewDocument}
+        onClose={() => setPreviewDocument(null)}
+        dokument={previewDocument}
+      />
     </div>
   );
 }

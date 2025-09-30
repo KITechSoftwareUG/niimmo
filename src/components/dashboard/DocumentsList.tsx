@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Download, Eye, Calendar, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PdfPreviewModal } from "./PdfPreviewModal";
 
 interface DocumentsListProps {
   dokumente: any[];
@@ -13,6 +14,7 @@ interface DocumentsListProps {
 export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
   const { toast } = useToast();
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<any | null>(null);
 
   const handleDownload = async (dokument: any) => {
     if (!dokument || !dokument.pfad) {
@@ -163,6 +165,15 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                     {dokument.dateityp?.toUpperCase() || 'UNBEKANNT'}
                   </Badge>
                   <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    {dokument.dateityp === 'application/pdf' && (
+                      <button 
+                        onClick={() => setPreviewDocument(dokument)}
+                        className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200"
+                      >
+                        <Eye className="h-4 w-4 text-blue-600" />
+                      </button>
+                    )}
+                    
                     <button 
                       onClick={() => handleDownload(dokument)}
                       disabled={downloading === dokument.id}
@@ -181,6 +192,12 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
           ))}
         </div>
       </CardContent>
+
+      <PdfPreviewModal
+        isOpen={!!previewDocument}
+        onClose={() => setPreviewDocument(null)}
+        dokument={previewDocument}
+      />
     </Card>
   );
 };
