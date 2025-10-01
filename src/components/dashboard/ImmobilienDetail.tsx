@@ -70,7 +70,8 @@ export const ImmobilienDetail = ({
       const { data: vertraege, error: vertraegeError } = await supabase
         .from('mietvertrag')
         .select('*')
-        .in('einheit_id', einheitIds); // Include all contracts including ended ones
+        .in('einheit_id', einheitIds)
+        .order('start_datum', { ascending: false }); // Sort by start date, newest first
 
       if (vertraegeError) throw vertraegeError;
       
