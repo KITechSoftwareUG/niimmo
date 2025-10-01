@@ -86,20 +86,23 @@ export const sortPropertiesByName = (properties: any[]): any[] => {
 export const getCurrentContract = (contracts: any[]): any | null => {
   if (contracts.length === 0) return null;
   
+  // Sort contracts by start date descending to ensure consistent ordering
+  const sortedContracts = [...contracts].sort((a, b) => {
+    const dateA = a.start_datum ? new Date(a.start_datum).getTime() : 0;
+    const dateB = b.start_datum ? new Date(b.start_datum).getTime() : 0;
+    return dateB - dateA; // Most recent first
+  });
+  
   // First, try to find an active contract
-  const activeContract = contracts.find(c => c.status === 'aktiv');
+  const activeContract = sortedContracts.find(c => c.status === 'aktiv');
   if (activeContract) return activeContract;
   
-  // Second, try to find a terminated contract
-  const terminatedContract = contracts.find(c => c.status === 'gekuendigt');
+  // Second, try to find a terminated contract (most recent one)
+  const terminatedContract = sortedContracts.find(c => c.status === 'gekuendigt');
   if (terminatedContract) return terminatedContract;
   
-  // Finally, if only ended contracts, find the most recent one by start date
-  return contracts.reduce((latest, current) => {
-    const latestDate = latest.start_datum ? new Date(latest.start_datum) : new Date(0);
-    const currentDate = current.start_datum ? new Date(current.start_datum) : new Date(0);
-    return currentDate > latestDate ? current : latest;
-  });
+  // Finally, if only ended contracts, return the most recent one
+  return sortedContracts.find(c => c.status === 'beendet') || sortedContracts[0];
 };
 
 /**
