@@ -196,7 +196,6 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                       {dokument.dateityp?.toUpperCase() || 'UNBEKANNT'}
                     </Badge>
                     <div className="flex items-center space-x-2 opacity-100 transition-opacity duration-200">
-                      {isPreviewable(dokument) && (
                         <button 
                           onClick={() => handlePreview(dokument)}
                           className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200"
@@ -205,7 +204,6 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                           <Eye className="h-4 w-4 text-blue-600" />
                           <span className="ml-1 hidden sm:inline text-blue-700">Vorschau</span>
                         </button>
-                      )}
                       
                       <button 
                         onClick={() => handleDownload(dokument)}
