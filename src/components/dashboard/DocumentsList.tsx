@@ -192,7 +192,8 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                     {dokument.dateityp?.toUpperCase() || 'UNBEKANNT'}
                   </Badge>
                   <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    {dokument.dateityp === 'application/pdf' && (
+                    {(dokument.dateityp === 'application/pdf' || 
+                      ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'].includes(dokument.dateityp?.toLowerCase())) && (
                       <button 
                         onClick={() => handlePreview(dokument)}
                         className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200"

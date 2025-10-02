@@ -25,10 +25,23 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [isImage, setIsImage] = useState(false);
+
+  const checkIfImage = (dateityp: string): boolean => {
+    const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'];
+    return imageTypes.includes(dateityp?.toLowerCase());
+  };
 
   useEffect(() => {
     if (isOpen && dokument) {
-      loadPdf();
+      const isImg = checkIfImage(dokument.dateityp);
+      setIsImage(isImg);
+      
+      if (isImg) {
+        loadImage();
+      } else {
+        loadPdf();
+      }
     } else {
       // Cleanup when closing
       if (pdfUrl) {
@@ -38,6 +51,7 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       setPdfDoc(null);
       setCurrentPage(1);
       setTotalPages(0);
+      setIsImage(false);
     }
   }, [isOpen, dokument]);
 
@@ -46,6 +60,32 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       renderPage(currentPage);
     }
   }, [pdfDoc, currentPage]);
+
+  const loadImage = async () => {
+    if (!dokument) return;
+
+    setLoading(true);
+    try {
+      // Get signed URL for the image
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('dokumente')
+        .createSignedUrl(dokument.pfad, 3600); // Valid for 1 hour
+
+      if (signedUrlError) throw signedUrlError;
+
+      setPdfUrl(signedUrlData.signedUrl);
+    } catch (error) {
+      console.error('Image loading error:', error);
+      toast({
+        title: "Fehler",
+        description: "Bild konnte nicht geladen werden.",
+        variant: "destructive",
+      });
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadPdf = async () => {
     if (!dokument) return;
@@ -200,15 +240,21 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-              <p className="text-muted-foreground">PDF wird geladen...</p>
+              <p className="text-muted-foreground">{isImage ? 'Bild' : 'PDF'} wird geladen...</p>
             </div>
+          ) : isImage && pdfUrl ? (
+            <img 
+              src={pdfUrl} 
+              alt={dokument?.titel || 'Bild Vorschau'} 
+              className="max-w-full max-h-full object-contain shadow-lg rounded"
+            />
           ) : (
             <canvas ref={canvasRef} className="max-w-full shadow-lg" />
           )}
         </div>
 
-        {/* Page Navigation */}
-        {totalPages > 0 && (
+        {/* Page Navigation - nur für PDFs */}
+        {!isImage && totalPages > 0 && (
           <div className="flex items-center justify-between border-t pt-4">
             <Button
               variant="outline"
