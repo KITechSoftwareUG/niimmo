@@ -73,7 +73,7 @@ export const ImmobilienDetail = ({
   const {
     data: mietvertraege
   } = useQuery({
-    queryKey: ['mietvertrag-detail', immobilieId],
+    queryKey: ['mietvertrag-detail', immobilieId, einheiten?.map(e => e.id).join(',')],
     queryFn: async () => {
       const einheitIds = einheiten?.map(e => e.id) || [];
       if (einheitIds.length === 0) return [];
