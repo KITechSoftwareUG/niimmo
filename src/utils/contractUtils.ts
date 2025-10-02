@@ -48,8 +48,8 @@ export const sortUnitsByNumber = (units: any[]): any[] => {
       return null;
     };
     
-    const aNum = extractNum(a.nummer);
-    const bNum = extractNum(b.nummer);
+    const aNum = extractNum(a.nummer ?? (a.id ? a.id.slice(-2) : undefined));
+    const bNum = extractNum(b.nummer ?? (b.id ? b.id.slice(-2) : undefined));
     
     if (aNum != null && bNum != null && aNum !== bNum) {
       return aNum - bNum;
