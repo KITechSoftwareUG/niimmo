@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronRight, FileText, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface RentIncreaseEligibility {
   mietvertrag_id: string;
@@ -26,6 +27,7 @@ interface MieterhöhungenSectionProps {
 export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSectionProps) {
   const { toast } = useToast();
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
 
   const { data: eligibilityData, isLoading, error: eligibilityError } = useQuery({
     queryKey: ['rent-increase-eligibility'],
@@ -142,75 +144,91 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Mögliche Mieterhöhungen
-          <Badge variant="secondary" className="ml-2">
-            {eligibleContracts.length}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {eligibleContracts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Aktuell sind keine Mieterhöhungen möglich.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Immobilie</TableHead>
-                <TableHead>Mieter</TableHead>
-                <TableHead>Aktuelle Miete</TableHead>
-                <TableHead>Letzte Erhöhung</TableHead>
-                <TableHead className="text-right">Aktionen</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {eligibleContracts.map((contract) => {
-                const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
-                const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
-                const tenantName = contractDetails?.mietvertrag_mieter?.[0]?.mieter 
-                  ? `${contractDetails.mietvertrag_mieter[0].mieter.vorname} ${contractDetails.mietvertrag_mieter[0].mieter.nachname}`
-                  : 'Unbekannt';
-                const lastIncrease = contract.letzte_mieterhoehung_am 
-                  ? new Date(contract.letzte_mieterhoehung_am).toLocaleDateString('de-DE')
-                  : 'Nie';
-
-                return (
-                  <TableRow key={contract.mietvertrag_id}>
-                    <TableCell className="font-medium">{propertyName}</TableCell>
-                    <TableCell>{tenantName}</TableCell>
-                    <TableCell>{contract.current_kaltmiete.toFixed(2)}€</TableCell>
-                    <TableCell>{lastIncrease}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleGeneratePdf(contract.mietvertrag_id)}
-                          disabled={generatingPdf === contract.mietvertrag_id}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          {generatingPdf === contract.mietvertrag_id ? 'Erstellt...' : 'PDF erstellen'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onContractClick?.(contract.mietvertrag_id)}
-                        >
-                          Öffnen
-                        </Button>
-                      </div>
-                    </TableCell>
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CardHeader className="p-0">
+          <CollapsibleTrigger asChild>
+            <button className="w-full cursor-pointer hover:bg-muted/50 transition-colors select-none px-6 py-4 text-left">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Mögliche Mieterhöhungen
+                  <Badge variant="secondary" className="ml-2">
+                    {eligibleContracts.length}
+                  </Badge>
+                </div>
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </CardTitle>
+            </button>
+          </CollapsibleTrigger>
+        </CardHeader>
+        
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            {eligibleContracts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aktuell sind keine Mieterhöhungen möglich.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Immobilie</TableHead>
+                    <TableHead>Mieter</TableHead>
+                    <TableHead>Aktuelle Miete</TableHead>
+                    <TableHead>Letzte Erhöhung</TableHead>
+                    <TableHead className="text-right">Aktionen</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
+                </TableHeader>
+                <TableBody>
+                  {eligibleContracts.map((contract) => {
+                    const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
+                    const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
+                    const tenantName = contractDetails?.mietvertrag_mieter?.[0]?.mieter 
+                      ? `${contractDetails.mietvertrag_mieter[0].mieter.vorname} ${contractDetails.mietvertrag_mieter[0].mieter.nachname}`
+                      : 'Unbekannt';
+                    const lastIncrease = contract.letzte_mieterhoehung_am 
+                      ? new Date(contract.letzte_mieterhoehung_am).toLocaleDateString('de-DE')
+                      : 'Nie';
+
+                    return (
+                      <TableRow key={contract.mietvertrag_id}>
+                        <TableCell className="font-medium">{propertyName}</TableCell>
+                        <TableCell>{tenantName}</TableCell>
+                        <TableCell>{contract.current_kaltmiete.toFixed(2)}€</TableCell>
+                        <TableCell>{lastIncrease}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleGeneratePdf(contract.mietvertrag_id)}
+                              disabled={generatingPdf === contract.mietvertrag_id}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              {generatingPdf === contract.mietvertrag_id ? 'Erstellt...' : 'PDF erstellen'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onContractClick?.(contract.mietvertrag_id)}
+                            >
+                              Öffnen
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }
