@@ -2,12 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, FileText, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { RentIncreaseTable } from "./rent-increase/RentIncreaseTable";
 
 interface RentIncreaseEligibility {
   mietvertrag_id: string;
@@ -29,21 +28,27 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data: eligibilityData, isLoading, error: eligibilityError } = useQuery({
-    queryKey: ['rent-increase-eligibility'],
+  // 1) Eligibility - lightweight and cached
+  const { data: eligibilityData, isLoading: isLoadingEligibility, error: eligibilityError } = useQuery<{ eligible_contracts?: RentIncreaseEligibility[] | null}>({
+    queryKey: ["rent-increase-eligibility"],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('check-rent-increase-eligibility');
+      const { data, error } = await supabase.functions.invoke("check-rent-increase-eligibility");
       if (error) throw error;
-      return data;
+      return data ?? { eligible_contracts: [] };
     },
-    refetchInterval: 300000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
   });
 
+  const eligibleContracts = useMemo(() => eligibilityData?.eligible_contracts ?? [], [eligibilityData]);
+
+  // 2) Contracts - only when open AND we have something to show
   const { data: contractsData, isLoading: isLoadingContracts, error: contractsError } = useQuery({
-    queryKey: ['mietvertraege-with-details'],
+    queryKey: ["mietvertraege-with-details"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('mietvertrag')
+        .from("mietvertrag")
         .select(`
           id,
           kaltmiete,
@@ -65,37 +70,29 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
             )
           )
         `)
-        .eq('status', 'aktiv');
-
+        .eq("status", "aktiv");
       if (error) throw error;
       return data;
     },
-    enabled: isOpen && !!eligibilityData?.eligible_contracts?.length,
+    enabled: isOpen && eligibleContracts.length > 0,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
   });
 
   const handleGeneratePdf = async (contractId: string) => {
     setGeneratingPdf(contractId);
     try {
-      const contractDetails = contractsData?.find(c => c.id === contractId);
-      
-      if (!contractDetails) {
-        throw new Error('Vertragsdaten nicht gefunden');
-      }
-
-      const { data, error } = await supabase.functions.invoke('generate-rent-increase-pdf', {
-        body: {
-          mietvertragId: contractId,
-        }
+      const { error } = await supabase.functions.invoke("generate-rent-increase-pdf", {
+        body: { mietvertragId: contractId },
       });
-
       if (error) throw error;
-
       toast({
         title: "PDF erstellt",
         description: "Die Mieterhöhungs-PDF wurde erfolgreich erstellt und gespeichert.",
       });
     } catch (error) {
-      console.error('Fehler beim Erstellen der PDF:', error);
+      console.error("Fehler beim Erstellen der PDF:", error);
       toast({
         title: "Fehler",
         description: "Die PDF konnte nicht erstellt werden.",
@@ -106,6 +103,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
     }
   };
 
+  // Error/Loading wrappers kept minimal and robust
   if (eligibilityError) {
     return (
       <Card>
@@ -116,15 +114,13 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-destructive">
-            Fehler beim Laden: {eligibilityError.message}
-          </p>
+          <p className="text-destructive">Fehler beim Laden: {(eligibilityError as Error).message}</p>
         </CardContent>
       </Card>
     );
   }
 
-  if (isLoading) {
+  if (isLoadingEligibility) {
     return (
       <Card>
         <CardHeader>
@@ -140,7 +136,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
     );
   }
 
-  const eligibleContracts = eligibilityData?.eligible_contracts || [];
+  const count = eligibleContracts.length;
 
   return (
     <Card>
@@ -152,85 +148,30 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
                   Mögliche Mieterhöhungen
-                  <Badge variant="secondary" className="ml-2">
-                    {eligibleContracts.length}
-                  </Badge>
+                  <Badge variant="secondary" className="ml-2">{count}</Badge>
                 </div>
-                {isOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               </CardTitle>
             </button>
           </CollapsibleTrigger>
         </CardHeader>
-        
+
         <CollapsibleContent>
           <CardContent className="pt-0">
-            {isOpen && (
-              isLoadingContracts ? (
-                <p className="text-sm text-muted-foreground">Vertragsdaten werden geladen...</p>
-              ) : contractsError ? (
-                <p className="text-sm text-destructive">Fehler beim Laden der Vertragsdaten: {contractsError.message}</p>
-              ) : eligibleContracts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Aktuell sind keine Mieterhöhungen möglich.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Immobilie</TableHead>
-                      <TableHead>Mieter</TableHead>
-                      <TableHead>Aktuelle Miete</TableHead>
-                      <TableHead>Letzte Erhöhung</TableHead>
-                      <TableHead className="text-right">Aktionen</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {eligibleContracts.map((contract) => {
-                      const contractDetails = contractsData?.find(c => c.id === contract.mietvertrag_id);
-                      const propertyName = contractDetails?.einheiten?.immobilien?.name || 'Unbekannt';
-                      const tenantName = contractDetails?.mietvertrag_mieter?.[0]?.mieter 
-                        ? `${contractDetails.mietvertrag_mieter[0].mieter.vorname} ${contractDetails.mietvertrag_mieter[0].mieter.nachname}`
-                        : 'Unbekannt';
-                      const lastIncrease = contract.letzte_mieterhoehung_am 
-                        ? new Date(contract.letzte_mieterhoehung_am).toLocaleDateString('de-DE')
-                        : 'Nie';
-
-                      return (
-                        <TableRow key={contract.mietvertrag_id}>
-                          <TableCell className="font-medium">{propertyName}</TableCell>
-                          <TableCell>{tenantName}</TableCell>
-                          <TableCell>{contract.current_kaltmiete.toFixed(2)}€</TableCell>
-                          <TableCell>{lastIncrease}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => handleGeneratePdf(contract.mietvertrag_id)}
-                                disabled={generatingPdf === contract.mietvertrag_id}
-                              >
-                                <FileText className="h-4 w-4 mr-2" />
-                                {generatingPdf === contract.mietvertrag_id ? 'Erstellt...' : 'PDF erstellen'}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onContractClick?.(contract.mietvertrag_id)}
-                              >
-                                Öffnen
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )
+            {!isOpen ? null : count === 0 ? (
+              <p className="text-sm text-muted-foreground">Aktuell sind keine Mieterhöhungen möglich.</p>
+            ) : isLoadingContracts ? (
+              <p className="text-sm text-muted-foreground">Vertragsdaten werden geladen...</p>
+            ) : contractsError ? (
+              <p className="text-sm text-destructive">Fehler beim Laden der Vertragsdaten: {(contractsError as Error).message}</p>
+            ) : (
+              <RentIncreaseTable
+                rows={eligibleContracts}
+                contractsData={contractsData}
+                generatingPdf={generatingPdf}
+                onGeneratePdf={handleGeneratePdf}
+                onOpenContract={onContractClick}
+              />
             )}
           </CardContent>
         </CollapsibleContent>
