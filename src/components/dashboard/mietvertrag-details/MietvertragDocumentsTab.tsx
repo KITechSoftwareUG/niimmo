@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { PdfPreviewModal } from "../PdfPreviewModal";
 
 interface MietvertragDocumentsTabProps {
   dokumente: any[];
@@ -38,12 +37,32 @@ export function MietvertragDocumentsTab({
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [updatingCategory, setUpdatingCategory] = useState<string | null>(null);
-  const [previewDokument, setPreviewDokument] = useState<any>(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   
-  const handlePreview = (dokument: any) => {
-    setPreviewDokument(dokument);
-    setIsPreviewOpen(true);
+  const handlePreview = async (dokument: any) => {
+    try {
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('dokumente')
+        .createSignedUrl(dokument.pfad, 3600);
+
+      if (signedUrlError) {
+        console.error('Signed URL Error:', signedUrlError);
+        toast({
+          variant: "destructive",
+          title: "Vorschau fehlgeschlagen",
+          description: `Fehler: ${signedUrlError.message}`
+        });
+        return;
+      }
+
+      window.open(signedUrlData.signedUrl, '_blank');
+    } catch (error) {
+      console.error('Preview error:', error);
+      toast({
+        title: "Fehler",
+        description: "Vorschau konnte nicht geöffnet werden.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Sort documents
@@ -460,11 +479,6 @@ export function MietvertragDocumentsTab({
           )}
         </CardContent>
       </Card>
-      <PdfPreviewModal
-        isOpen={isPreviewOpen}
-        onClose={() => { setIsPreviewOpen(false); setPreviewDokument(null); }}
-        dokument={previewDokument}
-      />
     </div>
   );
 }
