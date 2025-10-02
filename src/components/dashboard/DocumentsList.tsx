@@ -181,7 +181,13 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                       {dokument.dateityp?.toUpperCase() || 'UNBEKANNT'}
                     </Badge>
                     <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      {(dokument.dateityp === 'application/pdf' || dokument.dateityp?.toLowerCase() === 'pdf' || isImageFile(dokument.dateityp)) && (
+                      {( 
+                        dokument?.dateityp?.toLowerCase() === 'application/pdf' ||
+                        dokument?.dateityp?.toLowerCase() === 'pdf' ||
+                        /\.pdf$/i.test(dokument?.pfad || dokument?.titel || '') ||
+                        isImageFile(dokument?.dateityp) ||
+                        /\.(jpe?g|png)$/i.test(dokument?.pfad || dokument?.titel || '')
+                      ) && (
                         <button 
                           onClick={() => handlePreview(dokument)}
                           className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200"
