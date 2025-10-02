@@ -39,7 +39,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
     refetchInterval: 300000,
   });
 
-  const { data: contractsData } = useQuery({
+  const { data: contractsData, isLoading: isLoadingContracts, error: contractsError } = useQuery({
     queryKey: ['mietvertraege-with-details'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -70,7 +70,7 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
       if (error) throw error;
       return data;
     },
-    enabled: !!eligibilityData?.eligible_contracts?.length,
+    enabled: isOpen && !!eligibilityData?.eligible_contracts?.length,
   });
 
   const handleGeneratePdf = async (contractId: string) => {
@@ -169,7 +169,11 @@ export function MieterhöhungenSection({ onContractClick }: MieterhöhungenSecti
         <CollapsibleContent>
           <CardContent className="pt-0">
             {isOpen && (
-              eligibleContracts.length === 0 ? (
+              isLoadingContracts ? (
+                <p className="text-sm text-muted-foreground">Vertragsdaten werden geladen...</p>
+              ) : contractsError ? (
+                <p className="text-sm text-destructive">Fehler beim Laden der Vertragsdaten: {contractsError.message}</p>
+              ) : eligibleContracts.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Aktuell sind keine Mieterhöhungen möglich.
                 </p>
