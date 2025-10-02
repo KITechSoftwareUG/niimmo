@@ -109,23 +109,26 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
   }
 
   const isImageFile = (dateityp?: string, pfad?: string, titel?: string): boolean => {
-    const normalized = dateityp?.toLowerCase().replace(/^\./, '');
-    if (normalized?.startsWith?.('image/')) return true;
-    const ext = (pfad || titel || '').toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+    const clean = (s?: string) => s?.toLowerCase().trim() || '';
+    const normalized = clean(dateityp).replace(/^\./, '');
+    if (normalized.startsWith('image/')) return true;
+    const pathTitle = `${clean(pfad)} ${clean(titel)}`;
+    if (/(\.(jpe?g|png))(\s|$)/i.test(pathTitle)) return true;
+    const ext = pathTitle.match(/\.([a-z0-9]+)(\s|$)/i)?.[1];
     const candidate = normalized || ext;
     if (!candidate) return false;
     return ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'].includes(candidate);
   };
-
   const isPreviewable = (dokument: any): boolean => {
-    const mime = dokument?.dateityp?.toLowerCase?.().replace(/^\./, '') || '';
+    const clean = (s?: string) => s?.toLowerCase().trim() || '';
+    const mime = clean(dokument?.dateityp).replace(/^\./, '');
     const byMimePdf = mime === 'application/pdf' || mime === 'pdf';
-    const byMimeImg = mime.startsWith?.('image/') || ['jpeg', 'jpg', 'png', 'image/jpeg', 'image/jpg', 'image/png'].includes(mime);
-    const byExt = /\.(pdf|jpe?g|png)$/i.test(`${dokument?.pfad || ''} ${dokument?.titel || ''}`);
+    const byMimeImg = mime.startsWith('image/') || ['jpeg', 'jpg', 'png', 'image/jpeg', 'image/jpg', 'image/png'].includes(mime);
+    const pathTitle = `${clean(dokument?.pfad)} ${clean(dokument?.titel)}`;
+    const byExt = /(\.(pdf|jpe?g|png))(\s|$)/i.test(pathTitle);
     const byHeuristic = isImageFile(dokument?.dateityp, dokument?.pfad, dokument?.titel);
     return byMimePdf || byMimeImg || byExt || byHeuristic;
   };
-
   const getFileTypeColor = (dateityp: string) => {
     const normalized = dateityp?.toLowerCase().replace(/^\./, '') || '';
     if (normalized === 'pdf' || normalized === 'application/pdf') {

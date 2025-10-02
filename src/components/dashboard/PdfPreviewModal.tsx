@@ -28,15 +28,17 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
   const [isImage, setIsImage] = useState(false);
 
   const checkIfImage = (dateityp?: string, pfad?: string, titel?: string): boolean => {
-    const normalized = dateityp?.toLowerCase().replace(/^\./, '');
-    if (normalized?.startsWith?.('image/')) return true;
-    const ext = (pfad || titel || '').toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+    const clean = (s?: string) => s?.toLowerCase().trim() || '';
+    const normalized = clean(dateityp).replace(/^\./, '');
+    if (normalized.startsWith('image/')) return true;
+    const pathTitle = `${clean(pfad)} ${clean(titel)}`;
+    if (/(\.(jpe?g|png))(\s|$)/i.test(pathTitle)) return true;
+    const ext = pathTitle.match(/\.([a-z0-9]+)(\s|$)/i)?.[1];
     const candidate = normalized || ext;
     if (!candidate) return false;
     const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'];
     return imageTypes.includes(candidate);
   };
-
   useEffect(() => {
     if (isOpen && dokument) {
       const isImg = checkIfImage(dokument.dateityp, dokument.pfad, dokument.titel);
