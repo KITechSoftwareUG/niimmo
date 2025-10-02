@@ -195,7 +195,7 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                     >
                       {dokument.dateityp?.toUpperCase() || 'UNBEKANNT'}
                     </Badge>
-                    <div className="flex items-center space-x-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+                    <div className="flex items-center space-x-2 opacity-100 transition-opacity duration-200">
                       {isPreviewable(dokument) && (
                         <button 
                           onClick={() => handlePreview(dokument)}
@@ -203,6 +203,7 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                           title="Vorschau anzeigen"
                         >
                           <Eye className="h-4 w-4 text-blue-600" />
+                          <span className="ml-1 hidden sm:inline text-blue-700">Vorschau</span>
                         </button>
                       )}
                       
