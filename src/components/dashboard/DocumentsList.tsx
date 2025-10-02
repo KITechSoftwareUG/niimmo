@@ -124,20 +124,24 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
     );
   }
 
+  const isImageFile = (dateityp: string): boolean => {
+    if (!dateityp) return false;
+    const normalized = dateityp.toLowerCase().replace(/^\./, ''); // Remove leading dot
+    return ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'].includes(normalized);
+  };
+
   const getFileTypeColor = (dateityp: string) => {
-    switch (dateityp?.toLowerCase()) {
-      case 'pdf':
-        return 'bg-red-100 text-red-800';
-      case 'doc':
-      case 'docx':
-        return 'bg-blue-100 text-blue-800';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    const normalized = dateityp?.toLowerCase().replace(/^\./, '') || '';
+    if (normalized === 'pdf' || normalized === 'application/pdf') {
+      return 'bg-red-100 text-red-800';
     }
+    if (['doc', 'docx', 'application/msword'].includes(normalized)) {
+      return 'bg-blue-100 text-blue-800';
+    }
+    if (isImageFile(dateityp)) {
+      return 'bg-green-100 text-green-800';
+    }
+    return 'bg-gray-100 text-gray-800';
   };
 
   return (
@@ -192,8 +196,7 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                     {dokument.dateityp?.toUpperCase() || 'UNBEKANNT'}
                   </Badge>
                   <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    {(dokument.dateityp === 'application/pdf' || 
-                      ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'].includes(dokument.dateityp?.toLowerCase())) && (
+                    {(dokument.dateityp === 'application/pdf' || dokument.dateityp?.toLowerCase() === 'pdf' || isImageFile(dokument.dateityp)) && (
                       <button 
                         onClick={() => handlePreview(dokument)}
                         className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200"

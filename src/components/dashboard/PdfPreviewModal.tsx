@@ -28,8 +28,10 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
   const [isImage, setIsImage] = useState(false);
 
   const checkIfImage = (dateityp: string): boolean => {
+    if (!dateityp) return false;
+    const normalized = dateityp.toLowerCase().replace(/^\./, ''); // Remove leading dot
     const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'];
-    return imageTypes.includes(dateityp?.toLowerCase());
+    return imageTypes.includes(normalized);
   };
 
   useEffect(() => {
