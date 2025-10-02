@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { PdfPreviewModal } from "../PdfPreviewModal";
 
 interface MietvertragDocumentsTabProps {
   dokumente: any[];
@@ -37,34 +38,12 @@ export function MietvertragDocumentsTab({
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [updatingCategory, setUpdatingCategory] = useState<string | null>(null);
+  const [previewDokument, setPreviewDokument] = useState<any>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   
-  const handlePreview = async (dokument: any) => {
-    try {
-      // Create a signed URL for the PDF
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from('dokumente')
-        .createSignedUrl(dokument.pfad, 3600); // Valid for 1 hour
-
-      if (signedUrlError) {
-        console.error('Signed URL Error:', signedUrlError);
-        toast({
-          variant: "destructive",
-          title: "Vorschau fehlgeschlagen",
-          description: `Fehler: ${signedUrlError.message}`
-        });
-        return;
-      }
-
-      // Open PDF in new tab
-      window.open(signedUrlData.signedUrl, '_blank');
-    } catch (error) {
-      console.error('Preview error:', error);
-      toast({
-        title: "Fehler",
-        description: "PDF-Vorschau konnte nicht geöffnet werden.",
-        variant: "destructive",
-      });
-    }
+  const handlePreview = (dokument: any) => {
+    setPreviewDokument(dokument);
+    setIsPreviewOpen(true);
   };
 
   // Sort documents
@@ -345,18 +324,16 @@ export function MietvertragDocumentsTab({
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          {dok.dateityp === 'application/pdf' && (
-                            <Button
-                              onClick={() => handlePreview(dok)}
-                              size="sm"
-                              variant="outline"
-                              disabled={updatingCategory === dok.id}
-                              className="flex items-center space-x-2"
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span>Vorschau</span>
-                            </Button>
-                          )}
+                          <Button
+                            onClick={() => handlePreview(dok)}
+                            size="sm"
+                            variant="outline"
+                            disabled={updatingCategory === dok.id}
+                            className="flex items-center space-x-2"
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span>Vorschau</span>
+                          </Button>
                           
                           <Button
                             onClick={() => handleDownload(dok)}
@@ -445,18 +422,16 @@ export function MietvertragDocumentsTab({
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      {dok.dateityp === 'application/pdf' && (
-                        <Button
-                          onClick={() => handlePreview(dok)}
-                          size="sm"
-                          variant="outline"
-                          disabled={updatingCategory === dok.id}
-                          className="flex items-center space-x-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span>Vorschau</span>
-                        </Button>
-                      )}
+                      <Button
+                        onClick={() => handlePreview(dok)}
+                        size="sm"
+                        variant="outline"
+                        disabled={updatingCategory === dok.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span>Vorschau</span>
+                      </Button>
                       
                       <Button
                         onClick={() => handleDownload(dok)}
@@ -485,6 +460,11 @@ export function MietvertragDocumentsTab({
           )}
         </CardContent>
       </Card>
+      <PdfPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => { setIsPreviewOpen(false); setPreviewDokument(null); }}
+        dokument={previewDokument}
+      />
     </div>
   );
 }
