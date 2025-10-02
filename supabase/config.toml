@@ -2,3 +2,6 @@ project_id = "kmtgzrnpitlslivdvlyq"
 
 [functions.process-contract-ocr]
 verify_jwt = false
+
+[functions.generate-rent-increase-pdf]
+verify_jwt = false
