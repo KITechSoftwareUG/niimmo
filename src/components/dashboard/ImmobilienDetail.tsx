@@ -55,8 +55,19 @@ export const ImmobilienDetail = ({
       
       if (error) throw error;
       
+      // Group units by their ID's last 2 digits and keep only the newest
+      const unitsByLastDigits = (data || []).reduce((acc, unit: any) => {
+        const lastTwoDigits = unit.id.slice(-2);
+        if (!acc[lastTwoDigits] || new Date(unit.erstellt_am) > new Date(acc[lastTwoDigits].erstellt_am)) {
+          acc[lastTwoDigits] = unit;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+      
+      const uniqueUnits = Object.values(unitsByLastDigits);
+      
       // Use centralized sorting utility
-      return sortUnitsByNumber(data || []);
+      return sortUnitsByNumber(uniqueUnits);
     }
   });
   const {
