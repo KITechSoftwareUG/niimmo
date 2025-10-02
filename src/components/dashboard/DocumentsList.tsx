@@ -108,10 +108,22 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
     );
   }
 
-  const isImageFile = (dateityp: string): boolean => {
-    if (!dateityp) return false;
-    const normalized = dateityp.toLowerCase().replace(/^\./, ''); // Remove leading dot
-    return ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'].includes(normalized);
+  const isImageFile = (dateityp?: string, pfad?: string, titel?: string): boolean => {
+    const normalized = dateityp?.toLowerCase().replace(/^\./, '');
+    if (normalized?.startsWith?.('image/')) return true;
+    const ext = (pfad || titel || '').toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+    const candidate = normalized || ext;
+    if (!candidate) return false;
+    return ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'].includes(candidate);
+  };
+
+  const isPreviewable = (dokument: any): boolean => {
+    const mime = dokument?.dateityp?.toLowerCase?.().replace(/^\./, '') || '';
+    const byMimePdf = mime === 'application/pdf' || mime === 'pdf';
+    const byMimeImg = mime.startsWith?.('image/') || ['jpeg', 'jpg', 'png', 'image/jpeg', 'image/jpg', 'image/png'].includes(mime);
+    const byExt = /\.(pdf|jpe?g|png)$/i.test(`${dokument?.pfad || ''} ${dokument?.titel || ''}`);
+    const byHeuristic = isImageFile(dokument?.dateityp, dokument?.pfad, dokument?.titel);
+    return byMimePdf || byMimeImg || byExt || byHeuristic;
   };
 
   const getFileTypeColor = (dateityp: string) => {
@@ -181,13 +193,7 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
                       {dokument.dateityp?.toUpperCase() || 'UNBEKANNT'}
                     </Badge>
                     <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      {( 
-                        dokument?.dateityp?.toLowerCase() === 'application/pdf' ||
-                        dokument?.dateityp?.toLowerCase() === 'pdf' ||
-                        /\.pdf$/i.test(dokument?.pfad || dokument?.titel || '') ||
-                        isImageFile(dokument?.dateityp) ||
-                        /\.(jpe?g|png)$/i.test(dokument?.pfad || dokument?.titel || '')
-                      ) && (
+                      {isPreviewable(dokument) && (
                         <button 
                           onClick={() => handlePreview(dokument)}
                           className="p-2 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors duration-200"

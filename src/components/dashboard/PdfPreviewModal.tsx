@@ -29,6 +29,7 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
 
   const checkIfImage = (dateityp?: string, pfad?: string, titel?: string): boolean => {
     const normalized = dateityp?.toLowerCase().replace(/^\./, '');
+    if (normalized?.startsWith?.('image/')) return true;
     const ext = (pfad || titel || '').toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
     const candidate = normalized || ext;
     if (!candidate) return false;
