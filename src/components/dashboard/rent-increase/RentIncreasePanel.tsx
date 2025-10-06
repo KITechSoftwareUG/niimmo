@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ChevronDown, ChevronRight, TrendingUp } from "lucide-react";
+
+import { ChevronDown, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { RentIncreaseSimpleTable, RentIncreaseEligibility } from "./RentIncreaseSimpleTable";
 
@@ -47,36 +47,39 @@ export function RentIncreasePanel({ onContractClick }: RentIncreasePanelProps) {
   return (
     <Card>
       <CardHeader className="p-0">
-        <Accordion type="single" collapsible value={open ? "item-1" : undefined} onValueChange={(v) => setOpen(v === "item-1")}>
-          <AccordionItem value="item-1" className="border-0">
-            <AccordionTrigger className="px-6 py-4 hover:bg-muted/50">
-              <CardTitle className="flex items-center gap-2 w-full">
-                <TrendingUp className="h-5 w-5" />
-                Mögliche Mieterhöhungen
-                {open && <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>}
-              </CardTitle>
-            </AccordionTrigger>
-            <AccordionContent>
-              <CardContent className="pt-0">
-                {!open ? null : isLoading ? (
-                  <p className="text-sm text-muted-foreground">Wird geprüft…</p>
-                ) : error ? (
-                  <p className="text-sm text-destructive">Fehler: {(error as Error).message}</p>
-                ) : eligible.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Aktuell sind keine Mieterhöhungen möglich.</p>
-                ) : (
-                  <RentIncreaseSimpleTable
-                    rows={eligible}
-                    generatingPdf={generatingPdf}
-                    onGeneratePdf={handleGeneratePdf}
-                    onOpenContract={onContractClick}
-                  />
-                )}
-              </CardContent>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/50"
+          aria-expanded={open}
+          aria-controls="rent-increase-content"
+        >
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Mögliche Mieterhöhungen
+            {open && <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>}
+          </CardTitle>
+          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        </button>
       </CardHeader>
+      {open && (
+        <CardContent id="rent-increase-content" className="pt-0">
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">Wird geprüft…</p>
+          ) : error ? (
+            <p className="text-sm text-destructive">Fehler: {(error as Error).message}</p>
+          ) : eligible.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aktuell sind keine Mieterhöhungen möglich.</p>
+          ) : (
+            <RentIncreaseSimpleTable
+              rows={eligible}
+              generatingPdf={generatingPdf}
+              onGeneratePdf={handleGeneratePdf}
+              onOpenContract={onContractClick}
+            />
+          )}
+        </CardContent>
+      )}
     </Card>
   );
 }
