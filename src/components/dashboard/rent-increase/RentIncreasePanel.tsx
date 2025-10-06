@@ -47,16 +47,13 @@ export function RentIncreasePanel({ onContractClick }: RentIncreasePanelProps) {
   return (
     <Card>
       <CardHeader className="p-0">
-        <Accordion type="single" collapsible onValueChange={(v) => setOpen(!!v)}>
+        <Accordion type="single" collapsible value={open ? "item-1" : undefined} onValueChange={(v) => setOpen(v === "item-1")}>
           <AccordionItem value="item-1" className="border-0">
             <AccordionTrigger className="px-6 py-4 hover:bg-muted/50">
-              <CardTitle className="flex items-center justify-between w-full">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  Mögliche Mieterhöhungen
-                  {open && <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>}
-                </div>
-                {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <CardTitle className="flex items-center gap-2 w-full">
+                <TrendingUp className="h-5 w-5" />
+                Mögliche Mieterhöhungen
+                {open && <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>}
               </CardTitle>
             </AccordionTrigger>
             <AccordionContent>
