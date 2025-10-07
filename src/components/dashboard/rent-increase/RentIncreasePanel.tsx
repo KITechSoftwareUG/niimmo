@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 import { ChevronDown, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -46,40 +47,43 @@ export function RentIncreasePanel({ onContractClick }: RentIncreasePanelProps) {
 
   return (
     <Card>
-      <CardHeader className="p-0">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/50"
-          aria-expanded={open}
-          aria-controls="rent-increase-content"
-        >
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Mögliche Mieterhöhungen
-            {open && <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>}
-          </CardTitle>
-          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-        </button>
-      </CardHeader>
-      {open && (
-        <CardContent id="rent-increase-content" className="pt-0">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Wird geprüft…</p>
-          ) : error ? (
-            <p className="text-sm text-destructive">Fehler: {(error as Error).message}</p>
-          ) : eligible.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aktuell sind keine Mieterhöhungen möglich.</p>
-          ) : (
-            <RentIncreaseSimpleTable
-              rows={eligible}
-              generatingPdf={generatingPdf}
-              onGeneratePdf={handleGeneratePdf}
-              onOpenContract={onContractClick}
-            />
-          )}
-        </CardContent>
-      )}
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CardHeader className="p-0">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/50"
+              aria-expanded={open}
+              aria-controls="rent-increase-content"
+            >
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Mögliche Mieterhöhungen
+                {open && <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>}
+              </CardTitle>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent id="rent-increase-content" className="pt-0">
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Wird geprüft…</p>
+            ) : error ? (
+              <p className="text-sm text-destructive">Fehler: {(error as Error).message}</p>
+            ) : eligible.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aktuell sind keine Mieterhöhungen möglich.</p>
+            ) : (
+              <RentIncreaseSimpleTable
+                rows={eligible}
+                generatingPdf={generatingPdf}
+                onGeneratePdf={handleGeneratePdf}
+                onOpenContract={onContractClick}
+              />
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }
