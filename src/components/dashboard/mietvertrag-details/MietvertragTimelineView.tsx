@@ -479,13 +479,13 @@ export function MietvertragTimelineView({
                             <div className="flex justify-between items-start">
                              <div className="flex-1">
                                {/* Lastschrift Pending Indicator */}
-                               {isLastschriftPending && (
-                                 <div className="mb-2">
-                                   <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300">
-                                     Lastschrift ausstehend
-                                   </Badge>
-                                 </div>
-                               )}
+                                {isLastschriftPending && (
+                                  <div className="mb-2">
+                                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300">
+                                      Lastschrift unbestätigt
+                                    </Badge>
+                                  </div>
+                                )}
                               <div className="flex items-center mb-2">
                                 <div className={`rounded-full p-1.5 mr-2 ${
                                   zahlung.kategorie === 'Ignorieren' 

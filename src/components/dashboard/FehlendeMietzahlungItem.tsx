@@ -37,6 +37,11 @@ export const FehlendeMietzahlungItem = ({ item, onMietvertragClick }: FehlendeMi
           <p className="text-xs text-gray-500">
             {item.ist_guthaben ? 'Guthaben' : 'Rückstand'} - Status: {item.mietvertrag_status}
           </p>
+          {item.unbestaetigte_lastschriften > 0 && (
+            <p className="text-xs text-orange-600 mt-1">
+              €{item.unbestaetigte_lastschriften.toLocaleString()} unbestätigt
+            </p>
+          )}
         </div>
       </div>
       

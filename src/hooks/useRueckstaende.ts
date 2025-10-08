@@ -31,6 +31,8 @@ export interface FehlendeMietzahlung {
   naechste_faelligkeit?: string;
   // Guthaben-Information
   ist_guthaben: boolean;
+  // Lastschrift-Information
+  unbestaetigte_lastschriften: number;
 }
 
 export const useRueckstaende = () => {
@@ -160,7 +162,7 @@ export const useRueckstaende = () => {
         if (forderungenError || zahlungenError) continue;
         
         // VERWENDE EXAKT DIE GLEICHE LOGIK WIE IM MODAL
-        const { gesamtForderungen, gesamtZahlungen, rueckstand } = calculateMietvertragRueckstand(
+        const { gesamtForderungen, gesamtZahlungen, rueckstand, unbestaetigteLastschriften } = calculateMietvertragRueckstand(
           mietvertrag,
           mietvertragForderungen || [],
           mietvertragZahlungen || []
@@ -221,7 +223,9 @@ export const useRueckstaende = () => {
             faellige_forderungen_betrag: faelligeForderungenBetrag,
             noch_nicht_faellige_forderungen_betrag: nichtFaelligeForderungenBetrag,
             // Guthaben-Information
-            ist_guthaben: rueckstand < 0
+            ist_guthaben: rueckstand < 0,
+            // Lastschrift-Information
+            unbestaetigte_lastschriften: unbestaetigteLastschriften
           });
         }
       }

@@ -33,7 +33,7 @@ export function MietvertragPaymentsSection({
     zahlungen || []
   );
   
-  const { gesamtForderungen, gesamtZahlungen, rueckstand } = rueckstandsBerechnung;
+  const { gesamtForderungen, gesamtZahlungen, rueckstand, unbestaetigteLastschriften } = rueckstandsBerechnung;
   
   // Alle Forderungen verwenden - ohne Filterung nach Startdatum
   const alleForderungenAbStart = (forderungen || []).filter(f => {
@@ -128,7 +128,13 @@ export function MietvertragPaymentsSection({
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   )}
                 </div>
-                {/* Alle Forderungen sind nun fällig - kein "noch nicht fällig" Text mehr nötig */}
+                {unbestaetigteLastschriften > 0 && (
+                  <div className="text-right">
+                    <p className="text-xs text-orange-600">
+                      {formatBetrag(unbestaetigteLastschriften)} unbestätigt
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <p className={`text-sm font-medium ${rueckstand > 0 ? 'text-yellow-700' : 'text-green-700'}`}>
@@ -137,6 +143,11 @@ export function MietvertragPaymentsSection({
                 <p className={`text-2xl font-bold ${rueckstand > 0 ? 'text-yellow-800' : 'text-green-800'}`}>
                   {formatBetrag(Math.abs(rueckstand))}
                 </p>
+                {unbestaetigteLastschriften > 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Lastschrift unbestätigt - noch in Wartefrist
+                  </p>
+                )}
               </div>
             </div>
           </div>

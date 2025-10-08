@@ -3,6 +3,7 @@ export interface RueckstandsBerechnung {
   gesamtForderungen: number;
   gesamtZahlungen: number;
   rueckstand: number;
+  unbestaetigteLastschriften: number; // Betrag der Zahlungen innerhalb der 6-Tage-Frist
 }
 
 export const calculateMietvertragRueckstand = (
@@ -11,7 +12,7 @@ export const calculateMietvertragRueckstand = (
   zahlungen: any[]
 ): RueckstandsBerechnung => {
   if (!mietvertrag || !forderungen || !zahlungen) {
-    return { gesamtForderungen: 0, gesamtZahlungen: 0, rueckstand: 0 };
+    return { gesamtForderungen: 0, gesamtZahlungen: 0, rueckstand: 0, unbestaetigteLastschriften: 0 };
   }
   
   const heute = new Date();
@@ -93,22 +94,25 @@ export const calculateMietvertragRueckstand = (
   // Berechne Gesamtforderungen
   const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
   
-  // Berechne Gesamtzahlungen mit 6-Tage-Wartezeit bei Lastschrift
+  // Berechne Gesamtzahlungen - ALLE Zahlungen werden einberechnet
+  // Tracke unbestätigte Lastschriften separat für Hinweisanzeige
   let gesamtZahlungen = 0;
+  let unbestaetigteLastschriften = 0;
+  
   for (const zahlung of verarbeiteteZahlungen) {
-    let zahlungGueltig = true;
+    const zahlungsBetrag = Number(zahlung.betrag) || 0;
     
+    // ALLE Zahlungen werden in die Bilanz einberechnet
+    gesamtZahlungen += zahlungsBetrag;
+    
+    // Tracke unbestätigte Lastschriften für Hinweisanzeige
     if (istLastschrift) {
       const zahlungMitWartezeit = new Date(zahlung.buchungsdatum);
       zahlungMitWartezeit.setDate(zahlungMitWartezeit.getDate() + 6);
       
       if (heute < zahlungMitWartezeit) {
-        zahlungGueltig = false; // Zahlung noch in 6-Tage-Wartezeit
+        unbestaetigteLastschriften += zahlungsBetrag;
       }
-    }
-    
-    if (zahlungGueltig) {
-      gesamtZahlungen += (Number(zahlung.betrag) || 0);
     }
   }
   
@@ -119,7 +123,7 @@ export const calculateMietvertragRueckstand = (
   
   const rueckstand = gesamtForderungen - gesamtZahlungen - ruecklastschriftGebuehren;
   
-  return { gesamtForderungen, gesamtZahlungen, rueckstand };
+  return { gesamtForderungen, gesamtZahlungen, rueckstand, unbestaetigteLastschriften };
 };
 
 // Einfache Berechnung für Miete-Zahlungen (alle mit Kategorie "Miete")
