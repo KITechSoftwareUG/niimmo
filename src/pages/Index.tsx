@@ -8,6 +8,7 @@ import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
+import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
 
 import { useState, useMemo } from "react";
 import { Loader2, Building2, BarChart3 } from "lucide-react";
@@ -166,6 +167,21 @@ const Index = () => {
     setNavigationSource('search');
   };
 
+  const handleRentIncreaseContractClick = async (mietvertragId: string) => {
+    const { data: mietvertrag } = await supabase
+      .from('mietvertrag')
+      .select(`einheit_id, einheiten (immobilie_id)`)
+      .eq('id', mietvertragId)
+      .maybeSingle();
+      
+    if (mietvertrag?.einheit_id && mietvertrag.einheiten?.immobilie_id) {
+      setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);
+      setSelectedEinheit(mietvertrag.einheit_id);
+      setSelectedMietvertrag(mietvertragId);
+      setNavigationSource('dashboard');
+    }
+  };
+
   if (isLoading) {
     return <div className="min-h-screen modern-dashboard-bg flex items-center justify-center">
         <div className="glass-card p-12 rounded-3xl">
@@ -234,6 +250,12 @@ const Index = () => {
           />
         </div>
 
+        {/* Mögliche Mieterhöhungen */}
+        <div className="mb-6">
+          <RentIncreaseList 
+            onContractClick={handleRentIncreaseContractClick}
+          />
+        </div>
 
         {/* Suchfunktion */}
         <div id="search-panel">
