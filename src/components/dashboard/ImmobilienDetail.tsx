@@ -2,11 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { EinheitCard } from "./EinheitCard";
-import { ArrowLeft, Building, MapPin, Calendar, Info, Euro, Home, TrendingUp, Loader2 } from "lucide-react";
+import { ArrowLeft, Building, MapPin, Calendar, Info, Euro, Home, TrendingUp, Loader2, Pencil, Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useRef } from "react";
 import { sortUnitsByNumber, getCurrentContract, filterActiveAndTerminatedContracts } from "@/utils/contractUtils";
+import { useEditableField } from "@/hooks/useEditableField";
+import { Input } from "@/components/ui/input";
 interface ImmobilienDetailProps {
   immobilieId: string;
   onBack: () => void;
@@ -28,6 +30,15 @@ export const ImmobilienDetail = ({
   const einheitRefs = useRef<{
     [key: string]: HTMLDivElement | null;
   }>({});
+  
+  const {
+    startEditing,
+    updateValue,
+    cancelEdit,
+    getEditingValue,
+    isFieldEditing,
+    saveSingleField
+  } = useEditableField();
   const {
     data: immobilie,
     isLoading: immobilieLoading
@@ -281,9 +292,51 @@ export const ImmobilienDetail = ({
                       <Building className="h-6 w-6 text-indigo-600" />
                     </div>
                     <p className="text-xs font-medium text-indigo-600 mb-1">Kaufpreis</p>
-                    <p className="text-xl font-bold text-indigo-900">
-                      {immobilie?.kaufpreis ? `€${immobilie.kaufpreis.toLocaleString()}` : 'Nicht erfasst'}
-                    </p>
+                    
+                    {isFieldEditing(immobilieId, 'kaufpreis') ? (
+                      <div className="flex flex-col items-center gap-2 w-full">
+                        <Input
+                          type="number"
+                          value={getEditingValue(immobilieId, 'kaufpreis') || ''}
+                          onChange={(e) => updateValue(immobilieId, 'kaufpreis', e.target.value)}
+                          className="text-center h-8 text-sm"
+                          placeholder="Kaufpreis"
+                        />
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => saveSingleField(immobilieId, 'kaufpreis', { table: 'immobilien', type: 'number' })}
+                          >
+                            <Check className="h-3 w-3 text-green-600" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => cancelEdit(immobilieId, 'kaufpreis')}
+                          >
+                            <X className="h-3 w-3 text-red-600" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-xl font-bold text-indigo-900">
+                          {immobilie?.kaufpreis ? `€${immobilie.kaufpreis.toLocaleString()}` : 'Nicht erfasst'}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 hover:bg-indigo-200"
+                          onClick={() => startEditing(immobilieId, 'kaufpreis', immobilie?.kaufpreis || 0)}
+                        >
+                          <Pencil className="h-3 w-3 text-indigo-600" />
+                        </Button>
+                      </div>
+                    )}
+                    
                     <p className="text-xs text-indigo-700">einmalig</p>
                   </div>
                 </div>
