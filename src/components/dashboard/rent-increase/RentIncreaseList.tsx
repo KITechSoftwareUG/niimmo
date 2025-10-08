@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+
 import { TrendingUp, ChevronDown } from "lucide-react";
 
 export interface RentIncreaseEligibility {
@@ -55,10 +55,23 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
     enabled: isOpen,
   });
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [maxHeight, setMaxHeight] = useState(0);
+
+  useEffect(() => {
+    if (isOpen && contentRef.current) {
+      const el = contentRef.current;
+      const height = el.scrollHeight;
+      setMaxHeight(height);
+    } else {
+      setMaxHeight(0);
+    }
+  }, [isOpen, data, isFetching]);
+
   const eligible = useMemo(() => data?.eligible_contracts ?? [], [data]);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    
       <Card>
           <CardHeader
             role="button"
@@ -83,53 +96,60 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
             </div>
           </CardHeader>
 
-        <CollapsibleContent>
-          <CardContent className="pt-0">
-            <div className="flex items-center justify-end mb-3">
-              <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
-                {isFetching ? "Aktualisiere…" : "Aktualisieren"}
-              </Button>
-            </div>
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Wird geprüft…</p>
-        ) : error ? (
-          <p className="text-sm text-destructive">Fehler: {(error as Error).message}</p>
-        ) : eligible.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aktuell sind keine Mieterhöhungen möglich.</p>
-        ) : (
-          <div className="space-y-2">
-            {eligible.map((row) => (
-              <div key={row.mietvertrag_id} className="flex items-center justify-between rounded-lg border p-3 bg-background">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <span className="text-foreground">Vertrag {row.mietvertrag_id.slice(0, 8)}…</span>
-                    <span className="text-muted-foreground">•</span>
-                    <span className="text-muted-foreground">Kaltmiete {formatCurrencyEUR(row.current_kaltmiete)}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Letzte Erhöhung: {formatDate(row.letzte_mieterhoehung_am)} • Vertragsstart: {formatDate(row.start_datum)}
-                  </div>
-                  {row.reason && (
-                    <div className="text-xs text-muted-foreground mt-1" title={row.reason}>
-                      {row.reason}
-                    </div>
-                  )}
-                </div>
-                {onContractClick && (
-                  <div className="ml-3 shrink-0">
-                    <Button size="sm" variant="secondary" onClick={() => onContractClick(row.mietvertrag_id)}>
-                      Öffnen
-                    </Button>
-                  </div>
-                )}
+        <div
+          ref={contentRef}
+          className="overflow-hidden transition-[max-height] duration-300"
+          style={{ maxHeight: isOpen ? `${maxHeight}px` : 0 }}
+          aria-hidden={!isOpen}
+        >
+          {isOpen && (
+            <CardContent className="pt-0">
+              <div className="flex items-center justify-end mb-3">
+                <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
+                  {isFetching ? "Aktualisiere…" : "Aktualisieren"}
+                </Button>
               </div>
-            ))}
-          </div>
-        )}
-          </CardContent>
-        </CollapsibleContent>
+              {isLoading ? (
+                <p className="text-sm text-muted-foreground">Wird geprüft…</p>
+              ) : error ? (
+                <p className="text-sm text-destructive">Fehler: {(error as Error).message}</p>
+              ) : eligible.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Aktuell sind keine Mieterhöhungen möglich.</p>
+              ) : (
+                <div className="space-y-2">
+                  {eligible.map((row) => (
+                    <div key={row.mietvertrag_id} className="flex items-center justify-between rounded-lg border p-3 bg-background">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <span className="text-foreground">Vertrag {row.mietvertrag_id.slice(0, 8)}…</span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-muted-foreground">Kaltmiete {formatCurrencyEUR(row.current_kaltmiete)}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Letzte Erhöhung: {formatDate(row.letzte_mieterhoehung_am)} • Vertragsstart: {formatDate(row.start_datum)}
+                        </div>
+                        {row.reason && (
+                          <div className="text-xs text-muted-foreground mt-1" title={row.reason}>
+                            {row.reason}
+                          </div>
+                        )}
+                      </div>
+                      {onContractClick && (
+                        <div className="ml-3 shrink-0">
+                          <Button size="sm" variant="secondary" onClick={() => onContractClick(row.mietvertrag_id)}>
+                            Öffnen
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          )}
+        </div>
       </Card>
-    </Collapsible>
+    
   );
 }
 
