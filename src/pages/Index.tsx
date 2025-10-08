@@ -8,7 +8,7 @@ import { Analytics } from "@/components/dashboard/Analytics";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
-import { RentIncreasePanel } from "@/components/dashboard/rent-increase/RentIncreasePanel";
+import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
 import { useState, useMemo } from "react";
 import { Loader2, Building2, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -239,7 +239,7 @@ const Index = () => {
 
         {/* Mögliche Mieterhöhungen */}
         <div className="mb-6">
-          <RentIncreasePanel onContractClick={handleRentIncreaseContractClick} />
+          <RentIncreaseList onContractClick={handleRentIncreaseContractClick} />
         </div>
 
         {/* Suchfunktion */}
