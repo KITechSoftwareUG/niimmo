@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { TrendingUp, ChevronDown } from "lucide-react";
 
 export interface RentIncreaseEligibility {
@@ -60,8 +60,19 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="flex p-4 sm:p-6 cursor-pointer">
+          <CardHeader
+            role="button"
+            tabIndex={0}
+            aria-expanded={isOpen}
+            onClick={() => setIsOpen((prev) => !prev)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsOpen((prev) => !prev);
+              }
+            }}
+            className="flex p-4 sm:p-6 cursor-pointer"
+          >
             <div className="flex w-full items-center justify-between">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
@@ -71,7 +82,6 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
               <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </div>
           </CardHeader>
-        </CollapsibleTrigger>
 
         <CollapsibleContent>
           <CardContent className="pt-0">
