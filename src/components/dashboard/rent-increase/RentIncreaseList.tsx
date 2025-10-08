@@ -60,28 +60,26 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card>
-        <CardHeader className="flex flex-col gap-3 p-4 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="flex-1 justify-between p-0 h-auto hover:bg-transparent">
-              <span className="flex items-center gap-2">
+        <CollapsibleTrigger asChild>
+          <CardHeader className="flex p-4 sm:p-6 cursor-pointer">
+            <div className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
                 <span className="text-base font-medium">Mögliche Mieterhöhungen</span>
                 <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>
-              </span>
+              </div>
               <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          {isOpen && (
-            <div className="flex items-center gap-2">
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            <div className="flex items-center justify-end mb-3">
               <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
                 {isFetching ? "Aktualisiere…" : "Aktualisieren"}
               </Button>
             </div>
-          )}
-        </CardHeader>
-
-        <CollapsibleContent>
-          <CardContent className="pt-0">
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Wird geprüft…</p>
         ) : error ? (
