@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, ChevronDown, ChevronRight } from "lucide-react";
+import { TrendingUp, ChevronRight } from "lucide-react";
 
 export interface RentIncreaseEligibility {
   mietvertrag_id: string;
@@ -58,15 +58,11 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
     <div className="border rounded-lg shadow-sm bg-card">
       {/* HEADER ALS BUTTON */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            setIsOpen(!isOpen);
-          }
-        }}
+        type="button"
+        onClick={() => setIsOpen((o) => !o)}
         aria-expanded={isOpen}
-        className="w-full flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 bg-muted/50 hover:bg-muted transition-colors rounded-t-lg"
+        aria-controls="rent-increase-content"
+        className="w-full cursor-pointer flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 bg-muted/50 hover:bg-muted transition-colors rounded-t-lg"
       >
         <div className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-primary" />
@@ -77,15 +73,15 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
             </span>
           )}
         </div>
-        {isOpen ? (
-          <ChevronDown className="h-4 w-4 transition-transform" />
-        ) : (
-          <ChevronRight className="h-4 w-4 transition-transform" />
-        )}
+        <ChevronRight className={`h-4 w-4 transition-transform duration-300 ${isOpen ? 'rotate-90' : ''}`} />
       </button>
 
-      {/* INHALT */}
-      {isOpen && (
+      {/* INHALT mit einfacher Auf/Zu-Animation */}
+      <div
+        id="rent-increase-content"
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{ maxHeight: isOpen ? '1000px' : '0', opacity: isOpen ? 1 : 0 }}
+      >
         <div className="p-4 sm:p-6 space-y-3 border-t">
           <div className="flex items-center justify-end">
             <Button 
@@ -145,7 +141,7 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
