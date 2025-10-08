@@ -62,12 +62,12 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
       <Card>
         <CardHeader className="flex flex-col gap-3 p-4 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2 p-0 hover:bg-transparent">
-              <TrendingUp className="h-5 w-5" />
-              <CardTitle className="flex items-center gap-2">
-                Mögliche Mieterhöhungen
+            <Button variant="ghost" className="flex-1 justify-between p-0 h-auto hover:bg-transparent">
+              <span className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                <span className="text-base font-medium">Mögliche Mieterhöhungen</span>
                 <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>
-              </CardTitle>
+              </span>
               <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </Button>
           </CollapsibleTrigger>
