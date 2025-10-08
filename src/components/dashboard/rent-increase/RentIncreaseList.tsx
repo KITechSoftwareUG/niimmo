@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { TrendingUp, ChevronDown } from "lucide-react";
 
 export interface RentIncreaseEligibility {
   mietvertrag_id: string;
@@ -41,6 +42,8 @@ function formatDate(dateStr: string | null) {
 }
 
 export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  
   const { data, isLoading, error, refetch, isFetching } = useQuery<{ eligible_contracts?: RentIncreaseEligibility[] | null}>({
     queryKey: ["rent-increase-eligibility"],
     queryFn: async () => {
@@ -49,26 +52,36 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
       return data ?? { eligible_contracts: [] };
     },
     staleTime: 5 * 60 * 1000,
+    enabled: isOpen,
   });
 
   const eligible = useMemo(() => data?.eligible_contracts ?? [], [data]);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 p-4 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Mögliche Mieterhöhungen
-          <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>
-        </CardTitle>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
-            {isFetching ? "Aktualisiere…" : "Aktualisieren"}
-          </Button>
-        </div>
-      </CardHeader>
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Card>
+        <CardHeader className="flex flex-col gap-3 p-4 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="flex items-center gap-2 p-0 hover:bg-transparent">
+              <TrendingUp className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2">
+                Mögliche Mieterhöhungen
+                <Badge variant="secondary" className="ml-2">{eligible.length}</Badge>
+              </CardTitle>
+              <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          {isOpen && (
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? "Aktualisiere…" : "Aktualisieren"}
+              </Button>
+            </div>
+          )}
+        </CardHeader>
 
-      <CardContent className="pt-0">
+        <CollapsibleContent>
+          <CardContent className="pt-0">
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Wird geprüft…</p>
         ) : error ? (
@@ -105,8 +118,10 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 
