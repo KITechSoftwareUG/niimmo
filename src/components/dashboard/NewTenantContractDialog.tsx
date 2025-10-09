@@ -15,6 +15,7 @@ import { Loader2, User, Users, Plus, Check, Calendar, Euro, FileUp, X, Building2
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OCRProcessingService } from "@/services/ocrProcessingService";
+import { ContractPdfWebhookService } from "@/services/contractPdfWebhookService";
 
 interface NewTenantContractDialogProps {
   isOpen: boolean;
@@ -238,69 +239,92 @@ export const NewTenantContractDialog = ({
     setOcrResults(null);
     
     try {
-      const result = await OCRProcessingService.processContractDocument(file);
-      console.log('OCR Result:', result);
+      // Nur PDFs verarbeiten
+      if (file.type !== 'application/pdf') {
+        toast({
+          title: "Nur PDF-Dateien werden unterstützt",
+          description: "Bitte lade ein PDF-Mietvertragsdokument hoch.",
+          variant: "destructive"
+        });
+        return;
+      }
       
-      // Check if any data was extracted (even if result.success is false)
-      const hasExtractedData = result.extractedData && (result.fieldsExtracted ?? 0) > 0;
+      toast({
+        title: "PDF wird verarbeitet...",
+        description: "Das Dokument wird an den Verarbeitungs-Service gesendet.",
+      });
       
-      if (hasExtractedData) {
+      // Sende PDF an Webhook
+      const result = await ContractPdfWebhookService.uploadAndExtractContract(file);
+      console.log('Webhook Result:', result);
+      
+      if (result.success && result.extractedData) {
+        // Validiere extrahierte Daten
+        const validation = ContractPdfWebhookService.validateExtractedData(result.extractedData);
+        
+        if (!validation.valid) {
+          console.warn('Validierungswarnungen:', validation.errors);
+          toast({
+            title: "Daten extrahiert mit Warnungen",
+            description: `${result.fieldsExtracted || 0} Felder gefunden. Bitte prüfe die Daten: ${validation.errors[0]}`,
+          });
+        }
+        
         setOcrResults(result);
         
-        // Auto-fill form fields with extracted data
-        const formattedData = OCRProcessingService.formatDataForForm(result.extractedData);
-        
+        // Auto-fill Contract-Felder
+        const formattedData = ContractPdfWebhookService.formatDataForForm(result.extractedData);
         setContractData(prev => ({
           ...prev,
           ...formattedData
         }));
         
-        // Auto-fill tenant data if extracted
-        if (result.extractedData.mieter_vorname && result.extractedData.mieter_nachname) {
-          setNewTenants(prev => [{
-            ...prev[0],
-            vorname: result.extractedData.mieter_vorname || prev[0].vorname,
-            nachname: result.extractedData.mieter_nachname || prev[0].nachname
-          }, ...prev.slice(1)]);
-        }
-        
-        toast({
-          title: "Dokument erfolgreich verarbeitet!",
-          description: `${result.fieldsExtracted || 0} Felder wurden automatisch ausgefüllt.`,
-        });
-      } else {
-        // Only show error if NO data was extracted at all
-        if (file.type === 'application/pdf') {
+        // Auto-fill Mieter-Daten wenn vorhanden
+        if (result.extractedData.mieter && result.extractedData.mieter.length > 0) {
+          setNewTenants(result.extractedData.mieter.map(mieter => ({
+            vorname: mieter.vorname || '',
+            nachname: mieter.nachname || '',
+            hauptmail: mieter.hauptmail || '',
+            telnr: mieter.telnr || '',
+            geburtsdatum: mieter.geburtsdatum || '',
+            rolle: mieter.rolle || 'hauptmieter'
+          })));
+          
           toast({
-            title: "Keine verwertbaren Daten gefunden",
-            description: "Bitte fülle die Felder manuell aus.",
+            title: "✅ Dokument erfolgreich verarbeitet!",
+            description: `${result.fieldsExtracted || 0} Felder und ${result.extractedData.mieter.length} Mieter automatisch ausgefüllt.`,
           });
-          setInputMode('manual');
-          setStep('tenant');
         } else {
           toast({
-            title: "OCR-Verarbeitung fehlgeschlagen",
-            description: result.error || "Das Dokument konnte nicht verarbeitet werden.",
-            variant: "destructive"
+            title: "✅ Vertragsdaten extrahiert",
+            description: `${result.fieldsExtracted || 0} Felder automatisch ausgefüllt. Mieter-Daten bitte manuell eingeben.`,
           });
         }
-      }
-    } catch (error: any) {
-      console.error('OCR processing error:', error);
-      if (file.type === 'application/pdf') {
+        
+        // Wechsel zu Manual Mode damit Nutzer Daten überprüfen kann
+        setInputMode('manual');
+        setStep('tenant');
+        
+      } else {
+        // Fehlerfall
         toast({
           title: "PDF konnte nicht verarbeitet werden",
-          description: "Bitte fülle die Felder manuell aus oder probiere ein anderes PDF.",
+          description: result.error || "Bitte fülle die Felder manuell aus.",
+          variant: "destructive"
         });
         setInputMode('manual');
         setStep('tenant');
-      } else {
-        toast({
-          title: "Fehler bei der Dokumentenverarbeitung",
-          description: error.message || "Ein unerwarteter Fehler ist aufgetreten.",
-          variant: "destructive"
-        });
       }
+      
+    } catch (error: any) {
+      console.error('Webhook processing error:', error);
+      toast({
+        title: "❌ Fehler bei der PDF-Verarbeitung",
+        description: error.message || "Bitte fülle die Felder manuell aus.",
+        variant: "destructive"
+      });
+      setInputMode('manual');
+      setStep('tenant');
     } finally {
       setProcessingOCR(false);
     }
