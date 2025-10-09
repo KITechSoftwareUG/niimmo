@@ -43,7 +43,16 @@ function formatDate(dateStr: string | null) {
 }
 
 export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = localStorage.getItem('rentIncreaseListOpen');
+    return saved === 'true';
+  });
+  
+  const handleToggle = () => {
+    const newState = !isOpen;
+    setIsOpen(newState);
+    localStorage.setItem('rentIncreaseListOpen', String(newState));
+  };
   
   const { data, isLoading, error, refetch, isFetching } = useQuery<{ eligible_contracts?: RentIncreaseEligibility[] | null}>({
     queryKey: ["rent-increase-eligibility"],
@@ -63,7 +72,7 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
       {/* HEADER ALS BUTTON */}
       <button
         type="button"
-        onClick={() => setIsOpen((o) => !o)}
+        onClick={handleToggle}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
