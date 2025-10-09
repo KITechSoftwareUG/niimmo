@@ -161,10 +161,9 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
                           
                           const response = await fetch('https://k01-2025-u36730.vm.elestio.app/webhook-test/6fb34c33-670a-499b-ad45-6067ad7b5920', {
                             method: 'POST',
-                            mode: 'cors',
-                            headers: { 
-                              'Content-Type': 'application/json',
-                              'Accept': 'application/json'
+                            headers: {
+                              // text/plain to avoid CORS preflight; body still contains JSON string
+                              'Content-Type': 'text/plain'
                             },
                             body: JSON.stringify(payload)
                           });
