@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { sortPropertiesByName } from "@/utils/contractUtils";
 
 interface EditableMietUebersichtModalProps {
   open: boolean;
@@ -128,11 +129,14 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
       groups[r.objektId].push(r);
     });
 
-    return Object.entries(groups).map(([id, contracts]) => ({
+    const groupedArray = Object.entries(groups).map(([id, contracts]) => ({
       objektId: id,
       objektName: contracts[0].objektName,
       contracts
     }));
+
+    return sortPropertiesByName(groupedArray.map(g => ({ name: g.objektName, ...g })))
+      .map(({ name, ...rest }) => rest);
   }, [rows, search, statusFilter]);
 
   // Save field
