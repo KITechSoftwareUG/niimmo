@@ -17,6 +17,12 @@ export interface RentIncreaseEligibility {
   immobilie_id?: string;
   immobilie_name?: string;
   immobilie_adresse?: string;
+  mieter?: Array<{
+    vorname: string;
+    nachname: string;
+    hauptmail: string | null;
+    telnr: string | null;
+  }>;
 }
 
 interface RentIncreaseListProps {
@@ -154,7 +160,8 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
                             einheit_id: row.einheit_id,
                             immobilie_id: row.immobilie_id,
                             immobilie_name: row.immobilie_name,
-                            immobilie_adresse: row.immobilie_adresse
+                            immobilie_adresse: row.immobilie_adresse,
+                            mieter: row.mieter || []
                           };
                           
                           console.log('📤 Sende Mieterhöhung an Webhook:', payload);

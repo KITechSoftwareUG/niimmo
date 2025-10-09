@@ -19,6 +19,12 @@ interface RentIncreaseEligibility {
   immobilie_id?: string;
   immobilie_name?: string;
   immobilie_adresse?: string;
+  mieter?: Array<{
+    vorname: string;
+    nachname: string;
+    hauptmail: string | null;
+    telnr: string | null;
+  }>;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -35,7 +41,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Checking rent increase eligibility...');
 
-    // Fetch all active rental contracts with unit and property info
+    // Fetch all active rental contracts with unit, property and tenant info
     const { data: contracts, error } = await supabase
       .from('mietvertrag')
       .select(`
@@ -52,6 +58,14 @@ const handler = async (req: Request): Promise<Response> => {
           immobilien!inner(
             name,
             adresse
+          )
+        ),
+        mietvertrag_mieter!inner(
+          mieter!inner(
+            vorname,
+            nachname,
+            hauptmail,
+            telnr
           )
         )
       `)
@@ -110,7 +124,13 @@ const handler = async (req: Request): Promise<Response> => {
         einheit_id: contract.einheit_id,
         immobilie_id: contract.einheiten?.immobilie_id,
         immobilie_name: contract.einheiten?.immobilien?.name || 'Unbekannt',
-        immobilie_adresse: contract.einheiten?.immobilien?.adresse || 'Unbekannt'
+        immobilie_adresse: contract.einheiten?.immobilien?.adresse || 'Unbekannt',
+        mieter: contract.mietvertrag_mieter?.map((mm: any) => ({
+          vorname: mm.mieter?.vorname || '',
+          nachname: mm.mieter?.nachname || '',
+          hauptmail: mm.mieter?.hauptmail || null,
+          telnr: mm.mieter?.telnr || null
+        })) || []
       };
 
       eligibleContracts.push(eligibilityInfo);
