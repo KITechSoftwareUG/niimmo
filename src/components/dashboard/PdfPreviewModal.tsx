@@ -114,23 +114,37 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
 
-      // Load PDF with pdfjs-dist
+      // Load PDF with pdfjs-dist - Safari-compatible
       let pdfjsLib: any;
       try {
-        pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
-      } catch {
+        // Try modern build first
         pdfjsLib = await import('pdfjs-dist/build/pdf');
+      } catch {
+        // Fallback to legacy build
+        pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
       }
 
+      // Use CDN worker for better Safari compatibility
       if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/legacy/build/pdf.worker.min.js',
-          import.meta.url
-        ).toString();
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
       }
 
       const arrayBuffer = await blob.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      // Safari-compatible PDF loading with additional options
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        // Disable font rendering issues in Safari
+        disableFontFace: false,
+        // Enable standard fonts for better compatibility
+        useSystemFonts: false,
+        // Disable range requests which can cause issues
+        disableRange: true,
+        // Disable streaming for better compatibility
+        disableStream: true,
+      });
+      
+      const pdf = await loadingTask.promise;
       
       setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
@@ -154,7 +168,11 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
     try {
       const page = await pdfDoc.getPage(pageNumber);
       const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
+      const context = canvas.getContext('2d', { 
+        // Safari-specific optimizations
+        willReadFrequently: false,
+        alpha: false 
+      });
       
       if (!context) return;
 
@@ -163,15 +181,29 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       const scale = Math.min(800 / viewport.width, 1.5);
       const scaledViewport = page.getViewport({ scale });
 
+      // Set canvas size
       canvas.width = scaledViewport.width;
       canvas.height = scaledViewport.height;
 
-      await page.render({
+      // Clear canvas before rendering (important for Safari)
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Render with Safari-compatible options
+      const renderTask = page.render({
         canvasContext: context,
         viewport: scaledViewport,
-      }).promise;
+        // Improve rendering quality
+        intent: 'display',
+      });
+
+      await renderTask.promise;
     } catch (error) {
       console.error('Page rendering error:', error);
+      toast({
+        title: "Rendering-Fehler",
+        description: "Seite konnte nicht dargestellt werden.",
+        variant: "destructive",
+      });
     }
   };
 
