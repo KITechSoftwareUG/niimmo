@@ -147,19 +147,33 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
                             immobilie_name: row.immobilie_name,
                             immobilie_adresse: row.immobilie_adresse
                           };
+                          
+                          console.log('📤 Sende Mieterhöhung an Webhook:', payload);
+                          
                           const response = await fetch('https://k01-2025-u36730.vm.elestio.app/webhook-test/6fb34c33-670a-499b-ad45-6067ad7b5920', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            mode: 'cors',
+                            headers: { 
+                              'Content-Type': 'application/json',
+                              'Accept': 'application/json'
+                            },
                             body: JSON.stringify(payload)
                           });
+                          
+                          console.log('📥 Response Status:', response.status);
+                          console.log('📥 Response OK:', response.ok);
+                          
+                          const responseText = await response.text();
+                          console.log('📥 Response Body:', responseText);
+                          
                           if (response.ok) {
-                            alert('Mieterhöhung wurde erstellt!');
+                            alert('Mieterhöhung wurde erfolgreich erstellt!');
                           } else {
-                            alert('Fehler beim Erstellen der Mieterhöhung');
+                            alert(`Fehler beim Erstellen der Mieterhöhung (Status: ${response.status})`);
                           }
                         } catch (err) {
-                          console.error('Fehler:', err);
-                          alert('Fehler beim Senden der Anfrage');
+                          console.error('❌ Fehler beim Senden:', err);
+                          alert('Fehler beim Senden der Anfrage: ' + (err as Error).message);
                         }
                       }}
                     >
