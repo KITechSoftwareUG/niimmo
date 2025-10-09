@@ -82,10 +82,32 @@ export class ContractPdfWebhookService {
       }
       
       // Parse JSON-Response
-      const data: WebhookResponse = await response.json();
-      console.log('✅ Webhook Response:', data);
+      const responseText = await response.text();
+      console.log('✅ Raw Webhook Response:', responseText);
       
-      return data;
+      // Versuche JSON zu parsen
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ JSON Parse Fehler:', parseError);
+        throw new Error(`Ungültige JSON-Antwort vom Webhook: ${responseText.substring(0, 100)}`);
+      }
+      
+      console.log('✅ Parsed Webhook Response:', data);
+      
+      // Prüfe ob die Response das erwartete Format hat
+      if (!data.success && data.message) {
+        // n8n hat den Workflow gestartet, aber noch keine Daten extrahiert
+        throw new Error(`Webhook-Workflow wurde gestartet, aber keine Daten zurückgegeben. Bitte konfigurieren Sie den n8n-Workflow, um die extrahierten Daten direkt zurückzugeben (nicht asynchron).`);
+      }
+      
+      // Wenn success fehlt, aber extractedData vorhanden ist, setze success=true
+      if (!data.hasOwnProperty('success') && data.extractedData) {
+        data.success = true;
+      }
+      
+      return data as WebhookResponse;
       
     } catch (error: any) {
       console.error('❌ Fehler beim Webhook-Upload:', error);
