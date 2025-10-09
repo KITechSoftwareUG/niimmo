@@ -9,6 +9,7 @@ const corsHeaders = {
 interface RentIncreaseEligibility {
   mietvertrag_id: string;
   current_kaltmiete: number;
+  current_betriebskosten: number;
   letzte_mieterhoehung_am: string | null;
   start_datum: string;
   is_eligible: boolean;
@@ -115,6 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
       const eligibilityInfo: RentIncreaseEligibility = {
         mietvertrag_id: contract.id,
         current_kaltmiete: contract.kaltmiete,
+        current_betriebskosten: contract.betriebskosten || 0,
         letzte_mieterhoehung_am: contract.letzte_mieterhoehung_am,
         start_datum: contract.start_datum,
         is_eligible: isEligible,

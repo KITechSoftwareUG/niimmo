@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, ChevronRight } from "lucide-react";
+import { RentIncreaseModal } from "./RentIncreaseModal";
 
 export interface RentIncreaseEligibility {
   mietvertrag_id: string;
   current_kaltmiete: number;
+  current_betriebskosten: number;
   letzte_mieterhoehung_am: string | null;
   start_datum: string;
   is_eligible: boolean;
@@ -58,6 +60,9 @@ export function RentIncreaseList({ onContractClick, open, onOpenChange }: RentIn
   
   const isOpen = typeof open === 'boolean' ? open : internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
+  
+  const [selectedContract, setSelectedContract] = useState<RentIncreaseEligibility | null>(null);
+  const [showRentIncreaseModal, setShowRentIncreaseModal] = useState(false);
   
   const handleToggle = () => {
     const newState = !isOpen;
@@ -151,53 +156,10 @@ export function RentIncreaseList({ onContractClick, open, onOpenChange }: RentIn
                     <Button 
                       size="sm" 
                       variant="default" 
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        try {
-                          const payload = {
-                            mieterhoehung: true,
-                            mietvertrag_id: row.mietvertrag_id,
-                            current_kaltmiete: row.current_kaltmiete,
-                            letzte_mieterhoehung_am: row.letzte_mieterhoehung_am,
-                            start_datum: row.start_datum,
-                            months_since_last_increase: row.months_since_last_increase,
-                            months_since_start: row.months_since_start,
-                            einheit_id: row.einheit_id,
-                            immobilie_id: row.immobilie_id,
-                            immobilie_name: row.immobilie_name,
-                            immobilie_adresse: row.immobilie_adresse,
-                            mieter: row.mieter || []
-                          };
-                          
-                          console.log('📤 Sende Mieterhöhung an Webhook:', payload);
-                          console.log('📤 URL:', 'https://k01-2025-u36730.vm.elestio.app/webhook/6fb34c33-670a-499b-ad45-6067ad7b5920');
-                          
-                          const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/6fb34c33-670a-499b-ad45-6067ad7b5920';
-                          
-                          const response = await fetch(webhookUrl, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(payload)
-                          });
-                          
-                          console.log('📥 Response Status:', response.status);
-                          console.log('📥 Response Headers:', [...response.headers.entries()]);
-                          
-                          const responseText = await response.text();
-                          console.log('📥 Response Body:', responseText);
-                          
-                          if (response.ok) {
-                            alert('✅ Mieterhöhung wurde erfolgreich erstellt!');
-                          } else {
-                            console.error('❌ Webhook Fehler - Status:', response.status);
-                            alert(`❌ Fehler beim Erstellen der Mieterhöhung (Status: ${response.status})\n\nBitte prüfen Sie:\n- Ist der n8n Workflow aktiv?\n- Ist die Webhook-URL korrekt?\n- Siehe Console für Details`);
-                          }
-                        } catch (err) {
-                          console.error('❌ Fehler beim Senden:', err);
-                          alert('❌ Fehler beim Senden der Anfrage:\n' + (err as Error).message + '\n\nSiehe Console für Details');
-                        }
+                        setSelectedContract(row);
+                        setShowRentIncreaseModal(true);
                       }}
                     >
                       Mieterhöhung erstellen
@@ -222,6 +184,29 @@ export function RentIncreaseList({ onContractClick, open, onOpenChange }: RentIn
           )}
         </div>
       </div>
+
+      {/* Rent Increase Modal */}
+      <RentIncreaseModal
+        isOpen={showRentIncreaseModal}
+        onClose={() => {
+          setShowRentIncreaseModal(false);
+          setSelectedContract(null);
+        }}
+        contractData={selectedContract ? {
+          mietvertrag_id: selectedContract.mietvertrag_id,
+          current_kaltmiete: selectedContract.current_kaltmiete,
+          current_betriebskosten: selectedContract.current_betriebskosten || 0,
+          letzte_mieterhoehung_am: selectedContract.letzte_mieterhoehung_am,
+          start_datum: selectedContract.start_datum,
+          months_since_last_increase: selectedContract.months_since_last_increase,
+          months_since_start: selectedContract.months_since_start,
+          einheit_id: selectedContract.einheit_id,
+          immobilie_id: selectedContract.immobilie_id,
+          immobilie_name: selectedContract.immobilie_name,
+          immobilie_adresse: selectedContract.immobilie_adresse,
+          mieter: selectedContract.mieter
+        } : null}
+      />
     </div>
   );
 }
