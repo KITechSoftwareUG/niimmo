@@ -10,6 +10,7 @@ import { CreateForderungModal } from "./CreateForderungModal";
 import { MietvertragOverviewTab } from "./mietvertrag-details/MietvertragOverviewTab";
 import { MietvertragDocumentsTab } from "./mietvertrag-details/MietvertragDocumentsTab";
 import { TerminationDialog } from "./termination/TerminationDialog";
+import { MahnungErstellungModal } from "./MahnungErstellungModal";
 
 interface MietvertragDetailsModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export default function MietvertragDetailsModal({
   const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
   const [showTerminationDialog, setShowTerminationDialog] = useState(false);
+  const [showMahnungModal, setShowMahnungModal] = useState(false);
   
   // Set up real-time subscriptions for instant updates when this modal is open
   useEffect(() => {
@@ -530,58 +532,7 @@ export default function MietvertragDetailsModal({
             <div className="pt-4 border-t border-border space-y-3">
               <Button
                 variant="default"
-                onClick={async () => {
-                  try {
-                    const payload = {
-                      mahnung: true,
-                      mietvertrag_id: vertragId,
-                      current_kaltmiete: Number(vertrag?.kaltmiete || 0),
-                      current_betriebskosten: Number(vertrag?.betriebskosten || 0),
-                      letzte_mieterhoehung_am: vertrag?.letzte_mieterhoehung_am,
-                      start_datum: vertrag?.start_datum,
-                      einheit_id: einheit?.id,
-                      immobilie_id: immobilie?.id,
-                      immobilie_name: immobilie?.name,
-                      immobilie_adresse: immobilie?.adresse,
-                      mieter: mieter || []
-                    };
-                    
-                    console.log('📤 Sende Mahnung an Webhook:', payload);
-                    const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/6fb34c33-670a-499b-ad45-6067ad7b5920';
-                    
-                    const response = await fetch(webhookUrl, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json'
-                      },
-                      body: JSON.stringify(payload)
-                    });
-                    
-                    console.log('📥 Response Status:', response.status);
-                    const responseText = await response.text();
-                    console.log('📥 Response Body:', responseText);
-                    
-                    if (response.ok) {
-                      toast({
-                        title: "Mahnung erstellt",
-                        description: "Die Mahnung wurde erfolgreich erstellt.",
-                      });
-                    } else {
-                      toast({
-                        title: "Fehler",
-                        description: `Fehler beim Erstellen der Mahnung (Status: ${response.status})`,
-                        variant: "destructive",
-                      });
-                    }
-                  } catch (err) {
-                    console.error('❌ Fehler beim Senden:', err);
-                    toast({
-                      title: "Fehler",
-                      description: 'Fehler beim Senden der Anfrage',
-                      variant: "destructive",
-                    });
-                  }
-                }}
+                onClick={() => setShowMahnungModal(true)}
                 className="w-full"
               >
                 Mahnung erstellen
@@ -615,6 +566,45 @@ export default function MietvertragDetailsModal({
           einheit={einheit}
           immobilie={immobilie}
           onTerminationSuccess={handleTerminationSuccess}
+        />
+
+        {/* Mahnung Modal */}
+        <MahnungErstellungModal
+          isOpen={showMahnungModal}
+          onClose={() => {
+            setShowMahnungModal(false);
+            queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+            queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+          }}
+          contractData={vertrag ? {
+            mietvertrag_id: vertragId,
+            current_kaltmiete: Number(vertrag.kaltmiete || 0),
+            current_betriebskosten: Number(vertrag.betriebskosten || 0),
+            letzte_mieterhoehung_am: vertrag.letzte_mieterhoehung_am,
+            start_datum: vertrag.start_datum,
+            einheit_id: einheit?.id,
+            immobilie_id: immobilie?.id,
+            immobilie_name: immobilie?.name,
+            immobilie_adresse: immobilie?.adresse,
+            mahnstufe: vertrag.mahnstufe || 0,
+            mieter: mieter as any[]
+          } : null}
+          offeneForderungen={(forderungen || [])
+            .filter(f => {
+              // Filter for unpaid forderungen by checking if payment exists for this month
+              const hasSufficientPayment = (zahlungen || []).some(z => 
+                z.zugeordneter_monat === f.sollmonat && 
+                Math.abs(Number(z.betrag) - Number(f.sollbetrag)) < 50 // 50€ tolerance
+              );
+              return !hasSufficientPayment;
+            })
+            .map(f => ({
+              id: f.id,
+              sollmonat: f.sollmonat,
+              sollbetrag: Number(f.sollbetrag),
+              ist_faellig: f.ist_faellig || false
+            }))
+          }
         />
       </DialogContent>
     </Dialog>
