@@ -158,30 +158,33 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
                           };
                           
                           console.log('📤 Sende Mieterhöhung an Webhook:', payload);
+                          console.log('📤 URL:', 'https://k01-2025-u36730.vm.elestio.app/webhook-test/6fb34c33-670a-499b-ad45-6067ad7b5920');
                           
-                          const response = await fetch('https://k01-2025-u36730.vm.elestio.app/webhook-test/6fb34c33-670a-499b-ad45-6067ad7b5920', {
+                          const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook-test/6fb34c33-670a-499b-ad45-6067ad7b5920';
+                          
+                          const response = await fetch(webhookUrl, {
                             method: 'POST',
                             headers: {
-                              // text/plain to avoid CORS preflight; body still contains JSON string
-                              'Content-Type': 'text/plain'
+                              'Content-Type': 'application/json'
                             },
                             body: JSON.stringify(payload)
                           });
                           
                           console.log('📥 Response Status:', response.status);
-                          console.log('📥 Response OK:', response.ok);
+                          console.log('📥 Response Headers:', [...response.headers.entries()]);
                           
                           const responseText = await response.text();
                           console.log('📥 Response Body:', responseText);
                           
                           if (response.ok) {
-                            alert('Mieterhöhung wurde erfolgreich erstellt!');
+                            alert('✅ Mieterhöhung wurde erfolgreich erstellt!');
                           } else {
-                            alert(`Fehler beim Erstellen der Mieterhöhung (Status: ${response.status})`);
+                            console.error('❌ Webhook Fehler - Status:', response.status);
+                            alert(`❌ Fehler beim Erstellen der Mieterhöhung (Status: ${response.status})\n\nBitte prüfen Sie:\n- Ist der n8n Workflow aktiv?\n- Ist die Webhook-URL korrekt?\n- Siehe Console für Details`);
                           }
                         } catch (err) {
                           console.error('❌ Fehler beim Senden:', err);
-                          alert('Fehler beim Senden der Anfrage: ' + (err as Error).message);
+                          alert('❌ Fehler beim Senden der Anfrage:\n' + (err as Error).message + '\n\nSiehe Console für Details');
                         }
                       }}
                     >
