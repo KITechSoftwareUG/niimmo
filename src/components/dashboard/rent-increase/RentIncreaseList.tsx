@@ -27,6 +27,8 @@ export interface RentIncreaseEligibility {
 
 interface RentIncreaseListProps {
   onContractClick?: (contractId: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function formatCurrencyEUR(value: number) {
@@ -48,15 +50,18 @@ function formatDate(dateStr: string | null) {
   }
 }
 
-export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
-  const [isOpen, setIsOpen] = useState(() => {
+export function RentIncreaseList({ onContractClick, open, onOpenChange }: RentIncreaseListProps) {
+  const [internalOpen, setInternalOpen] = useState(() => {
     const saved = localStorage.getItem('rentIncreaseListOpen');
     return saved === 'true';
   });
   
+  const isOpen = typeof open === 'boolean' ? open : internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
+  
   const handleToggle = () => {
     const newState = !isOpen;
-    setIsOpen(newState);
+    setOpen(newState);
     localStorage.setItem('rentIncreaseListOpen', String(newState));
   };
   
@@ -74,7 +79,7 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
   const eligible = data?.eligible_contracts ?? [];
 
   return (
-    <div className="relative border rounded-lg shadow-sm bg-card">
+    <div id="rentincrease-section" className="relative border rounded-lg shadow-sm bg-card">
       {/* HEADER ALS BUTTON */}
       <button
         type="button"
@@ -82,7 +87,7 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            setIsOpen((o) => !o);
+            setOpen(!isOpen);
           }
         }}
         aria-expanded={isOpen}

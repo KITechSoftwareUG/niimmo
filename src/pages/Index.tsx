@@ -22,6 +22,8 @@ const Index = () => {
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
   const [navigationSource, setNavigationSource] = useState<'dashboard' | 'immobilie' | 'search'>('dashboard');
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
+  const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
+  const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
   const {
     data: immobilien,
     isLoading,
@@ -86,17 +88,23 @@ const Index = () => {
     setNavigationSource('immobilie');
   };
   const handleBackClick = () => {
-    if (navigationSource === 'dashboard') {
-      // Coming from dashboard (e.g., Rückstände), go back to dashboard
+    // Return to dashboard lists for dashboard-originated navigations
+    if (navigationSource === 'dashboard' || listSource) {
       setSelectedImmobilie(null);
       setSelectedEinheit(null);
       setSelectedMietvertrag(null);
       setNavigationSource('dashboard');
-      // After returning, scroll to the Rückstände section if it was open
+
+      // Ensure the originating list is open and scroll into view
       setTimeout(() => {
-        if (rueckstaendeOpen) {
+        if (listSource === 'rueckstaende') {
+          setRueckstaendeOpen(true);
           document.getElementById('rueckstaende-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else if (listSource === 'rentincrease') {
+          setRentIncreaseOpen(true);
+          document.getElementById('rentincrease-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+        setListSource(null);
       }, 0);
     } else if (navigationSource === 'search') {
       // Coming from search, go back to dashboard and scroll to search
@@ -202,7 +210,12 @@ const Index = () => {
       mietstatus: "all",
       zahlungsstatus: "all"
     }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} onContractModalClose={() => {
-      setSelectedMietvertrag(null);
+      // If user came from a dashboard list (Rückstände or Mieterhöhungen), go back to that list
+      if (listSource) {
+        handleBackClick();
+      } else {
+        setSelectedMietvertrag(null);
+      }
     }} />;
   }
   return <div className="min-h-screen modern-dashboard-bg">
@@ -246,14 +259,16 @@ const Index = () => {
           <FehlendeMietzahlungen 
             open={rueckstaendeOpen}
             onOpenChange={setRueckstaendeOpen}
-            onMietvertragClick={(id) => { setRueckstaendeOpen(true); handleMietvertragClick(id); }} 
+            onMietvertragClick={(id) => { setListSource('rueckstaende'); setRueckstaendeOpen(true); handleMietvertragClick(id); }} 
           />
         </div>
 
         {/* Mögliche Mieterhöhungen */}
         <div className="mb-6">
           <RentIncreaseList 
-            onContractClick={handleRentIncreaseContractClick}
+            open={rentIncreaseOpen}
+            onOpenChange={setRentIncreaseOpen}
+            onContractClick={(id) => { setListSource('rentincrease'); setRentIncreaseOpen(true); handleRentIncreaseContractClick(id); }}
           />
         </div>
 
