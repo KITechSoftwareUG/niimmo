@@ -525,9 +525,67 @@ export default function MietvertragDetailsModal({
             </TabsContent>
           </Tabs>
 
-          {/* Termination Button for Active Contracts */}
+          {/* Action Buttons for Active Contracts */}
           {vertrag?.status === 'aktiv' && (
-            <div className="pt-4 border-t border-border">
+            <div className="pt-4 border-t border-border space-y-3">
+              <Button
+                variant="default"
+                onClick={async () => {
+                  try {
+                    const payload = {
+                      mahnung: true,
+                      mietvertrag_id: vertragId,
+                      current_kaltmiete: Number(vertrag?.kaltmiete || 0),
+                      current_betriebskosten: Number(vertrag?.betriebskosten || 0),
+                      letzte_mieterhoehung_am: vertrag?.letzte_mieterhoehung_am,
+                      start_datum: vertrag?.start_datum,
+                      einheit_id: einheit?.id,
+                      immobilie_id: immobilie?.id,
+                      immobilie_name: immobilie?.name,
+                      immobilie_adresse: immobilie?.adresse,
+                      mieter: mieter || []
+                    };
+                    
+                    console.log('📤 Sende Mahnung an Webhook:', payload);
+                    const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/6fb34c33-670a-499b-ad45-6067ad7b5920';
+                    
+                    const response = await fetch(webhookUrl, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify(payload)
+                    });
+                    
+                    console.log('📥 Response Status:', response.status);
+                    const responseText = await response.text();
+                    console.log('📥 Response Body:', responseText);
+                    
+                    if (response.ok) {
+                      toast({
+                        title: "Mahnung erstellt",
+                        description: "Die Mahnung wurde erfolgreich erstellt.",
+                      });
+                    } else {
+                      toast({
+                        title: "Fehler",
+                        description: `Fehler beim Erstellen der Mahnung (Status: ${response.status})`,
+                        variant: "destructive",
+                      });
+                    }
+                  } catch (err) {
+                    console.error('❌ Fehler beim Senden:', err);
+                    toast({
+                      title: "Fehler",
+                      description: 'Fehler beim Senden der Anfrage',
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className="w-full"
+              >
+                Mahnung erstellen
+              </Button>
               <Button
                 variant="destructive"
                 onClick={() => setShowTerminationDialog(true)}

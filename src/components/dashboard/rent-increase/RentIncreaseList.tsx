@@ -170,9 +170,9 @@ export function RentIncreaseList({ onContractClick, open, onOpenChange }: RentIn
                           };
                           
                           console.log('📤 Sende Mieterhöhung an Webhook:', payload);
-                          console.log('📤 URL:', 'https://k01-2025-u36730.vm.elestio.app/webhook-test/6fb34c33-670a-499b-ad45-6067ad7b5920');
+                          console.log('📤 URL:', 'https://k01-2025-u36730.vm.elestio.app/webhook/6fb34c33-670a-499b-ad45-6067ad7b5920');
                           
-                          const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook-test/6fb34c33-670a-499b-ad45-6067ad7b5920';
+                          const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/6fb34c33-670a-499b-ad45-6067ad7b5920';
                           
                           const response = await fetch(webhookUrl, {
                             method: 'POST',
