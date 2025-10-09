@@ -346,7 +346,14 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                       </div>
                     </TableCell>
                   </TableRow>
-                  {expanded.has(group.objektId) && group.contracts.map((row, idx) => (
+                  {expanded.has(group.objektId) && group.contracts
+                    .sort((a, b) => {
+                      // Extract last 2 digits and sort numerically
+                      const aNum = parseInt(a.einheitId.slice(-2));
+                      const bNum = parseInt(b.einheitId.slice(-2));
+                      return aNum - bNum;
+                    })
+                    .map((row, idx) => (
                     <TableRow key={row.contractId} className="hover:bg-gray-50">
                       <TableCell className="text-center">{idx + 1}</TableCell>
                       <TableCell>
