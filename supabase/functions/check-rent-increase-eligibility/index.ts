@@ -15,6 +15,9 @@ interface RentIncreaseEligibility {
   months_since_last_increase: number;
   months_since_start: number;
   reason: string;
+  einheit_nummer?: string;
+  immobilie_name?: string;
+  immobilie_adresse?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -31,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Checking rent increase eligibility...');
 
-    // Fetch all active rental contracts
+    // Fetch all active rental contracts with unit and property info
     const { data: contracts, error } = await supabase
       .from('mietvertrag')
       .select(`
@@ -40,7 +43,16 @@ const handler = async (req: Request): Promise<Response> => {
         betriebskosten,
         letzte_mieterhoehung_am,
         start_datum,
-        status
+        status,
+        einheit_id,
+        einheiten!inner(
+          zaehler,
+          immobilie_id,
+          immobilien!inner(
+            name,
+            adresse
+          )
+        )
       `)
       .eq('status', 'aktiv');
 
@@ -93,7 +105,10 @@ const handler = async (req: Request): Promise<Response> => {
         is_eligible: isEligible,
         months_since_last_increase: monthsSinceLastIncrease,
         months_since_start: monthsSinceStart,
-        reason
+        reason,
+        einheit_nummer: contract.einheiten?.zaehler?.toString() || 'Unbekannt',
+        immobilie_name: contract.einheiten?.immobilien?.name || 'Unbekannt',
+        immobilie_adresse: contract.einheiten?.immobilien?.adresse || 'Unbekannt'
       };
 
       eligibleContracts.push(eligibilityInfo);

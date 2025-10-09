@@ -13,6 +13,9 @@ export interface RentIncreaseEligibility {
   months_since_last_increase: number;
   months_since_start: number;
   reason: string;
+  einheit_nummer?: string;
+  immobilie_name?: string;
+  immobilie_adresse?: string;
 }
 
 interface RentIncreaseListProps {
@@ -86,9 +89,9 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
       <div
         id="rent-increase-content"
         className="relative z-0 overflow-hidden transition-all duration-300 ease-in-out"
-        style={{ maxHeight: isOpen ? '1000px' : '0', opacity: isOpen ? 1 : 0 }}
+        style={{ maxHeight: isOpen ? '500px' : '0', opacity: isOpen ? 1 : 0 }}
       >
-        <div className="p-4 sm:p-6 space-y-3 border-t">
+        <div className="p-4 sm:p-6 space-y-3 border-t max-h-[500px] overflow-y-auto">
           <div className="flex items-center justify-end">
             <Button 
               size="sm" 
@@ -112,12 +115,17 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
           ) : (
             <div className="space-y-2">
               {eligible.map((row) => (
-                <div key={row.mietvertrag_id} className="flex items-center justify-between rounded-lg border p-3 bg-background">
+                <div key={row.mietvertrag_id} className="flex items-center justify-between rounded-lg border p-3 bg-background gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 text-sm font-medium">
-                      <span className="text-foreground">Vertrag {row.mietvertrag_id.slice(0, 8)}…</span>
+                      <span className="text-foreground">{row.immobilie_name || 'Objekt'}</span>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">Einheit {row.einheit_nummer || 'N/A'}</span>
                       <span className="text-muted-foreground">•</span>
                       <span className="text-muted-foreground">Kaltmiete {formatCurrencyEUR(row.current_kaltmiete)}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {row.immobilie_adresse}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       Letzte Erhöhung: {formatDate(row.letzte_mieterhoehung_am)} • Vertragsstart: {formatDate(row.start_datum)}
@@ -128,8 +136,44 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
                       </div>
                     )}
                   </div>
-                  {onContractClick && (
-                    <div className="ml-3 shrink-0">
+                  <div className="flex gap-2 shrink-0">
+                    <Button 
+                      size="sm" 
+                      variant="default" 
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          const payload = {
+                            mieterhoehung: true,
+                            mietvertrag_id: row.mietvertrag_id,
+                            current_kaltmiete: row.current_kaltmiete,
+                            letzte_mieterhoehung_am: row.letzte_mieterhoehung_am,
+                            start_datum: row.start_datum,
+                            months_since_last_increase: row.months_since_last_increase,
+                            months_since_start: row.months_since_start,
+                            einheit_nummer: row.einheit_nummer,
+                            immobilie_name: row.immobilie_name,
+                            immobilie_adresse: row.immobilie_adresse
+                          };
+                          const response = await fetch('https://k01-2025-u36730.vm.elestio.app/webhook-test/6fb34c33-670a-499b-ad45-6067ad7b5920', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                          });
+                          if (response.ok) {
+                            alert('Mieterhöhung wurde erstellt!');
+                          } else {
+                            alert('Fehler beim Erstellen der Mieterhöhung');
+                          }
+                        } catch (err) {
+                          console.error('Fehler:', err);
+                          alert('Fehler beim Senden der Anfrage');
+                        }
+                      }}
+                    >
+                      Mieterhöhung erstellen
+                    </Button>
+                    {onContractClick && (
                       <Button 
                         size="sm" 
                         variant="secondary" 
@@ -140,8 +184,8 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
                       >
                         Öffnen
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
