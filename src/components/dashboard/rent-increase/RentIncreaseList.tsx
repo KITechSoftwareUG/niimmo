@@ -55,14 +55,20 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
   const eligible = data?.eligible_contracts ?? [];
 
   return (
-    <div className="border rounded-lg shadow-sm bg-card">
+    <div className="relative border rounded-lg shadow-sm bg-card">
       {/* HEADER ALS BUTTON */}
       <button
         type="button"
         onClick={() => setIsOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsOpen((o) => !o);
+          }
+        }}
         aria-expanded={isOpen}
         aria-controls="rent-increase-content"
-        className="w-full cursor-pointer flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 bg-muted/50 hover:bg-muted transition-colors rounded-t-lg"
+        className="w-full cursor-pointer pointer-events-auto relative z-10 select-none flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 bg-muted/50 hover:bg-muted transition-colors rounded-t-lg"
       >
         <div className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-primary" />
@@ -79,7 +85,7 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
       {/* INHALT mit einfacher Auf/Zu-Animation */}
       <div
         id="rent-increase-content"
-        className="overflow-hidden transition-all duration-300 ease-in-out"
+        className="relative z-0 overflow-hidden transition-all duration-300 ease-in-out"
         style={{ maxHeight: isOpen ? '1000px' : '0', opacity: isOpen ? 1 : 0 }}
       >
         <div className="p-4 sm:p-6 space-y-3 border-t">
