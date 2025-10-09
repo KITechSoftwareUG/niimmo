@@ -44,7 +44,7 @@ export interface WebhookResponse {
 
 export class ContractPdfWebhookService {
   // Webhook URL - kann später über Config/Environment konfiguriert werden
-  private static WEBHOOK_URL = 'https://k01-2025-u36730.vm.elestio.app/webhook-test/mietvertrag-upload';
+  private static WEBHOOK_URL = 'https://k01-2025-u36730.vm.elestio.app/webhook-test/02f564b6-f103-4d5d-a631-a5dc2c795d00';
   
   /**
    * Sendet ein PDF-Dokument an den Webhook zur Verarbeitung
