@@ -15,7 +15,8 @@ interface RentIncreaseEligibility {
   months_since_last_increase: number;
   months_since_start: number;
   reason: string;
-  einheit_nummer?: string;
+  einheit_id?: string;
+  immobilie_id?: string;
   immobilie_name?: string;
   immobilie_adresse?: string;
 }
@@ -106,7 +107,8 @@ const handler = async (req: Request): Promise<Response> => {
         months_since_last_increase: monthsSinceLastIncrease,
         months_since_start: monthsSinceStart,
         reason,
-        einheit_nummer: contract.einheiten?.zaehler?.toString() || 'Unbekannt',
+        einheit_id: contract.einheit_id,
+        immobilie_id: contract.einheiten?.immobilie_id,
         immobilie_name: contract.einheiten?.immobilien?.name || 'Unbekannt',
         immobilie_adresse: contract.einheiten?.immobilien?.adresse || 'Unbekannt'
       };

@@ -13,7 +13,8 @@ export interface RentIncreaseEligibility {
   months_since_last_increase: number;
   months_since_start: number;
   reason: string;
-  einheit_nummer?: string;
+  einheit_id?: string;
+  immobilie_id?: string;
   immobilie_name?: string;
   immobilie_adresse?: string;
 }
@@ -92,20 +93,6 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
         style={{ maxHeight: isOpen ? '500px' : '0', opacity: isOpen ? 1 : 0 }}
       >
         <div className="p-4 sm:p-6 space-y-3 border-t max-h-[500px] overflow-y-auto">
-          <div className="flex items-center justify-end">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={(e) => {
-                e.stopPropagation();
-                refetch();
-              }} 
-              disabled={isFetching}
-            >
-              {isFetching ? "Aktualisiere…" : "Aktualisieren"}
-            </Button>
-          </div>
-          
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Wird geprüft…</p>
           ) : error ? (
@@ -114,16 +101,20 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
             <p className="text-sm text-muted-foreground">Aktuell sind keine Mieterhöhungen möglich.</p>
           ) : (
             <div className="space-y-2">
-              {eligible.map((row) => (
-                <div key={row.mietvertrag_id} className="flex items-center justify-between rounded-lg border p-3 bg-background gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <span className="text-foreground">{row.immobilie_name || 'Objekt'}</span>
-                      <span className="text-muted-foreground">•</span>
-                      <span className="text-muted-foreground">Einheit {row.einheit_nummer || 'N/A'}</span>
-                      <span className="text-muted-foreground">•</span>
-                      <span className="text-muted-foreground">Kaltmiete {formatCurrencyEUR(row.current_kaltmiete)}</span>
-                    </div>
+              {eligible.map((row) => {
+                const einheitDisplay = row.einheit_id ? row.einheit_id.slice(-2) : 'N/A';
+                const immobilieDisplay = row.immobilie_id ? row.immobilie_id.slice(-2) : 'N/A';
+                
+                return (
+                  <div key={row.mietvertrag_id} className="flex items-center justify-between rounded-lg border p-3 bg-background gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <span className="text-foreground">Objekt {immobilieDisplay}</span>
+                        <span className="text-muted-foreground">•</span>
+                        <span className="text-muted-foreground">Einheit {einheitDisplay}</span>
+                        <span className="text-muted-foreground">•</span>
+                        <span className="text-muted-foreground">Kaltmiete {formatCurrencyEUR(row.current_kaltmiete)}</span>
+                      </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {row.immobilie_adresse}
                     </div>
@@ -151,7 +142,8 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
                             start_datum: row.start_datum,
                             months_since_last_increase: row.months_since_last_increase,
                             months_since_start: row.months_since_start,
-                            einheit_nummer: row.einheit_nummer,
+                            einheit_id: row.einheit_id,
+                            immobilie_id: row.immobilie_id,
                             immobilie_name: row.immobilie_name,
                             immobilie_adresse: row.immobilie_adresse
                           };
@@ -187,7 +179,8 @@ export function RentIncreaseList({ onContractClick }: RentIncreaseListProps) {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
