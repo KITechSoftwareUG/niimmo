@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,27 @@ export function RentIncreaseList({ onContractClick, open, onOpenChange }: RentIn
     enabled: isOpen,
   });
 
-  const eligible = data?.eligible_contracts ?? [];
+  // Sortierte Liste nach Immobilie und Einheitennummer
+  const eligible = useMemo(() => {
+    const contracts = data?.eligible_contracts ?? [];
+    return [...contracts].sort((a, b) => {
+      // Primär: Nach Immobilienname sortieren (alphabetisch)
+      const nameA = a.immobilie_name || '';
+      const nameB = b.immobilie_name || '';
+      const nameCompare = nameA.localeCompare(nameB, 'de', { numeric: true });
+      if (nameCompare !== 0) return nameCompare;
+
+      // Sekundär: Nach Einheitennummer sortieren (letzte 2 Ziffern numerisch)
+      const getUnitNumber = (einheitId: string | undefined) => {
+        if (!einheitId) return 0;
+        const lastTwo = einheitId.slice(-2);
+        const num = parseInt(lastTwo, 10);
+        return isNaN(num) ? 0 : num;
+      };
+
+      return getUnitNumber(a.einheit_id) - getUnitNumber(b.einheit_id);
+    });
+  }, [data?.eligible_contracts]);
 
   return (
     <div id="rentincrease-section" className="relative border rounded-lg shadow-sm bg-card">
