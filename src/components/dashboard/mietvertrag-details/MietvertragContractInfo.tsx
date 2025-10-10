@@ -5,6 +5,7 @@ import { MietvertragEditableField } from "./MietvertragEditableField";
 
 interface MietvertragContractInfoProps {
   vertrag: any;
+  einheit?: any;
   editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null;
   onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr', value: string) => void;
   onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr') => void;
@@ -15,6 +16,7 @@ interface MietvertragContractInfoProps {
 
 export function MietvertragContractInfo({
   vertrag,
+  einheit,
   editingMietvertrag,
   onEditMietvertrag,
   onStartEdit,
@@ -22,6 +24,9 @@ export function MietvertragContractInfo({
   formatDatum,
   formatBetrag
 }: MietvertragContractInfoProps) {
+  const betriebskostenProQm = einheit?.qm && Number(einheit.qm) > 0 
+    ? Number(vertrag.betriebskosten || 0) / Number(einheit.qm) 
+    : null;
   return (
     <Card>
       <CardHeader>
@@ -58,18 +63,25 @@ export function MietvertragContractInfo({
             formatter={formatBetrag}
             showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
           />
-          <MietvertragEditableField
-            label="Betriebskosten"
-            value={Number(vertrag.betriebskosten || 0)}
-            isEditing={editingMietvertrag === 'betriebskosten'}
-            onEdit={() => onStartEdit('betriebskosten')}
-            onSave={(value) => onEditMietvertrag('betriebskosten', value)}
-            onCancel={onCancelEdit}
-            type="number"
-            step="0.01"
-            formatter={formatBetrag}
-            showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
-          />
+          <div>
+            <MietvertragEditableField
+              label="Betriebskosten"
+              value={Number(vertrag.betriebskosten || 0)}
+              isEditing={editingMietvertrag === 'betriebskosten'}
+              onEdit={() => onStartEdit('betriebskosten')}
+              onSave={(value) => onEditMietvertrag('betriebskosten', value)}
+              onCancel={onCancelEdit}
+              type="number"
+              step="0.01"
+              formatter={formatBetrag}
+              showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
+            />
+            {betriebskostenProQm !== null && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatBetrag(betriebskostenProQm)} pro m²
+              </p>
+            )}
+          </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground">Gesamtmiete</p>
             <p className="text-lg font-bold text-green-600">

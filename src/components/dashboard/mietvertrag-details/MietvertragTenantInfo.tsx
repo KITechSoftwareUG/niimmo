@@ -53,6 +53,11 @@ export function MietvertragTenantInfo({
                 <div>
                   <span className="font-medium">Immobilie: </span>
                   <span className="text-foreground">{immobilie.name}</span>
+                  {immobilie.adresse && (
+                    <span className="text-muted-foreground text-sm ml-2">
+                      ({immobilie.adresse})
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -64,6 +69,11 @@ export function MietvertragTenantInfo({
                   <span className="text-foreground">
                     {einheit.einheitentyp} - {einheit.id?.slice(-2) || 'N/A'}
                   </span>
+                  {einheit.qm && (
+                    <span className="text-muted-foreground text-sm ml-2">
+                      ({Number(einheit.qm).toFixed(2)} m²)
+                    </span>
+                  )}
                 </div>
               </div>
             )}

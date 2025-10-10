@@ -69,6 +69,7 @@ export function MietvertragOverviewTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <MietvertragContractInfo
           vertrag={vertrag}
+          einheit={einheit}
           editingMietvertrag={editingMietvertrag}
           onEditMietvertrag={onEditMietvertrag}
           onStartEdit={onStartEdit}
