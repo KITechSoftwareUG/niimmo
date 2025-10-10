@@ -466,19 +466,19 @@ export default function MietvertragDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Building2 className="h-5 w-5" />
+      <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] h-[95vh] md:h-auto overflow-hidden flex flex-col p-4 md:p-6">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
+            <Building2 className="h-4 w-4 md:h-5 md:w-5" />
             <span>Mietvertrag Details</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <Tabs defaultValue="uebersicht" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-              <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
+        <div className="flex-1 overflow-y-auto -mx-4 md:-mx-6 px-4 md:px-6">
+          <Tabs defaultValue="uebersicht" className="space-y-2 md:space-y-4">
+            <TabsList className="grid w-full grid-cols-2 sticky top-0 z-10 bg-background">
+              <TabsTrigger value="uebersicht" className="text-xs md:text-sm">Übersicht</TabsTrigger>
+              <TabsTrigger value="dokumente" className="text-xs md:text-sm">Dokumente</TabsTrigger>
             </TabsList>
 
             <TabsContent value="uebersicht" className="space-y-4">

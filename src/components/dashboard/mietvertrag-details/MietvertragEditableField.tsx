@@ -48,14 +48,14 @@ export function MietvertragEditableField({
 
   return (
     <div>
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <p className="text-xs md:text-sm font-medium text-muted-foreground">{label}</p>
       {isEditing ? (
-        <div className={`flex ${type === "textarea" ? "flex-col" : "items-center"} space-x-2 ${type === "textarea" ? "space-x-0 space-y-2" : ""}`}>
+        <div className={`flex ${type === "textarea" ? "flex-col" : "flex-wrap items-center"} gap-2`}>
           {type === "textarea" ? (
             <Textarea
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              className="min-h-[80px] resize-none"
+              className="min-h-[80px] resize-none text-sm"
               placeholder={placeholder || ""}
               rows={3}
             />
@@ -65,11 +65,11 @@ export function MietvertragEditableField({
               step={step}
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              className="w-32 h-8"
+              className="w-full sm:w-32 h-8 text-sm"
               placeholder={type === "number" ? "0.00" : placeholder || ""}
             />
           )}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Button
               onClick={handleSave}
               size="sm"
@@ -90,12 +90,12 @@ export function MietvertragEditableField({
       ) : (
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <p className={`text-lg ${className}`}>{displayValue}</p>
+            <p className={`text-sm md:text-lg ${className}`}>{displayValue}</p>
             <Button
               onClick={handleEdit}
               size="sm"
               variant="ghost"
-              className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+              className="h-6 w-6 p-0 opacity-60 hover:opacity-100 flex-shrink-0"
             >
               <Edit2 className="h-3 w-3" />
             </Button>

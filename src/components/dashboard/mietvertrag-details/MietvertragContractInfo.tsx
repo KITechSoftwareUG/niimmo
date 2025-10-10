@@ -29,27 +29,27 @@ export function MietvertragContractInfo({
     : null;
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Mietvertrag Informationen</CardTitle>
+      <CardHeader className="pb-3 md:pb-6">
+        <CardTitle className="text-base md:text-lg">Mietvertrag Informationen</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+      <CardContent className="space-y-3 md:space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Laufzeit</p>
-            <p className="text-lg">
+            <p className="text-xs md:text-sm font-medium text-muted-foreground">Laufzeit</p>
+            <p className="text-sm md:text-lg">
               {vertrag.start_datum ? formatDatum(vertrag.start_datum) : 'N/A'}
               {vertrag.ende_datum ? ` - ${formatDatum(vertrag.ende_datum)}` : ''}
             </p>
           </div>
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Status</p>
-            <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'}>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground">Status</p>
+            <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-xs">
               {vertrag.status}
             </Badge>
           </div>
         </div>
         <Separator />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           <MietvertragEditableField
             label="Kaltmiete"
             value={Number(vertrag.kaltmiete || 0)}
@@ -95,7 +95,7 @@ export function MietvertragContractInfo({
         {vertrag.lastschrift && (
           <>
             <Separator />
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:gap-4">
               <MietvertragEditableField
                 label="Rücklastschrift-Gebühr"
                 value={Number(vertrag.ruecklastschrift_gebuehr || 7.50)}
@@ -115,7 +115,7 @@ export function MietvertragContractInfo({
         {(vertrag.status === 'beendet' || vertrag.status === 'gekuendigt') && (
           <>
             <Separator />
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:gap-4">
               <MietvertragEditableField
                 label="Neue Anschrift"
                 value={vertrag.neue_anschrift || ''}

@@ -30,16 +30,16 @@ export function MietvertragTenantInfo({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Mieter Informationen</CardTitle>
+      <CardHeader className="pb-3 md:pb-6">
+        <CardTitle className="text-base md:text-lg">Mieter Informationen</CardTitle>
       </CardHeader>
       <CardContent>
         {mieter && mieter.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {mieter.map((m: any) => (
-              <div key={m.id} className="p-4 border rounded-lg">
-                <div className="space-y-3">
-                  <p className="font-semibold">{m.vorname} {m.nachname}</p>
+              <div key={m.id} className="p-3 md:p-4 border rounded-lg">
+                <div className="space-y-2 md:space-y-3">
+                  <p className="text-sm md:text-base font-semibold">{m.vorname} {m.nachname}</p>
                   
                   {/* Email Field */}
                   <div className="flex items-center space-x-2">
@@ -133,16 +133,16 @@ export function MietvertragTenantInfo({
         )}
         
         {/* Immobilie und Einheit Informationen */}
-        <div className="mt-6 pt-6 border-t">
-          <div className="space-y-4">
+        <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t">
+          <div className="space-y-3 md:space-y-4">
             {immobilie && (
-              <div className="flex items-center space-x-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <div>
+              <div className="flex items-start space-x-2">
+                <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div className="text-sm md:text-base">
                   <span className="font-medium">Immobilie: </span>
                   <span className="text-foreground">{immobilie.name}</span>
                   {immobilie.adresse && (
-                    <span className="text-muted-foreground text-sm ml-2">
+                    <span className="text-muted-foreground text-xs md:text-sm block md:inline md:ml-2">
                       ({immobilie.adresse})
                     </span>
                   )}
@@ -150,15 +150,15 @@ export function MietvertragTenantInfo({
               </div>
             )}
             {einheit && (
-              <div className="flex items-center space-x-2">
-                <Square className="h-4 w-4 text-muted-foreground" />
-                <div>
+              <div className="flex items-start space-x-2">
+                <Square className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div className="text-sm md:text-base">
                   <span className="font-medium">Einheit: </span>
                   <span className="text-foreground">
                     {einheit.einheitentyp} - {einheit.id?.slice(-2) || 'N/A'}
                   </span>
                   {einheit.qm && (
-                    <span className="text-muted-foreground text-sm ml-2">
+                    <span className="text-muted-foreground text-xs md:text-sm block md:inline md:ml-2">
                       ({Number(einheit.qm).toFixed(2)} m²)
                     </span>
                   )}
