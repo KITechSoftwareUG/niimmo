@@ -1,5 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, Building2, Square } from "lucide-react";
+import { Mail, Phone, Building2, Square, Pencil, Check, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useEditableField } from "@/hooks/useEditableField";
 
 interface MietvertragTenantInfoProps {
   mieter: any[];
@@ -12,6 +15,19 @@ export function MietvertragTenantInfo({
   immobilie,
   einheit
 }: MietvertragTenantInfoProps) {
+  const {
+    startEditing,
+    updateValue,
+    cancelEdit,
+    getEditingValue,
+    isFieldEditing,
+    saveSingleField
+  } = useEditableField();
+
+  const handleSave = async (mieterId: string, field: string) => {
+    await saveSingleField(mieterId, field, { table: 'mieter' });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -22,19 +38,91 @@ export function MietvertragTenantInfo({
           <div className="space-y-4">
             {mieter.map((m: any) => (
               <div key={m.id} className="p-4 border rounded-lg">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold">{m.vorname} {m.nachname}</p>
-                    <div className="text-sm text-muted-foreground space-y-1 mt-2">
-                      <div className="flex items-center space-x-2">
-                        <Mail className="h-4 w-4" />
-                        <span>{m.hauptmail || 'Keine E-Mail'}</span>
+                <div className="space-y-3">
+                  <p className="font-semibold">{m.vorname} {m.nachname}</p>
+                  
+                  {/* Email Field */}
+                  <div className="flex items-center space-x-2">
+                    <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    {isFieldEditing(m.id, 'hauptmail') ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <Input
+                          type="email"
+                          value={getEditingValue(m.id, 'hauptmail') || ''}
+                          onChange={(e) => updateValue(m.id, 'hauptmail', e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSave(m.id, 'hauptmail')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => cancelEdit(m.id, 'hauptmail')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Phone className="h-4 w-4" />
-                        <span>{m.telnr || 'Keine Telefonnummer'}</span>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-sm text-muted-foreground">
+                          {m.hauptmail || 'Keine E-Mail'}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => startEditing(m.id, 'hauptmail', m.hauptmail)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
                       </div>
-                    </div>
+                    )}
+                  </div>
+
+                  {/* Phone Field */}
+                  <div className="flex items-center space-x-2">
+                    <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    {isFieldEditing(m.id, 'telnr') ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <Input
+                          type="tel"
+                          value={getEditingValue(m.id, 'telnr') || ''}
+                          onChange={(e) => updateValue(m.id, 'telnr', e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSave(m.id, 'telnr')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => cancelEdit(m.id, 'telnr')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-sm text-muted-foreground">
+                          {m.telnr || 'Keine Telefonnummer'}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => startEditing(m.id, 'telnr', m.telnr)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
