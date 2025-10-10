@@ -24,8 +24,8 @@ export function MietvertragContractInfo({
   formatDatum,
   formatBetrag
 }: MietvertragContractInfoProps) {
-  const betriebskostenProQm = einheit?.qm && Number(einheit.qm) > 0 
-    ? Number(vertrag.betriebskosten || 0) / Number(einheit.qm) 
+  const gesamtmieteProQm = einheit?.qm && Number(einheit.qm) > 0 
+    ? (Number(vertrag.kaltmiete || 0) + Number(vertrag.betriebskosten || 0)) / Number(einheit.qm) 
     : null;
   return (
     <Card>
@@ -76,9 +76,9 @@ export function MietvertragContractInfo({
               formatter={formatBetrag}
               showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
             />
-            {betriebskostenProQm !== null && (
+            {gesamtmieteProQm !== null && (
               <p className="text-xs text-muted-foreground mt-1">
-                {formatBetrag(betriebskostenProQm)} pro m²
+                {formatBetrag(gesamtmieteProQm)} pro m²
               </p>
             )}
           </div>
