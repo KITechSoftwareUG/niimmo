@@ -63,31 +63,32 @@ export function MietvertragContractInfo({
             formatter={formatBetrag}
             showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
           />
-          <div>
-            <MietvertragEditableField
-              label="Betriebskosten"
-              value={Number(vertrag.betriebskosten || 0)}
-              isEditing={editingMietvertrag === 'betriebskosten'}
-              onEdit={() => onStartEdit('betriebskosten')}
-              onSave={(value) => onEditMietvertrag('betriebskosten', value)}
-              onCancel={onCancelEdit}
-              type="number"
-              step="0.01"
-              formatter={formatBetrag}
-              showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
-            />
-            {gesamtmieteProQm !== null && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatBetrag(gesamtmieteProQm)} pro m²
-              </p>
-            )}
-          </div>
+          <MietvertragEditableField
+            label="Betriebskosten"
+            value={Number(vertrag.betriebskosten || 0)}
+            isEditing={editingMietvertrag === 'betriebskosten'}
+            onEdit={() => onStartEdit('betriebskosten')}
+            onSave={(value) => onEditMietvertrag('betriebskosten', value)}
+            onCancel={onCancelEdit}
+            type="number"
+            step="0.01"
+            formatter={formatBetrag}
+            showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
+          />
           <div>
             <p className="text-sm font-medium text-muted-foreground">Gesamtmiete</p>
             <p className="text-lg font-bold text-green-600">
               {formatBetrag(Number(vertrag.kaltmiete || 0) + Number(vertrag.betriebskosten || 0))}
             </p>
           </div>
+          {gesamtmieteProQm !== null && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Kosten pro m²</p>
+              <p className="text-lg font-semibold">
+                {formatBetrag(gesamtmieteProQm)}
+              </p>
+            </div>
+          )}
         </div>
         
         {/* Show Rücklastschrift-Gebühr only for contracts with Lastschrift */}
