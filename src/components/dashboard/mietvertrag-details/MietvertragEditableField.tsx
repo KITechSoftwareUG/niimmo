@@ -17,6 +17,7 @@ interface MietvertragEditableFieldProps {
   formatter?: (value: string | number) => string;
   showLastUpdate?: string;
   placeholder?: string;
+  hideEditButton?: boolean;
 }
 
 export function MietvertragEditableField({
@@ -31,7 +32,8 @@ export function MietvertragEditableField({
   className = "",
   formatter,
   showLastUpdate,
-  placeholder
+  placeholder,
+  hideEditButton = false
 }: MietvertragEditableFieldProps) {
   const [editValue, setEditValue] = useState(value?.toString() || "");
 
@@ -91,14 +93,16 @@ export function MietvertragEditableField({
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
             <p className={`text-sm md:text-lg ${className}`}>{displayValue}</p>
-            <Button
-              onClick={handleEdit}
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 opacity-60 hover:opacity-100 flex-shrink-0"
-            >
-              <Edit2 className="h-3 w-3" />
-            </Button>
+            {!hideEditButton && (
+              <Button
+                onClick={handleEdit}
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 opacity-60 hover:opacity-100 flex-shrink-0"
+              >
+                <Edit2 className="h-3 w-3" />
+              </Button>
+            )}
           </div>
           {showLastUpdate && (
             <p className="text-xs text-muted-foreground">

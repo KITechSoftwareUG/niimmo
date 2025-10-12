@@ -6,6 +6,9 @@ import { MietvertragEditableField } from "./MietvertragEditableField";
 interface MietvertragContractInfoProps {
   vertrag: any;
   einheit?: any;
+  isGlobalEditMode?: boolean;
+  editedValues?: Record<string, any>;
+  onUpdateEditedValue?: (key: string, value: any) => void;
   editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null;
   onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr', value: string) => void;
   onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr') => void;
@@ -17,6 +20,9 @@ interface MietvertragContractInfoProps {
 export function MietvertragContractInfo({
   vertrag,
   einheit,
+  isGlobalEditMode = false,
+  editedValues = {},
+  onUpdateEditedValue,
   editingMietvertrag,
   onEditMietvertrag,
   onStartEdit,
@@ -24,8 +30,11 @@ export function MietvertragContractInfo({
   formatDatum,
   formatBetrag
 }: MietvertragContractInfoProps) {
+  const kaltmiete = isGlobalEditMode && editedValues.kaltmiete !== undefined ? editedValues.kaltmiete : vertrag.kaltmiete;
+  const betriebskosten = isGlobalEditMode && editedValues.betriebskosten !== undefined ? editedValues.betriebskosten : vertrag.betriebskosten;
+  
   const gesamtmieteProQm = einheit?.qm && Number(einheit.qm) > 0 
-    ? (Number(vertrag.kaltmiete || 0) + Number(vertrag.betriebskosten || 0)) / Number(einheit.qm) 
+    ? (Number(kaltmiete || 0) + Number(betriebskosten || 0)) / Number(einheit.qm) 
     : null;
   return (
     <Card>
@@ -52,33 +61,47 @@ export function MietvertragContractInfo({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           <MietvertragEditableField
             label="Kaltmiete"
-            value={Number(vertrag.kaltmiete || 0)}
-            isEditing={editingMietvertrag === 'kaltmiete'}
-            onEdit={() => onStartEdit('kaltmiete')}
-            onSave={(value) => onEditMietvertrag('kaltmiete', value)}
+            value={Number(kaltmiete || 0)}
+            isEditing={isGlobalEditMode || editingMietvertrag === 'kaltmiete'}
+            onEdit={() => !isGlobalEditMode && onStartEdit('kaltmiete')}
+            onSave={(value) => {
+              if (isGlobalEditMode) {
+                onUpdateEditedValue?.('kaltmiete', parseFloat(value));
+              } else {
+                onEditMietvertrag('kaltmiete', value);
+              }
+            }}
             onCancel={onCancelEdit}
             type="number"
             step="0.01"
             className="font-semibold"
             formatter={formatBetrag}
             showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
+            hideEditButton={isGlobalEditMode}
           />
           <MietvertragEditableField
             label="Betriebskosten"
-            value={Number(vertrag.betriebskosten || 0)}
-            isEditing={editingMietvertrag === 'betriebskosten'}
-            onEdit={() => onStartEdit('betriebskosten')}
-            onSave={(value) => onEditMietvertrag('betriebskosten', value)}
+            value={Number(betriebskosten || 0)}
+            isEditing={isGlobalEditMode || editingMietvertrag === 'betriebskosten'}
+            onEdit={() => !isGlobalEditMode && onStartEdit('betriebskosten')}
+            onSave={(value) => {
+              if (isGlobalEditMode) {
+                onUpdateEditedValue?.('betriebskosten', parseFloat(value));
+              } else {
+                onEditMietvertrag('betriebskosten', value);
+              }
+            }}
             onCancel={onCancelEdit}
             type="number"
             step="0.01"
             formatter={formatBetrag}
             showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
+            hideEditButton={isGlobalEditMode}
           />
           <div>
             <p className="text-sm font-medium text-muted-foreground">Gesamtmiete</p>
             <p className="text-lg font-bold text-green-600">
-              {formatBetrag(Number(vertrag.kaltmiete || 0) + Number(vertrag.betriebskosten || 0))}
+              {formatBetrag(Number(kaltmiete || 0) + Number(betriebskosten || 0))}
             </p>
           </div>
           {gesamtmieteProQm !== null && (

@@ -8,12 +8,18 @@ interface MietvertragTenantInfoProps {
   mieter: any[];
   immobilie?: any;
   einheit?: any;
+  isGlobalEditMode?: boolean;
+  editedValues?: Record<string, any>;
+  onUpdateEditedValue?: (key: string, value: any) => void;
 }
 
 export function MietvertragTenantInfo({
   mieter,
   immobilie,
-  einheit
+  einheit,
+  isGlobalEditMode = false,
+  editedValues = {},
+  onUpdateEditedValue
 }: MietvertragTenantInfoProps) {
   const {
     startEditing,
@@ -26,6 +32,29 @@ export function MietvertragTenantInfo({
 
   const handleSave = async (mieterId: string, field: string) => {
     await saveSingleField(mieterId, field, { table: 'mieter' });
+  };
+  
+  const getValue = (mieterId: string, field: string, originalValue: any) => {
+    const key = `mieter_${mieterId}_${field}`;
+    if (isGlobalEditMode && editedValues[key] !== undefined) {
+      return editedValues[key];
+    }
+    if (isFieldEditing(mieterId, field)) {
+      return getEditingValue(mieterId, field);
+    }
+    return originalValue;
+  };
+  
+  const handleChange = (mieterId: string, field: string, value: any) => {
+    if (isGlobalEditMode) {
+      onUpdateEditedValue?.(`mieter_${mieterId}_${field}`, value);
+    } else {
+      updateValue(mieterId, field, value);
+    }
+  };
+
+  const isEditing = (mieterId: string, field: string) => {
+    return isGlobalEditMode || isFieldEditing(mieterId, field);
   };
 
   return (
@@ -43,84 +72,96 @@ export function MietvertragTenantInfo({
                   <div className="space-y-2">
                     {/* Vorname Field */}
                     <div className="flex items-center space-x-2">
-                      {isFieldEditing(m.id, 'vorname') ? (
+                      {isEditing(m.id, 'vorname') ? (
                         <div className="flex items-center gap-2 flex-1">
                           <Input
                             type="text"
-                            value={getEditingValue(m.id, 'vorname') || ''}
-                            onChange={(e) => updateValue(m.id, 'vorname', e.target.value)}
+                            value={getValue(m.id, 'vorname', m.vorname) || ''}
+                            onChange={(e) => handleChange(m.id, 'vorname', e.target.value)}
                             className="flex-1"
                             placeholder="Vorname"
                           />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleSave(m.id, 'vorname')}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => cancelEdit(m.id, 'vorname')}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          {!isGlobalEditMode && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleSave(m.id, 'vorname')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => cancelEdit(m.id, 'vorname')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 flex-1">
                           <span className="text-sm md:text-base font-semibold">
-                            {m.vorname}
+                            {getValue(m.id, 'vorname', m.vorname)}
                           </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => startEditing(m.id, 'vorname', m.vorname)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
+                          {!isGlobalEditMode && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => startEditing(m.id, 'vorname', m.vorname)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
 
                     {/* Nachname Field */}
                     <div className="flex items-center space-x-2">
-                      {isFieldEditing(m.id, 'nachname') ? (
+                      {isEditing(m.id, 'nachname') ? (
                         <div className="flex items-center gap-2 flex-1">
                           <Input
                             type="text"
-                            value={getEditingValue(m.id, 'nachname') || ''}
-                            onChange={(e) => updateValue(m.id, 'nachname', e.target.value)}
+                            value={getValue(m.id, 'nachname', m.nachname) || ''}
+                            onChange={(e) => handleChange(m.id, 'nachname', e.target.value)}
                             className="flex-1"
                             placeholder="Nachname"
                           />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleSave(m.id, 'nachname')}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => cancelEdit(m.id, 'nachname')}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          {!isGlobalEditMode && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleSave(m.id, 'nachname')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => cancelEdit(m.id, 'nachname')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 flex-1">
                           <span className="text-sm md:text-base font-semibold">
-                            {m.nachname}
+                            {getValue(m.id, 'nachname', m.nachname)}
                           </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => startEditing(m.id, 'nachname', m.nachname)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
+                          {!isGlobalEditMode && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => startEditing(m.id, 'nachname', m.nachname)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -129,41 +170,47 @@ export function MietvertragTenantInfo({
                   {/* Email Field */}
                   <div className="flex items-center space-x-2">
                     <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    {isFieldEditing(m.id, 'hauptmail') ? (
+                    {isEditing(m.id, 'hauptmail') ? (
                       <div className="flex items-center gap-2 flex-1">
                         <Input
                           type="email"
-                          value={getEditingValue(m.id, 'hauptmail') || ''}
-                          onChange={(e) => updateValue(m.id, 'hauptmail', e.target.value)}
+                          value={getValue(m.id, 'hauptmail', m.hauptmail) || ''}
+                          onChange={(e) => handleChange(m.id, 'hauptmail', e.target.value)}
                           className="flex-1"
                         />
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleSave(m.id, 'hauptmail')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => cancelEdit(m.id, 'hauptmail')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                        {!isGlobalEditMode && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleSave(m.id, 'hauptmail')}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => cancelEdit(m.id, 'hauptmail')}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 flex-1">
                         <span className="text-sm text-muted-foreground">
-                          {m.hauptmail || 'Keine E-Mail'}
+                          {getValue(m.id, 'hauptmail', m.hauptmail) || 'Keine E-Mail'}
                         </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => startEditing(m.id, 'hauptmail', m.hauptmail)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
+                        {!isGlobalEditMode && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => startEditing(m.id, 'hauptmail', m.hauptmail)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -171,41 +218,47 @@ export function MietvertragTenantInfo({
                   {/* Phone Field */}
                   <div className="flex items-center space-x-2">
                     <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    {isFieldEditing(m.id, 'telnr') ? (
+                    {isEditing(m.id, 'telnr') ? (
                       <div className="flex items-center gap-2 flex-1">
                         <Input
                           type="tel"
-                          value={getEditingValue(m.id, 'telnr') || ''}
-                          onChange={(e) => updateValue(m.id, 'telnr', e.target.value)}
+                          value={getValue(m.id, 'telnr', m.telnr) || ''}
+                          onChange={(e) => handleChange(m.id, 'telnr', e.target.value)}
                           className="flex-1"
                         />
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleSave(m.id, 'telnr')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => cancelEdit(m.id, 'telnr')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                        {!isGlobalEditMode && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleSave(m.id, 'telnr')}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => cancelEdit(m.id, 'telnr')}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 flex-1">
                         <span className="text-sm text-muted-foreground">
-                          {m.telnr || 'Keine Telefonnummer'}
+                          {getValue(m.id, 'telnr', m.telnr) || 'Keine Telefonnummer'}
                         </span>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => startEditing(m.id, 'telnr', m.telnr)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
+                        {!isGlobalEditMode && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => startEditing(m.id, 'telnr', m.telnr)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>

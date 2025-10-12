@@ -32,7 +32,11 @@ export default function MietvertragDetailsModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Simplified state management
+  // Global edit mode state
+  const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
+  const [editedValues, setEditedValues] = useState<Record<string, any>>({});
+  
+  // Simplified state management (legacy - kept for backwards compatibility)
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
   const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null>(null);
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
@@ -436,6 +440,170 @@ export default function MietvertragDetailsModal({
     });
   };
 
+  // Global edit mode handlers
+  const handleStartGlobalEdit = () => {
+    // Initialize edited values with current data
+    const initialValues: Record<string, any> = {
+      kaltmiete: vertrag?.kaltmiete || 0,
+      betriebskosten: vertrag?.betriebskosten || 0,
+      ruecklastschrift_gebuehr: vertrag?.ruecklastschrift_gebuehr || 7.50,
+      neue_anschrift: vertrag?.neue_anschrift || '',
+      kaution_betrag: vertrag?.kaution_betrag || 0,
+      kaution_ist: vertrag?.kaution_ist || 0,
+      kaltwasser_einzug: vertrag?.kaltwasser_einzug || 0,
+      warmwasser_einzug: vertrag?.warmwasser_einzug || 0,
+      strom_einzug: vertrag?.strom_einzug || 0,
+      gas_einzug: vertrag?.gas_einzug || 0,
+      kaltwasser_auszug: vertrag?.kaltwasser_auszug || 0,
+      warmwasser_auszug: vertrag?.warmwasser_auszug || 0,
+      strom_auszug: vertrag?.strom_auszug || 0,
+      gas_auszug: vertrag?.gas_auszug || 0,
+    };
+    
+    // Add einheit meter numbers if available
+    if (einheit) {
+      initialValues.kaltwasser_zaehler = einheit.kaltwasser_zaehler || '';
+      initialValues.warmwasser_zaehler = einheit.warmwasser_zaehler || '';
+      initialValues.strom_zaehler = einheit.strom_zaehler || '';
+      initialValues.gas_zaehler = einheit.gas_zaehler || '';
+    }
+    
+    // Add mieter data
+    if (mieter) {
+      mieter.forEach((m: any) => {
+        initialValues[`mieter_${m.id}_vorname`] = m.vorname || '';
+        initialValues[`mieter_${m.id}_nachname`] = m.nachname || '';
+        initialValues[`mieter_${m.id}_hauptmail`] = m.hauptmail || '';
+        initialValues[`mieter_${m.id}_telnr`] = m.telnr || '';
+      });
+    }
+    
+    setEditedValues(initialValues);
+    setIsGlobalEditMode(true);
+  };
+
+  const handleCancelGlobalEdit = () => {
+    setEditedValues({});
+    setIsGlobalEditMode(false);
+  };
+
+  const handleSaveGlobalEdit = async () => {
+    try {
+      // Prepare mietvertrag updates
+      const mietvertragUpdates: any = {};
+      const mietvertragFields = [
+        'kaltmiete', 'betriebskosten', 'ruecklastschrift_gebuehr', 'neue_anschrift',
+        'kaution_betrag', 'kaution_ist',
+        'kaltwasser_einzug', 'warmwasser_einzug', 'strom_einzug', 'gas_einzug',
+        'kaltwasser_auszug', 'warmwasser_auszug', 'strom_auszug', 'gas_auszug'
+      ];
+      
+      mietvertragFields.forEach(field => {
+        if (editedValues[field] !== undefined) {
+          mietvertragUpdates[field] = editedValues[field];
+        }
+      });
+
+      // Check if rent increased
+      const oldKaltmiete = Number(vertrag?.kaltmiete || 0);
+      const oldBetriebskosten = Number(vertrag?.betriebskosten || 0);
+      const newKaltmiete = Number(editedValues.kaltmiete || 0);
+      const newBetriebskosten = Number(editedValues.betriebskosten || 0);
+      
+      if (newKaltmiete > oldKaltmiete || newBetriebskosten > oldBetriebskosten) {
+        mietvertragUpdates.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
+      }
+
+      // Update mietvertrag
+      if (Object.keys(mietvertragUpdates).length > 0) {
+        const { error: mietvertragError } = await supabase
+          .from('mietvertrag')
+          .update(mietvertragUpdates)
+          .eq('id', vertragId);
+
+        if (mietvertragError) throw mietvertragError;
+      }
+
+      // Update einheit meter numbers if changed
+      if (einheit) {
+        const einheitUpdates: any = {};
+        const einheitFields = ['kaltwasser_zaehler', 'warmwasser_zaehler', 'strom_zaehler', 'gas_zaehler'];
+        
+        einheitFields.forEach(field => {
+          if (editedValues[field] !== undefined) {
+            einheitUpdates[field] = editedValues[field];
+          }
+        });
+
+        if (Object.keys(einheitUpdates).length > 0) {
+          const { error: einheitError } = await supabase
+            .from('einheiten')
+            .update(einheitUpdates)
+            .eq('id', einheit.id);
+
+          if (einheitError) throw einheitError;
+        }
+      }
+
+      // Update mieter data
+      if (mieter) {
+        for (const m of mieter) {
+          const mieterUpdates: any = {};
+          
+          if (editedValues[`mieter_${m.id}_vorname`] !== undefined) {
+            mieterUpdates.vorname = editedValues[`mieter_${m.id}_vorname`];
+          }
+          if (editedValues[`mieter_${m.id}_nachname`] !== undefined) {
+            mieterUpdates.nachname = editedValues[`mieter_${m.id}_nachname`];
+          }
+          if (editedValues[`mieter_${m.id}_hauptmail`] !== undefined) {
+            mieterUpdates.hauptmail = editedValues[`mieter_${m.id}_hauptmail`];
+          }
+          if (editedValues[`mieter_${m.id}_telnr`] !== undefined) {
+            mieterUpdates.telnr = editedValues[`mieter_${m.id}_telnr`];
+          }
+
+          if (Object.keys(mieterUpdates).length > 0) {
+            const { error: mieterError } = await supabase
+              .from('mieter')
+              .update(mieterUpdates)
+              .eq('id', m.id);
+
+            if (mieterError) throw mieterError;
+          }
+        }
+      }
+
+      // Invalidate queries
+      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-mieter-detail', vertragId] });
+      await queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+
+      toast({
+        title: "Erfolgreich gespeichert",
+        description: "Alle Änderungen wurden übernommen.",
+      });
+
+      setIsGlobalEditMode(false);
+      setEditedValues({});
+
+    } catch (error) {
+      console.error('Fehler beim Speichern:', error);
+      toast({
+        title: "Fehler",
+        description: "Die Änderungen konnten nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateEditedValue = (key: string, value: any) => {
+    setEditedValues(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
   // Loading state
   if (vertragLoading) {
     return (
@@ -468,10 +636,28 @@ export default function MietvertragDetailsModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] h-[95vh] md:h-auto overflow-hidden flex flex-col p-4 md:p-6">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
-            <Building2 className="h-4 w-4 md:h-5 md:w-5" />
-            <span>Mietvertrag Details</span>
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
+              <Building2 className="h-4 w-4 md:h-5 md:w-5" />
+              <span>Mietvertrag Details</span>
+            </DialogTitle>
+            <div className="flex gap-2">
+              {!isGlobalEditMode ? (
+                <Button onClick={handleStartGlobalEdit} variant="outline" size="sm">
+                  Bearbeiten
+                </Button>
+              ) : (
+                <>
+                  <Button onClick={handleSaveGlobalEdit} size="sm">
+                    Speichern
+                  </Button>
+                  <Button onClick={handleCancelGlobalEdit} variant="outline" size="sm">
+                    Abbrechen
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto -mx-4 md:-mx-6 px-4 md:px-6">
@@ -489,6 +675,9 @@ export default function MietvertragDetailsModal({
                 zahlungen={zahlungen || []}
                 immobilie={immobilie}
                 einheit={einheit}
+                isGlobalEditMode={isGlobalEditMode}
+                editedValues={editedValues}
+                onUpdateEditedValue={handleUpdateEditedValue}
                 editingMietvertrag={editingMietvertrag}
                 editingKaution={editingKaution}
                 onEditMietvertrag={handleEditMietvertrag}

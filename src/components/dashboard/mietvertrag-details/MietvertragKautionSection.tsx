@@ -4,6 +4,9 @@ import { Euro } from "lucide-react";
 
 interface MietvertragKautionSectionProps {
   vertrag: any;
+  isGlobalEditMode?: boolean;
+  editedValues?: Record<string, any>;
+  onUpdateEditedValue?: (key: string, value: any) => void;
   editingKaution: 'soll' | 'ist' | null;
   onEditKaution: (field: 'soll' | 'ist', value: string) => void;
   onStartEditKaution: (field: 'soll' | 'ist') => void;
@@ -13,14 +16,21 @@ interface MietvertragKautionSectionProps {
 
 export function MietvertragKautionSection({
   vertrag,
+  isGlobalEditMode = false,
+  editedValues = {},
+  onUpdateEditedValue,
   editingKaution,
   onEditKaution,
   onStartEditKaution,
   onCancelEditKaution,
   formatBetrag
 }: MietvertragKautionSectionProps) {
-  const kautionSoll = Number(vertrag.kaution_betrag || 0);
-  const kautionIst = Number(vertrag.kaution_ist || 0);
+  const kautionSoll = isGlobalEditMode && editedValues.kaution_betrag !== undefined 
+    ? Number(editedValues.kaution_betrag) 
+    : Number(vertrag.kaution_betrag || 0);
+  const kautionIst = isGlobalEditMode && editedValues.kaution_ist !== undefined 
+    ? Number(editedValues.kaution_ist) 
+    : Number(vertrag.kaution_ist || 0);
   const kautionDifferenz = kautionSoll - kautionIst;
 
   return (
@@ -37,26 +47,40 @@ export function MietvertragKautionSection({
             <MietvertragEditableField
               label="Kaution Soll"
               value={kautionSoll}
-              isEditing={editingKaution === 'soll'}
-              onEdit={() => onStartEditKaution('soll')}
-              onSave={(value) => onEditKaution('soll', value)}
+              isEditing={isGlobalEditMode || editingKaution === 'soll'}
+              onEdit={() => !isGlobalEditMode && onStartEditKaution('soll')}
+              onSave={(value) => {
+                if (isGlobalEditMode) {
+                  onUpdateEditedValue?.('kaution_betrag', parseFloat(value));
+                } else {
+                  onEditKaution('soll', value);
+                }
+              }}
               onCancel={onCancelEditKaution}
               type="number"
               className="font-semibold text-blue-800"
               formatter={formatBetrag}
+              hideEditButton={isGlobalEditMode}
             />
           </div>
           <div className="p-4 border rounded-lg bg-green-50 border-green-200">
             <MietvertragEditableField
               label="Kaution Ist"
               value={kautionIst}
-              isEditing={editingKaution === 'ist'}
-              onEdit={() => onStartEditKaution('ist')}
-              onSave={(value) => onEditKaution('ist', value)}
+              isEditing={isGlobalEditMode || editingKaution === 'ist'}
+              onEdit={() => !isGlobalEditMode && onStartEditKaution('ist')}
+              onSave={(value) => {
+                if (isGlobalEditMode) {
+                  onUpdateEditedValue?.('kaution_ist', parseFloat(value));
+                } else {
+                  onEditKaution('ist', value);
+                }
+              }}
               onCancel={onCancelEditKaution}
               type="number"
               className="font-semibold text-green-800"
               formatter={formatBetrag}
+              hideEditButton={isGlobalEditMode}
             />
           </div>
           <div className="p-4 border rounded-lg bg-gray-50 border-gray-200">

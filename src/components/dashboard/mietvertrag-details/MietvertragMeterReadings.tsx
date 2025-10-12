@@ -8,6 +8,9 @@ import { MietvertragEditableField } from "./MietvertragEditableField";
 interface MietvertragMeterReadingsProps {
   vertrag: any;
   einheit?: any;
+  isGlobalEditMode?: boolean;
+  editedValues?: Record<string, any>;
+  onUpdateEditedValue?: (key: string, value: any) => void;
   editingMeter: string | null;
   editingMeterNumber: string | null;
   onEditMeter: (field: string, value: string) => void;
@@ -21,6 +24,9 @@ interface MietvertragMeterReadingsProps {
 export function MietvertragMeterReadings({
   vertrag,
   einheit,
+  isGlobalEditMode = false,
+  editedValues = {},
+  onUpdateEditedValue,
   editingMeter,
   editingMeterNumber,
   onEditMeter,
@@ -130,12 +136,19 @@ export function MietvertragMeterReadings({
                       <MietvertragEditableField
                         label="Zählernummer"
                         value={meter.number || ""}
-                        isEditing={editingMeterNumber === `${meter.key}_zaehler`}
-                        onEdit={() => onStartEditMeterNumber(`${meter.key}_zaehler`)}
-                        onSave={(value) => onEditMeterNumber(`${meter.key}_zaehler`, value)}
+                        isEditing={isGlobalEditMode || editingMeterNumber === `${meter.key}_zaehler`}
+                        onEdit={() => !isGlobalEditMode && onStartEditMeterNumber(`${meter.key}_zaehler`)}
+                        onSave={(value) => {
+                          if (isGlobalEditMode) {
+                            onUpdateEditedValue?.(`${meter.key}_zaehler`, value);
+                          } else {
+                            onEditMeterNumber(`${meter.key}_zaehler`, value);
+                          }
+                        }}
                         onCancel={onCancelEditMeterNumber}
                         type="text"
                         formatter={(value) => String(value) || "Nicht gesetzt"}
+                        hideEditButton={isGlobalEditMode}
                       />
                     </div>
                   </div>
@@ -149,13 +162,20 @@ export function MietvertragMeterReadings({
                       <MietvertragEditableField
                         label="Bei Einzug"
                         value={Number(meter.einzug || 0)}
-                        isEditing={editingMeter === `${meter.key}_einzug`}
-                        onEdit={() => onStartEditMeter(`${meter.key}_einzug`)}
-                        onSave={(value) => onEditMeter(`${meter.key}_einzug`, value)}
+                        isEditing={isGlobalEditMode || editingMeter === `${meter.key}_einzug`}
+                        onEdit={() => !isGlobalEditMode && onStartEditMeter(`${meter.key}_einzug`)}
+                        onSave={(value) => {
+                          if (isGlobalEditMode) {
+                            onUpdateEditedValue?.(`${meter.key}_einzug`, parseFloat(value));
+                          } else {
+                            onEditMeter(`${meter.key}_einzug`, value);
+                          }
+                        }}
                         onCancel={onCancelEditMeter}
                         type="number"
                         step="0.01"
                         formatter={formatMeterValue}
+                        hideEditButton={isGlobalEditMode}
                       />
                     </div>
                     
@@ -166,13 +186,20 @@ export function MietvertragMeterReadings({
                       <MietvertragEditableField
                         label="Bei Auszug"
                         value={Number(meter.auszug || 0)}
-                        isEditing={editingMeter === `${meter.key}_auszug`}
-                        onEdit={() => onStartEditMeter(`${meter.key}_auszug`)}
-                        onSave={(value) => onEditMeter(`${meter.key}_auszug`, value)}
+                        isEditing={isGlobalEditMode || editingMeter === `${meter.key}_auszug`}
+                        onEdit={() => !isGlobalEditMode && onStartEditMeter(`${meter.key}_auszug`)}
+                        onSave={(value) => {
+                          if (isGlobalEditMode) {
+                            onUpdateEditedValue?.(`${meter.key}_auszug`, parseFloat(value));
+                          } else {
+                            onEditMeter(`${meter.key}_auszug`, value);
+                          }
+                        }}
                         onCancel={onCancelEditMeter}
                         type="number"
                         step="0.01"
                         formatter={formatMeterValue}
+                        hideEditButton={isGlobalEditMode}
                       />
                     </div>
                   </div>

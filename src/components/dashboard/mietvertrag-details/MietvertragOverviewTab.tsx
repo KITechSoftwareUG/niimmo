@@ -13,6 +13,9 @@ interface MietvertragOverviewTabProps {
   vertragId: string;
   immobilie?: any;
   einheit?: any;
+  isGlobalEditMode?: boolean;
+  editedValues?: Record<string, any>;
+  onUpdateEditedValue?: (key: string, value: any) => void;
   editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null;
   editingKaution: 'soll' | 'ist' | null;
   editingMeter: string | null;
@@ -43,6 +46,9 @@ export function MietvertragOverviewTab({
   vertragId,
   immobilie,
   einheit,
+  isGlobalEditMode = false,
+  editedValues = {},
+  onUpdateEditedValue,
   editingMietvertrag,
   editingKaution,
   editingMeter,
@@ -70,6 +76,9 @@ export function MietvertragOverviewTab({
         <MietvertragContractInfo
           vertrag={vertrag}
           einheit={einheit}
+          isGlobalEditMode={isGlobalEditMode}
+          editedValues={editedValues}
+          onUpdateEditedValue={onUpdateEditedValue}
           editingMietvertrag={editingMietvertrag}
           onEditMietvertrag={onEditMietvertrag}
           onStartEdit={onStartEdit}
@@ -81,12 +90,18 @@ export function MietvertragOverviewTab({
           mieter={mieter}
           immobilie={immobilie}
           einheit={einheit}
+          isGlobalEditMode={isGlobalEditMode}
+          editedValues={editedValues}
+          onUpdateEditedValue={onUpdateEditedValue}
         />
       </div>
 
       {/* Kaution Section */}
       <MietvertragKautionSection
         vertrag={vertrag}
+        isGlobalEditMode={isGlobalEditMode}
+        editedValues={editedValues}
+        onUpdateEditedValue={onUpdateEditedValue}
         editingKaution={editingKaution}
         onEditKaution={onEditKaution}
         onStartEditKaution={onStartEditKaution}
@@ -98,6 +113,9 @@ export function MietvertragOverviewTab({
       <MietvertragMeterReadings
         vertrag={vertrag}
         einheit={einheit}
+        isGlobalEditMode={isGlobalEditMode}
+        editedValues={editedValues}
+        onUpdateEditedValue={onUpdateEditedValue}
         editingMeter={editingMeter}
         editingMeterNumber={editingMeterNumber}
         onEditMeter={onEditMeter}
