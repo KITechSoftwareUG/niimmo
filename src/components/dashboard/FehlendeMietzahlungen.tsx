@@ -251,7 +251,8 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
             <div className="space-y-4 animate-fade-in">
               {sortedFehlendeMietzahlungen.map((rueckstand) => (
                 <Card 
-                  key={rueckstand.mietvertrag_id} 
+                  key={rueckstand.mietvertrag_id}
+                  id={`rueckstand-${rueckstand.mietvertrag_id}`}
                   className="border border-red-200 bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer hover-scale"
                   onClick={(e) => handleMietvertragClick(rueckstand.mietvertrag_id, e)}
                 >

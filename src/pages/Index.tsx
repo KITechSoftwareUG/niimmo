@@ -24,6 +24,7 @@ const Index = () => {
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
+  const [scrollToContractId, setScrollToContractId] = useState<string | null>(null);
   const {
     data: immobilien,
     isLoading,
@@ -95,16 +96,37 @@ const Index = () => {
       setSelectedMietvertrag(null);
       setNavigationSource('dashboard');
 
-      // Ensure the originating list is open and scroll into view
+      // Ensure the originating list is open and scroll to specific contract card
       setTimeout(() => {
         if (listSource === 'rueckstaende') {
           setRueckstaendeOpen(true);
-          document.getElementById('rueckstaende-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Scroll to specific contract card if we have the ID
+          if (scrollToContractId) {
+            setTimeout(() => {
+              const element = document.getElementById(`rueckstand-${scrollToContractId}`);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 100); // Wait for list to open
+          } else {
+            document.getElementById('rueckstaende-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         } else if (listSource === 'rentincrease') {
           setRentIncreaseOpen(true);
-          document.getElementById('rentincrease-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Scroll to specific contract card if we have the ID
+          if (scrollToContractId) {
+            setTimeout(() => {
+              const element = document.getElementById(`rentincrease-${scrollToContractId}`);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 100); // Wait for list to open
+          } else {
+            document.getElementById('rentincrease-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         }
         setListSource(null);
+        setScrollToContractId(null);
       }, 0);
     } else if (navigationSource === 'search') {
       // Coming from search, go back to dashboard and scroll to search
@@ -149,6 +171,7 @@ const Index = () => {
       setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);
       setSelectedEinheit(mietvertrag.einheit_id);
       setSelectedMietvertrag(mietvertragId);
+      setScrollToContractId(mietvertragId); // Store for scroll-back
       setNavigationSource('dashboard');
     }
   };
@@ -186,6 +209,7 @@ const Index = () => {
       setSelectedImmobilie(mietvertrag.einheiten.immobilie_id);
       setSelectedEinheit(mietvertrag.einheit_id);
       setSelectedMietvertrag(mietvertragId);
+      setScrollToContractId(mietvertragId); // Store for scroll-back
       setNavigationSource('dashboard');
     }
   };

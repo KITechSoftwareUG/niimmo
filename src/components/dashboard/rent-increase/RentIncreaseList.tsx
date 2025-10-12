@@ -151,7 +151,11 @@ export function RentIncreaseList({ onContractClick, open, onOpenChange }: RentIn
                 const immobilieDisplay = row.immobilie_id ? row.immobilie_id.slice(-2) : 'N/A';
                 
                 return (
-                  <div key={row.mietvertrag_id} className="flex items-center justify-between rounded-lg border p-3 bg-background gap-3">
+                  <div 
+                    key={row.mietvertrag_id}
+                    id={`rentincrease-${row.mietvertrag_id}`}
+                    className="flex items-center justify-between rounded-lg border p-3 bg-background gap-3"
+                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <span className="text-foreground">Objekt {immobilieDisplay}</span>
