@@ -171,7 +171,8 @@ export const useRueckstaende = () => {
         console.log(`Mietvertrag ${mietvertrag.id}: Forderungen=${gesamtForderungen}, Zahlungen=${gesamtZahlungen}, Rückstand=${rueckstand}`);
         
         // Zeige nur Nettostand (Rückstand oder Guthaben nach Aufrechnung)
-        if (rueckstand !== 0) {
+        // Filtere auch sehr kleine Beträge unter 1 Cent aus
+        if (Math.abs(rueckstand) >= 0.01) {
           // Lade zusätzliche Informationen
           const einheit = einheiten?.find(e => e.id === mietvertrag.einheit_id);
           const immobilie = immobilien?.find(i => i.id === einheit?.immobilie_id);

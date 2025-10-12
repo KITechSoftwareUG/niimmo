@@ -33,8 +33,8 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
   const sortedFehlendeMietzahlungen = useMemo(() => {
     if (!fehlendeMietzahlungen) return [];
     
-    // 1. Filter out zero amounts first
-    let filtered = fehlendeMietzahlungen.filter(item => item.fehlend_betrag !== 0);
+    // 1. Filter out zero amounts and very small amounts (< 0.01 EUR) first
+    let filtered = fehlendeMietzahlungen.filter(item => Math.abs(item.fehlend_betrag) >= 0.01);
     
     // 2. Apply amount type filter (debt/credit)
     if (amountFilter === 'debt') {
