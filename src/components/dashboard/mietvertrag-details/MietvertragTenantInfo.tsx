@@ -39,7 +39,92 @@ export function MietvertragTenantInfo({
             {mieter.map((m: any) => (
               <div key={m.id} className="p-3 md:p-4 border rounded-lg">
                 <div className="space-y-2 md:space-y-3">
-                  <p className="text-sm md:text-base font-semibold">{m.vorname} {m.nachname}</p>
+                  {/* Name Fields */}
+                  <div className="space-y-2">
+                    {/* Vorname Field */}
+                    <div className="flex items-center space-x-2">
+                      {isFieldEditing(m.id, 'vorname') ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            type="text"
+                            value={getEditingValue(m.id, 'vorname') || ''}
+                            onChange={(e) => updateValue(m.id, 'vorname', e.target.value)}
+                            className="flex-1"
+                            placeholder="Vorname"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleSave(m.id, 'vorname')}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => cancelEdit(m.id, 'vorname')}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-sm md:text-base font-semibold">
+                            {m.vorname}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => startEditing(m.id, 'vorname', m.vorname)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Nachname Field */}
+                    <div className="flex items-center space-x-2">
+                      {isFieldEditing(m.id, 'nachname') ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            type="text"
+                            value={getEditingValue(m.id, 'nachname') || ''}
+                            onChange={(e) => updateValue(m.id, 'nachname', e.target.value)}
+                            className="flex-1"
+                            placeholder="Nachname"
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleSave(m.id, 'nachname')}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => cancelEdit(m.id, 'nachname')}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-sm md:text-base font-semibold">
+                            {m.nachname}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => startEditing(m.id, 'nachname', m.nachname)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   
                   {/* Email Field */}
                   <div className="flex items-center space-x-2">
