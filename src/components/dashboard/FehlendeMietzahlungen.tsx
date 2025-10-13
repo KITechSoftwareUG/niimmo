@@ -30,8 +30,8 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
   const [minAmountFilter, setMinAmountFilter] = useState<MinAmountFilter>('all');
   const { data: fehlendeMietzahlungen, isLoading, error } = useRueckstaende();
 
-  const sortedFehlendeMietzahlungen = useMemo(() => {
-    if (!fehlendeMietzahlungen) return [];
+  const { rueckstaende, guthaben, sortedFehlendeMietzahlungen } = useMemo(() => {
+    if (!fehlendeMietzahlungen) return { rueckstaende: [], guthaben: [], sortedFehlendeMietzahlungen: [] };
     
     // 1. Filter out zero amounts and very small amounts (< 0.01 EUR) first
     let filtered = fehlendeMietzahlungen.filter(item => Math.abs(item.fehlend_betrag) >= 0.01);
@@ -76,8 +76,19 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
       return sortDirection === 'asc' ? comparison : -comparison;
     });
     
-    return sorted;
+    // 5. Split into Rückstände and Guthaben
+    const rueckstaendeList = sorted.filter(item => !item.ist_guthaben);
+    const guthabenList = sorted.filter(item => item.ist_guthaben);
+    
+    return {
+      rueckstaende: rueckstaendeList,
+      guthaben: guthabenList,
+      sortedFehlendeMietzahlungen: sorted
+    };
   }, [fehlendeMietzahlungen, sortBy, sortDirection, amountFilter, minAmountFilter]);
+
+  const gesamtRueckstandBetrag = rueckstaende.reduce((sum, item) => sum + item.fehlend_betrag, 0);
+  const gesamtGuthabenBetrag = guthaben.reduce((sum, item) => sum + item.fehlend_betrag, 0);
 
   const gesamtRueckstand = fehlendeMietzahlungen?.reduce((sum, item) => {
     return sum + (item.ist_guthaben ? -item.fehlend_betrag : item.fehlend_betrag);
@@ -246,101 +257,218 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
             </div>
           )}
           
-          {/* Contract List */}
+          {/* Contract List - Grouped by Rückstände and Guthaben */}
           {sortedFehlendeMietzahlungen && sortedFehlendeMietzahlungen.length > 0 ? (
-            <div className="space-y-4 animate-fade-in">
-              {sortedFehlendeMietzahlungen.map((rueckstand) => (
-                <Card 
-                  key={rueckstand.mietvertrag_id}
-                  id={`rueckstand-${rueckstand.mietvertrag_id}`}
-                  className="border border-red-200 bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer hover-scale"
-                  onClick={(e) => handleMietvertragClick(rueckstand.mietvertrag_id, e)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 space-y-2">
-                        {/* Property and Unit Info */}
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900">
-                            {rueckstand.immobilie_name}
-                          </h3>
-                          <Badge variant="outline" className="text-xs">
-                            {rueckstand.einheit_typ} - {rueckstand.einheit_etage}
-                          </Badge>
-                        </div>
-                        
-                        {/* Address */}
-                        <p className="text-sm text-gray-600">{rueckstand.immobilie_adresse}</p>
-                        
-                        {/* Tenant Info */}
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <User className="h-4 w-4" />
-                            <span>{rueckstand.mieter_name}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Euro className="h-4 w-4" />
-                            <span>Kaltmiete: {formatBetrag(rueckstand.kaltmiete)}</span>
-                          </div>
-                          {rueckstand.einheit_qm > 0 && (
-                            <span>{rueckstand.einheit_qm} m²</span>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 pt-2 text-sm">
-                          <div>
-                            <p className="text-gray-600">Forderungen</p>
-                            <p className="font-medium">{formatBetrag(rueckstand.gesamt_forderungen)}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">Zahlungen</p>
-                            <p className="font-medium text-green-600">{formatBetrag(rueckstand.gesamt_zahlungen)}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600">{rueckstand.ist_guthaben ? 'Guthaben' : 'Rückstand'}</p>
-                            <p className={`font-bold ${rueckstand.ist_guthaben ? 'text-green-600' : 'text-red-600'}`}>
-                              {rueckstand.ist_guthaben ? 'Guthaben: ' : 'Rückstand: '}
-                              {formatBetrag(rueckstand.fehlend_betrag)}
-                               {/* Alle Forderungen sind nun fällig - kein Text mehr nötig */}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Section */}
-                      <div className="flex flex-col items-end gap-2 ml-4">
-                        {/* Mahnstufe */}
-                        {rueckstand.mahnstufe > 0 && (
-                          <Badge variant="destructive" className="text-xs">
-                            Mahnstufe {rueckstand.mahnstufe}
-                          </Badge>
-                        )}
-                        
-                        {/* View Button */}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={(e) => handleMietvertragClick(rueckstand.mietvertrag_id, e)}
-                          className="gap-2"
-                        >
-                          <Eye className="h-4 w-4" />
-                          Details
-                        </Button>
-                      </div>
+            <div className="space-y-6 animate-fade-in">
+              {/* Rückstände Section */}
+              {rueckstaende.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      <h3 className="font-semibold text-red-900">Rückstände</h3>
+                      <Badge variant="destructive" className="text-xs">
+                        {rueckstaende.length} Vertrag{rueckstaende.length !== 1 ? 'e' : ''}
+                      </Badge>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    <p className="font-bold text-red-600">
+                      {formatBetrag(gesamtRueckstandBetrag)}
+                    </p>
+                  </div>
+                  
+                  {rueckstaende.map((rueckstand) => (
+                    <Card 
+                      key={rueckstand.mietvertrag_id}
+                      id={`rueckstand-${rueckstand.mietvertrag_id}`}
+                      className="border border-red-200 bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer hover-scale"
+                      onClick={(e) => handleMietvertragClick(rueckstand.mietvertrag_id, e)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 space-y-2">
+                            {/* Property and Unit Info */}
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-gray-900">
+                                {rueckstand.immobilie_name}
+                              </h3>
+                              <Badge variant="outline" className="text-xs">
+                                {rueckstand.einheit_typ} - {rueckstand.einheit_etage}
+                              </Badge>
+                            </div>
+                            
+                            {/* Address */}
+                            <p className="text-sm text-gray-600">{rueckstand.immobilie_adresse}</p>
+                            
+                            {/* Tenant Info */}
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <div className="flex items-center gap-1">
+                                <User className="h-4 w-4" />
+                                <span>{rueckstand.mieter_name}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Euro className="h-4 w-4" />
+                                <span>Kaltmiete: {formatBetrag(rueckstand.kaltmiete)}</span>
+                              </div>
+                              {rueckstand.einheit_qm > 0 && (
+                                <span>{rueckstand.einheit_qm} m²</span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4 pt-2 text-sm">
+                              <div>
+                                <p className="text-gray-600">Forderungen</p>
+                                <p className="font-medium">{formatBetrag(rueckstand.gesamt_forderungen)}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Zahlungen</p>
+                                <p className="font-medium text-green-600">{formatBetrag(rueckstand.gesamt_zahlungen)}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Rückstand</p>
+                                <p className="font-bold text-red-600">
+                                  {formatBetrag(rueckstand.fehlend_betrag)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Section */}
+                          <div className="flex flex-col items-end gap-2 ml-4">
+                            {/* Mahnstufe */}
+                            {rueckstand.mahnstufe > 0 && (
+                              <Badge variant="destructive" className="text-xs">
+                                Mahnstufe {rueckstand.mahnstufe}
+                              </Badge>
+                            )}
+                            
+                            {/* View Button */}
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => handleMietvertragClick(rueckstand.mietvertrag_id, e)}
+                              className="gap-2"
+                            >
+                              <Eye className="h-4 w-4" />
+                              Details
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Guthaben Section */}
+              {guthaben.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Euro className="h-5 w-5 text-green-600" />
+                      <h3 className="font-semibold text-green-900">Guthaben</h3>
+                      <Badge className="text-xs bg-green-600">
+                        {guthaben.length} Vertrag{guthaben.length !== 1 ? 'e' : ''}
+                      </Badge>
+                    </div>
+                    <p className="font-bold text-green-600">
+                      {formatBetrag(gesamtGuthabenBetrag)}
+                    </p>
+                  </div>
+                  
+                  {guthaben.map((guthabenItem) => (
+                    <Card 
+                      key={guthabenItem.mietvertrag_id}
+                      id={`rueckstand-${guthabenItem.mietvertrag_id}`}
+                      className="border border-green-200 bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer hover-scale"
+                      onClick={(e) => handleMietvertragClick(guthabenItem.mietvertrag_id, e)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 space-y-2">
+                            {/* Property and Unit Info */}
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-gray-900">
+                                {guthabenItem.immobilie_name}
+                              </h3>
+                              <Badge variant="outline" className="text-xs">
+                                {guthabenItem.einheit_typ} - {guthabenItem.einheit_etage}
+                              </Badge>
+                            </div>
+                            
+                            {/* Address */}
+                            <p className="text-sm text-gray-600">{guthabenItem.immobilie_adresse}</p>
+                            
+                            {/* Tenant Info */}
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <div className="flex items-center gap-1">
+                                <User className="h-4 w-4" />
+                                <span>{guthabenItem.mieter_name}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Euro className="h-4 w-4" />
+                                <span>Kaltmiete: {formatBetrag(guthabenItem.kaltmiete)}</span>
+                              </div>
+                              {guthabenItem.einheit_qm > 0 && (
+                                <span>{guthabenItem.einheit_qm} m²</span>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4 pt-2 text-sm">
+                              <div>
+                                <p className="text-gray-600">Forderungen</p>
+                                <p className="font-medium">{formatBetrag(guthabenItem.gesamt_forderungen)}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Zahlungen</p>
+                                <p className="font-medium text-green-600">{formatBetrag(guthabenItem.gesamt_zahlungen)}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Guthaben</p>
+                                <p className="font-bold text-green-600">
+                                  {formatBetrag(guthabenItem.fehlend_betrag)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Section */}
+                          <div className="flex flex-col items-end gap-2 ml-4">
+                            {/* View Button */}
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => handleMietvertragClick(guthabenItem.mietvertrag_id, e)}
+                              className="gap-2"
+                            >
+                              <Eye className="h-4 w-4" />
+                              Details
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
               
               {/* Summary Footer */}
-              <div className="pt-4 border-t border-red-200">
+              <div className="pt-4 border-t border-gray-300">
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-600">
                     {sortedFehlendeMietzahlungen.length} Mietvertrag{sortedFehlendeMietzahlungen.length !== 1 ? 'e' : ''} mit Rückständen oder Guthaben
                   </p>
-                  <p className={`font-semibold ${gesamtRueckstand > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {gesamtRueckstand > 0 ? 'Gesamtrückstand' : 'Gesamtguthaben'}: {formatBetrag(Math.abs(gesamtRueckstand))}
-                  </p>
+                  <div className="flex gap-4">
+                    {rueckstaende.length > 0 && (
+                      <p className="font-semibold text-red-600">
+                        Rückstände: {formatBetrag(gesamtRueckstandBetrag)}
+                      </p>
+                    )}
+                    {guthaben.length > 0 && (
+                      <p className="font-semibold text-green-600">
+                        Guthaben: {formatBetrag(gesamtGuthabenBetrag)}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
