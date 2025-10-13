@@ -30,64 +30,87 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get all payments
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('zahlungen')
-        .select(`
-          id,
-          betrag,
-          buchungsdatum,
-          verwendungszweck,
-          empfaengername,
-          zugeordneter_monat,
-          kategorie,
-          mietvertrag_id,
-          mietvertrag:mietvertrag_id (
-            id,
-            einheit_id,
-            einheiten:einheit_id (
-              id,
-              einheitentyp,
-              immobilie_id,
-              immobilien:immobilie_id (
-                name,
-                adresse
-              )
-            )
-          ),
-          mietvertrag_mieter!inner (
-            mieter:mieter_id (
-              vorname,
-              nachname
-            )
-          )
-        `)
+        .select('*')
         .neq('kategorie', 'Nichtmiete')
         .order('buchungsdatum', { ascending: false });
 
-      if (error) throw error;
+      if (paymentsError) throw paymentsError;
 
-      // Transform data
-      const transformed: ZahlungWithDetails[] = (data || []).map((zahlung: any) => {
-        const einheit = zahlung.mietvertrag?.einheiten;
-        const immobilie = einheit?.immobilien;
-        const mieter = zahlung.mietvertrag_mieter?.[0]?.mieter;
+      // Transform data by fetching related information
+      const transformed: ZahlungWithDetails[] = await Promise.all(
+        (paymentsData || []).map(async (zahlung: any) => {
+          let immobilie_name = null;
+          let immobilie_adresse = null;
+          let einheit_id = null;
+          let einheit_typ = null;
+          let mieter_name = null;
 
-        return {
-          id: zahlung.id,
-          betrag: zahlung.betrag,
-          buchungsdatum: zahlung.buchungsdatum,
-          verwendungszweck: zahlung.verwendungszweck,
-          empfaengername: zahlung.empfaengername,
-          zugeordneter_monat: zahlung.zugeordneter_monat,
-          kategorie: zahlung.kategorie,
-          mietvertrag_id: zahlung.mietvertrag_id,
-          immobilie_name: immobilie?.name || null,
-          immobilie_adresse: immobilie?.adresse || null,
-          einheit_id: einheit?.id || null,
-          einheit_typ: einheit?.einheitentyp || null,
-          mieter_name: mieter ? `${mieter.vorname} ${mieter.nachname}` : null,
-        };
-      });
+          if (zahlung.mietvertrag_id) {
+            // Get contract details
+            const { data: contractData } = await supabase
+              .from('mietvertrag')
+              .select(`
+                einheit_id,
+                einheiten:einheit_id (
+                  id,
+                  einheitentyp,
+                  immobilie_id,
+                  immobilien:immobilie_id (
+                    name,
+                    adresse
+                  )
+                )
+              `)
+              .eq('id', zahlung.mietvertrag_id)
+              .single();
+
+            if (contractData) {
+              const einheit = contractData.einheiten;
+              const immobilie = einheit?.immobilien;
+              
+              einheit_id = einheit?.id || null;
+              einheit_typ = einheit?.einheitentyp || null;
+              immobilie_name = immobilie?.name || null;
+              immobilie_adresse = immobilie?.adresse || null;
+
+              // Get tenant names
+              const { data: mieterData } = await supabase
+                .from('mietvertrag_mieter')
+                .select(`
+                  mieter:mieter_id (
+                    vorname,
+                    nachname
+                  )
+                `)
+                .eq('mietvertrag_id', zahlung.mietvertrag_id);
+
+              if (mieterData && mieterData.length > 0) {
+                const mieter = mieterData[0].mieter;
+                mieter_name = mieter ? `${mieter.vorname} ${mieter.nachname}` : null;
+              }
+            }
+          }
+
+          return {
+            id: zahlung.id,
+            betrag: zahlung.betrag,
+            buchungsdatum: zahlung.buchungsdatum,
+            verwendungszweck: zahlung.verwendungszweck,
+            empfaengername: zahlung.empfaengername,
+            zugeordneter_monat: zahlung.zugeordneter_monat,
+            kategorie: zahlung.kategorie,
+            mietvertrag_id: zahlung.mietvertrag_id,
+            immobilie_name,
+            immobilie_adresse,
+            einheit_id,
+            einheit_typ,
+            mieter_name,
+          };
+        })
+      );
 
       return transformed;
     },
@@ -113,10 +136,6 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     return einheitId.slice(-2);
   };
 
-  const gesamtbetrag = zahlungen?.reduce((sum, z) => sum + z.betrag, 0) || 0;
-  const zugeordneteZahlungen = zahlungen?.filter(z => z.mietvertrag_id) || [];
-  const nichtzugeordneteZahlungen = zahlungen?.filter(z => !z.mietvertrag_id) || [];
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -137,68 +156,11 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Zahlungsübersicht</h1>
                 <p className="text-gray-600 mt-1">
-                  Alle Zahlungen und ihre Zuordnung zu Mietverträgen
+                  Übersicht aller Zahlungen und ihrer Zuordnung zu Objekten und Einheiten
                 </p>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Gesamtsumme
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Euro className="h-5 w-5 text-green-600" />
-                <p className="text-2xl font-bold text-green-600">
-                  {formatBetrag(gesamtbetrag)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Zugeordnete Zahlungen
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-blue-600" />
-                <p className="text-2xl font-bold text-blue-600">
-                  {zugeordneteZahlungen.length}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600 mt-1">
-                {formatBetrag(zugeordneteZahlungen.reduce((sum, z) => sum + z.betrag, 0))}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                Nicht zugeordnet
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Home className="h-5 w-5 text-orange-600" />
-                <p className="text-2xl font-bold text-orange-600">
-                  {nichtzugeordneteZahlungen.length}
-                </p>
-              </div>
-              <p className="text-sm text-gray-600 mt-1">
-                {formatBetrag(nichtzugeordneteZahlungen.reduce((sum, z) => sum + z.betrag, 0))}
-              </p>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Zahlungen Table */}
