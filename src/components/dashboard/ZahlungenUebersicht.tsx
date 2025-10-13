@@ -34,6 +34,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [selectedZahlungId, setSelectedZahlungId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedMietvertragId, setSelectedMietvertragId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status'>('datum-desc');
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
@@ -215,7 +216,25 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     return einheitId.slice(-2);
   };
 
-  const selectedZahlung = zahlungen?.find(z => z.id === selectedZahlungId);
+  // Sort payments
+  const sortedZahlungen = zahlungen ? [...zahlungen].sort((a, b) => {
+    switch (sortBy) {
+      case 'datum-desc':
+        return new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime();
+      case 'datum-asc':
+        return new Date(a.buchungsdatum).getTime() - new Date(b.buchungsdatum).getTime();
+      case 'betrag-desc':
+        return b.betrag - a.betrag;
+      case 'betrag-asc':
+        return a.betrag - b.betrag;
+      case 'status':
+        return (b.mietvertrag_id ? 1 : 0) - (a.mietvertrag_id ? 1 : 0);
+      default:
+        return 0;
+    }
+  }) : [];
+
+  const selectedZahlung = sortedZahlungen?.find(z => z.id === selectedZahlungId);
 
   const handleSaveAssignment = () => {
     if (selectedZahlungId) {
@@ -265,23 +284,41 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
           {/* Left: Zahlungsliste */}
           <Card className="h-[calc(100vh-200px)]">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Euro className="h-5 w-5 text-green-600" />
-                Zahlungen
-              </CardTitle>
-              <p className="text-sm text-gray-600">
-                {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''} gefunden
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Euro className="h-5 w-5 text-green-600" />
+                    Zahlungen
+                  </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''} gefunden
+                  </p>
+                </div>
+                <div className="w-48">
+                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white z-50">
+                      <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
+                      <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
+                      <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
+                      <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
+                      <SelectItem value="status">Zuordnung</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="text-center py-12">
                   <p className="text-gray-600">Lade Zahlungen...</p>
                 </div>
-              ) : zahlungen && zahlungen.length > 0 ? (
+              ) : sortedZahlungen && sortedZahlungen.length > 0 ? (
                 <ScrollArea className="h-[calc(100vh-320px)]">
                   <div className="space-y-2 p-4">
-                    {zahlungen.map((zahlung) => (
+                    {sortedZahlungen.map((zahlung) => (
                       <Card
                         key={zahlung.id}
                         className={`cursor-pointer transition-all hover:shadow-md ${
