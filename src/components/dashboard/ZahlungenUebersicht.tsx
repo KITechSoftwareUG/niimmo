@@ -359,6 +359,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                         mode="single"
                         selected={startDate}
                         onSelect={setStartDate}
+                        disabled={(date) => endDate ? date > endDate : false}
                         initialFocus
                       />
                     </PopoverContent>
@@ -384,6 +385,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                         mode="single"
                         selected={endDate}
                         onSelect={setEndDate}
+                        disabled={(date) => startDate ? date < startDate : false}
                         initialFocus
                       />
                     </PopoverContent>
