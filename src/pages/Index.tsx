@@ -5,13 +5,14 @@ import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
 import { Analytics } from "@/components/dashboard/Analytics";
+import { ZahlungenUebersicht } from "@/components/dashboard/ZahlungenUebersicht";
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
 
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3 } from "lucide-react";
+import { Loader2, Building2, BarChart3, Euro } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
@@ -19,6 +20,7 @@ const Index = () => {
   const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
   const [selectedMietvertrag, setSelectedMietvertrag] = useState<string | null>(null);
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
+  const [showZahlungen, setShowZahlungen] = useState<boolean>(false);
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
   const [navigationSource, setNavigationSource] = useState<'dashboard' | 'immobilie' | 'search'>('dashboard');
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
@@ -228,6 +230,11 @@ const Index = () => {
     return <Analytics onBack={() => setShowAnalytics(false)} />;
   }
 
+  // Zahlungen-Ansicht anzeigen
+  if (showZahlungen) {
+    return <ZahlungenUebersicht onBack={() => setShowZahlungen(false)} />;
+  }
+
 
   if (selectedImmobilie) {
     return <ImmobilienDetail immobilieId={selectedImmobilie} onBack={handleBackClick} filters={{
@@ -263,6 +270,10 @@ const Index = () => {
                 <Button onClick={() => setShowAnalytics(true)} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Analytics
+                </Button>
+                <Button onClick={() => setShowZahlungen(true)} className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto">
+                  <Euro className="h-4 w-4 mr-2" />
+                  Zahlungen
                 </Button>
                 <div className="flex items-center gap-4 w-full sm:w-auto">
                   <UserMenu />
