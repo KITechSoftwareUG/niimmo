@@ -3,12 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Euro, Calendar, Building2, Home, User, Check, Edit2, X } from "lucide-react";
+import { ArrowLeft, Euro, Calendar, Building2, Home, User, Check, Edit2, X, CalendarIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
 interface ZahlungenUebersichtProps {
   onBack?: () => void;
@@ -35,6 +40,8 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [isEditing, setIsEditing] = useState(false);
   const [selectedMietvertragId, setSelectedMietvertragId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status'>('datum-desc');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
@@ -216,8 +223,29 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     return einheitId.slice(-2);
   };
 
+  // Filter payments by date range
+  const filteredZahlungen = zahlungen ? zahlungen.filter((zahlung) => {
+    if (!startDate && !endDate) return true;
+    
+    const zahlungDate = new Date(zahlung.buchungsdatum);
+    
+    if (startDate && endDate) {
+      return zahlungDate >= startDate && zahlungDate <= endDate;
+    }
+    
+    if (startDate) {
+      return zahlungDate >= startDate;
+    }
+    
+    if (endDate) {
+      return zahlungDate <= endDate;
+    }
+    
+    return true;
+  }) : [];
+
   // Sort payments
-  const sortedZahlungen = zahlungen ? [...zahlungen].sort((a, b) => {
+  const sortedZahlungen = filteredZahlungen ? [...filteredZahlungen].sort((a, b) => {
     switch (sortBy) {
       case 'datum-desc':
         return new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime();
@@ -284,29 +312,96 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
           {/* Left: Zahlungsliste */}
           <Card className="h-[calc(100vh-200px)]">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Euro className="h-5 w-5 text-green-600" />
-                    Zahlungen
-                  </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''} gefunden
-                  </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Euro className="h-5 w-5 text-green-600" />
+                      Zahlungen
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">
+                      {sortedZahlungen?.length || 0} von {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''}
+                    </p>
+                  </div>
+                  <div className="w-48">
+                    <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white z-50">
+                        <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
+                        <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
+                        <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
+                        <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
+                        <SelectItem value="status">Zuordnung</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="w-48">
-                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                    <SelectTrigger className="bg-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white z-50">
-                      <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
-                      <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
-                      <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
-                      <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
-                      <SelectItem value="status">Zuordnung</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                {/* Date Range Filter */}
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !startDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, "dd.MM.yyyy", { locale: de }) : "Von Datum"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <span className="text-sm text-gray-600">bis</span>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !endDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "dd.MM.yyyy", { locale: de }) : "Bis Datum"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-white" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  {(startDate || endDate) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setStartDate(undefined);
+                        setEndDate(undefined);
+                      }}
+                      className="h-8 px-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
