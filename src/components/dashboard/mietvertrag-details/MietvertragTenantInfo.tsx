@@ -105,15 +105,6 @@ export function MietvertragTenantInfo({
                           <span className="text-sm md:text-base font-semibold">
                             {getValue(m.id, 'vorname', m.vorname)}
                           </span>
-                          {!isGlobalEditMode && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEditing(m.id, 'vorname', m.vorname)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          )}
                         </div>
                       )}
                     </div>
@@ -153,15 +144,6 @@ export function MietvertragTenantInfo({
                           <span className="text-sm md:text-base font-semibold">
                             {getValue(m.id, 'nachname', m.nachname)}
                           </span>
-                          {!isGlobalEditMode && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEditing(m.id, 'nachname', m.nachname)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          )}
                         </div>
                       )}
                     </div>
@@ -202,15 +184,6 @@ export function MietvertragTenantInfo({
                         <span className="text-sm text-muted-foreground">
                           {getValue(m.id, 'hauptmail', m.hauptmail) || 'Keine E-Mail'}
                         </span>
-                        {!isGlobalEditMode && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => startEditing(m.id, 'hauptmail', m.hauptmail)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                        )}
                       </div>
                     )}
                   </div>
@@ -250,15 +223,6 @@ export function MietvertragTenantInfo({
                         <span className="text-sm text-muted-foreground">
                           {getValue(m.id, 'telnr', m.telnr) || 'Keine Telefonnummer'}
                         </span>
-                        {!isGlobalEditMode && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => startEditing(m.id, 'telnr', m.telnr)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                        )}
                       </div>
                     )}
                   </div>

@@ -60,7 +60,7 @@ export function MietvertragKautionSection({
               type="number"
               className="font-semibold text-blue-800"
               formatter={formatBetrag}
-              hideEditButton={isGlobalEditMode}
+              hideEditButton={true}
             />
           </div>
           <div className="p-4 border rounded-lg bg-green-50 border-green-200">
@@ -80,7 +80,7 @@ export function MietvertragKautionSection({
               type="number"
               className="font-semibold text-green-800"
               formatter={formatBetrag}
-              hideEditButton={isGlobalEditMode}
+              hideEditButton={true}
             />
           </div>
           <div className="p-4 border rounded-lg bg-gray-50 border-gray-200">

@@ -77,7 +77,7 @@ export function MietvertragContractInfo({
             className="font-semibold"
             formatter={formatBetrag}
             showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
-            hideEditButton={isGlobalEditMode}
+            hideEditButton={true}
           />
           <MietvertragEditableField
             label="Betriebskosten"
@@ -96,7 +96,7 @@ export function MietvertragContractInfo({
             step="0.01"
             formatter={formatBetrag}
             showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
-            hideEditButton={isGlobalEditMode}
+            hideEditButton={true}
           />
           <div>
             <p className="text-sm font-medium text-muted-foreground">Gesamtmiete</p>
@@ -129,6 +129,7 @@ export function MietvertragContractInfo({
                 type="number"
                 step="0.01"
                 formatter={formatBetrag}
+                hideEditButton={true}
               />
             </div>
           </>
@@ -149,6 +150,7 @@ export function MietvertragContractInfo({
                 type="textarea"
                 className="text-muted-foreground"
                 placeholder="Straße und Hausnummer&#10;Postleitzahl Ort&#10;z.B. Musterstraße 123&#10;12345 Musterstadt"
+                hideEditButton={true}
               />
             </div>
           </>
