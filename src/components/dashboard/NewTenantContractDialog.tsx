@@ -410,28 +410,38 @@ export const NewTenantContractDialog = ({
         throw new Error('Keine Mieter für die Verknüpfung vorhanden.');
       }
       
-      // Step 3: Create contract
-      console.log('Creating contract for unit:', einheitId);
+      // Step 3: Check for overlapping contracts before creating
+      console.log('Checking for contract overlaps for unit:', einheitId);
       
-      // Check for overlapping contracts
       const { checkContractOverlap } = await import('@/utils/contractOverlapValidation');
       const overlapCheck = await checkContractOverlap(
         einheitId,
         contractData.start_datum,
-        contractData.ende_datum
+        contractData.ende_datum || null
       );
 
-      if (overlapCheck.hasOverlap) {
-        // Show warning to user but allow creation
-        const confirmed = window.confirm(
-          `${overlapCheck.warningMessage}\n\nMöchten Sie den Mietvertrag trotzdem erstellen?`
+      console.log('Overlap check result:', overlapCheck);
+
+      if (overlapCheck.hasOverlap && overlapCheck.warningMessage) {
+        // Show warning dialog to user
+        const userConfirmed = window.confirm(
+          `${overlapCheck.warningMessage}\n\nMöchten Sie den Mietvertrag mit Startdatum ${new Date(contractData.start_datum).toLocaleDateString('de-DE')} trotzdem erstellen?`
         );
         
-        if (!confirmed) {
+        console.log('User confirmation for contract creation:', userConfirmed);
+        
+        if (!userConfirmed) {
+          toast({
+            title: "Vertragserstellung abgebrochen",
+            description: "Der Mietvertrag wurde nicht erstellt.",
+          });
           setIsLoading(false);
           return;
         }
       }
+      
+      // Step 4: Create contract
+      console.log('Creating contract for unit:', einheitId);
       
       const { data: contractResult, error: contractError } = await supabase
         .from('mietvertrag')

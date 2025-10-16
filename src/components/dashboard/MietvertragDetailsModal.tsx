@@ -234,6 +234,17 @@ export default function MietvertragDetailsModal({
     try {
       // Handle date field (start_datum)
       if (field === 'start_datum') {
+        if (!vertrag?.einheit_id) {
+          toast({
+            title: "Fehler",
+            description: "Einheit-ID nicht gefunden.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log('Checking contract overlap for start_datum:', value);
+        
         // Import and use overlap validation
         const { checkContractOverlap } = await import('@/utils/contractOverlapValidation');
         
@@ -244,27 +255,41 @@ export default function MietvertragDetailsModal({
           vertragId
         );
 
-        if (overlapCheck.hasOverlap) {
-          // Show warning to user
-          const confirmed = window.confirm(
-            `${overlapCheck.warningMessage}\n\nMöchten Sie das Startdatum trotzdem ändern?`
+        console.log('Overlap check result:', overlapCheck);
+
+        if (overlapCheck.hasOverlap && overlapCheck.warningMessage) {
+          // Show warning dialog to user
+          const userConfirmed = window.confirm(
+            `${overlapCheck.warningMessage}\n\nMöchten Sie das Startdatum trotzdem auf ${new Date(value).toLocaleDateString('de-DE')} ändern?`
           );
           
-          if (!confirmed) {
+          console.log('User confirmation:', userConfirmed);
+          
+          if (!userConfirmed) {
             setEditingMietvertrag(null);
+            toast({
+              title: "Abgebrochen",
+              description: "Startdatum wurde nicht geändert.",
+            });
             return;
           }
         }
 
+        // Update the start date
         const { error } = await supabase
           .from('mietvertrag')
           .update({ start_datum: value })
           .eq('id', vertragId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating start_datum:', error);
+          throw error;
+        }
+
+        console.log('Start datum updated successfully');
 
         toast({
-          title: "Startdatum aktualisiert",
+          title: "✅ Startdatum aktualisiert",
           description: overlapCheck.hasOverlap 
             ? "Startdatum wurde geändert. Bitte beachten Sie die Überschneidung mit anderen Verträgen."
             : "Startdatum wurde erfolgreich aktualisiert.",
@@ -272,6 +297,7 @@ export default function MietvertragDetailsModal({
 
         setEditingMietvertrag(null);
         await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+        await queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
         return;
       }
 

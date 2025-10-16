@@ -33,8 +33,9 @@ export function MietvertragContractInfo({
   const kaltmiete = isGlobalEditMode && editedValues.kaltmiete !== undefined ? editedValues.kaltmiete : vertrag.kaltmiete;
   const betriebskosten = isGlobalEditMode && editedValues.betriebskosten !== undefined ? editedValues.betriebskosten : vertrag.betriebskosten;
   
-  const gesamtmieteProQm = einheit?.qm && Number(einheit.qm) > 0 
-    ? (Number(kaltmiete || 0) + Number(betriebskosten || 0)) / Number(einheit.qm) 
+  // Kosten pro m² nur von Kaltmiete berechnen
+  const kaltmieteProQm = einheit?.qm && Number(einheit.qm) > 0 
+    ? Number(kaltmiete || 0) / Number(einheit.qm) 
     : null;
   return (
     <Card>
@@ -117,16 +118,15 @@ export function MietvertragContractInfo({
             hideEditButton={true}
           />
           <div>
-            <p className="text-sm font-medium text-muted-foreground">Gesamtmiete</p>
             <p className="text-lg font-bold text-green-600">
               {formatBetrag(Number(kaltmiete || 0) + Number(betriebskosten || 0))}
             </p>
           </div>
-          {gesamtmieteProQm !== null && (
+          {kaltmieteProQm !== null && (
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Kosten pro m²</p>
+              <p className="text-sm font-medium text-muted-foreground">Kaltmiete pro m²</p>
               <p className="text-lg font-semibold">
-                {formatBetrag(gesamtmieteProQm)}
+                {formatBetrag(kaltmieteProQm)}
               </p>
             </div>
           )}
