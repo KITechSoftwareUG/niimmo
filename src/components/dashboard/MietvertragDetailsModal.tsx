@@ -300,22 +300,14 @@ export default function MietvertragDetailsModal({
 
         console.log('Overlap check result:', overlapCheck);
 
-        if (overlapCheck.hasOverlap && overlapCheck.warningMessage) {
-          // Show warning dialog to user
-          const userConfirmed = window.confirm(
-            `${overlapCheck.warningMessage}\n\nMöchten Sie das Startdatum trotzdem auf ${new Date(value).toLocaleDateString('de-DE')} ändern?`
-          );
-          
-          console.log('User confirmation:', userConfirmed);
-          
-          if (!userConfirmed) {
-            setEditingMietvertrag(null);
-            toast({
-              title: "Abgebrochen",
-              description: "Startdatum wurde nicht geändert.",
-            });
-            return;
-          }
+        if (overlapCheck.hasOverlap) {
+          toast({
+            title: 'Überschneidung erkannt',
+            description: overlapCheck.warningMessage || 'Das gewählte Startdatum überschneidet sich mit einem bestehenden Vertrag. Änderung wurde nicht gespeichert.',
+            variant: 'destructive',
+          });
+          // Keep edit mode open so the user can correct the date
+          return;
         }
 
         // Update the start date
