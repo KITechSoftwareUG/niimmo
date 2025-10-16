@@ -9,9 +9,9 @@ interface MietvertragContractInfoProps {
   isGlobalEditMode?: boolean;
   editedValues?: Record<string, any>;
   onUpdateEditedValue?: (key: string, value: any) => void;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum') => void;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | null;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum') => void;
   onCancelEdit: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
@@ -61,12 +61,24 @@ export function MietvertragContractInfo({
             formatter={(val) => formatDatum(val as string)}
             hideEditButton={true}
           />
-          <div>
-            <p className="text-xs md:text-sm font-medium text-muted-foreground">Mietende</p>
-            <p className="text-sm md:text-lg">
-              {vertrag.ende_datum ? formatDatum(vertrag.ende_datum) : 'Unbefristet'}
-            </p>
-          </div>
+          <MietvertragEditableField
+            label="Mietende"
+            value={vertrag.ende_datum || ''}
+            isEditing={isGlobalEditMode || editingMietvertrag === 'ende_datum'}
+            onEdit={() => !isGlobalEditMode && onStartEdit('ende_datum')}
+            onSave={(value) => {
+              if (isGlobalEditMode) {
+                onUpdateEditedValue?.('ende_datum', value);
+              } else {
+                onEditMietvertrag('ende_datum', value);
+              }
+            }}
+            onCancel={onCancelEdit}
+            type="date"
+            formatter={(val) => val ? formatDatum(val as string) : 'Unbefristet'}
+            placeholder="Unbefristet"
+            hideEditButton={true}
+          />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           <div>

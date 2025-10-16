@@ -38,7 +38,7 @@ export default function MietvertragDetailsModal({
   
   // Simplified state management (legacy - kept for backwards compatibility)
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
-  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | null>(null);
+  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | null>(null);
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
   const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
@@ -230,8 +230,51 @@ export default function MietvertragDetailsModal({
     enabled: isOpen && !!vertragId
   });
 
-  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum', value: string) => {
+  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum', value: string) => {
     try {
+      // Handle ende_datum field with validation
+      if (field === 'ende_datum') {
+        // Validate that end date is not before start date
+        if (value && vertrag.start_datum) {
+          const startDate = new Date(vertrag.start_datum);
+          const endDate = new Date(value);
+          
+          if (endDate < startDate) {
+            toast({
+              title: "Ungültiges Datum",
+              description: "Das Mietende kann nicht vor dem Mietbeginn liegen.",
+              variant: "destructive",
+            });
+            setEditingMietvertrag(null);
+            return;
+          }
+        }
+
+        const { error } = await supabase
+          .from('mietvertrag')
+          .update({ ende_datum: value || null })
+          .eq('id', vertragId);
+
+        if (error) {
+          console.error('Error updating ende_datum:', error);
+          throw error;
+        }
+
+        console.log('Ende datum updated successfully');
+
+        toast({
+          title: "✅ Mietende aktualisiert",
+          description: value 
+            ? `Mietende wurde auf ${new Date(value).toLocaleDateString('de-DE')} gesetzt.`
+            : "Mietvertrag wurde auf unbefristet gesetzt.",
+        });
+
+        setEditingMietvertrag(null);
+        await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+        await queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
+        return;
+      }
+
       // Handle date field (start_datum)
       if (field === 'start_datum') {
         if (!vertrag?.einheit_id) {
