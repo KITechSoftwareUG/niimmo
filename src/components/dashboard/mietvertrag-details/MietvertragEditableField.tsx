@@ -67,7 +67,7 @@ export function MietvertragEditableField({
               step={step}
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              className="w-full sm:w-32 h-8 text-sm"
+              className={`w-full h-8 text-sm ${type === 'date' ? 'sm:w-44' : 'sm:w-32'}`}
               placeholder={type === "number" ? "0.00" : placeholder || ""}
             />
           )}
