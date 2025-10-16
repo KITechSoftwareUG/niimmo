@@ -9,9 +9,9 @@ interface MietvertragContractInfoProps {
   isGlobalEditMode?: boolean;
   editedValues?: Record<string, any>;
   onUpdateEditedValue?: (key: string, value: any) => void;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr') => void;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | null;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum') => void;
   onCancelEdit: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
@@ -43,13 +43,31 @@ export function MietvertragContractInfo({
       </CardHeader>
       <CardContent className="space-y-3 md:space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+          <MietvertragEditableField
+            label="Mietbeginn"
+            value={vertrag.start_datum || ''}
+            isEditing={isGlobalEditMode || editingMietvertrag === 'start_datum'}
+            onEdit={() => !isGlobalEditMode && onStartEdit('start_datum')}
+            onSave={(value) => {
+              if (isGlobalEditMode) {
+                onUpdateEditedValue?.('start_datum', value);
+              } else {
+                onEditMietvertrag('start_datum', value);
+              }
+            }}
+            onCancel={onCancelEdit}
+            type="date"
+            formatter={(val) => formatDatum(val as string)}
+            hideEditButton={true}
+          />
           <div>
-            <p className="text-xs md:text-sm font-medium text-muted-foreground">Laufzeit</p>
+            <p className="text-xs md:text-sm font-medium text-muted-foreground">Mietende</p>
             <p className="text-sm md:text-lg">
-              {vertrag.start_datum ? formatDatum(vertrag.start_datum) : 'N/A'}
-              {vertrag.ende_datum ? ` - ${formatDatum(vertrag.ende_datum)}` : ''}
+              {vertrag.ende_datum ? formatDatum(vertrag.ende_datum) : 'Unbefristet'}
             </p>
           </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           <div>
             <p className="text-xs md:text-sm font-medium text-muted-foreground">Status</p>
             <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-xs">

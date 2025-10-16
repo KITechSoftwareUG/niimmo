@@ -413,6 +413,26 @@ export const NewTenantContractDialog = ({
       // Step 3: Create contract
       console.log('Creating contract for unit:', einheitId);
       
+      // Check for overlapping contracts
+      const { checkContractOverlap } = await import('@/utils/contractOverlapValidation');
+      const overlapCheck = await checkContractOverlap(
+        einheitId,
+        contractData.start_datum,
+        contractData.ende_datum
+      );
+
+      if (overlapCheck.hasOverlap) {
+        // Show warning to user but allow creation
+        const confirmed = window.confirm(
+          `${overlapCheck.warningMessage}\n\nMöchten Sie den Mietvertrag trotzdem erstellen?`
+        );
+        
+        if (!confirmed) {
+          setIsLoading(false);
+          return;
+        }
+      }
+      
       const { data: contractResult, error: contractError } = await supabase
         .from('mietvertrag')
         .insert({

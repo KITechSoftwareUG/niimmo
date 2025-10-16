@@ -16,12 +16,12 @@ interface MietvertragOverviewTabProps {
   isGlobalEditMode?: boolean;
   editedValues?: Record<string, any>;
   onUpdateEditedValue?: (key: string, value: any) => void;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | null;
   editingKaution: 'soll' | 'ist' | null;
   editingMeter: string | null;
   editingMeterNumber: string | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr') => void;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum') => void;
   onCancelEdit: () => void;
   onEditKaution: (field: 'soll' | 'ist', value: string) => void;
   onStartEditKaution: (field: 'soll' | 'ist') => void;

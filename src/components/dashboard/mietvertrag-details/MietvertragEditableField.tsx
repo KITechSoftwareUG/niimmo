@@ -11,7 +11,7 @@ interface MietvertragEditableFieldProps {
   onEdit: () => void;
   onSave: (value: string) => void;
   onCancel: () => void;
-  type?: "text" | "number" | "textarea";
+  type?: "text" | "number" | "textarea" | "date";
   step?: string;
   className?: string;
   formatter?: (value: string | number) => string;

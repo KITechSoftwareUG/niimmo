@@ -38,7 +38,7 @@ export default function MietvertragDetailsModal({
   
   // Simplified state management (legacy - kept for backwards compatibility)
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
-  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | null>(null);
+  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | null>(null);
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
   const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
@@ -230,9 +230,51 @@ export default function MietvertragDetailsModal({
     enabled: isOpen && !!vertragId
   });
 
-  // Event handlers
-  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr', value: string) => {
+  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum', value: string) => {
     try {
+      // Handle date field (start_datum)
+      if (field === 'start_datum') {
+        // Import and use overlap validation
+        const { checkContractOverlap } = await import('@/utils/contractOverlapValidation');
+        
+        const overlapCheck = await checkContractOverlap(
+          vertrag.einheit_id,
+          value,
+          vertrag.ende_datum,
+          vertragId
+        );
+
+        if (overlapCheck.hasOverlap) {
+          // Show warning to user
+          const confirmed = window.confirm(
+            `${overlapCheck.warningMessage}\n\nMöchten Sie das Startdatum trotzdem ändern?`
+          );
+          
+          if (!confirmed) {
+            setEditingMietvertrag(null);
+            return;
+          }
+        }
+
+        const { error } = await supabase
+          .from('mietvertrag')
+          .update({ start_datum: value })
+          .eq('id', vertragId);
+
+        if (error) throw error;
+
+        toast({
+          title: "Startdatum aktualisiert",
+          description: overlapCheck.hasOverlap 
+            ? "Startdatum wurde geändert. Bitte beachten Sie die Überschneidung mit anderen Verträgen."
+            : "Startdatum wurde erfolgreich aktualisiert.",
+        });
+
+        setEditingMietvertrag(null);
+        await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+        return;
+      }
+
       // Handle text fields separately
       if (field === 'neue_anschrift') {
         const { error } = await supabase
