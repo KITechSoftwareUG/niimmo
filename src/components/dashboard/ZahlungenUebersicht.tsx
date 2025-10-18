@@ -39,7 +39,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [selectedZahlungId, setSelectedZahlungId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedMietvertragId, setSelectedMietvertragId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status'>('datum-desc');
+  const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status' | 'kategorie'>('datum-desc');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const queryClient = useQueryClient();
@@ -50,7 +50,6 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('zahlungen')
         .select('*')
-        .neq('kategorie', 'Nichtmiete')
         .order('buchungsdatum', { ascending: false });
 
       if (paymentsError) throw paymentsError;
@@ -257,6 +256,10 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
         return a.betrag - b.betrag;
       case 'status':
         return (b.mietvertrag_id ? 1 : 0) - (a.mietvertrag_id ? 1 : 0);
+      case 'kategorie':
+        const katA = a.kategorie || 'Keine Kategorie';
+        const katB = b.kategorie || 'Keine Kategorie';
+        return katA.localeCompare(katB);
       default:
         return 0;
     }
@@ -334,6 +337,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                         <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
                         <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
                         <SelectItem value="status">Zuordnung</SelectItem>
+                        <SelectItem value="kategorie">Kategorie</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
