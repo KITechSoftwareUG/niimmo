@@ -42,6 +42,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status' | 'kategorie'>('datum-desc');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [selectedKategorie, setSelectedKategorie] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
@@ -222,8 +223,21 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     return einheitId.slice(-2);
   };
 
-  // Filter payments by date range
+  // Get unique categories
+  const uniqueKategorien = zahlungen 
+    ? Array.from(new Set(zahlungen.map(z => z.kategorie || 'Keine Kategorie')))
+        .sort()
+    : [];
+
+  // Filter payments by date range and category
   const filteredZahlungen = zahlungen ? zahlungen.filter((zahlung) => {
+    // Category filter
+    if (selectedKategorie) {
+      const zahlungKategorie = zahlung.kategorie || 'Keine Kategorie';
+      if (zahlungKategorie !== selectedKategorie) return false;
+    }
+
+    // Date filter
     if (!startDate && !endDate) return true;
     
     const zahlungDate = new Date(zahlung.buchungsdatum);
@@ -316,30 +330,63 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
           <Card className="h-[calc(100vh-200px)]">
             <CardHeader className="pb-3">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Euro className="h-5 w-5 text-green-600" />
-                      Zahlungen
-                    </CardTitle>
-                    <p className="text-sm text-gray-600">
-                      {sortedZahlungen?.length || 0} von {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''}
-                    </p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Euro className="h-5 w-5 text-green-600" />
+                        Zahlungen
+                      </CardTitle>
+                      <p className="text-sm text-gray-600">
+                        {sortedZahlungen?.length || 0} von {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''}
+                      </p>
+                    </div>
+                    <div className="w-48">
+                      <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white z-50">
+                          <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
+                          <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
+                          <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
+                          <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
+                          <SelectItem value="status">Zuordnung</SelectItem>
+                          <SelectItem value="kategorie">Kategorie</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="w-48">
-                    <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue />
+
+                  {/* Category Filter */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Kategorie:</label>
+                    <Select 
+                      value={selectedKategorie || 'alle'} 
+                      onValueChange={(value) => setSelectedKategorie(value === 'alle' ? null : value)}
+                    >
+                      <SelectTrigger className="bg-white w-48">
+                        <SelectValue placeholder="Alle Kategorien" />
                       </SelectTrigger>
                       <SelectContent className="bg-white z-50">
-                        <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
-                        <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
-                        <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
-                        <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
-                        <SelectItem value="status">Zuordnung</SelectItem>
-                        <SelectItem value="kategorie">Kategorie</SelectItem>
+                        <SelectItem value="alle">Alle Kategorien</SelectItem>
+                        {uniqueKategorien.map((kategorie) => (
+                          <SelectItem key={kategorie} value={kategorie}>
+                            {kategorie}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {selectedKategorie && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedKategorie(null)}
+                        className="h-8 px-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
 
