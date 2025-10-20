@@ -10,10 +10,13 @@ import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
+import { WhatsappNachrichten } from "@/components/dashboard/WhatsappNachrichten";
 
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3, Euro } from "lucide-react";
+import { Loader2, Building2, BarChart3, Euro, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
@@ -27,6 +30,7 @@ const Index = () => {
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
   const [scrollToContractId, setScrollToContractId] = useState<string | null>(null);
+  const [whatsappOpen, setWhatsappOpen] = useState<boolean>(false);
   const {
     data: immobilien,
     isLoading,
@@ -41,6 +45,21 @@ const Index = () => {
       if (error) throw error;
       return data;
     }
+  });
+
+  // Query für ungelesene WhatsApp-Nachrichten
+  const { data: unreadCount } = useQuery({
+    queryKey: ['whatsapp-unread-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('whatsapp_nachrichten')
+        .select('*', { count: 'exact', head: true })
+        .eq('gelesen', false)
+        .eq('richtung', 'eingehend');
+      if (error) throw error;
+      return count || 0;
+    },
+    refetchInterval: 30000, // Alle 30 Sekunden aktualisieren
   });
 
   // Query to get unit status for each property for sorting by occupancy
@@ -271,7 +290,22 @@ const Index = () => {
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Analytics
                 </Button>
-                <Button onClick={() => setShowZahlungen(true)} className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto">
+                <Button 
+                  onClick={() => setWhatsappOpen(true)} 
+                  className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto relative"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  WhatsApp
+                  {unreadCount && unreadCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="ml-2 px-2 py-0.5 text-xs font-bold"
+                    >
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </Button>
+                <Button onClick={() => setShowZahlungen(true)} className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto">
                   <Euro className="h-4 w-4 mr-2" />
                   Zahlungen
                 </Button>
@@ -354,6 +388,15 @@ const Index = () => {
         open={showMietUebersicht} 
         onOpenChange={setShowMietUebersicht} 
       />
+
+      <Dialog open={whatsappOpen} onOpenChange={setWhatsappOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>WhatsApp Nachrichten</DialogTitle>
+          </DialogHeader>
+          <WhatsappNachrichten />
+        </DialogContent>
+      </Dialog>
     </div>;
 };
 export default Index;
