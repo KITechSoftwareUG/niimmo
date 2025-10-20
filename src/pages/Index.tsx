@@ -295,15 +295,7 @@ const Index = () => {
                   className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto relative"
                 >
                   <MessageCircle className="h-4 w-4 mr-2" />
-                  WhatsApp
-                  {unreadCount && unreadCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="ml-2 px-2 py-0.5 text-xs font-bold"
-                    >
-                      {unreadCount}
-                    </Badge>
-                  )}
+                  WhatsApp ({unreadCount || 0})
                 </Button>
                 <Button onClick={() => setShowZahlungen(true)} className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto">
                   <Euro className="h-4 w-4 mr-2" />
