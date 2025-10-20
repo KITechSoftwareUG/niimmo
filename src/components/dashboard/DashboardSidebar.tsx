@@ -1,8 +1,14 @@
 
-import { Calendar, Building2, Settings, User, LayoutDashboard, BarChart3 } from "lucide-react";
+import { Calendar, Building2, Settings, User, LayoutDashboard, BarChart3, MessageCircle } from "lucide-react";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { WhatsappNachrichten } from "./WhatsappNachrichten";
 
 export const DashboardSidebar = () => {
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
+  
   return (
+    <>
     <div className="w-80 sidebar-card border-r border-gray-100 h-screen overflow-y-auto">
       {/* Logo Section */}
       <div className="p-8 border-b border-gray-100">
@@ -42,6 +48,13 @@ export const DashboardSidebar = () => {
             <User className="h-5 w-5" />
             <span>Mieter</span>
           </a>
+          <button 
+            onClick={() => setWhatsappOpen(true)}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-sans"
+          >
+            <MessageCircle className="h-5 w-5" />
+            <span>WhatsApp</span>
+          </button>
           <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-sans">
             <Settings className="h-5 w-5" />
             <span>Einstellungen</span>
@@ -93,5 +106,15 @@ export const DashboardSidebar = () => {
         </div>
       </div>
     </div>
+
+    <Dialog open={whatsappOpen} onOpenChange={setWhatsappOpen}>
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
+        <DialogHeader>
+          <DialogTitle>WhatsApp Nachrichten</DialogTitle>
+        </DialogHeader>
+        <WhatsappNachrichten />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };

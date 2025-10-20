@@ -44,30 +44,6 @@ export type Database = {
         }
         Relationships: []
       }
-      documents: {
-        Row: {
-          content: string | null
-          embedding: string | null
-          fts: unknown | null
-          id: number
-          metadata: Json | null
-        }
-        Insert: {
-          content?: string | null
-          embedding?: string | null
-          fts?: unknown | null
-          id?: never
-          metadata?: Json | null
-        }
-        Update: {
-          content?: string | null
-          embedding?: string | null
-          fts?: unknown | null
-          id?: never
-          metadata?: Json | null
-        }
-        Relationships: []
-      }
       dokumente: {
         Row: {
           dateityp: string | null
@@ -128,32 +104,6 @@ export type Database = {
             columns: ["mietvertrag_id"]
             isOneToOne: false
             referencedRelation: "mietvertrag"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      dokumente_embeddings: {
-        Row: {
-          dokument_id: string | null
-          embedding: string | null
-          text: string | null
-        }
-        Insert: {
-          dokument_id?: string | null
-          embedding?: string | null
-          text?: string | null
-        }
-        Update: {
-          dokument_id?: string | null
-          embedding?: string | null
-          text?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "dokumente_embeddings_dokument_id_fkey"
-            columns: ["dokument_id"]
-            isOneToOne: false
-            referencedRelation: "dokumente"
             referencedColumns: ["id"]
           },
         ]
@@ -560,6 +510,66 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      whatsapp_nachrichten: {
+        Row: {
+          absender_name: string | null
+          empfaenger_name: string | null
+          erstellt_am: string
+          gelesen: boolean
+          id: string
+          media_url: string | null
+          mieter_id: string | null
+          mietvertrag_id: string | null
+          nachricht: string
+          richtung: string
+          telefonnummer: string
+          zeitstempel: string
+        }
+        Insert: {
+          absender_name?: string | null
+          empfaenger_name?: string | null
+          erstellt_am?: string
+          gelesen?: boolean
+          id?: string
+          media_url?: string | null
+          mieter_id?: string | null
+          mietvertrag_id?: string | null
+          nachricht: string
+          richtung: string
+          telefonnummer: string
+          zeitstempel?: string
+        }
+        Update: {
+          absender_name?: string | null
+          empfaenger_name?: string | null
+          erstellt_am?: string
+          gelesen?: boolean
+          id?: string
+          media_url?: string | null
+          mieter_id?: string | null
+          mietvertrag_id?: string | null
+          nachricht?: string
+          richtung?: string
+          telefonnummer?: string
+          zeitstempel?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_nachrichten_mieter_id_fkey"
+            columns: ["mieter_id"]
+            isOneToOne: false
+            referencedRelation: "mieter"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_nachrichten_mietvertrag_id_fkey"
+            columns: ["mietvertrag_id"]
+            isOneToOne: false
+            referencedRelation: "mietvertrag"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       zahlungen: {
         Row: {
