@@ -79,6 +79,7 @@ export const NewTenantContractDialog = ({
   
   // Existing tenant selection state
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
+  const [tenantSearchTerm, setTenantSearchTerm] = useState('');
   
   // Contract data state
   const [contractData, setContractData] = useState<ContractData>({
@@ -731,13 +732,34 @@ export const NewTenantContractDialog = ({
       </TabsContent>
 
       <TabsContent value="existing-tenant" className="space-y-4">
+        <div className="mb-4">
+          <Label htmlFor="tenant-search">Mieter suchen</Label>
+          <Input
+            id="tenant-search"
+            type="text"
+            placeholder="Nach Name, E-Mail oder Telefon suchen..."
+            value={tenantSearchTerm}
+            onChange={(e) => setTenantSearchTerm(e.target.value)}
+            className="mt-1"
+          />
+        </div>
         {tenantsLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {existingTenants?.map((tenant) => (
+            {existingTenants
+              ?.filter(tenant => {
+                const searchLower = tenantSearchTerm.toLowerCase();
+                return (
+                  tenant.vorname?.toLowerCase().includes(searchLower) ||
+                  tenant.nachname?.toLowerCase().includes(searchLower) ||
+                  tenant.hauptmail?.toLowerCase().includes(searchLower) ||
+                  tenant.telnr?.toLowerCase().includes(searchLower)
+                );
+              })
+              .map((tenant) => (
               <Card 
                 key={tenant.id}
                 className={`cursor-pointer transition-colors ${
