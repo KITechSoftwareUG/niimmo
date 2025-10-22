@@ -123,6 +123,7 @@ export function InvoiceTool({ open, onOpenChange }: InvoiceToolProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Source': 'lovable-rental-management'
         },
         body: JSON.stringify({
           files: filesData,
