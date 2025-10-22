@@ -104,15 +104,19 @@ export function InvoiceTool({ open, onOpenChange }: InvoiceToolProps) {
     setTableData(null);
 
     try {
-      // Convert files to base64
+      // Convert files to base64 with full data URL
       const filesData = await Promise.all(
         uploadedFiles.map(async ({ file }) => {
-          const base64 = await fileToBase64(file);
+          const dataUrl = await fileToDataUrl(file);
+          const base64Only = dataUrl.split(',')[1]; // Base64 ohne Prefix
+          
           return {
             name: file.name,
             type: file.type,
             size: file.size,
-            data: base64,
+            dataUrl: dataUrl,        // Vollständige Data-URL (data:image/png;base64,...)
+            base64: base64Only,      // Nur Base64-String ohne Prefix
+            lastModified: file.lastModified,
           };
         })
       );
@@ -359,16 +363,13 @@ export function InvoiceTool({ open, onOpenChange }: InvoiceToolProps) {
   );
 }
 
-// Helper function to convert file to base64
-function fileToBase64(file: File): Promise<string> {
+// Helper function to convert file to data URL
+function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => {
-      const result = reader.result as string;
-      // Remove data URL prefix
-      const base64 = result.split(',')[1];
-      resolve(base64);
+      resolve(reader.result as string);
     };
     reader.onerror = (error) => reject(error);
   });
