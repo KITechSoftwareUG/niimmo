@@ -117,8 +117,7 @@ export function InvoiceTool({ open, onOpenChange }: InvoiceToolProps) {
         })
       );
 
-      // TODO: Replace with actual n8n webhook URL
-      const webhookUrl = 'YOUR_N8N_WEBHOOK_URL';
+      const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook-test/22c64ddf-c72c-41d9-b19a-5a78ac3354e7';
       
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -133,6 +132,12 @@ export function InvoiceTool({ open, onOpenChange }: InvoiceToolProps) {
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server hat kein JSON zurückgegeben. Bitte prüfen Sie die Webhook-Konfiguration.');
       }
 
       const result = await response.json();
