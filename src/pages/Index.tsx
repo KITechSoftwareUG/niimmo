@@ -10,13 +10,11 @@ import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
-import { WhatsappNachrichten } from "@/components/dashboard/WhatsappNachrichten";
+import { InvoiceTool } from "@/components/dashboard/InvoiceTool";
 
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3, Euro, MessageCircle } from "lucide-react";
+import { Loader2, Building2, BarChart3, Euro, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
@@ -30,7 +28,7 @@ const Index = () => {
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
   const [scrollToContractId, setScrollToContractId] = useState<string | null>(null);
-  const [whatsappOpen, setWhatsappOpen] = useState<boolean>(false);
+  const [showInvoiceTool, setShowInvoiceTool] = useState<boolean>(false);
   const {
     data: immobilien,
     isLoading,
@@ -45,21 +43,6 @@ const Index = () => {
       if (error) throw error;
       return data;
     }
-  });
-
-  // Query für ungelesene WhatsApp-Nachrichten
-  const { data: unreadCount } = useQuery({
-    queryKey: ['whatsapp-unread-count'],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('whatsapp_nachrichten')
-        .select('*', { count: 'exact', head: true })
-        .eq('gelesen', false)
-        .eq('richtung', 'eingehend');
-      if (error) throw error;
-      return count || 0;
-    },
-    refetchInterval: 30000, // Alle 30 Sekunden aktualisieren
   });
 
   // Query to get unit status for each property for sorting by occupancy
@@ -291,11 +274,11 @@ const Index = () => {
                   Analytics
                 </Button>
                 <Button 
-                  onClick={() => setWhatsappOpen(true)} 
-                  className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto relative"
+                  onClick={() => setShowInvoiceTool(true)} 
+                  className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
                 >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  WhatsApp ({unreadCount || 0})
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Rechnungstool
                 </Button>
                 <Button onClick={() => setShowZahlungen(true)} className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto">
                   <Euro className="h-4 w-4 mr-2" />
@@ -381,14 +364,10 @@ const Index = () => {
         onOpenChange={setShowMietUebersicht} 
       />
 
-      <Dialog open={whatsappOpen} onOpenChange={setWhatsappOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>WhatsApp Nachrichten</DialogTitle>
-          </DialogHeader>
-          <WhatsappNachrichten />
-        </DialogContent>
-      </Dialog>
+      <InvoiceTool 
+        open={showInvoiceTool} 
+        onOpenChange={setShowInvoiceTool}
+      />
     </div>;
 };
 export default Index;
