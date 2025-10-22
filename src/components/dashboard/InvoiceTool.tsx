@@ -104,35 +104,27 @@ export function InvoiceTool({ open, onOpenChange }: InvoiceToolProps) {
     setTableData(null);
 
     try {
-      // Convert files to base64 with full data URL
-      const filesData = await Promise.all(
-        uploadedFiles.map(async ({ file }) => {
-          const dataUrl = await fileToDataUrl(file);
-          const base64Only = dataUrl.split(',')[1]; // Base64 ohne Prefix
-          
-          return {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            dataUrl: dataUrl,        // Vollständige Data-URL (data:image/png;base64,...)
-            base64: base64Only,      // Nur Base64-String ohne Prefix
-            lastModified: file.lastModified,
-          };
-        })
-      );
+      // Create FormData to send binary files
+      const formData = new FormData();
+      
+      // Add all files as binary data
+      uploadedFiles.forEach(({ file }, index) => {
+        formData.append(`file_${index}`, file);
+      });
+      
+      // Add metadata
+      formData.append('timestamp', new Date().toISOString());
+      formData.append('fileCount', uploadedFiles.length.toString());
 
       const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/22c64ddf-c72c-41d9-b19a-5a78ac3354e7';
       
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'X-Source': 'lovable-rental-management'
+          // Content-Type wird automatisch vom Browser gesetzt (multipart/form-data)
         },
-        body: JSON.stringify({
-          files: filesData,
-          timestamp: new Date().toISOString(),
-        }),
+        body: formData,
       });
 
       if (!response.ok) {
