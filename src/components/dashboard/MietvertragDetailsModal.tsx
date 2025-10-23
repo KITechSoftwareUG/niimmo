@@ -222,6 +222,7 @@ export default function MietvertragDetailsModal({
         .from('dokumente')
         .select('*')
         .eq('mietvertrag_id', vertragId)
+        .eq('geloescht', false)
         .order('hochgeladen_am', { ascending: false });
 
       if (error) throw error;
@@ -809,10 +810,10 @@ export default function MietvertragDetailsModal({
               <MietvertragDocumentsTab
                 dokumente={dokumente || []}
                 formatDatum={formatDatum}
+                mietvertragId={vertragId}
                 onDocumentsChange={() => {
-                  // Refresh documents query when categories are changed
                   queryClient.invalidateQueries({ 
-                    queryKey: ['mietvertrag-dokumente', vertragId] 
+                    queryKey: ['dokumente-detail', vertragId] 
                   });
                 }}
               />

@@ -1,16 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Edit3, X, Eye } from "lucide-react";
+import { FileText, Download, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Edit3, X, Eye, Plus, Upload, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useDocumentUpload } from "@/hooks/useDocumentUpload";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MietvertragDocumentsTabProps {
   dokumente: any[];
   formatDatum: (datum: string) => string;
-  onDocumentsChange?: () => void; // Callback for refreshing after category changes
+  onDocumentsChange?: () => void;
+  mietvertragId?: string;
 }
 
 type SortBy = 'kategorie' | 'titel' | 'datum';
@@ -29,14 +36,28 @@ const DOCUMENT_CATEGORIES = [
 export function MietvertragDocumentsTab({
   dokumente,
   formatDatum,
-  onDocumentsChange
+  onDocumentsChange,
+  mietvertragId
 }: MietvertragDocumentsTabProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { uploadDocument, uploading, progress } = useDocumentUpload();
+  
   const [downloading, setDownloading] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>('kategorie');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [updatingCategory, setUpdatingCategory] = useState<string | null>(null);
+  
+  // Upload dialog state
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadTitel, setUploadTitel] = useState("");
+  const [uploadKategorie, setUploadKategorie] = useState("Sonstiges");
+  
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   
   const handlePreview = async (dokument: any) => {
     try {
@@ -171,10 +192,9 @@ export function MietvertragDocumentsTab({
 
     setDownloading(dokument.id);
     try {
-      // Create a signed URL for private bucket access
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('dokumente')
-        .createSignedUrl(dokument.pfad, 60); // Valid for 60 seconds
+        .createSignedUrl(dokument.pfad, 60);
 
       if (signedUrlError) {
         console.error('Signed URL Error:', signedUrlError);
@@ -186,7 +206,6 @@ export function MietvertragDocumentsTab({
         return;
       }
 
-      // Download using the signed URL
       const response = await fetch(signedUrlData.signedUrl);
       if (!response.ok) throw new Error('Download failed');
 
@@ -216,51 +235,142 @@ export function MietvertragDocumentsTab({
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!uploadTitel) {
+        setUploadTitel(file.name);
+      }
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !mietvertragId) {
+      toast({
+        title: "Fehler",
+        description: "Bitte wählen Sie eine Datei aus.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await uploadDocument(selectedFile, {
+        mietvertragId,
+        titel: uploadTitel,
+        kategorie: uploadKategorie,
+      });
+
+      // Refresh documents list
+      queryClient.invalidateQueries({ queryKey: ['dokumente-detail', mietvertragId] });
+      onDocumentsChange?.();
+
+      // Reset form
+      setSelectedFile(null);
+      setUploadTitel("");
+      setUploadKategorie("Sonstiges");
+      setIsUploadDialogOpen(false);
+    } catch (error) {
+      // Error already handled in hook
+    }
+  };
+
+  const handleDeleteClick = (documentId: string) => {
+    setDocumentToDelete(documentId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!documentToDelete || !mietvertragId) return;
+
+    try {
+      const { error } = await supabase
+        .from('dokumente')
+        .update({ geloescht: true })
+        .eq('id', documentToDelete);
+
+      if (error) throw error;
+
+      toast({
+        title: "Dokument gelöscht",
+        description: "Das Dokument wurde erfolgreich gelöscht.",
+      });
+
+      // Refresh documents list
+      queryClient.invalidateQueries({ queryKey: ['dokumente-detail', mietvertragId] });
+      onDocumentsChange?.();
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "Dokument konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setDocumentToDelete(null);
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <FileText className="h-5 w-5" />
-              <span>Dokumente</span>
-              <Badge variant="secondary" className="ml-2">
-                {dokumente?.length || 0}
-              </Badge>
-            </div>
-            
-            {/* Sorting Controls */}
-            {dokumente && dokumente.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Sortieren:</span>
-                <Button
-                  variant={sortBy === 'kategorie' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleSort('kategorie')}
-                  className="gap-1"
-                >
-                  Kategorie {getSortIcon('kategorie')}
-                </Button>
-                <Button
-                  variant={sortBy === 'titel' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleSort('titel')}
-                  className="gap-1"
-                >
-                  Titel {getSortIcon('titel')}
-                </Button>
-                <Button
-                  variant={sortBy === 'datum' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => handleSort('datum')}
-                  className="gap-1"
-                >
-                  Datum {getSortIcon('datum')}
-                </Button>
+    <>
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-5 w-5" />
+                <span>Dokumente</span>
+                <Badge variant="secondary" className="ml-2">
+                  {dokumente?.length || 0}
+                </Badge>
               </div>
-            )}
-          </CardTitle>
-        </CardHeader>
+              
+              <div className="flex items-center gap-2">
+                {/* Upload Button */}
+                <Button
+                  onClick={() => setIsUploadDialogOpen(true)}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Hochladen
+                </Button>
+                
+                {/* Sorting Controls */}
+                {dokumente && dokumente.length > 0 && (
+                  <>
+                    <span className="text-sm text-muted-foreground">Sortieren:</span>
+                    <Button
+                      variant={sortBy === 'kategorie' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSort('kategorie')}
+                      className="gap-1"
+                    >
+                      Kategorie {getSortIcon('kategorie')}
+                    </Button>
+                    <Button
+                      variant={sortBy === 'titel' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSort('titel')}
+                      className="gap-1"
+                    >
+                      Titel {getSortIcon('titel')}
+                    </Button>
+                    <Button
+                      variant={sortBy === 'datum' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleSort('datum')}
+                      className="gap-1"
+                    >
+                      Datum {getSortIcon('datum')}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardTitle>
+          </CardHeader>
         <CardContent>
           {dokumente && dokumente.length > 0 ? (
             <div className="space-y-4">
@@ -368,6 +478,15 @@ export function MietvertragDocumentsTab({
                             )}
                             <span>{downloading === dok.id ? 'Lädt...' : 'Download'}</span>
                           </Button>
+                          
+                          <Button
+                            onClick={() => handleDeleteClick(dok.id)}
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -466,6 +585,15 @@ export function MietvertragDocumentsTab({
                         )}
                         <span>{downloading === dok.id ? 'Lädt...' : 'Download'}</span>
                       </Button>
+                      
+                      <Button
+                        onClick={() => handleDeleteClick(dok.id)}
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))
@@ -480,5 +608,112 @@ export function MietvertragDocumentsTab({
         </CardContent>
       </Card>
     </div>
+
+    {/* Upload Dialog */}
+    <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Dokument hochladen
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="file-upload">Datei auswählen</Label>
+            <Input
+              id="file-upload"
+              type="file"
+              onChange={handleFileSelect}
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              className="cursor-pointer"
+            />
+            {selectedFile && (
+              <p className="text-sm text-muted-foreground">
+                Ausgewählt: {selectedFile.name}
+              </p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="titel">Titel</Label>
+            <Input
+              id="titel"
+              value={uploadTitel}
+              onChange={(e) => setUploadTitel(e.target.value)}
+              placeholder="Dokumententitel"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="kategorie">Kategorie</Label>
+            <Select value={uploadKategorie} onValueChange={setUploadKategorie}>
+              <SelectTrigger id="kategorie">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DOCUMENT_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {uploading && (
+            <div className="space-y-2">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Hochladen... {progress}%
+              </p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setIsUploadDialogOpen(false)}
+            disabled={uploading}
+          >
+            Abbrechen
+          </Button>
+          <Button onClick={handleUpload} disabled={!selectedFile || uploading}>
+            {uploading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Wird hochgeladen...
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Hochladen
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Delete Confirmation Dialog */}
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Dokument löschen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Sind Sie sicher, dass Sie dieses Dokument löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Löschen
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
   );
 }
