@@ -158,8 +158,8 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   };
 
   return (
-    <div className="min-h-screen modern-dashboard-bg">
-      <div className="container mx-auto p-8">
+    <div className="min-h-screen modern-dashboard-bg relative z-0">
+      <div className="container mx-auto p-8 relative z-10">
         {/* Header */}
         <div className="mb-6">
           <Button
@@ -182,7 +182,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         </div>
 
         {/* CSV Upload Section */}
-        <Card className="p-6 mb-6">
+        <Card className="p-6 mb-6 relative z-10 bg-white">
           <div className="flex items-center gap-3 mb-4">
             <Upload className="h-5 w-5 text-primary" />
             <h2 className="text-xl font-semibold">CSV-Upload</h2>
@@ -252,7 +252,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         </Card>
 
         {/* Unassigned Payments Section */}
-        <Card className="p-6">
+        <Card className="p-6 relative z-10 bg-white">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <DollarSign className="h-5 w-5 text-primary" />
