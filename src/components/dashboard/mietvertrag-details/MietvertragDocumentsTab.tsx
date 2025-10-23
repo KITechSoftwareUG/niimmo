@@ -17,7 +17,7 @@ interface MietvertragDocumentsTabProps {
   dokumente: any[];
   formatDatum: (datum: string) => string;
   onDocumentsChange?: () => void;
-  mietvertragId?: string;
+  mietvertragId: string;
 }
 
 type SortBy = 'kategorie' | 'titel' | 'datum';
@@ -239,14 +239,12 @@ export function MietvertragDocumentsTab({
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      if (!uploadTitel) {
-        setUploadTitel(file.name);
-      }
+      setUploadTitel(file.name); // Always update title with new file name
     }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !mietvertragId) {
+    if (!selectedFile) {
       toast({
         title: "Fehler",
         description: "Bitte wählen Sie eine Datei aus.",
@@ -258,7 +256,7 @@ export function MietvertragDocumentsTab({
     try {
       await uploadDocument(selectedFile, {
         mietvertragId,
-        titel: uploadTitel,
+        titel: uploadTitel || selectedFile.name,
         kategorie: uploadKategorie,
       });
 
@@ -282,7 +280,7 @@ export function MietvertragDocumentsTab({
   };
 
   const handleDeleteConfirm = async () => {
-    if (!documentToDelete || !mietvertragId) return;
+    if (!documentToDelete) return;
 
     try {
       const { error } = await supabase
@@ -330,7 +328,13 @@ export function MietvertragDocumentsTab({
               <div className="flex items-center gap-2">
                 {/* Upload Button */}
                 <Button
-                  onClick={() => setIsUploadDialogOpen(true)}
+                  onClick={() => {
+                    // Reset form when opening
+                    setSelectedFile(null);
+                    setUploadTitel("");
+                    setUploadKategorie("Sonstiges");
+                    setIsUploadDialogOpen(true);
+                  }}
                   size="sm"
                   className="gap-2"
                 >
