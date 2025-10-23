@@ -98,11 +98,13 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
         .from('dokumente')
         .select('*')
         .eq('mietvertrag_id', vertragId)
+        .eq('geloescht', false)
         .order('hochgeladen_am', { ascending: false });
       
       if (error) throw error;
-      return data;
-    }
+      return data || [];
+    },
+    enabled: !!vertragId
   });
 
 
