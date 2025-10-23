@@ -10,10 +10,11 @@ import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
+import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
 
 
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3, Euro } from "lucide-react";
+import { Loader2, Building2, BarChart3, Euro, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
@@ -28,6 +29,7 @@ const Index = () => {
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
   const [scrollToContractId, setScrollToContractId] = useState<string | null>(null);
+  const [showControlboard, setShowControlboard] = useState<boolean>(false);
   const {
     data: immobilien,
     isLoading,
@@ -236,6 +238,11 @@ const Index = () => {
     return <ZahlungenUebersicht onBack={() => setShowZahlungen(false)} />;
   }
 
+  // Controlboard-Ansicht anzeigen
+  if (showControlboard) {
+    return <PaymentManagement onBack={() => setShowControlboard(false)} />;
+  }
+
 
   if (selectedImmobilie) {
     return <ImmobilienDetail immobilieId={selectedImmobilie} onBack={handleBackClick} filters={{
@@ -271,6 +278,13 @@ const Index = () => {
                 <Button onClick={() => setShowAnalytics(true)} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Analytics
+                </Button>
+                <Button 
+                  onClick={() => setShowControlboard(true)} 
+                  className="bg-orange-600 hover:bg-orange-700 text-white w-full sm:w-auto"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Controlboard
                 </Button>
                 <Button onClick={() => setShowZahlungen(true)} className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto">
                   <Euro className="h-4 w-4 mr-2" />
