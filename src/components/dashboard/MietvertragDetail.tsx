@@ -6,7 +6,7 @@ import { MietvertragHeader } from "./MietvertragHeader";
 import { MietvertragInfo } from "./MietvertragInfo";
 import { MieterList } from "./MieterList";
 import { PaymentHistory } from "./PaymentHistory";
-import { DocumentsList } from "./DocumentsList";
+import { MietvertragDocumentsManagement } from "./MietvertragDocumentsManagement";
 import { MieterhöhungManagement } from "./MieterhöhungManagement";
 
 interface MietvertragDetailProps {
@@ -134,7 +134,10 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
         currentMahnstufe={vertrag?.mahnstufe || 0} 
       />
       
-      <DocumentsList dokumente={dokumente} />
+      <MietvertragDocumentsManagement 
+        mietvertragId={vertragId}
+        dokumente={dokumente || []}
+      />
     </div>
   );
 };
