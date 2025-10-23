@@ -10,10 +10,10 @@ import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
-import { InvoiceTool } from "@/components/dashboard/InvoiceTool";
+
 
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3, Euro, FileSpreadsheet } from "lucide-react";
+import { Loader2, Building2, BarChart3, Euro } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
@@ -28,7 +28,6 @@ const Index = () => {
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
   const [scrollToContractId, setScrollToContractId] = useState<string | null>(null);
-  const [showInvoiceTool, setShowInvoiceTool] = useState<boolean>(false);
   const {
     data: immobilien,
     isLoading,
@@ -273,13 +272,6 @@ const Index = () => {
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Analytics
                 </Button>
-                <Button 
-                  onClick={() => setShowInvoiceTool(true)} 
-                  className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
-                >
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Rechnungstool
-                </Button>
                 <Button onClick={() => setShowZahlungen(true)} className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto">
                   <Euro className="h-4 w-4 mr-2" />
                   Zahlungen
@@ -362,11 +354,6 @@ const Index = () => {
       <EditableMietUebersichtModal 
         open={showMietUebersicht} 
         onOpenChange={setShowMietUebersicht} 
-      />
-
-      <InvoiceTool 
-        open={showInvoiceTool} 
-        onOpenChange={setShowInvoiceTool}
       />
     </div>;
 };
