@@ -40,8 +40,8 @@ export const useDocumentUpload = () => {
           titel: metadata.titel || file.name,
           dateityp: file.type || fileExt,
           groesse_bytes: file.size,
-          immobilie_id: metadata.immobilieId,
-          mietvertrag_id: metadata.mietvertragId,
+          immobilie_id: metadata.immobilieId || null,
+          mietvertrag_id: metadata.mietvertragId || null,
           kategorie: metadata.kategorie || 'Sonstiges' as any,
         }])
         .select()
