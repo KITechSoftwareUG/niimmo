@@ -5,10 +5,12 @@ import { EinheitCard } from "./EinheitCard";
 import { ArrowLeft, Building, MapPin, Calendar, Info, Euro, Home, TrendingUp, Loader2, Pencil, Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useRef } from "react";
 import { sortUnitsByNumber, getCurrentContract, filterActiveAndTerminatedContracts } from "@/utils/contractUtils";
 import { useEditableField } from "@/hooks/useEditableField";
 import { Input } from "@/components/ui/input";
+import { ImmobilienDocumentsTab } from "./ImmobilienDocumentsTab";
 interface ImmobilienDetailProps {
   immobilieId: string;
   onBack: () => void;
@@ -148,6 +150,22 @@ export const ImmobilienDetail = ({
       return data || [];
     },
     enabled: !!einheiten
+  });
+
+  // Query für Dokumente dieser Immobilie
+  const { data: immobilienDokumente } = useQuery({
+    queryKey: ['immobilien-dokumente', immobilieId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('dokumente')
+        .select('*')
+        .eq('immobilie_id', immobilieId)
+        .eq('geloescht', false)
+        .order('hochgeladen_am', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   // Berechne Gesamtwerte
@@ -402,48 +420,67 @@ export const ImmobilienDetail = ({
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {einheiten?.map((einheit, index) => {
-            // Find all rental contracts for this unit
-            const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
-            
-            // Default to the most current contract
-            let vertrag = getCurrentContract(vertraegeForEinheit);
-            
-            // If a specific contract is requested (e.g., via search), prefer that one
-            if (openMietvertragId) {
-              const targeted = vertraegeForEinheit.find(v => v.id === openMietvertragId);
-              if (targeted) {
-                vertrag = targeted;
-              }
-            }
-            
-            return (
-              <div 
-                key={einheit.id} 
-                ref={el => einheitRefs.current[einheit.id] = el} 
-                className="transition-transform duration-300"
-              >
-                <EinheitCard 
-                  einheit={einheit} 
-                  vertrag={vertrag} 
-                  immobilie={immobilie} 
-                  openMietvertragId={openMietvertragId}
-                  einheitIndex={index + 1}
-                  onContractModalClose={onContractModalClose}
-                />
-              </div>
-            );
-          })}
-        </div>
+        {/* Tabs für Einheiten und Dokumente */}
+        <Tabs defaultValue="einheiten" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="einheiten">Einheiten</TabsTrigger>
+            <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
+          </TabsList>
 
-        {(!einheiten || einheiten.length === 0) && <div className="text-center py-12">
-            <div className="glass-card p-8 max-w-md mx-auto rounded-2xl">
-              <p className="text-gray-500">
-                Keine Einheiten für diese Immobilie gefunden
-              </p>
+          <TabsContent value="einheiten">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {einheiten?.map((einheit, index) => {
+                // Find all rental contracts for this unit
+                const vertraegeForEinheit = mietvertraege?.filter(v => v.einheit_id === einheit.id) || [];
+                
+                // Default to the most current contract
+                let vertrag = getCurrentContract(vertraegeForEinheit);
+                
+                // If a specific contract is requested (e.g., via search), prefer that one
+                if (openMietvertragId) {
+                  const targeted = vertraegeForEinheit.find(v => v.id === openMietvertragId);
+                  if (targeted) {
+                    vertrag = targeted;
+                  }
+                }
+                
+                return (
+                  <div 
+                    key={einheit.id} 
+                    ref={el => einheitRefs.current[einheit.id] = el} 
+                    className="transition-transform duration-300"
+                  >
+                    <EinheitCard 
+                      einheit={einheit} 
+                      vertrag={vertrag} 
+                      immobilie={immobilie} 
+                      openMietvertragId={openMietvertragId}
+                      einheitIndex={index + 1}
+                      onContractModalClose={onContractModalClose}
+                    />
+                  </div>
+                );
+              })}
             </div>
-          </div>}
+            
+            {(!einheiten || einheiten.length === 0) && (
+              <div className="text-center py-12">
+                <div className="glass-card p-8 max-w-md mx-auto rounded-2xl">
+                  <p className="text-gray-500">
+                    Keine Einheiten für diese Immobilie gefunden
+                  </p>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="dokumente">
+            <ImmobilienDocumentsTab 
+              immobilieId={immobilieId}
+              dokumente={immobilienDokumente || []}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>;
 };
