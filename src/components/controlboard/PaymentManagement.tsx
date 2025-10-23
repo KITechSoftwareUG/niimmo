@@ -163,9 +163,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         {/* Header */}
         <div className="mb-6">
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={onBack}
-            className="mb-4"
+            className="mb-4 bg-white/50 hover:bg-white/70"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Zurück zum Dashboard
@@ -221,7 +221,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                 accept=".csv"
                 onChange={handleFileChange}
                 disabled={isProcessing}
-                className="mt-2"
+                className="mt-2 cursor-pointer file:cursor-pointer"
               />
               {csvFile && (
                 <p className="text-sm text-muted-foreground mt-2">
