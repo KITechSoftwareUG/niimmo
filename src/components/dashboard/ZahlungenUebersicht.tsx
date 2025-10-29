@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Euro, Calendar, Building2, Home, User, Check, Edit2, X, CalendarIcon } from "lucide-react";
+import { ArrowLeft, Euro, Calendar, Building2, Home, User, Check, Edit2, X, CalendarIcon, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -42,6 +42,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status' | 'kategorie'>('datum-desc');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [selectedKategorie, setSelectedKategorie] = useState<string | null>(null);
+  const [contractSearchTerm, setContractSearchTerm] = useState<string>('');
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
@@ -314,7 +315,21 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const handleCancelEdit = () => {
     setIsEditing(false);
     setSelectedMietvertragId(selectedZahlung?.mietvertrag_id || null);
+    setContractSearchTerm('');
   };
+
+  // Filter contracts based on search term
+  const filteredContracts = allContracts?.filter((contract) => {
+    if (!contractSearchTerm) return true;
+    
+    const searchLower = contractSearchTerm.toLowerCase();
+    return (
+      contract.mieter_name.toLowerCase().includes(searchLower) ||
+      contract.immobilie_name.toLowerCase().includes(searchLower) ||
+      contract.immobilie_adresse.toLowerCase().includes(searchLower) ||
+      contract.einheit_typ.toLowerCase().includes(searchLower)
+    );
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -631,6 +646,24 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                         <div className="space-y-4">
                           <div>
                             <label className="text-sm font-medium text-gray-700 mb-2 block">
+                              Mietvertrag suchen
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Nach Mieter, Objekt oder Adresse suchen..."
+                              value={contractSearchTerm}
+                              onChange={(e) => setContractSearchTerm(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+                            />
+                            {contractSearchTerm && (
+                              <p className="text-xs text-gray-500 mb-2">
+                                {filteredContracts?.length || 0} Vertrag{(filteredContracts?.length || 0) !== 1 ? 'e' : ''} gefunden
+                              </p>
+                            )}
+                          </div>
+                          
+                          <div>
+                            <label className="text-sm font-medium text-gray-700 mb-2 block">
                               Mietvertrag auswählen
                             </label>
                             <Select
@@ -646,7 +679,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                                 <SelectItem value="none">
                                   <span className="text-gray-500">Keine Zuordnung</span>
                                 </SelectItem>
-                                {allContracts?.map((contract) => (
+                                {filteredContracts?.map((contract) => (
                                   <SelectItem key={contract.id} value={contract.id}>
                                     <div className="flex flex-col">
                                       <span className="font-medium">
@@ -654,6 +687,9 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                                       </span>
                                       <span className="text-xs text-gray-500">
                                         {contract.mieter_name}
+                                      </span>
+                                      <span className="text-xs text-gray-400">
+                                        {contract.immobilie_adresse}
                                       </span>
                                     </div>
                                   </SelectItem>
