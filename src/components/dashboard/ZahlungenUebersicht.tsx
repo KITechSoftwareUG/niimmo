@@ -40,8 +40,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [isEditing, setIsEditing] = useState(false);
   const [selectedMietvertragId, setSelectedMietvertragId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status' | 'kategorie'>('datum-desc');
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [selectedKategorie, setSelectedKategorie] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
@@ -229,6 +228,14 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
         .sort()
     : [];
 
+  // Calculate date range duration
+  const getDateRangeDuration = () => {
+    if (!dateRange.from || !dateRange.to) return null;
+    const diffTime = Math.abs(dateRange.to.getTime() - dateRange.from.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end day
+    return diffDays;
+  };
+
   // Filter payments by date range and category
   const filteredZahlungen = zahlungen ? zahlungen.filter((zahlung) => {
     // Category filter
@@ -238,20 +245,29 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     }
 
     // Date filter
-    if (!startDate && !endDate) return true;
+    if (!dateRange.from && !dateRange.to) return true;
     
     const zahlungDate = new Date(zahlung.buchungsdatum);
+    zahlungDate.setHours(0, 0, 0, 0);
     
-    if (startDate && endDate) {
-      return zahlungDate >= startDate && zahlungDate <= endDate;
+    if (dateRange.from && dateRange.to) {
+      const from = new Date(dateRange.from);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(dateRange.to);
+      to.setHours(23, 59, 59, 999);
+      return zahlungDate >= from && zahlungDate <= to;
     }
     
-    if (startDate) {
-      return zahlungDate >= startDate;
+    if (dateRange.from) {
+      const from = new Date(dateRange.from);
+      from.setHours(0, 0, 0, 0);
+      return zahlungDate >= from;
     }
     
-    if (endDate) {
-      return zahlungDate <= endDate;
+    if (dateRange.to) {
+      const to = new Date(dateRange.to);
+      to.setHours(23, 59, 59, 999);
+      return zahlungDate <= to;
     }
     
     return true;
@@ -391,69 +407,58 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                 </div>
 
                 {/* Date Range Filter */}
-                <div className="flex items-center gap-2">
+                <div className="space-y-2">
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "justify-start text-left font-normal",
-                          !startDate && "text-muted-foreground"
+                          "w-full justify-start text-left font-normal",
+                          !dateRange.from && !dateRange.to && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {startDate ? format(startDate, "dd.MM.yyyy", { locale: de }) : "Von Datum"}
+                        {dateRange.from && dateRange.to ? (
+                          <span>
+                            {format(dateRange.from, "dd.MM.yyyy", { locale: de })} – {format(dateRange.to, "dd.MM.yyyy", { locale: de })}
+                          </span>
+                        ) : dateRange.from ? (
+                          <span>{format(dateRange.from, "dd.MM.yyyy", { locale: de })} – Enddatum wählen</span>
+                        ) : (
+                          <span>Zeitraum auswählen</span>
+                        )}
+                        {(dateRange.from || dateRange.to) && (
+                          <X 
+                            className="ml-auto h-4 w-4 hover:bg-gray-200 rounded" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDateRange({ from: undefined, to: undefined });
+                            }}
+                          />
+                        )}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 bg-white" align="start">
                       <CalendarComponent
-                        mode="single"
-                        selected={startDate}
-                        onSelect={setStartDate}
-                        disabled={(date) => endDate ? date > endDate : false}
+                        mode="range"
+                        selected={{ from: dateRange.from, to: dateRange.to }}
+                        onSelect={(range: any) => {
+                          if (range) {
+                            setDateRange({ from: range.from, to: range.to });
+                          } else {
+                            setDateRange({ from: undefined, to: undefined });
+                          }
+                        }}
+                        numberOfMonths={2}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
-
-                  <span className="text-sm text-gray-600">bis</span>
-
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "justify-start text-left font-normal",
-                          !endDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {endDate ? format(endDate, "dd.MM.yyyy", { locale: de }) : "Bis Datum"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={endDate}
-                        onSelect={setEndDate}
-                        disabled={(date) => startDate ? date < startDate : false}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-
-                  {(startDate || endDate) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setStartDate(undefined);
-                        setEndDate(undefined);
-                      }}
-                      className="h-8 px-2"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                  
+                  {dateRange.from && dateRange.to && (
+                    <div className="text-sm text-gray-600 px-2">
+                      <span className="font-medium">Zeitraum:</span> {getDateRangeDuration()} Tag{getDateRangeDuration() !== 1 ? 'e' : ''}
+                    </div>
                   )}
                 </div>
               </div>
