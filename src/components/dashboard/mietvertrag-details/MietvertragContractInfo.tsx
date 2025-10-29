@@ -172,10 +172,16 @@ export function MietvertragContractInfo({
             <div className="grid grid-cols-1 gap-3 md:gap-4">
               <MietvertragEditableField
                 label="Neue Anschrift"
-                value={vertrag.neue_anschrift || ''}
-                isEditing={editingMietvertrag === 'neue_anschrift'}
-                onEdit={() => onStartEdit('neue_anschrift')}
-                onSave={(value) => onEditMietvertrag('neue_anschrift', value)}
+                value={isGlobalEditMode && editedValues.neue_anschrift !== undefined ? editedValues.neue_anschrift : (vertrag.neue_anschrift || '')}
+                isEditing={isGlobalEditMode || editingMietvertrag === 'neue_anschrift'}
+                onEdit={() => !isGlobalEditMode && onStartEdit('neue_anschrift')}
+                onSave={(value) => {
+                  if (isGlobalEditMode) {
+                    onUpdateEditedValue?.('neue_anschrift', value);
+                  } else {
+                    onEditMietvertrag('neue_anschrift', value);
+                  }
+                }}
                 onCancel={onCancelEdit}
                 type="textarea"
                 className="text-muted-foreground"
