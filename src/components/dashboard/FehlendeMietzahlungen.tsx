@@ -142,14 +142,24 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
             </div>
             
             <div className="flex items-center gap-2">
-              {gesamtRueckstand !== 0 && (
-                <div className="text-right mr-4">
-                  <p className="text-sm text-gray-600">
-                    {gesamtRueckstand > 0 ? 'Gesamtrückstand' : 'Gesamtguthaben'}
-                  </p>
-                  <p className={`text-xl font-bold ${gesamtRueckstand > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {formatBetrag(Math.abs(gesamtRueckstand))}
-                  </p>
+              {(gesamtRueckstandBetrag > 0 || gesamtGuthabenBetrag > 0) && (
+                <div className="text-right mr-4 flex gap-4">
+                  {gesamtRueckstandBetrag > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-600">Rückstände</p>
+                      <p className="text-xl font-bold text-red-600">
+                        {formatBetrag(gesamtRueckstandBetrag)}
+                      </p>
+                    </div>
+                  )}
+                  {gesamtGuthabenBetrag > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-600">Guthaben</p>
+                      <p className="text-xl font-bold text-green-600">
+                        {formatBetrag(gesamtGuthabenBetrag)}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
               {isOpen ? (
