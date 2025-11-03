@@ -745,7 +745,7 @@ export default function MietvertragDetailsModal({
               <Building2 className="h-4 w-4 md:h-5 md:w-5" />
               <span>Mietvertrag Details</span>
             </DialogTitle>
-            <div className="flex gap-2">
+            <div className="flex gap-2 mr-8">
               {!isGlobalEditMode ? (
                 <Button onClick={handleStartGlobalEdit} variant="outline" size="sm">
                   Bearbeiten
