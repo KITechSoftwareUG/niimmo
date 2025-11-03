@@ -96,23 +96,17 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
     setIsProcessing(true);
     try {
-      // Read file content
-      const fileContent = await csvFile.text();
-      
-      // Send to webhook for processing
+      // Send to webhook for processing using FormData
       const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/csv-upload';
+      
+      // Create FormData and append file with the field name 'file'
+      const formData = new FormData();
+      formData.append('file', csvFile, csvFile.name);
       
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: csvFile.name,
-          filesize: csvFile.size,
-          content: fileContent,
-          timestamp: new Date().toISOString(),
-        }),
+        body: formData,
+        // Don't set Content-Type header - it will be set automatically with boundary
       });
 
       if (!response.ok) {
