@@ -11,6 +11,8 @@ import { sortUnitsByNumber, getCurrentContract, filterActiveAndTerminatedContrac
 import { useEditableField } from "@/hooks/useEditableField";
 import { Input } from "@/components/ui/input";
 import { ImmobilienDocumentsTab } from "./ImmobilienDocumentsTab";
+import { ImmobilienPaymentsTab } from "./ImmobilienPaymentsTab";
+
 interface ImmobilienDetailProps {
   immobilieId: string;
   onBack: () => void;
@@ -420,11 +422,12 @@ export const ImmobilienDetail = ({
           </Card>
         </div>
 
-        {/* Tabs für Einheiten und Dokumente */}
+        {/* Tabs für Einheiten, Dokumente und Zahlungen */}
         <Tabs defaultValue="einheiten" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="einheiten">Einheiten</TabsTrigger>
             <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
+            <TabsTrigger value="zahlungen">Zahlungen</TabsTrigger>
           </TabsList>
 
           <TabsContent value="einheiten">
@@ -479,6 +482,10 @@ export const ImmobilienDetail = ({
               immobilieId={immobilieId}
               dokumente={immobilienDokumente || []}
             />
+          </TabsContent>
+
+          <TabsContent value="zahlungen">
+            <ImmobilienPaymentsTab immobilieId={immobilieId} />
           </TabsContent>
         </Tabs>
       </div>

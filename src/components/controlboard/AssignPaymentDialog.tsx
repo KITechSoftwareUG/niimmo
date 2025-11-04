@@ -26,11 +26,12 @@ interface AssignPaymentDialogProps {
 export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPaymentDialogProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
+  const [assignmentType, setAssignmentType] = useState<'contract' | 'property'>('contract');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch active contracts with related data
-  const { data: contracts, isLoading } = useQuery({
+  const { data: contracts, isLoading: contractsLoading } = useQuery({
     queryKey: ['active-contracts-for-assignment'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -65,8 +66,25 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
       if (error) throw error;
       return data;
     },
-    enabled: open,
+    enabled: open && assignmentType === 'contract',
   });
+
+  // Fetch properties for property assignment
+  const { data: properties, isLoading: propertiesLoading } = useQuery({
+    queryKey: ['properties-for-assignment'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('immobilien')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && assignmentType === 'property',
+  });
+
+  const isLoading = assignmentType === 'contract' ? contractsLoading : propertiesLoading;
 
   // Filter contracts based on search
   const filteredContracts = contracts?.filter(contract => {
@@ -84,14 +102,28 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
            adresse.includes(search);
   });
 
-  const handleAssign = async (contractId: string) => {
+  // Filter properties based on search
+  const filteredProperties = properties?.filter(property => {
+    if (!searchTerm) return true;
+    
+    const search = searchTerm.toLowerCase();
+    const name = property.name?.toLowerCase() || '';
+    const adresse = property.adresse?.toLowerCase() || '';
+    
+    return name.includes(search) || adresse.includes(search);
+  });
+
+  const handleAssignToContract = async (contractId: string) => {
     if (!payment) return;
 
     setIsAssigning(true);
     try {
       const { error } = await supabase
         .from('zahlungen')
-        .update({ mietvertrag_id: contractId })
+        .update({ 
+          mietvertrag_id: contractId,
+          immobilie_id: null 
+        })
         .eq('id', payment.id);
 
       if (error) throw error;
@@ -104,6 +136,45 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
       // Refresh queries
       await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
       await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
+      await queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] });
+      
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error assigning payment:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "Die Zahlung konnte nicht zugeordnet werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleAssignToProperty = async (propertyId: string) => {
+    if (!payment) return;
+
+    setIsAssigning(true);
+    try {
+      const { error } = await supabase
+        .from('zahlungen')
+        .update({ 
+          immobilie_id: propertyId,
+          mietvertrag_id: null 
+        })
+        .eq('id', payment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Zahlung zugeordnet",
+        description: "Die Zahlung wurde erfolgreich der Immobilie zugeordnet.",
+      });
+
+      // Refresh queries
+      await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
+      await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
+      await queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] });
       
       onOpenChange(false);
     } catch (error: any) {
@@ -167,30 +238,51 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Assignment Type Selector */}
+          <div className="flex gap-2 p-1 bg-muted rounded-lg">
+            <Button
+              variant={assignmentType === 'contract' ? 'default' : 'ghost'}
+              size="sm"
+              className="flex-1"
+              onClick={() => setAssignmentType('contract')}
+            >
+              Mietvertrag
+            </Button>
+            <Button
+              variant={assignmentType === 'property' ? 'default' : 'ghost'}
+              size="sm"
+              className="flex-1"
+              onClick={() => setAssignmentType('property')}
+            >
+              Immobilie
+            </Button>
+          </div>
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Mieter, Immobilie oder Adresse suchen..."
+              placeholder={assignmentType === 'contract' ? "Mieter, Immobilie oder Adresse suchen..." : "Immobilie oder Adresse suchen..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
             />
           </div>
 
-          {/* Contracts List */}
-          <ScrollArea className="h-[400px] border rounded-lg">
-            {isLoading ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Lade Mietverträge...
-              </div>
-            ) : filteredContracts?.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Keine aktiven Mietverträge gefunden
-              </div>
-            ) : (
-              <div className="p-4 space-y-3">
-                {filteredContracts?.map((contract) => {
+          {/* Content based on assignment type */}
+          {assignmentType === 'contract' ? (
+            <ScrollArea className="h-[400px] border rounded-lg">
+              {isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Lade Mietverträge...
+                </div>
+              ) : filteredContracts?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Keine aktiven Mietverträge gefunden
+                </div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {filteredContracts?.map((contract) => {
                   const mieter = contract.mietvertrag_mieter?.[0]?.mieter;
                   const immobilie = contract.einheiten?.immobilien;
                   const warmmiete = (contract.kaltmiete || 0) + (contract.betriebskosten || 0);
@@ -199,7 +291,7 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
                     <div
                       key={contract.id}
                       className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group"
-                      onClick={() => handleAssign(contract.id)}
+                      onClick={() => handleAssignToContract(contract.id)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="space-y-2 flex-1">
@@ -257,6 +349,62 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
               </div>
             )}
           </ScrollArea>
+          ) : (
+            <ScrollArea className="h-[400px] border rounded-lg">
+              {isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Lade Immobilien...
+                </div>
+              ) : filteredProperties?.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Keine Immobilien gefunden
+                </div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {filteredProperties?.map((property) => (
+                    <div
+                      key={property.id}
+                      className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group"
+                      onClick={() => handleAssignToProperty(property.id)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2 flex-1">
+                          {/* Property Name */}
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-semibold">{property.name}</span>
+                          </div>
+
+                          {/* Address */}
+                          {property.adresse && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <MapPin className="h-4 w-4" />
+                              <span>{property.adresse}</span>
+                            </div>
+                          )}
+
+                          {/* Additional Info */}
+                          <div className="text-sm text-muted-foreground">
+                            {property.einheiten_anzahl} Einheiten
+                            {property.objekttyp && ` • ${property.objekttyp}`}
+                          </div>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isAssigning}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          Zuordnen
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          )}
         </div>
 
         <DialogFooter className="flex justify-between">

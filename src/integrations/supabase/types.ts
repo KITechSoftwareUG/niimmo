@@ -478,7 +478,7 @@ export type Database = {
           event_data: Json | null
           event_type: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           page_path: string | null
           session_id: string | null
           timestamp: string
@@ -490,7 +490,7 @@ export type Database = {
           event_data?: Json | null
           event_type: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           page_path?: string | null
           session_id?: string | null
           timestamp?: string
@@ -502,7 +502,7 @@ export type Database = {
           event_data?: Json | null
           event_type?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           page_path?: string | null
           session_id?: string | null
           timestamp?: string
@@ -578,6 +578,7 @@ export type Database = {
           empfaengername: string | null
           iban: string | null
           id: string
+          immobilie_id: string | null
           import_datum: string | null
           kategorie: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id: string | null
@@ -591,6 +592,7 @@ export type Database = {
           empfaengername?: string | null
           iban?: string | null
           id?: string
+          immobilie_id?: string | null
           import_datum?: string | null
           kategorie?: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id?: string | null
@@ -604,6 +606,7 @@ export type Database = {
           empfaengername?: string | null
           iban?: string | null
           id?: string
+          immobilie_id?: string | null
           import_datum?: string | null
           kategorie?: Database["public"]["Enums"]["zahlkategorien"] | null
           mietvertrag_id?: string | null
@@ -612,6 +615,13 @@ export type Database = {
           zugeordneter_monat?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "zahlungen_immobilie_id_fkey"
+            columns: ["immobilie_id"]
+            isOneToOne: false
+            referencedRelation: "immobilien"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "zahlungen_mietvertrag_id_fkey"
             columns: ["mietvertrag_id"]
@@ -626,54 +636,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
-      }
       calculate_zugeordneter_monat: {
         Args: { buchungsdatum: string }
         Returns: string
       }
       check_and_update_mahnstufen: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           alte_mahnstufe: number
           grund: string
           mietvertrag_id: string
           neue_mahnstufe: number
         }[]
-      }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
       }
       hybrid_search: {
         Args: {
@@ -692,44 +666,9 @@ export type Database = {
           rrf_score: number
         }[]
       }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      update_expired_terminated_contracts: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      update_expired_terminated_contracts: { Args: never; Returns: number }
       update_faellige_forderungen: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           faelligkeitsdatum: string
           forderung_id: string
@@ -737,30 +676,6 @@ export type Database = {
           sollbetrag: number
           sollmonat: string
         }[]
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
       }
     }
     Enums: {
