@@ -215,7 +215,7 @@ export const ImmobilienDetail = ({
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>;
   }
-  return <div className="min-h-screen p-6 bg-slate-300">
+  return <div className="min-h-screen p-6 modern-dashboard-bg">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <Button variant="ghost" onClick={handleBackClick} className="mb-4 hover:bg-gray-100 transition-colors">

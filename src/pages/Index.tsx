@@ -275,18 +275,27 @@ const Index = () => {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <Button onClick={() => setShowAnalytics(true)} className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
+                <Button 
+                  onClick={() => setShowAnalytics(true)} 
+                  variant="ghost"
+                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 w-full sm:w-auto"
+                >
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Analytics
                 </Button>
                 <Button 
                   onClick={() => setShowControlboard(true)} 
-                  className="bg-orange-600 hover:bg-orange-700 text-white w-full sm:w-auto"
+                  variant="ghost"
+                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 w-full sm:w-auto"
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Controlboard
                 </Button>
-                <Button onClick={() => setShowZahlungen(true)} className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto">
+                <Button 
+                  onClick={() => setShowZahlungen(true)} 
+                  variant="ghost"
+                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 w-full sm:w-auto"
+                >
                   <Euro className="h-4 w-4 mr-2" />
                   Zahlungen
                 </Button>
