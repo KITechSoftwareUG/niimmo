@@ -216,7 +216,7 @@ export const ImmobilienDetail = ({
       </div>;
   }
   return <div className="min-h-screen p-6 modern-dashboard-bg">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto relative z-10">
         <div className="mb-6">
           <Button variant="ghost" onClick={handleBackClick} className="mb-4 hover:bg-gray-100 transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
