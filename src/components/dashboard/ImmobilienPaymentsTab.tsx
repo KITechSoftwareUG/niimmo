@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Euro, Calendar, ArrowDownToLine, Trash2, Link2Off, Loader2 } from "lucide-react";
+import { Euro, Calendar, Trash2, Link2Off, Loader2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { AssignPaymentDialog } from "@/components/controlboard/AssignPaymentDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,8 @@ export function ImmobilienPaymentsTab({ immobilieId }: ImmobilienPaymentsTabProp
   const queryClient = useQueryClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
 
   // Fetch payments for this property
   const { data: zahlungen, isLoading } = useQuery({
@@ -44,11 +47,6 @@ export function ImmobilienPaymentsTab({ immobilieId }: ImmobilienPaymentsTabProp
       return data || [];
     },
   });
-
-  // Calculate totals
-  const gesamtEinnahmen = zahlungen?.reduce((sum, z) => sum + (z.betrag > 0 ? z.betrag : 0), 0) || 0;
-  const gesamtAusgaben = zahlungen?.reduce((sum, z) => sum + (z.betrag < 0 ? Math.abs(z.betrag) : 0), 0) || 0;
-  const saldo = gesamtEinnahmen - gesamtAusgaben;
 
   const handleUnassign = async (paymentId: string) => {
     try {
@@ -128,53 +126,6 @@ export function ImmobilienPaymentsTab({ immobilieId }: ImmobilienPaymentsTabProp
   return (
     <>
       <div className="space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-green-600">Einnahmen</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <ArrowDownToLine className="h-5 w-5 text-green-600" />
-                <span className="text-2xl font-bold text-green-900">
-                  {gesamtEinnahmen.toFixed(2)} €
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-red-600">Ausgaben</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <ArrowDownToLine className="h-5 w-5 text-red-600 rotate-180" />
-                <span className="text-2xl font-bold text-red-900">
-                  {gesamtAusgaben.toFixed(2)} €
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`bg-gradient-to-br ${saldo >= 0 ? 'from-blue-50 to-blue-100 border-blue-200' : 'from-orange-50 to-orange-100 border-orange-200'}`}>
-            <CardHeader className="pb-3">
-              <CardTitle className={`text-sm font-medium ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                Saldo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Euro className={`h-5 w-5 ${saldo >= 0 ? 'text-blue-600' : 'text-orange-600'}`} />
-                <span className={`text-2xl font-bold ${saldo >= 0 ? 'text-blue-900' : 'text-orange-900'}`}>
-                  {saldo.toFixed(2)} €
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Payments List */}
         <Card>
           <CardHeader>
@@ -243,6 +194,17 @@ export function ImmobilienPaymentsTab({ immobilieId }: ImmobilienPaymentsTabProp
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => {
+                              setSelectedPayment(zahlung);
+                              setAssignDialogOpen(true);
+                            }}
+                            title="Neu zuordnen"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleUnassign(zahlung.id)}
                             title="Zuordnung aufheben"
                           >
@@ -269,6 +231,27 @@ export function ImmobilienPaymentsTab({ immobilieId }: ImmobilienPaymentsTabProp
           </CardContent>
         </Card>
       </div>
+
+      {/* Assign Payment Dialog */}
+      <AssignPaymentDialog
+        open={assignDialogOpen}
+        onOpenChange={(open) => {
+          setAssignDialogOpen(open);
+          if (!open) {
+            setSelectedPayment(null);
+            queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen', immobilieId] });
+          }
+        }}
+        payment={selectedPayment ? {
+          id: selectedPayment.id,
+          betrag: selectedPayment.betrag,
+          buchungsdatum: selectedPayment.buchungsdatum,
+          empfaengername: selectedPayment.empfaengername || undefined,
+          iban: selectedPayment.iban || undefined,
+          verwendungszweck: selectedPayment.verwendungszweck || undefined,
+          kategorie: selectedPayment.kategorie || undefined,
+        } : null}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
