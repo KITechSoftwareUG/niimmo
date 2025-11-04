@@ -15,6 +15,7 @@ import { de } from "date-fns/locale";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AssignPaymentDialog } from "@/components/controlboard/AssignPaymentDialog";
 
 interface ZahlungenUebersichtProps {
   onBack?: () => void;
@@ -26,9 +27,11 @@ interface ZahlungWithDetails {
   buchungsdatum: string;
   verwendungszweck: string | null;
   empfaengername: string | null;
+  iban: string | null;
   zugeordneter_monat: string | null;
   kategorie: string | null;
   mietvertrag_id: string | null;
+  immobilie_id: string | null;
   immobilie_name: string | null;
   immobilie_adresse: string | null;
   einheit_id: string | null;
@@ -38,14 +41,12 @@ interface ZahlungWithDetails {
 
 export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) => {
   const [selectedZahlungId, setSelectedZahlungId] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [selectedMietvertragId, setSelectedMietvertragId] = useState<string | null>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status' | 'kategorie'>('datum-desc');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [selectedKategorie, setSelectedKategorie] = useState<string | null>(null);
   const [showOnlyZugeordnet, setShowOnlyZugeordnet] = useState(false);
   const [showOnlyNichtZugeordnet, setShowOnlyNichtZugeordnet] = useState(false);
-  const [contractSearchTerm, setContractSearchTerm] = useState<string>('');
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
@@ -111,6 +112,18 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                 mieter_name = mieter ? `${mieter.vorname} ${mieter.nachname}` : null;
               }
             }
+          } else if (zahlung.immobilie_id) {
+            // Get property details directly
+            const { data: propertyData } = await supabase
+              .from('immobilien')
+              .select('name, adresse')
+              .eq('id', zahlung.immobilie_id)
+              .single();
+
+            if (propertyData) {
+              immobilie_name = propertyData.name;
+              immobilie_adresse = propertyData.adresse;
+            }
           }
 
           return {
@@ -119,9 +132,11 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
             buchungsdatum: zahlung.buchungsdatum,
             verwendungszweck: zahlung.verwendungszweck,
             empfaengername: zahlung.empfaengername,
+            iban: zahlung.iban,
             zugeordneter_monat: zahlung.zugeordneter_monat,
             kategorie: zahlung.kategorie,
             mietvertrag_id: zahlung.mietvertrag_id,
+            immobilie_id: zahlung.immobilie_id,
             immobilie_name,
             immobilie_adresse,
             einheit_id,
@@ -135,76 +150,6 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     },
   });
 
-  // Query all contracts for the assignment dropdown
-  const { data: allContracts } = useQuery({
-    queryKey: ['all-contracts-for-assignment'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietvertrag')
-        .select(`
-          id,
-          einheit_id,
-          status,
-          einheiten:einheit_id (
-            id,
-            einheitentyp,
-            immobilie_id,
-            immobilien:immobilie_id (
-              name,
-              adresse
-            )
-          ),
-          mietvertrag_mieter (
-            mieter:mieter_id (
-              vorname,
-              nachname
-            )
-          )
-        `)
-        .in('status', ['aktiv', 'gekuendigt'])
-        .order('einheit_id');
-
-      if (error) throw error;
-
-      return (data || []).map((contract: any) => {
-        const einheit = contract.einheiten;
-        const immobilie = einheit?.immobilien;
-        const mieter = contract.mietvertrag_mieter?.[0]?.mieter;
-
-        return {
-          id: contract.id,
-          einheit_id: contract.einheit_id,
-          immobilie_name: immobilie?.name || 'Unbekannt',
-          immobilie_adresse: immobilie?.adresse || '',
-          einheit_typ: einheit?.einheitentyp || 'Unbekannt',
-          einheit_nr: einheit?.id ? einheit.id.slice(-2) : 'N/A',
-          mieter_name: mieter ? `${mieter.vorname} ${mieter.nachname}` : 'Unbekannt',
-          status: contract.status,
-        };
-      });
-    },
-  });
-
-  // Mutation to update payment assignment
-  const updateAssignmentMutation = useMutation({
-    mutationFn: async ({ zahlungId, mietvertragId }: { zahlungId: string; mietvertragId: string | null }) => {
-      const { error } = await supabase
-        .from('zahlungen')
-        .update({ mietvertrag_id: mietvertragId })
-        .eq('id', zahlungId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
-      toast.success('Zuordnung erfolgreich aktualisiert');
-      setIsEditing(false);
-    },
-    onError: (error) => {
-      console.error('Error updating assignment:', error);
-      toast.error('Fehler beim Aktualisieren der Zuordnung');
-    },
-  });
 
   const formatBetrag = (betrag: number) => {
     return new Intl.NumberFormat('de-DE', {
@@ -249,8 +194,8 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     }
 
     // Assignment status filter
-    if (showOnlyZugeordnet && !zahlung.mietvertrag_id) return false;
-    if (showOnlyNichtZugeordnet && zahlung.mietvertrag_id) return false;
+    if (showOnlyZugeordnet && !zahlung.mietvertrag_id && !zahlung.immobilie_id) return false;
+    if (showOnlyNichtZugeordnet && (zahlung.mietvertrag_id || zahlung.immobilie_id)) return false;
 
     // Date filter
     if (!dateRange.from && !dateRange.to) return true;
@@ -293,7 +238,9 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
       case 'betrag-asc':
         return a.betrag - b.betrag;
       case 'status':
-        return (b.mietvertrag_id ? 1 : 0) - (a.mietvertrag_id ? 1 : 0);
+        const aAssigned = a.mietvertrag_id || a.immobilie_id ? 1 : 0;
+        const bAssigned = b.mietvertrag_id || b.immobilie_id ? 1 : 0;
+        return bAssigned - aAssigned;
       case 'kategorie':
         const katA = a.kategorie || 'Keine Kategorie';
         const katB = b.kategorie || 'Keine Kategorie';
@@ -305,38 +252,9 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
 
   const selectedZahlung = sortedZahlungen?.find(z => z.id === selectedZahlungId);
 
-  const handleSaveAssignment = () => {
-    if (selectedZahlungId) {
-      updateAssignmentMutation.mutate({
-        zahlungId: selectedZahlungId,
-        mietvertragId: selectedMietvertragId,
-      });
-    }
+  const handleAssignClick = () => {
+    setAssignDialogOpen(true);
   };
-
-  const handleEditClick = () => {
-    setIsEditing(true);
-    setSelectedMietvertragId(selectedZahlung?.mietvertrag_id || null);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setSelectedMietvertragId(selectedZahlung?.mietvertrag_id || null);
-    setContractSearchTerm('');
-  };
-
-  // Filter contracts based on search term
-  const filteredContracts = allContracts?.filter((contract) => {
-    if (!contractSearchTerm) return true;
-    
-    const searchLower = contractSearchTerm.toLowerCase();
-    return (
-      contract.mieter_name.toLowerCase().includes(searchLower) ||
-      contract.immobilie_name.toLowerCase().includes(searchLower) ||
-      contract.immobilie_adresse.toLowerCase().includes(searchLower) ||
-      contract.einheit_typ.toLowerCase().includes(searchLower)
-    );
-  });
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -540,11 +458,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                             ? 'ring-2 ring-blue-500 bg-blue-50'
                             : 'hover:bg-gray-50'
                         }`}
-                        onClick={() => {
-                          setSelectedZahlungId(zahlung.id);
-                          setIsEditing(false);
-                          setSelectedMietvertragId(zahlung.mietvertrag_id);
-                        }}
+                        onClick={() => setSelectedZahlungId(zahlung.id)}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-2">
@@ -565,7 +479,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                               </p>
                             </div>
                             <div>
-                              {zahlung.mietvertrag_id ? (
+                              {zahlung.mietvertrag_id || zahlung.immobilie_id ? (
                                 <Badge className="bg-green-600">Zugeordnet</Badge>
                               ) : (
                                 <Badge variant="outline" className="text-orange-600 border-orange-600">
@@ -674,143 +588,83 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                     {/* Aktuelle Zuordnung */}
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-gray-900">Mietvertrag-Zuordnung</h3>
-                        {!isEditing && (
-                          <Button
-                            onClick={handleEditClick}
-                            size="sm"
-                            variant="outline"
-                            className="gap-2"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                            Bearbeiten
-                          </Button>
-                        )}
+                        <h3 className="font-semibold text-gray-900">Zuordnung</h3>
+                        <Button
+                          onClick={handleAssignClick}
+                          size="sm"
+                          variant="outline"
+                          className="gap-2"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                          {selectedZahlung.mietvertrag_id || selectedZahlung.immobilie_id ? 'Ändern' : 'Zuordnen'}
+                        </Button>
                       </div>
 
-                      {isEditing ? (
-                        <div className="space-y-4">
-                          <div>
-                            <label className="text-sm font-medium text-gray-700 mb-2 block">
-                              Mietvertrag suchen
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="Nach Mieter, Objekt oder Adresse suchen..."
-                              value={contractSearchTerm}
-                              onChange={(e) => setContractSearchTerm(e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
-                            />
-                            {contractSearchTerm && (
-                              <p className="text-xs text-gray-500 mb-2">
-                                {filteredContracts?.length || 0} Vertrag{(filteredContracts?.length || 0) !== 1 ? 'e' : ''} gefunden
-                              </p>
-                            )}
-                          </div>
-                          
-                          <div>
-                            <label className="text-sm font-medium text-gray-700 mb-2 block">
-                              Mietvertrag auswählen
-                            </label>
-                            <Select
-                              value={selectedMietvertragId || 'none'}
-                              onValueChange={(value) => 
-                                setSelectedMietvertragId(value === 'none' ? null : value)
-                              }
-                            >
-                              <SelectTrigger className="w-full bg-white">
-                                <SelectValue placeholder="Mietvertrag auswählen" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-white max-h-[300px] z-50">
-                                <SelectItem value="none">
-                                  <span className="text-gray-500">Keine Zuordnung</span>
-                                </SelectItem>
-                                {filteredContracts?.map((contract) => (
-                                  <SelectItem key={contract.id} value={contract.id}>
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">
-                                        {contract.immobilie_name} - {contract.einheit_typ} {contract.einheit_nr}
-                                      </span>
-                                      <span className="text-xs text-gray-500">
-                                        {contract.mieter_name}
-                                      </span>
-                                      <span className="text-xs text-gray-400">
-                                        {contract.immobilie_adresse}
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={handleSaveAssignment}
-                              className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
-                              disabled={updateAssignmentMutation.isPending}
-                            >
-                              <Check className="h-4 w-4" />
-                              Speichern
-                            </Button>
-                            <Button
-                              onClick={handleCancelEdit}
-                              variant="outline"
-                              className="flex-1 gap-2"
-                              disabled={updateAssignmentMutation.isPending}
-                            >
-                              <X className="h-4 w-4" />
-                              Abbrechen
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                          {selectedZahlung.mietvertrag_id ? (
-                            <div className="space-y-3">
-                              <div className="flex items-start gap-3">
-                                <Building2 className="h-5 w-5 text-blue-600 mt-0.5" />
-                                <div className="flex-1">
-                                  <p className="font-semibold text-gray-900">
-                                    {selectedZahlung.immobilie_name}
-                                  </p>
-                                  <p className="text-sm text-gray-600">
-                                    {selectedZahlung.immobilie_adresse}
-                                  </p>
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center gap-3">
-                                <Home className="h-5 w-5 text-blue-600" />
-                                <div>
-                                  <p className="font-medium text-gray-900">
-                                    {selectedZahlung.einheit_typ} - {getEinheitNr(selectedZahlung.einheit_id)}
-                                  </p>
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center gap-3">
-                                <User className="h-5 w-5 text-blue-600" />
-                                <div>
-                                  <p className="font-medium text-gray-900">
-                                    {selectedZahlung.mieter_name}
-                                  </p>
-                                </div>
+                      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        {selectedZahlung.mietvertrag_id ? (
+                          <div className="space-y-3">
+                            <div className="mb-2">
+                              <Badge variant="secondary" className="text-xs">Mietvertrag</Badge>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <Building2 className="h-5 w-5 text-blue-600 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="font-semibold text-gray-900">
+                                  {selectedZahlung.immobilie_name}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {selectedZahlung.immobilie_adresse}
+                                </p>
                               </div>
                             </div>
-                          ) : (
-                            <div className="text-center py-4">
-                              <Home className="h-12 w-12 text-orange-300 mx-auto mb-2" />
-                              <p className="text-orange-700 font-medium mb-1">
-                                Nicht zugeordnet
-                              </p>
-                              <p className="text-sm text-orange-600">
-                                Diese Zahlung ist keinem Mietvertrag zugeordnet
-                              </p>
+                            
+                            <div className="flex items-center gap-3">
+                              <Home className="h-5 w-5 text-blue-600" />
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {selectedZahlung.einheit_typ} - {getEinheitNr(selectedZahlung.einheit_id)}
+                                </p>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      )}
+                            
+                            <div className="flex items-center gap-3">
+                              <User className="h-5 w-5 text-blue-600" />
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {selectedZahlung.mieter_name}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : selectedZahlung.immobilie_id ? (
+                          <div className="space-y-3">
+                            <div className="mb-2">
+                              <Badge variant="secondary" className="text-xs">Immobilie</Badge>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <Building2 className="h-5 w-5 text-blue-600 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="font-semibold text-gray-900">
+                                  {selectedZahlung.immobilie_name}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {selectedZahlung.immobilie_adresse}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4">
+                            <Home className="h-12 w-12 text-orange-300 mx-auto mb-2" />
+                            <p className="text-orange-700 font-medium mb-1">
+                              Nicht zugeordnet
+                            </p>
+                            <p className="text-sm text-orange-600">
+                              Diese Zahlung ist weder einem Mietvertrag noch einer Immobilie zugeordnet
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </ScrollArea>
@@ -829,6 +683,26 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
           </Card>
         </div>
       </div>
+
+      {/* Assign Payment Dialog */}
+      <AssignPaymentDialog
+        open={assignDialogOpen}
+        onOpenChange={(open) => {
+          setAssignDialogOpen(open);
+          if (!open) {
+            // Refresh data after closing
+            queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+          }
+        }}
+        payment={selectedZahlung ? {
+          id: selectedZahlung.id,
+          betrag: selectedZahlung.betrag,
+          buchungsdatum: selectedZahlung.buchungsdatum,
+          empfaengername: selectedZahlung.empfaengername || undefined,
+          iban: selectedZahlung.iban || undefined,
+          verwendungszweck: selectedZahlung.verwendungszweck || undefined,
+        } : null}
+      />
     </div>
   );
 };
