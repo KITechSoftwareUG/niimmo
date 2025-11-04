@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ZahlungenUebersichtProps {
   onBack?: () => void;
@@ -42,6 +43,8 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status' | 'kategorie'>('datum-desc');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({ from: undefined, to: undefined });
   const [selectedKategorie, setSelectedKategorie] = useState<string | null>(null);
+  const [showOnlyZugeordnet, setShowOnlyZugeordnet] = useState(false);
+  const [showOnlyNichtZugeordnet, setShowOnlyNichtZugeordnet] = useState(false);
   const [contractSearchTerm, setContractSearchTerm] = useState<string>('');
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
@@ -237,13 +240,17 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     return diffDays;
   };
 
-  // Filter payments by date range and category
+  // Filter payments by date range, category, and assignment status
   const filteredZahlungen = zahlungen ? zahlungen.filter((zahlung) => {
     // Category filter
     if (selectedKategorie) {
       const zahlungKategorie = zahlung.kategorie || 'Keine Kategorie';
       if (zahlungKategorie !== selectedKategorie) return false;
     }
+
+    // Assignment status filter
+    if (showOnlyZugeordnet && !zahlung.mietvertrag_id) return false;
+    if (showOnlyNichtZugeordnet && zahlung.mietvertrag_id) return false;
 
     // Date filter
     if (!dateRange.from && !dateRange.to) return true;
@@ -418,6 +425,45 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                         <X className="h-4 w-4" />
                       </Button>
                     )}
+                  </div>
+
+                  {/* Assignment Status Filter */}
+                  <div className="flex items-center gap-4 pt-2">
+                    <label className="text-sm font-medium text-gray-700">Zuordnung:</label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="zugeordnet"
+                          checked={showOnlyZugeordnet}
+                          onCheckedChange={(checked) => {
+                            setShowOnlyZugeordnet(!!checked);
+                            if (checked) setShowOnlyNichtZugeordnet(false);
+                          }}
+                        />
+                        <label
+                          htmlFor="zugeordnet"
+                          className="text-sm text-gray-700 cursor-pointer"
+                        >
+                          Nur zugeordnete
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="nicht-zugeordnet"
+                          checked={showOnlyNichtZugeordnet}
+                          onCheckedChange={(checked) => {
+                            setShowOnlyNichtZugeordnet(!!checked);
+                            if (checked) setShowOnlyZugeordnet(false);
+                          }}
+                        />
+                        <label
+                          htmlFor="nicht-zugeordnet"
+                          className="text-sm text-gray-700 cursor-pointer"
+                        >
+                          Nur nicht zugeordnete
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
