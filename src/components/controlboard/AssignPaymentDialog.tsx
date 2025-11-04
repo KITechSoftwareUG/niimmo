@@ -20,12 +20,14 @@ interface AssignPaymentDialogProps {
     empfaengername?: string;
     iban?: string;
     verwendungszweck?: string;
+    kategorie?: string;
   } | null;
 }
 
 export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPaymentDialogProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
+  const isMiete = payment?.kategorie === 'Miete';
   const [assignmentType, setAssignmentType] = useState<'contract' | 'property'>('contract');
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -239,23 +241,32 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
 
         <div className="space-y-4">
           {/* Assignment Type Selector */}
-          <div className="flex gap-2 p-1 bg-muted rounded-lg">
-            <Button
-              variant={assignmentType === 'contract' ? 'default' : 'ghost'}
-              size="sm"
-              className="flex-1"
-              onClick={() => setAssignmentType('contract')}
-            >
-              Mietvertrag
-            </Button>
-            <Button
-              variant={assignmentType === 'property' ? 'default' : 'ghost'}
-              size="sm"
-              className="flex-1"
-              onClick={() => setAssignmentType('property')}
-            >
-              Immobilie
-            </Button>
+          <div className="space-y-2">
+            <div className="flex gap-2 p-1 bg-muted rounded-lg">
+              <Button
+                variant={assignmentType === 'contract' ? 'default' : 'ghost'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setAssignmentType('contract')}
+              >
+                Mietvertrag
+              </Button>
+              <Button
+                variant={assignmentType === 'property' ? 'default' : 'ghost'}
+                size="sm"
+                className="flex-1"
+                onClick={() => setAssignmentType('property')}
+                disabled={isMiete}
+              >
+                Immobilie
+              </Button>
+            </div>
+            
+            {isMiete && (
+              <p className="text-sm text-muted-foreground px-1">
+                Mietzahlungen können nur Mietverträgen zugeordnet werden
+              </p>
+            )}
           </div>
 
           {/* Search */}

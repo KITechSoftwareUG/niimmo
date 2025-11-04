@@ -701,6 +701,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
           empfaengername: selectedZahlung.empfaengername || undefined,
           iban: selectedZahlung.iban || undefined,
           verwendungszweck: selectedZahlung.verwendungszweck || undefined,
+          kategorie: selectedZahlung.kategorie || undefined,
         } : null}
       />
     </div>
