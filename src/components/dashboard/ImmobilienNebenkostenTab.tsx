@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Euro, Calendar, Trash2, Link2Off, Loader2, Edit } from "lucide-react";
+import { Euro, Calendar, Trash2, Link2Off, Loader2, Edit, Settings, Calculator, Building } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 interface ImmobilienNebenkostenTabProps {
   immobilieId: string;
@@ -54,8 +64,27 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [showDistributionSettings, setShowDistributionSettings] = useState(false);
 
-  // Fetch payments for this property (Nebenkosten)
+  // Fetch einheiten for this property
+  const { data: einheiten, isLoading: einheitenLoading } = useQuery({
+    queryKey: ['einheiten-nebenkosten', immobilieId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('einheiten')
+        .select('*')
+        .eq('immobilie_id', immobilieId);
+
+      if (error) throw error;
+      
+      // Sort using derived numeric key (zaehler digits if present, else last two digits from ID)
+      const sorted = (data || []).sort((a, b) => getEinheitSortKey(a) - getEinheitSortKey(b));
+      
+      return sorted;
+    },
+  });
+
+  // Fetch payments for this property (Betriebskosten)
   const { data: zahlungen, isLoading: zahlungenLoading } = useQuery({
     queryKey: ['immobilien-nebenkosten', immobilieId],
     queryFn: async () => {
@@ -127,6 +156,88 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
     }
   };
 
+  const handleUpdateDistributionKey = async (
+    einheitId: string,
+    art: string,
+    wert?: number,
+    personen?: number
+  ) => {
+    try {
+      const updateData: any = { verteilerschluessel_art: art };
+      
+      if (art === 'individuell' && wert !== undefined) {
+        updateData.verteilerschluessel_wert = wert;
+      }
+      if (art === 'personen' && personen !== undefined) {
+        updateData.anzahl_personen = personen;
+      }
+
+      const { error } = await supabase
+        .from('einheiten')
+        .update(updateData)
+        .eq('id', einheitId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Verteilerschlüssel gespeichert",
+        description: "Der Verteilerschlüssel wurde erfolgreich aktualisiert.",
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['einheiten-nebenkosten', immobilieId] });
+    } catch (error: any) {
+      console.error('Error updating distribution key:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "Der Verteilerschlüssel konnte nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const calculateDistribution = () => {
+    if (!einheiten || einheiten.length === 0) return [];
+
+    const totalQm = einheiten.reduce((sum, e) => sum + (e.qm || 0), 0);
+    const totalPersonen = einheiten.reduce((sum, e) => sum + (e.anzahl_personen || 1), 0);
+    const anzahlEinheiten = einheiten.length;
+    
+    let totalIndividuell = 0;
+    einheiten.forEach(e => {
+      if (e.verteilerschluessel_art === 'individuell') {
+        totalIndividuell += (e.verteilerschluessel_wert || 0);
+      }
+    });
+
+    return einheiten.map(einheit => {
+      let anteil = 0;
+
+      switch (einheit.verteilerschluessel_art) {
+        case 'qm':
+          anteil = totalQm > 0 ? ((einheit.qm || 0) / totalQm) * 100 : 0;
+          break;
+        case 'personen':
+          anteil = totalPersonen > 0 ? ((einheit.anzahl_personen || 1) / totalPersonen) * 100 : 0;
+          break;
+        case 'gleich':
+          anteil = anzahlEinheiten > 0 ? (1 / anzahlEinheiten) * 100 : 0;
+          break;
+        case 'individuell':
+          anteil = einheit.verteilerschluessel_wert || 0;
+          break;
+      }
+
+      return {
+        ...einheit,
+        anteil: anteil,
+      };
+    });
+  };
+
+  const distributedEinheiten = calculateDistribution();
+  const totalAnteil = distributedEinheiten.reduce((sum, e) => sum + e.anteil, 0);
+  const totalNebenkosten = zahlungen?.reduce((sum, z) => sum + (z.betrag || 0), 0) || 0;
+
   const getCategoryColor = (kategorie: string | null) => {
     switch (kategorie) {
       case 'Miete': return 'bg-green-100 text-green-800 border-green-300';
@@ -137,7 +248,7 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
     }
   };
 
-  if (zahlungenLoading) {
+  if (einheitenLoading || zahlungenLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -148,6 +259,122 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
   return (
     <>
       <div className="space-y-6">
+        {/* Verteilerschlüssel Management */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Verteilerschlüssel-Einstellungen
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDistributionSettings(!showDistributionSettings)}
+              >
+                {showDistributionSettings ? 'Verbergen' : 'Anzeigen'}
+              </Button>
+            </div>
+          </CardHeader>
+          {showDistributionSettings && (
+            <CardContent>
+              <div className="space-y-6">
+                {/* Zusammenfassung */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <Calculator className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-blue-900 mb-2">Verteilungsübersicht</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-blue-700">Gesamtanteil:</p>
+                          <p className={`font-bold ${Math.abs(totalAnteil - 100) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+                            {totalAnteil.toFixed(2)}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-blue-700">Anzahl Einheiten:</p>
+                          <p className="font-bold text-blue-900">{einheiten?.length || 0}</p>
+                        </div>
+                      </div>
+                      {Math.abs(totalAnteil - 100) > 0.01 && (
+                        <p className="text-xs text-red-600 mt-2">
+                          ⚠️ Achtung: Die Summe der Anteile sollte 100% ergeben!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Einheiten-spezifische Verteilerschlüssel */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-gray-900">Verteilerschlüssel pro Einheit</h4>
+                  {distributedEinheiten.map((einheit) => (
+                    <DistributionKeyRow
+                      key={einheit.id}
+                      einheit={einheit}
+                      onUpdate={handleUpdateDistributionKey}
+                    />
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
+        {/* Kostenverteilung Übersicht */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building className="h-5 w-5" />
+              Nebenkosten-Verteilung auf Einheiten
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <p className="text-sm text-purple-700 mb-2">Gesamte Nebenkosten der Immobilie:</p>
+                <p className="text-3xl font-bold text-purple-900">
+                  {totalNebenkosten.toFixed(2)} €
+                </p>
+              </div>
+
+              <ScrollArea className="h-[300px]">
+                <div className="space-y-3">
+                  {distributedEinheiten.map((einheit) => {
+                    const anteilBetrag = (totalNebenkosten * einheit.anteil) / 100;
+                    return (
+                      <div
+                        key={einheit.id}
+                        className="p-4 border rounded-lg bg-white hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {getEinheitLabel(einheit)}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {einheit.qm ? `${einheit.qm} m²` : 'Keine Fläche'} • {einheit.verteilerschluessel_art}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-600">{einheit.anteil.toFixed(2)}%</p>
+                            <p className="text-xl font-bold text-purple-600">
+                              {anteilBetrag.toFixed(2)} €
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Alle Nebenkosten-Zahlungen */}
         <Card>
           <CardHeader>
@@ -292,5 +519,86 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+// Sub-component for distribution key row
+interface DistributionKeyRowProps {
+  einheit: any;
+  onUpdate: (einheitId: string, art: string, wert?: number, personen?: number) => void;
+}
+
+function DistributionKeyRow({ einheit, onUpdate }: DistributionKeyRowProps) {
+  const [art, setArt] = useState(einheit.verteilerschluessel_art || 'qm');
+  const [wert, setWert] = useState(einheit.verteilerschluessel_wert || 0);
+  const [personen, setPersonen] = useState(einheit.anzahl_personen || 1);
+
+  const handleSave = () => {
+    onUpdate(einheit.id, art, wert, personen);
+  };
+
+  return (
+    <div className="p-4 border rounded-lg bg-gray-50 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-gray-900">{getEinheitLabel(einheit)}</p>
+          <p className="text-sm text-gray-600">
+            {einheit.qm ? `${einheit.qm} m²` : 'Keine Fläche angegeben'}
+          </p>
+        </div>
+        <Badge variant="outline" className="bg-white">
+          {einheit.anteil?.toFixed(2)}% Anteil
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor={`art-${einheit.id}`}>Verteilungsart</Label>
+          <Select value={art} onValueChange={setArt}>
+            <SelectTrigger id={`art-${einheit.id}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="qm">Nach m²</SelectItem>
+              <SelectItem value="personen">Nach Personenanzahl</SelectItem>
+              <SelectItem value="gleich">Gleichmäßig</SelectItem>
+              <SelectItem value="individuell">Individuell (%)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {art === 'individuell' && (
+          <div className="space-y-2">
+            <Label htmlFor={`wert-${einheit.id}`}>Prozentsatz (%)</Label>
+            <Input
+              id={`wert-${einheit.id}`}
+              type="number"
+              step="0.01"
+              value={wert}
+              onChange={(e) => setWert(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+        )}
+
+        {art === 'personen' && (
+          <div className="space-y-2">
+            <Label htmlFor={`personen-${einheit.id}`}>Anzahl Personen</Label>
+            <Input
+              id={`personen-${einheit.id}`}
+              type="number"
+              min="1"
+              value={personen}
+              onChange={(e) => setPersonen(parseInt(e.target.value) || 1)}
+            />
+          </div>
+        )}
+
+        <div className="flex items-end">
+          <Button onClick={handleSave} className="w-full">
+            Speichern
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
