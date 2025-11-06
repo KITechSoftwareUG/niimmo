@@ -72,6 +72,35 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
       // Sort using derived numeric key (zaehler digits if present, else last two digits from ID)
       const sorted = (data || []).sort((a, b) => getEinheitSortKey(a) - getEinheitSortKey(b));
       
+      // Initialize percentages based on qm if not set
+      const totalQm = sorted.reduce((sum, e) => sum + (e.qm || 0), 0);
+      const needsInitialization = sorted.some(e => 
+        !e.verteilerschluessel_wert || e.verteilerschluessel_wert === 0
+      );
+
+      if (needsInitialization && totalQm > 0) {
+        // Update all units with qm-based percentages
+        for (const einheit of sorted) {
+          const percentage = totalQm > 0 ? ((einheit.qm || 0) / totalQm) * 100 : 0;
+          await supabase
+            .from('einheiten')
+            .update({ 
+              verteilerschluessel_wert: percentage,
+              verteilerschluessel_art: 'individuell'
+            })
+            .eq('id', einheit.id);
+        }
+        
+        // Refetch to get updated data
+        const { data: updatedData, error: refetchError } = await supabase
+          .from('einheiten')
+          .select('*')
+          .eq('immobilie_id', immobilieId);
+        
+        if (refetchError) throw refetchError;
+        return (updatedData || []).sort((a, b) => getEinheitSortKey(a) - getEinheitSortKey(b));
+      }
+      
       return sorted;
     },
   });
@@ -278,21 +307,7 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
                 </p>
               </div>
 
-              <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-700">Gesamtanteil:</span>
-                  <span className={`font-bold ${Math.abs(totalAnteil - 100) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
-                    {totalAnteil.toFixed(2)}%
-                  </span>
-                </div>
-                {Math.abs(totalAnteil - 100) > 0.01 && (
-                  <p className="text-xs text-red-600 mt-1">
-                    ⚠️ Die Summe sollte 100% ergeben
-                  </p>
-                )}
-              </div>
-
-              <ScrollArea className="h-[300px]">
+              <ScrollArea className="h-[400px]">
                 <div className="space-y-3">
                   {distributedEinheiten.map((einheit) => {
                     const anteilBetrag = (totalNebenkosten * einheit.anteil) / 100;
