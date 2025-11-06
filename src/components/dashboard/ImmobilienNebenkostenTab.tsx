@@ -58,11 +58,18 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
       const { data, error } = await supabase
         .from('einheiten')
         .select('*')
-        .eq('immobilie_id', immobilieId)
-        .order('zaehler', { ascending: true });
+        .eq('immobilie_id', immobilieId);
 
       if (error) throw error;
-      return data || [];
+      
+      // Sort numerically by zaehler
+      const sorted = (data || []).sort((a, b) => {
+        const numA = Number(a.zaehler) || 0;
+        const numB = Number(b.zaehler) || 0;
+        return numA - numB;
+      });
+      
+      return sorted;
     },
   });
 
