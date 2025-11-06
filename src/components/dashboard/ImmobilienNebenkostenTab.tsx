@@ -35,6 +35,13 @@ interface ImmobilienNebenkostenTabProps {
   immobilieId: string;
 }
 
+// Helper function to get unit label from ID
+const getEinheitLabel = (einheit: any): string => {
+  if (einheit.zaehler) return `Einheit ${einheit.zaehler}`;
+  const lastTwoDigits = einheit.id.slice(-2);
+  return `Einheit ${lastTwoDigits}`;
+};
+
 export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -328,7 +335,7 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-semibold text-gray-900">
-                              Einheit {einheit.zaehler || 'N/A'}
+                              {getEinheitLabel(einheit)}
                             </p>
                             <p className="text-sm text-gray-600">
                               {einheit.qm ? `${einheit.qm} m²` : 'Keine Fläche'} • {einheit.verteilerschluessel_art}
@@ -516,7 +523,7 @@ function DistributionKeyRow({ einheit, onUpdate }: DistributionKeyRowProps) {
     <div className="p-4 border rounded-lg bg-gray-50 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-semibold text-gray-900">Einheit {einheit.zaehler || 'N/A'}</p>
+          <p className="font-semibold text-gray-900">{getEinheitLabel(einheit)}</p>
           <p className="text-sm text-gray-600">
             {einheit.qm ? `${einheit.qm} m²` : 'Keine Fläche angegeben'}
           </p>
