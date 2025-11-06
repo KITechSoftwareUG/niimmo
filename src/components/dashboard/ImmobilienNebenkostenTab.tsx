@@ -38,8 +38,23 @@ interface ImmobilienNebenkostenTabProps {
 // Helper function to get unit label from ID
 const getEinheitLabel = (einheit: any): string => {
   if (einheit.zaehler) return `Einheit ${einheit.zaehler}`;
-  const lastTwoDigits = einheit.id.slice(-2);
-  return `Einheit ${lastTwoDigits}`;
+  const digitsFromId = (einheit.id as string).replace(/\D/g, "");
+  const lastTwo = digitsFromId.slice(-2) || "00";
+  return `Einheit ${lastTwo}`;
+};
+
+// Helper function to get numeric sort key
+const getEinheitSortKey = (einheit: any): number => {
+  const digitsFromZaehler = typeof einheit.zaehler === 'string' || typeof einheit.zaehler === 'number'
+    ? String(einheit.zaehler).replace(/\D/g, '')
+    : '';
+  if (digitsFromZaehler) {
+    // Use full numeric value for sorting (not only last two)
+    return parseInt(digitsFromZaehler, 10);
+  }
+  const digitsFromId = (einheit.id as string).replace(/\D/g, '');
+  const lastTwo = digitsFromId.slice(-2) || '0';
+  return parseInt(lastTwo, 10) || 0;
 };
 
 export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenTabProps) {
@@ -62,12 +77,8 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
 
       if (error) throw error;
       
-      // Sort numerically by zaehler
-      const sorted = (data || []).sort((a, b) => {
-        const numA = Number(a.zaehler) || 0;
-        const numB = Number(b.zaehler) || 0;
-        return numA - numB;
-      });
+      // Sort using derived numeric key (zaehler digits if present, else last two digits from ID)
+      const sorted = (data || []).sort((a, b) => getEinheitSortKey(a) - getEinheitSortKey(b));
       
       return sorted;
     },
