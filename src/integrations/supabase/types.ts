@@ -111,6 +111,7 @@ export type Database = {
       einheiten: {
         Row: {
           aktualisiert_am: string | null
+          anzahl_personen: number | null
           einheitentyp: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am: string | null
           etage: string | null
@@ -120,11 +121,14 @@ export type Database = {
           kaltwasser_zaehler: string | null
           qm: number | null
           strom_zaehler: string | null
+          verteilerschluessel_art: string | null
+          verteilerschluessel_wert: number | null
           warmwasser_zaehler: string | null
           zaehler: number | null
         }
         Insert: {
           aktualisiert_am?: string | null
+          anzahl_personen?: number | null
           einheitentyp?: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am?: string | null
           etage?: string | null
@@ -134,11 +138,14 @@ export type Database = {
           kaltwasser_zaehler?: string | null
           qm?: number | null
           strom_zaehler?: string | null
+          verteilerschluessel_art?: string | null
+          verteilerschluessel_wert?: number | null
           warmwasser_zaehler?: string | null
           zaehler?: number | null
         }
         Update: {
           aktualisiert_am?: string | null
+          anzahl_personen?: number | null
           einheitentyp?: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am?: string | null
           etage?: string | null
@@ -148,6 +155,8 @@ export type Database = {
           kaltwasser_zaehler?: string | null
           qm?: number | null
           strom_zaehler?: string | null
+          verteilerschluessel_art?: string | null
+          verteilerschluessel_wert?: number | null
           warmwasser_zaehler?: string | null
           zaehler?: number | null
         }
