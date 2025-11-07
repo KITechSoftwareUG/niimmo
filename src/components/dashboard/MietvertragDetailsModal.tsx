@@ -134,6 +134,27 @@ export default function MietvertragDetailsModal({
     enabled: isOpen && !!vertragId
   });
 
+  // Fetch einheit data based on vertrag
+  const { data: fetchedEinheit } = useQuery({
+    queryKey: ['einheit-detail', vertrag?.einheit_id],
+    queryFn: async () => {
+      if (!vertrag?.einheit_id) return null;
+      
+      const { data, error } = await supabase
+        .from('einheiten')
+        .select('*')
+        .eq('id', vertrag.einheit_id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: isOpen && !!vertrag?.einheit_id
+  });
+
+  // Use fetched einheit if available, otherwise use prop
+  const einheitData = fetchedEinheit || einheit;
+
   const { data: mieter } = useQuery({
     queryKey: ['mietvertrag-mieter-detail', vertragId],
     queryFn: async () => {
@@ -500,7 +521,7 @@ export default function MietvertragDetailsModal({
 
   const handleEditMeterNumber = async (field: string, value: string) => {
     try {
-      if (!einheit?.id) {
+      if (!einheitData?.id) {
         toast({
           title: "Fehler",
           description: "Einheit nicht gefunden.",
@@ -512,7 +533,7 @@ export default function MietvertragDetailsModal({
       const { error } = await supabase
         .from('einheiten')
         .update({ [field]: value })
-        .eq('id', einheit.id);
+        .eq('id', einheitData.id);
 
       if (error) throw error;
 
@@ -523,6 +544,7 @@ export default function MietvertragDetailsModal({
 
       setEditingMeterNumber(null);
       await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+      await queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData.id] });
 
     } catch (error) {
       console.error('Fehler beim Aktualisieren der Zählernummer:', error);
@@ -565,11 +587,11 @@ export default function MietvertragDetailsModal({
     };
     
     // Add einheit meter numbers if available
-    if (einheit) {
-      initialValues.kaltwasser_zaehler = einheit.kaltwasser_zaehler || '';
-      initialValues.warmwasser_zaehler = einheit.warmwasser_zaehler || '';
-      initialValues.strom_zaehler = einheit.strom_zaehler || '';
-      initialValues.gas_zaehler = einheit.gas_zaehler || '';
+    if (einheitData) {
+      initialValues.kaltwasser_zaehler = einheitData.kaltwasser_zaehler || '';
+      initialValues.warmwasser_zaehler = einheitData.warmwasser_zaehler || '';
+      initialValues.strom_zaehler = einheitData.strom_zaehler || '';
+      initialValues.gas_zaehler = einheitData.gas_zaehler || '';
     }
     
     // Add mieter data
@@ -629,7 +651,7 @@ export default function MietvertragDetailsModal({
       }
 
       // Update einheit meter numbers if changed
-      if (einheit) {
+      if (einheitData) {
         const einheitUpdates: any = {};
         const einheitFields = ['kaltwasser_zaehler', 'warmwasser_zaehler', 'strom_zaehler', 'gas_zaehler'];
         
@@ -643,7 +665,7 @@ export default function MietvertragDetailsModal({
           const { error: einheitError } = await supabase
             .from('einheiten')
             .update(einheitUpdates)
-            .eq('id', einheit.id);
+            .eq('id', einheitData.id);
 
           if (einheitError) throw einheitError;
         }
@@ -681,6 +703,7 @@ export default function MietvertragDetailsModal({
       // Invalidate queries
       await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
       await queryClient.invalidateQueries({ queryKey: ['mietvertrag-mieter-detail', vertragId] });
+      await queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData?.id] });
       await queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
 
       toast({
@@ -778,7 +801,7 @@ export default function MietvertragDetailsModal({
                 forderungen={forderungen || []}
                 zahlungen={zahlungen || []}
                 immobilie={immobilie}
-                einheit={einheit}
+                einheit={einheitData}
                 isGlobalEditMode={isGlobalEditMode}
                 editedValues={editedValues}
                 onUpdateEditedValue={handleUpdateEditedValue}
@@ -856,7 +879,7 @@ export default function MietvertragDetailsModal({
           isOpen={showTerminationDialog}
           onClose={() => setShowTerminationDialog(false)}
           vertragId={vertragId}
-          einheit={einheit}
+          einheit={einheitData}
           immobilie={immobilie}
           onTerminationSuccess={handleTerminationSuccess}
         />
