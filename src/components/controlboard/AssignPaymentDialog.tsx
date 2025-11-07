@@ -224,6 +224,45 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
     }
   };
 
+  const handleUnassign = async () => {
+    if (!payment) return;
+
+    setIsAssigning(true);
+    try {
+      const { error } = await supabase
+        .from('zahlungen')
+        .update({ 
+          mietvertrag_id: null,
+          immobilie_id: null 
+        })
+        .eq('id', payment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Zuordnung aufgehoben",
+        description: "Die Zahlung wurde von allen Zuordnungen getrennt.",
+      });
+
+      // Refresh queries
+      await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
+      await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
+      await queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] });
+      await queryClient.invalidateQueries({ queryKey: ['immobilien-nebenkosten'] });
+      
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error unassigning payment:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "Die Zuordnung konnte nicht aufgehoben werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
@@ -419,13 +458,22 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
         </div>
 
         <DialogFooter className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={handleCategorizeAsNonRent}
-            disabled={isAssigning}
-          >
-            Als Nichtmiete kategorisieren
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCategorizeAsNonRent}
+              disabled={isAssigning}
+            >
+              Als Nichtmiete kategorisieren
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleUnassign}
+              disabled={isAssigning}
+            >
+              Zuordnung aufheben
+            </Button>
+          </div>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Abbrechen
           </Button>
