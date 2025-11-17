@@ -16,6 +16,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AssignPaymentDialog } from "@/components/controlboard/AssignPaymentDialog";
+import { Input } from "@/components/ui/input";
 
 interface ZahlungenUebersichtProps {
   onBack?: () => void;
@@ -47,6 +48,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [selectedKategorie, setSelectedKategorie] = useState<string | null>(null);
   const [showOnlyZugeordnet, setShowOnlyZugeordnet] = useState(false);
   const [showOnlyNichtZugeordnet, setShowOnlyNichtZugeordnet] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
@@ -185,8 +187,36 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     return diffDays;
   };
 
-  // Filter payments by date range, category, and assignment status
+  // Filter payments by date range, category, assignment status, and search term
   const filteredZahlungen = zahlungen ? zahlungen.filter((zahlung) => {
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase().trim();
+      
+      // Text-based fields
+      const textMatch = (
+        zahlung.verwendungszweck?.toLowerCase().includes(search) ||
+        zahlung.empfaengername?.toLowerCase().includes(search) ||
+        zahlung.iban?.toLowerCase().includes(search) ||
+        zahlung.mieter_name?.toLowerCase().includes(search) ||
+        zahlung.immobilie_name?.toLowerCase().includes(search) ||
+        zahlung.immobilie_adresse?.toLowerCase().includes(search) ||
+        zahlung.kategorie?.toLowerCase().includes(search) ||
+        zahlung.zugeordneter_monat?.toLowerCase().includes(search)
+      );
+      
+      // Amount search (both as string and formatted)
+      const betragString = zahlung.betrag?.toString();
+      const betragMatch = betragString?.includes(search) || 
+                         Math.abs(zahlung.betrag || 0).toFixed(2).includes(search);
+      
+      // Date search (formatted dd.MM.yyyy)
+      const dateString = formatDatum(zahlung.buchungsdatum);
+      const dateMatch = dateString.includes(search);
+      
+      if (!textMatch && !betragMatch && !dateMatch) return false;
+    }
+    
     // Category filter
     if (selectedKategorie) {
       const zahlungKategorie = zahlung.kategorie || 'Keine Kategorie';
@@ -312,6 +342,17 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  {/* Search Filter */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Suchen nach Mieter, Verwendungszweck, IBAN, Betrag, Datum..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 w-full bg-white"
+                    />
                   </div>
 
                   {/* Category Filter */}
@@ -474,7 +515,9 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                                   </Badge>
                                 )}
                               </div>
-                              <p className="text-lg font-bold text-green-600">
+                              <p className={`text-lg font-bold ${
+                                zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'
+                              }`}>
                                 {formatBetrag(zahlung.betrag)}
                               </p>
                             </div>
