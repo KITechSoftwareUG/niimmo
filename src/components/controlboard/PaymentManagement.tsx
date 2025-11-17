@@ -316,7 +316,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                       <TableCell>
                         {format(new Date(payment.buchungsdatum), 'dd.MM.yyyy')}
                       </TableCell>
-                      <TableCell className="text-right font-semibold">
+                      <TableCell className={`text-right font-semibold ${
+                        payment.betrag < 0 ? 'text-destructive' : 'text-green-600'
+                      }`}>
                         {payment.betrag.toFixed(2)} €
                       </TableCell>
                       <TableCell className="font-mono text-xs">
