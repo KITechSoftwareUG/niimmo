@@ -57,16 +57,31 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     },
   });
 
-  // Filter payments based on search
+  // Advanced filter for payments - searches across multiple fields
   const filteredPayments = unassignedPayments?.filter(payment => {
     if (!searchTerm) return true;
     
-    const search = searchTerm.toLowerCase();
-    return (
+    const search = searchTerm.toLowerCase().trim();
+    
+    // Search in text fields
+    const textMatch = (
       payment.iban?.toLowerCase().includes(search) ||
       payment.empfaengername?.toLowerCase().includes(search) ||
-      payment.verwendungszweck?.toLowerCase().includes(search)
+      payment.verwendungszweck?.toLowerCase().includes(search) ||
+      payment.kategorie?.toLowerCase().includes(search) ||
+      payment.zugeordneter_monat?.toLowerCase().includes(search)
     );
+    
+    // Search in amount (convert betrag to string and search)
+    const betragString = payment.betrag?.toString();
+    const betragMatch = betragString?.includes(search) || 
+                       Math.abs(payment.betrag || 0).toFixed(2).includes(search);
+    
+    // Search in date
+    const dateString = payment.buchungsdatum ? format(new Date(payment.buchungsdatum), 'dd.MM.yyyy') : '';
+    const dateMatch = dateString.includes(search);
+    
+    return textMatch || betragMatch || dateMatch;
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -261,10 +276,10 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             </div>
 
             {/* Search */}
-            <div className="relative w-64">
+            <div className="relative w-80">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Suchen..."
+                placeholder="Suchen nach Mieter, Verwendungszweck, IBAN, Betrag, Datum..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9"
