@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDocumentUpload } from "@/hooks/useDocumentUpload";
 import { useQueryClient } from "@tanstack/react-query";
+import { DocumentDragDropZone } from "../DocumentDragDropZone";
 
 interface MietvertragDocumentsTabProps {
   dokumente: any[];
@@ -243,6 +244,13 @@ export function MietvertragDocumentsTab({
     }
   };
 
+  const handleFileDrop = (file: File) => {
+    setSelectedFile(file);
+    setUploadTitel(file.name);
+    setUploadKategorie("Sonstiges");
+    setIsUploadDialogOpen(true);
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) {
       toast({
@@ -313,8 +321,9 @@ export function MietvertragDocumentsTab({
 
   return (
     <>
-      <div className="space-y-4">
-        <Card>
+      <DocumentDragDropZone onFileSelect={handleFileDrop}>
+        <div className="space-y-4">
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -718,6 +727,7 @@ export function MietvertragDocumentsTab({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  </>
+      </DocumentDragDropZone>
+    </>
   );
 }
