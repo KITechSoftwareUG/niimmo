@@ -64,48 +64,105 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
 
     setIsSubmitting(true);
     try {
-      // Call the Edge Function to generate the PDF
-      const { data, error } = await supabase.functions.invoke('generate-rent-increase-pdf', {
-        body: {
-          mietvertragId: contractData.mietvertrag_id,
-          neueKaltmiete: parseFloat(neueKaltmiete),
-          neueBetriebskosten: parseFloat(neueBetriebskosten)
-        }
+      const payload = {
+        mieterhoehung: true,
+        mietvertrag_id: contractData.mietvertrag_id,
+        current_kaltmiete: contractData.current_kaltmiete,
+        neue_kaltmiete: parseFloat(neueKaltmiete),
+        current_betriebskosten: contractData.current_betriebskosten,
+        neue_betriebskosten: parseFloat(neueBetriebskosten),
+        letzte_mieterhoehung_am: contractData.letzte_mieterhoehung_am,
+        start_datum: contractData.start_datum,
+        months_since_last_increase: contractData.months_since_last_increase,
+        months_since_start: contractData.months_since_start,
+        einheit_id: contractData.einheit_id,
+        immobilie_id: contractData.immobilie_id,
+        immobilie_name: contractData.immobilie_name,
+        immobilie_adresse: contractData.immobilie_adresse,
+        mieter: contractData.mieter || []
+      };
+      
+      console.log('📤 Sende Mieterhöhung an Webhook:', payload);
+      
+      const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/6fb34c33-670a-499b-ad45-6067ad7b5920';
+      
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       });
-
-      if (error) throw error;
-
-      if (data.success) {
-        toast({
-          title: "Mieterhöhung erstellt",
-          description: "Das Mieterhöhungsschreiben wurde erstellt.",
-        });
-
-        // Fetch the created document to display it
-        const { data: documentData, error: docError } = await supabase
-          .from('dokumente')
-          .select('id, titel, pfad, dateityp')
-          .eq('mietvertrag_id', contractData.mietvertrag_id)
-          .order('hochgeladen_am', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (docError) {
-          console.error('Error fetching document:', docError);
-        } else if (documentData) {
-          setGeneratedDocument(documentData);
+      
+      console.log('📥 Response Status:', response.status);
+      
+      if (response.ok) {
+        // Check if response contains PDF data
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType?.includes('application/pdf') || contentType?.includes('text/html')) {
+          // PDF/HTML returned directly
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          
+          // Create a mock document object for the preview
+          const mockDocument = {
+            id: 'temp-' + Date.now(),
+            titel: `Mieterhöhung ${new Date().toLocaleDateString('de-DE')}`,
+            pfad: url,
+            dateityp: contentType || 'application/pdf'
+          };
+          
+          setGeneratedDocument(mockDocument);
           setPdfPreviewOpen(true);
-        }
+          
+          toast({
+            title: "Mieterhöhung erstellt",
+            description: "Das Mieterhöhungsschreiben wurde erstellt.",
+          });
+        } else {
+          // JSON response
+          const responseData = await response.json();
+          console.log('📥 Response Data:', responseData);
+          
+          toast({
+            title: "Mieterhöhung gestartet",
+            description: "Die Mieterhöhung wird erstellt.",
+          });
+          
+          // Try to fetch the document from database
+          setTimeout(async () => {
+            const { data: documentData, error: docError } = await supabase
+              .from('dokumente')
+              .select('id, titel, pfad, dateityp')
+              .eq('mietvertrag_id', contractData.mietvertrag_id)
+              .order('hochgeladen_am', { ascending: false })
+              .limit(1)
+              .single();
 
+            if (!docError && documentData) {
+              setGeneratedDocument(documentData);
+              setPdfPreviewOpen(true);
+            }
+          }, 2000);
+        }
+        
         onClose();
       } else {
-        throw new Error(data.message || 'Fehler beim Erstellen der Mieterhöhung');
+        console.error('❌ Webhook Fehler - Status:', response.status);
+        const errorText = await response.text();
+        console.error('❌ Error Response:', errorText);
+        toast({
+          title: "Fehler",
+          description: `Fehler beim Erstellen der Mieterhöhung (Status: ${response.status})`,
+          variant: "destructive",
+        });
       }
     } catch (err) {
-      console.error('❌ Fehler beim Erstellen:', err);
+      console.error('❌ Fehler beim Senden:', err);
       toast({
         title: "Fehler",
-        description: err instanceof Error ? err.message : 'Fehler beim Erstellen der Mieterhöhung',
+        description: err instanceof Error ? err.message : 'Fehler beim Senden der Anfrage',
         variant: "destructive",
       });
     } finally {
