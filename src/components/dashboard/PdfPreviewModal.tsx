@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, useRef } from "react";
-import { Loader2, ChevronLeft, ChevronRight, Download, X } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, Download, X, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,6 +26,7 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [isImage, setIsImage] = useState(false);
+  const [isHtml, setIsHtml] = useState(false);
 
   const checkIfImage = (dateityp?: string, pfad?: string, titel?: string): boolean => {
     const clean = (s?: string) => s?.toLowerCase().trim() || '';
@@ -39,13 +40,22 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
     const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'];
     return imageTypes.includes(candidate);
   };
+
+  const checkIfHtml = (dateityp?: string, pfad?: string): boolean => {
+    return dateityp?.includes('html') || pfad?.endsWith('.html') || false;
+  };
+
   useEffect(() => {
     if (isOpen && dokument) {
       const isImg = checkIfImage(dokument.dateityp, dokument.pfad, dokument.titel);
+      const isHtmlDoc = checkIfHtml(dokument.dateityp, dokument.pfad);
       setIsImage(isImg);
+      setIsHtml(isHtmlDoc);
       
       if (isImg) {
         loadImage();
+      } else if (isHtmlDoc) {
+        loadHtml();
       } else {
         loadPdf();
       }
@@ -59,6 +69,7 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       setCurrentPage(1);
       setTotalPages(0);
       setIsImage(false);
+      setIsHtml(false);
     }
   }, [isOpen, dokument]);
 
@@ -73,10 +84,9 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
 
     setLoading(true);
     try {
-      // Get signed URL for the image
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('dokumente')
-        .createSignedUrl(dokument.pfad, 3600); // Valid for 1 hour
+        .createSignedUrl(dokument.pfad, 3600);
 
       if (signedUrlError) throw signedUrlError;
 
@@ -86,6 +96,31 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       toast({
         title: "Fehler",
         description: "Bild konnte nicht geladen werden.",
+        variant: "destructive",
+      });
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadHtml = async () => {
+    if (!dokument) return;
+
+    setLoading(true);
+    try {
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('dokumente')
+        .createSignedUrl(dokument.pfad, 3600);
+
+      if (signedUrlError) throw signedUrlError;
+
+      setPdfUrl(signedUrlData.signedUrl);
+    } catch (error) {
+      console.error('HTML loading error:', error);
+      toast({
+        title: "Fehler",
+        description: "Dokument konnte nicht geladen werden.",
         variant: "destructive",
       });
       onClose();
@@ -217,7 +252,8 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = dokument.titel || 'dokument.pdf';
+      const extension = isHtml ? '.html' : (isImage ? '.jpg' : '.pdf');
+      a.download = dokument.titel || `dokument${extension}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -236,6 +272,17 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       });
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!pdfUrl || !isHtml) return;
+    
+    const printWindow = window.open(pdfUrl, '_blank');
+    if (printWindow) {
+      printWindow.onload = () => {
+        printWindow.print();
+      };
     }
   };
 
@@ -258,6 +305,17 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
           <DialogTitle className="flex items-center justify-between">
             <span className="truncate">{dokument?.titel || 'PDF Vorschau'}</span>
             <div className="flex items-center gap-2">
+              {isHtml && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrint}
+                  disabled={loading}
+                >
+                  <Printer className="h-4 w-4" />
+                  <span className="ml-2">Drucken</span>
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -279,13 +337,21 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-              <p className="text-muted-foreground">{isImage ? 'Bild' : 'PDF'} wird geladen...</p>
+              <p className="text-muted-foreground">
+                {isImage ? 'Bild' : isHtml ? 'Dokument' : 'PDF'} wird geladen...
+              </p>
             </div>
           ) : isImage && pdfUrl ? (
             <img 
               src={pdfUrl} 
               alt={dokument?.titel || 'Bild Vorschau'} 
               className="max-w-full max-h-full object-contain shadow-lg rounded"
+            />
+          ) : isHtml && pdfUrl ? (
+            <iframe 
+              src={pdfUrl} 
+              title={dokument?.titel || 'Dokument Vorschau'}
+              className="w-full h-full min-h-[600px] bg-white shadow-lg rounded"
             />
           ) : (
             <canvas ref={canvasRef} className="max-w-full shadow-lg" />
