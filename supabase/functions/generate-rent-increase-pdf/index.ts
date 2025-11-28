@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { jsPDF } from 'npm:jspdf@2.5.2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,6 +56,8 @@ serve(async (req) => {
     if (vertragError) throw vertragError;
 
     const mieterName = `${vertrag.mietvertrag_mieter[0].mieter.vorname} ${vertrag.mietvertrag_mieter[0].mieter.nachname}`;
+    const mieterVorname = vertrag.mietvertrag_mieter[0].mieter.vorname;
+    const mieterNachname = vertrag.mietvertrag_mieter[0].mieter.nachname;
     const immobilieName = vertrag.einheiten.immobilien.name;
     const adresse = vertrag.einheiten.immobilien.adresse;
     const aktuelleKaltmiete = vertrag.kaltmiete;
@@ -72,161 +75,180 @@ serve(async (req) => {
     wirksamDatum.setMonth(wirksamDatum.getMonth() + 3);
     const wirksamDatumStr = wirksamDatum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    // Generate PDF content as HTML
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 40px;
-    }
-    .header {
-      text-align: right;
-      margin-bottom: 40px;
-    }
-    .address {
-      margin-bottom: 40px;
-    }
-    h1 {
-      text-align: center;
-      margin: 40px 0;
-    }
-    .content {
-      margin-bottom: 20px;
-    }
-    .signature {
-      margin-top: 60px;
-    }
-    .info-box {
-      background: #f5f5f5;
-      padding: 15px;
-      margin: 20px 0;
-      border-left: 4px solid #333;
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <p>${datum}</p>
-  </div>
+    // Create PDF with jsPDF
+    const doc = new jsPDF();
+    
+    let yPos = 20;
+    
+    // Sender info
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(immobilieName, 20, yPos);
+    yPos += 5;
+    doc.text(adresse, 20, yPos);
+    yPos += 15;
+    
+    // Recipient
+    doc.setFontSize(11);
+    doc.setTextColor(0);
+    doc.text(mieterName, 20, yPos);
+    yPos += 6;
+    doc.text(adresse, 20, yPos);
+    yPos += 15;
+    
+    // Date
+    doc.setFontSize(10);
+    doc.text(datum, 150, yPos);
+    yPos += 15;
+    
+    // Subject
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('Mieterhöhung gemäß § 558 BGB', 20, yPos);
+    yPos += 12;
+    
+    // Body text
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Sehr geehrte/r ${mieterName},`, 20, yPos);
+    yPos += 10;
+    
+    const text1 = `hiermit erhöhen wir die Miete für die von Ihnen gemietete Wohnung in`;
+    doc.text(text1, 20, yPos);
+    yPos += 6;
+    doc.text(`${immobilieName}, ${adresse}, zum ${wirksamDatumStr}.`, 20, yPos);
+    yPos += 10;
+    
+    doc.text('Die Mieterhöhung stellt sich wie folgt dar:', 20, yPos);
+    yPos += 12;
+    
+    // Table
+    const colWidths = [70, 35, 35, 35];
+    const colX = [20, 90, 125, 160];
+    
+    // Table header
+    doc.setFont(undefined, 'bold');
+    doc.setFillColor(245, 245, 245);
+    doc.rect(20, yPos - 5, 175, 8, 'F');
+    doc.text('Position', colX[0] + 2, yPos);
+    doc.text('Aktuell', colX[1] + 2, yPos);
+    doc.text('Neu', colX[2] + 2, yPos);
+    doc.text('Differenz', colX[3] + 2, yPos);
+    yPos += 10;
+    
+    // Table rows
+    doc.setFont(undefined, 'normal');
+    
+    // Kaltmiete
+    doc.text('Kaltmiete', colX[0] + 2, yPos);
+    doc.text(`${aktuelleKaltmiete.toFixed(2)} €`, colX[1] + 2, yPos);
+    doc.text(`${neueKaltmieteValue.toFixed(2)} €`, colX[2] + 2, yPos);
+    doc.text(`${(neueKaltmieteValue - aktuelleKaltmiete).toFixed(2)} €`, colX[3] + 2, yPos);
+    yPos += 8;
+    
+    // Betriebskosten
+    doc.text('Betriebskosten', colX[0] + 2, yPos);
+    doc.text(`${aktuelleBetriebskosten.toFixed(2)} €`, colX[1] + 2, yPos);
+    doc.text(`${neueBetriebskostenValue.toFixed(2)} €`, colX[2] + 2, yPos);
+    doc.text(`${(neueBetriebskostenValue - aktuelleBetriebskosten).toFixed(2)} €`, colX[3] + 2, yPos);
+    yPos += 8;
+    
+    // Total
+    doc.setFont(undefined, 'bold');
+    doc.setFillColor(249, 249, 249);
+    doc.rect(20, yPos - 5, 175, 8, 'F');
+    doc.text('Gesamtmiete', colX[0] + 2, yPos);
+    doc.text(`${aktuelleGesamtmiete.toFixed(2)} €`, colX[1] + 2, yPos);
+    doc.text(`${neueGesamtmiete.toFixed(2)} €`, colX[2] + 2, yPos);
+    doc.text(`${erhoehung.toFixed(2)} €`, colX[3] + 2, yPos);
+    yPos += 8;
+    
+    // Increase percentage
+    doc.setFillColor(255, 243, 205);
+    doc.rect(20, yPos - 5, 175, 8, 'F');
+    doc.text('Erhöhung in %', colX[0] + 2, yPos);
+    doc.text(`${erhoehungProzent}%`, colX[3] + 2, yPos);
+    yPos += 15;
+    
+    // More body text
+    doc.setFont(undefined, 'normal');
+    const text2 = `Die erhöhte Miete wird zum ${wirksamDatumStr} fällig. Wir bitten Sie, Ihre Zahlungen`;
+    doc.text(text2, 20, yPos);
+    yPos += 6;
+    doc.text('entsprechend anzupassen.', 20, yPos);
+    yPos += 12;
+    
+    const legalText = doc.splitTextToSize(
+      'Gemäß § 558b BGB haben Sie das Recht, der Mieterhöhung bis zum Ende des zweiten Kalendermonats nach dem Zugang dieses Erhöhungsverlangens zu widersprechen. Sofern Sie nicht widersprechen, gilt Ihre Zustimmung als erteilt.',
+      170
+    );
+    doc.text(legalText, 20, yPos);
+    yPos += (legalText.length * 6) + 15;
+    
+    // Signature
+    doc.text('Mit freundlichen Grüßen', 20, yPos);
+    yPos += 10;
+    doc.text(immobilieName, 20, yPos);
+    
+    // Footer
+    yPos = 260;
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 5;
+    doc.setFont(undefined, 'bold');
+    doc.text('Rechtliche Hinweise:', 20, yPos);
+    yPos += 5;
+    doc.setFont(undefined, 'normal');
+    const footerText = doc.splitTextToSize(
+      'Diese Mieterhöhung erfolgt gemäß § 558 BGB (Mieterhöhung bis zur ortsüblichen Vergleichsmiete). Bei Fragen wenden Sie sich bitte an uns.',
+      170
+    );
+    doc.text(footerText, 20, yPos);
+    
+    // Generate PDF as ArrayBuffer
+    const pdfArrayBuffer = doc.output('arraybuffer');
+    const pdfBlob = new Uint8Array(pdfArrayBuffer);
 
-  <div class="address">
-    <strong>${mieterName}</strong><br>
-    ${adresse}
-  </div>
-
-  <h1>Ankündigung einer Mieterhöhung</h1>
-
-  <div class="content">
-    <p>Sehr geehrte/r ${mieterName},</p>
-
-    <p>
-      hiermit kündigen wir für die von Ihnen gemietete Wohnung in der ${immobilieName}, ${adresse}, 
-      eine Mieterhöhung gemäß § 558 BGB an.
-    </p>
-
-    <div class="info-box">
-      <strong>Mietobjekt:</strong> ${immobilieName}<br>
-      <strong>Adresse:</strong> ${adresse}
-    </div>
-
-    <table style="width: 100%; margin: 20px 0; border-collapse: collapse;">
-      <tr style="background: #f5f5f5;">
-        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Position</th>
-        <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Aktuell</th>
-        <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Neu</th>
-      </tr>
-      <tr>
-        <td style="padding: 10px; border: 1px solid #ddd;">Kaltmiete</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${aktuelleKaltmiete.toFixed(2)} €</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>${neueKaltmieteValue.toFixed(2)} €</strong></td>
-      </tr>
-      <tr>
-        <td style="padding: 10px; border: 1px solid #ddd;">Betriebskosten</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${aktuelleBetriebskosten.toFixed(2)} €</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>${neueBetriebskostenValue.toFixed(2)} €</strong></td>
-      </tr>
-      <tr style="background: #f5f5f5; font-weight: bold;">
-        <td style="padding: 10px; border: 1px solid #ddd;">Gesamtmiete</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${aktuelleGesamtmiete.toFixed(2)} €</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${neueGesamtmiete.toFixed(2)} €</td>
-      </tr>
-      <tr style="color: #d97706;">
-        <td style="padding: 10px; border: 1px solid #ddd;">Erhöhung</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">-</td>
-        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>+${erhoehung.toFixed(2)} € (${erhoehungProzent}%)</strong></td>
-      </tr>
-    </table>
-
-    <p>
-      Die Erhöhung wird zum <strong>${wirksamDatumStr}</strong> wirksam. Die neue Gesamtmiete beträgt dann <strong>${neueGesamtmiete.toFixed(2)} €</strong> monatlich.
-    </p>
-
-    <p>
-      Die Erhöhung orientiert sich an der ortsüblichen Vergleichsmiete gemäß dem aktuellen Mietspiegel 
-      und ist durch die allgemeine Mietentwicklung im Gebiet gerechtfertigt.
-    </p>
-
-    <p>
-      Bitte teilen Sie uns binnen zwei Monaten nach Zugang dieses Schreibens mit, ob Sie der Mieterhöhung 
-      zustimmen. Die Zustimmung gilt als erteilt, wenn Sie nicht innerhalb der Frist widersprechen.
-    </p>
-
-    <p>
-      Bei Rückfragen stehen wir Ihnen gerne zur Verfügung.
-    </p>
-
-    <p>Mit freundlichen Grüßen</p>
-  </div>
-
-  <div class="signature">
-    <p>_______________________________</p>
-    <p>Unterschrift Vermieter</p>
-  </div>
-</body>
-</html>
-    `;
-
-    // Save as HTML (can be printed to PDF by browser)
-    const htmlBlob = new Blob([htmlContent], { type: 'text/html; charset=utf-8' });
-    const fileName = `Mieterhoehung_${mieterName.replace(/\s+/g, '_')}_${datum.replace(/\./g, '-')}.html`;
+    // Generate filename
+    const fileName = `Mieterhoehung_${mieterVorname}_${mieterNachname}_${datum.replace(/\./g, '-')}.pdf`;
     const filePath = `mieterhoehungen/${mietvertragId}/${fileName}`;
 
-    // Upload to Supabase Storage
+    // Upload to storage
     const { error: uploadError } = await supabaseClient.storage
       .from('dokumente')
-      .upload(filePath, htmlBlob, {
-        contentType: 'text/html; charset=utf-8',
-        upsert: false
+      .upload(filePath, pdfBlob, {
+        contentType: 'application/pdf',
+        upsert: true
       });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw new Error('Failed to upload PDF to storage');
+    }
 
-    // Create database entry
+    // Save document reference in database
     const { error: dbError } = await supabaseClient
       .from('dokumente')
       .insert({
-        mietvertrag_id: mietvertragId,
-        titel: `Mieterhöhung ${datum} - ${mieterName}`,
+        titel: `Mieterhöhung ${datum}`,
         pfad: filePath,
-        kategorie: 'Mietvertrag',
-        dateityp: 'text/html'
+        kategorie: 'Schriftverkehr',
+        dateityp: 'application/pdf',
+        mietvertrag_id: mietvertragId,
       });
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('Database error:', dbError);
+    }
 
-    console.log('Mieterhöhung successfully created and saved:', filePath);
+    console.log('Mieterhöhung PDF successfully created and saved:', filePath);
 
+    // Return success response
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Mieterhöhung erfolgreich erstellt',
+        message: 'Mieterhöhung PDF erfolgreich erstellt',
         filePath,
         fileName
       }),
