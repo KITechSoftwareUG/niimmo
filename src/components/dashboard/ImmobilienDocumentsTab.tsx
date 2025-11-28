@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDocumentUpload } from "@/hooks/useDocumentUpload";
 import { useQueryClient } from "@tanstack/react-query";
+import { DocumentDragDropZone } from "./DocumentDragDropZone";
 
 interface ImmobilienDocumentsTabProps {
   immobilieId: string;
@@ -126,6 +127,13 @@ export function ImmobilienDocumentsTab({ immobilieId, dokumente }: ImmobilienDoc
     }
   };
 
+  const handleFileDrop = (file: File) => {
+    setSelectedFile(file);
+    setUploadTitel(file.name);
+    setUploadKategorie("Sonstiges");
+    setIsUploadDialogOpen(true);
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) {
       toast({
@@ -190,7 +198,8 @@ export function ImmobilienDocumentsTab({ immobilieId, dokumente }: ImmobilienDoc
 
   return (
     <>
-      <Card>
+      <DocumentDragDropZone onFileSelect={handleFileDrop}>
+        <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -381,6 +390,7 @@ export function ImmobilienDocumentsTab({ immobilieId, dokumente }: ImmobilienDoc
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </DocumentDragDropZone>
     </>
   );
 }

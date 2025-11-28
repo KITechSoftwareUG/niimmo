@@ -8,6 +8,7 @@ import { AlertTriangle, Calendar, Upload, X, FileText, Check } from "lucide-reac
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { terminationWebhookService } from "@/services/terminationWebhookService";
+import { DocumentDragDropZone } from "../DocumentDragDropZone";
 
 interface DocumentUploadTerminationProps {
   vertragId: string;
@@ -32,29 +33,37 @@ export const DocumentUploadTermination = ({
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-      if (!allowedTypes.includes(file.type)) {
-        toast({
-          title: "Ungültiger Dateityp",
-          description: "Bitte wählen Sie eine PDF-, JPG- oder PNG-Datei aus",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast({
-          title: "Datei zu groß",
-          description: "Die Datei darf maximal 10MB groß sein",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setSelectedFile(file);
+      validateAndSetFile(file);
     }
+  };
+
+  const handleFileDrop = (file: File) => {
+    validateAndSetFile(file);
+  };
+
+  const validateAndSetFile = (file: File) => {
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Ungültiger Dateityp",
+        description: "Bitte wählen Sie eine PDF-, JPG- oder PNG-Datei aus",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "Datei zu groß",
+        description: "Die Datei darf maximal 10MB groß sein",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedFile(file);
   };
 
   const removeFile = () => {
@@ -222,50 +231,56 @@ export const DocumentUploadTermination = ({
             Kündigungsdokument *
           </Label>
           
-          {!selectedFile ? (
-            <div
-              className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Klicken Sie hier oder ziehen Sie eine Datei hinein
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                PDF, JPG oder PNG - maximal 10MB
-              </p>
-            </div>
-          ) : (
-            <Card className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">{selectedFile.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={removeFile}
-                  disabled={isLoading}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+          <DocumentDragDropZone 
+            onFileSelect={handleFileDrop}
+            accept=".pdf,.jpg,.jpeg,.png"
+            showOverlay={!selectedFile}
+          >
+            {!selectedFile ? (
+              <div
+                className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Klicken Sie hier oder ziehen Sie eine Datei hinein
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, JPG oder PNG - maximal 10MB
+                </p>
               </div>
-              
-              {uploadProgress > 0 && (
-                <div className="mt-2">
-                  <Progress value={uploadProgress} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {uploadProgress === 100 ? 'Upload abgeschlossen' : `Upload: ${uploadProgress}%`}
-                  </p>
+            ) : (
+              <Card className="p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">{selectedFile.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeFile}
+                    disabled={isLoading}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-              )}
-            </Card>
-          )}
+                
+                {uploadProgress > 0 && (
+                  <div className="mt-2">
+                    <Progress value={uploadProgress} className="h-2" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {uploadProgress === 100 ? 'Upload abgeschlossen' : `Upload: ${uploadProgress}%`}
+                    </p>
+                  </div>
+                )}
+              </Card>
+            )}
+          </DocumentDragDropZone>
           
           <input
             ref={fileInputRef}
