@@ -17,7 +17,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { mietvertragId } = await req.json();
+    const { mietvertragId, neueKaltmiete, neueBetriebskosten } = await req.json();
 
     if (!mietvertragId) {
       throw new Error('Mietvertrag ID ist erforderlich');
@@ -58,7 +58,19 @@ serve(async (req) => {
     const immobilieName = vertrag.einheiten.immobilien.name;
     const adresse = vertrag.einheiten.immobilien.adresse;
     const aktuelleKaltmiete = vertrag.kaltmiete;
+    const aktuelleBetriebskosten = vertrag.betriebskosten || 0;
+    const aktuelleGesamtmiete = aktuelleKaltmiete + aktuelleBetriebskosten;
+    
+    const neueKaltmieteValue = neueKaltmiete || aktuelleKaltmiete * 1.04;
+    const neueBetriebskostenValue = neueBetriebskosten !== undefined ? neueBetriebskosten : aktuelleBetriebskosten;
+    const neueGesamtmiete = neueKaltmieteValue + neueBetriebskostenValue;
+    const erhoehung = neueGesamtmiete - aktuelleGesamtmiete;
+    const erhoehungProzent = ((erhoehung / aktuelleGesamtmiete) * 100).toFixed(2);
+    
     const datum = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const wirksamDatum = new Date();
+    wirksamDatum.setMonth(wirksamDatum.getMonth() + 3);
+    const wirksamDatumStr = wirksamDatum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
     // Generate PDF content as HTML
     const htmlContent = `
@@ -120,13 +132,40 @@ serve(async (req) => {
     </p>
 
     <div class="info-box">
-      <strong>Aktuelle Kaltmiete:</strong> ${aktuelleKaltmiete.toFixed(2)} €<br>
       <strong>Mietobjekt:</strong> ${immobilieName}<br>
       <strong>Adresse:</strong> ${adresse}
     </div>
 
+    <table style="width: 100%; margin: 20px 0; border-collapse: collapse;">
+      <tr style="background: #f5f5f5;">
+        <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Position</th>
+        <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Aktuell</th>
+        <th style="padding: 10px; text-align: right; border: 1px solid #ddd;">Neu</th>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #ddd;">Kaltmiete</td>
+        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${aktuelleKaltmiete.toFixed(2)} €</td>
+        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>${neueKaltmieteValue.toFixed(2)} €</strong></td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #ddd;">Betriebskosten</td>
+        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${aktuelleBetriebskosten.toFixed(2)} €</td>
+        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>${neueBetriebskostenValue.toFixed(2)} €</strong></td>
+      </tr>
+      <tr style="background: #f5f5f5; font-weight: bold;">
+        <td style="padding: 10px; border: 1px solid #ddd;">Gesamtmiete</td>
+        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${aktuelleGesamtmiete.toFixed(2)} €</td>
+        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">${neueGesamtmiete.toFixed(2)} €</td>
+      </tr>
+      <tr style="color: #d97706;">
+        <td style="padding: 10px; border: 1px solid #ddd;">Erhöhung</td>
+        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;">-</td>
+        <td style="padding: 10px; text-align: right; border: 1px solid #ddd;"><strong>+${erhoehung.toFixed(2)} € (${erhoehungProzent}%)</strong></td>
+      </tr>
+    </table>
+
     <p>
-      Die Erhöhung wird zum [DATUM] wirksam. Die neue Kaltmiete beträgt dann [NEUE MIETE] € monatlich.
+      Die Erhöhung wird zum <strong>${wirksamDatumStr}</strong> wirksam. Die neue Gesamtmiete beträgt dann <strong>${neueGesamtmiete.toFixed(2)} €</strong> monatlich.
     </p>
 
     <p>
@@ -154,17 +193,16 @@ serve(async (req) => {
 </html>
     `;
 
-    // Convert HTML to PDF using a simple approach
-    // For production, you might want to use a proper PDF library
-    const pdfBlob = new Blob([htmlContent], { type: 'text/html' });
-    const fileName = `Mieterhoehung_${mieterName.replace(/\s+/g, '_')}_${Date.now()}.html`;
+    // Save as HTML (can be printed to PDF by browser)
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html; charset=utf-8' });
+    const fileName = `Mieterhoehung_${mieterName.replace(/\s+/g, '_')}_${datum.replace(/\./g, '-')}.html`;
     const filePath = `mieterhoehungen/${mietvertragId}/${fileName}`;
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabaseClient.storage
       .from('dokumente')
-      .upload(filePath, pdfBlob, {
-        contentType: 'text/html',
+      .upload(filePath, htmlBlob, {
+        contentType: 'text/html; charset=utf-8',
         upsert: false
       });
 
@@ -175,21 +213,22 @@ serve(async (req) => {
       .from('dokumente')
       .insert({
         mietvertrag_id: mietvertragId,
-        titel: `Mieterhöhung - ${mieterName}`,
+        titel: `Mieterhöhung ${datum} - ${mieterName}`,
         pfad: filePath,
-        kategorie: 'mietvertrag',
+        kategorie: 'Mietvertrag',
         dateityp: 'text/html'
       });
 
     if (dbError) throw dbError;
 
-    console.log('PDF successfully created and saved:', filePath);
+    console.log('Mieterhöhung successfully created and saved:', filePath);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'PDF erfolgreich erstellt',
-        filePath 
+        message: 'Mieterhöhung erfolgreich erstellt',
+        filePath,
+        fileName
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
