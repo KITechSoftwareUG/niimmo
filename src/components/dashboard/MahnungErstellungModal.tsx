@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, Download, FileText, ArrowLeft, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MahnungErstellungModalProps {
   isOpen: boolean;
@@ -82,104 +83,79 @@ export function MahnungErstellungModal({
 
     setIsSubmitting(true);
     try {
-      const payload = {
-        mahnung: true,
-        mietvertrag_id: contractData.mietvertrag_id,
-        current_kaltmiete: contractData.current_kaltmiete,
-        current_betriebskosten: contractData.current_betriebskosten,
-        letzte_mieterhoehung_am: contractData.letzte_mieterhoehung_am,
-        start_datum: contractData.start_datum,
-        einheit_id: contractData.einheit_id,
-        immobilie_id: contractData.immobilie_id,
-        immobilie_name: contractData.immobilie_name,
-        immobilie_adresse: contractData.immobilie_adresse,
-        mahnstufe: mahnstufe,
-        mieter: contractData.mieter || [],
-        offene_forderungen: offeneForderungen,
-        mahngebuehren: parseFloat(mahngebuehren),
-        verzugszinsen: parseFloat(verzugszinsen),
-        zusaetzliche_kosten: parseFloat(zusaetzlicheKosten),
-        zahlungsfrist_tage: parseInt(zahlungsfrist)
-      };
+      console.log('📤 Erstelle Mahnung via Edge Function');
       
-      console.log('📤 Sende Mahnung an Webhook:', payload);
-      
-      const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/6fb34c33-670a-499b-ad45-6067ad7b5920';
-      
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      console.log('📥 Response Status:', response.status);
-      
-      if (response.ok) {
-        const contentType = response.headers.get('content-type');
-        
-        // Check if response is PDF
-        if (contentType?.includes('application/pdf')) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          
-          setPdfUrl(url);
-          setStep('preview');
-          
-          toast({
-            title: "Mahnung erstellt",
-            description: "Das Mahnungs-PDF wurde erfolgreich erstellt.",
-          });
-        } 
-        // Check if response is JSON
-        else if (contentType?.includes('application/json')) {
-          const data = await response.json();
-          console.log('📥 Response Data:', data);
-          
-          if (data.pdf_url) {
-            setPdfUrl(data.pdf_url);
-            setStep('preview');
-          } else if (data.pdf_base64) {
-            // Convert base64 to blob
-            const byteCharacters = atob(data.pdf_base64);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            setPdfUrl(url);
-            setStep('preview');
-          }
-          
-          toast({
-            title: "Mahnung erstellt",
-            description: "Das Mahnungs-PDF wurde erfolgreich erstellt.",
-          });
-        } else {
-          toast({
-            title: "Mahnung wird erstellt",
-            description: "Die Mahnung wird im Hintergrund erstellt.",
-          });
+      const { data, error } = await supabase.functions.invoke('generate-mahnung-pdf', {
+        body: {
+          mietvertragId: contractData.mietvertrag_id,
+          mahnstufe: mahnstufe,
+          offeneForderungen: offeneForderungen,
+          mahngebuehren: parseFloat(mahngebuehren),
+          verzugszinsen: parseFloat(verzugszinsen),
+          zusaetzlicheKosten: parseFloat(zusaetzlicheKosten),
+          zahlungsfristTage: parseInt(zahlungsfrist)
         }
-      } else {
-        console.error('❌ Webhook Fehler - Status:', response.status);
-        const errorText = await response.text();
-        console.error('❌ Error Response:', errorText);
-        
+      });
+
+      if (error) {
+        console.error('❌ Edge Function Fehler:', error);
         toast({
           title: "Fehler",
-          description: `Fehler beim Erstellen der Mahnung (Status: ${response.status})`,
+          description: "Fehler beim Erstellen der Mahnung",
           variant: "destructive",
         });
+        return;
       }
+
+      console.log('✅ Mahnung erfolgreich erstellt');
+      
+      // Fetch the newly created document from database
+      const { data: documentData, error: docError } = await supabase
+        .from('dokumente')
+        .select('pfad, dateityp')
+        .eq('mietvertrag_id', contractData.mietvertrag_id)
+        .order('hochgeladen_am', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (docError || !documentData) {
+        console.error('❌ Dokument konnte nicht geladen werden:', docError);
+        toast({
+          title: "Fehler",
+          description: "Das Dokument wurde erstellt, konnte aber nicht geladen werden.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get signed URL
+      const { data: signedUrlData, error: urlError } = await supabase.storage
+        .from('dokumente')
+        .createSignedUrl(documentData.pfad, 3600);
+
+      if (urlError || !signedUrlData) {
+        console.error('❌ URL konnte nicht erstellt werden:', urlError);
+        toast({
+          title: "Fehler",
+          description: "Das Dokument konnte nicht geladen werden.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setPdfUrl(signedUrlData.signedUrl);
+      setStep('preview');
+      
+      toast({
+        title: "Mahnung erstellt",
+        description: "Das Mahnungsschreiben wurde erfolgreich erstellt.",
+      });
+      
     } catch (err) {
-      console.error('❌ Fehler beim Senden:', err);
+      console.error('❌ Fehler beim Erstellen:', err);
       toast({
         title: "Fehler",
-        description: err instanceof Error ? err.message : 'Fehler beim Senden der Anfrage',
+        description: err instanceof Error ? err.message : 'Fehler beim Erstellen der Mahnung',
         variant: "destructive",
       });
     } finally {
