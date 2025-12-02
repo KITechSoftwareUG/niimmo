@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { calculateMietvertragRueckstand } from "@/utils/rueckstandsberechnung";
 import { MietvertragTimelineView } from "./MietvertragTimelineView";
-import { Plus, TrendingDown, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
+import { LinkedContractsTimeline } from "./LinkedContractsTimeline";
+import { useLinkedContracts } from "@/hooks/useLinkedContracts";
+import { Plus, TrendingDown, TrendingUp, AlertCircle, CheckCircle, Link2, Building2 } from "lucide-react";
 
 interface MietvertragPaymentsSectionProps {
   vertrag: any;
@@ -11,6 +15,9 @@ interface MietvertragPaymentsSectionProps {
   zahlungen: any[];
   allMietvertraege?: any[];
   vertragId: string;
+  mieterIds?: string[];
+  einheit?: any;
+  immobilie?: any;
   formatBetrag: (betrag: number) => string;
   formatDatum: (datum: string) => string;
   onCreateForderung: () => void;
@@ -22,10 +29,18 @@ export function MietvertragPaymentsSection({
   zahlungen,
   allMietvertraege,
   vertragId,
+  mieterIds = [],
+  einheit,
+  immobilie,
   formatBetrag,
   formatDatum,
   onCreateForderung
 }: MietvertragPaymentsSectionProps) {
+  const [showLinkedTimeline, setShowLinkedTimeline] = useState(false);
+  const [selectedLinkedContract, setSelectedLinkedContract] = useState<any>(null);
+
+  // Check for linked contracts (same tenant, different units)
+  const { linkedContracts, hasLinkedContracts } = useLinkedContracts(vertragId, mieterIds);
 
   const rueckstandsBerechnung = calculateMietvertragRueckstand(
     vertrag, 
@@ -153,6 +168,69 @@ export function MietvertragPaymentsSection({
           </div>
         </CardContent>
       </Card>
+
+      {/* Linked Contracts Badge & Timeline Toggle */}
+      {hasLinkedContracts && (
+        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-transparent">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Link2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Verbundene Verträge erkannt</p>
+                  <p className="text-xs text-muted-foreground">
+                    Die Mieter haben {linkedContracts.length} weitere{linkedContracts.length === 1 ? 'n' : ''} Vertrag/Verträge
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {linkedContracts.map((contract) => (
+                  <Button
+                    key={contract.id}
+                    variant={selectedLinkedContract?.id === contract.id && showLinkedTimeline ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      if (selectedLinkedContract?.id === contract.id && showLinkedTimeline) {
+                        setShowLinkedTimeline(false);
+                        setSelectedLinkedContract(null);
+                      } else {
+                        setSelectedLinkedContract(contract);
+                        setShowLinkedTimeline(true);
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    <span className="max-w-[150px] truncate">
+                      {contract.einheit?.immobilie?.name || 'Objekt'} - {contract.einheit?.etage || 'EG'}
+                    </span>
+                    <Badge variant="secondary" className="text-xs ml-1">
+                      {formatBetrag((contract.kaltmiete || 0) + (contract.betriebskosten || 0))}
+                    </Badge>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Linked Contracts Dual Timeline View */}
+      {showLinkedTimeline && selectedLinkedContract && (
+        <LinkedContractsTimeline
+          currentContractId={vertragId}
+          currentContractLabel={`${immobilie?.name || 'Aktuelles Objekt'} - ${einheit?.etage || 'EG'}`}
+          linkedContract={selectedLinkedContract}
+          formatBetrag={formatBetrag}
+          formatDatum={formatDatum}
+          onClose={() => {
+            setShowLinkedTimeline(false);
+            setSelectedLinkedContract(null);
+          }}
+        />
+      )}
 
       {/* Timeline Section */}
       <Card className="elegant-card">

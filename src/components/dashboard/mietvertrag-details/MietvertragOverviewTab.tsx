@@ -133,6 +133,9 @@ export function MietvertragOverviewTab({
         zahlungen={zahlungen}
         allMietvertraege={allMietvertraege}
         vertragId={vertragId}
+        mieterIds={mieter?.map((m: any) => m.id).filter(Boolean) || []}
+        einheit={einheit}
+        immobilie={immobilie}
         formatBetrag={formatBetrag}
         formatDatum={formatDatum}
         onCreateForderung={onCreateForderung}
