@@ -2,13 +2,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail, Gauge, Droplet, Thermometer, Zap, Flame } from "lucide-react";
+import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail, Link2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { EinheitHistorieView } from "./EinheitHistorieView";
 import MietvertragDetailsModal from "./MietvertragDetailsModal";
 import { NewTenantContractDialog } from "./NewTenantContractDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useLinkedContracts } from "@/hooks/useLinkedContracts";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EinheitCardProps {
   einheit: {
@@ -55,6 +57,13 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
   const [autoOpenContract, setAutoOpenContract] = useState(false);
   const [showContractHighlight, setShowContractHighlight] = useState(false);
   const { toast } = useToast();
+
+  // Check for linked contracts (same tenants with multiple units)
+  const mieterIds = vertrag?.mieter?.map(m => m.id) || [];
+  const { linkedContracts, hasLinkedContracts } = useLinkedContracts(
+    vertrag?.id || '',
+    mieterIds
+  );
 
   // Check if this contract should be automatically opened with highlighting
   useEffect(() => {
@@ -180,6 +189,33 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
               <CardTitle className="text-lg">
                 Einheit {einheitIndex}
               </CardTitle>
+              {/* Linked contracts indicator */}
+              {hasLinkedContracts && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge 
+                        variant="outline" 
+                        className="bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1 cursor-help"
+                      >
+                        <Link2 className="h-3 w-3" />
+                        +{linkedContracts.length}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="font-medium mb-1">Weitere Einheiten desselben Mieters:</p>
+                      <ul className="text-xs space-y-1">
+                        {linkedContracts.map(lc => (
+                          <li key={lc.id} className="flex items-center gap-1">
+                            <Home className="h-3 w-3" />
+                            {lc.einheit?.immobilie?.name || 'Objekt'} - {lc.einheit?.etage || 'Einheit'}
+                          </li>
+                        ))}
+                      </ul>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
             {getStatusBadge()}
           </div>
