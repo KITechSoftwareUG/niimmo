@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Building2, Loader2, AlertCircle, XCircle } from "lucide-react";
@@ -44,6 +45,10 @@ export default function MietvertragDetailsModal({
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
   const [showTerminationDialog, setShowTerminationDialog] = useState(false);
   const [showMahnungModal, setShowMahnungModal] = useState(false);
+  
+  // Rent increase confirmation dialog state
+  const [showRentIncreaseConfirm, setShowRentIncreaseConfirm] = useState(false);
+  const [pendingKaltmieteValue, setPendingKaltmieteValue] = useState<number | null>(null);
   
   // Set up real-time subscriptions for instant updates when this modal is open
   useEffect(() => {
@@ -389,16 +394,38 @@ export default function MietvertragDetailsModal({
       }
 
       const oldKaltmiete = Number(vertrag?.kaltmiete || 0);
-      const oldBetriebskosten = Number(vertrag?.betriebskosten || 0);
       
+      // If kaltmiete is being changed, ask for confirmation
+      if (field === 'kaltmiete' && numericValue !== oldKaltmiete) {
+        setPendingKaltmieteValue(numericValue);
+        setShowRentIncreaseConfirm(true);
+        return;
+      }
+
+      // For other fields, proceed normally
+      await saveNumericField(field, numericValue, false);
+
+    } catch (error) {
+      console.error('Fehler beim Aktualisieren:', error);
+      const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : 
+                       field === 'betriebskosten' ? 'Betriebskosten' : 
+                       field === 'neue_anschrift' ? 'Neue Anschrift' :
+                       'Rücklastschrift-Gebühr';
+      toast({
+        title: "Fehler",
+        description: `${fieldName} konnte nicht aktualisiert werden.`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Helper function to save numeric fields
+  const saveNumericField = async (field: string, numericValue: number, isOfficialRentIncrease: boolean) => {
+    try {
       const updateData: any = { [field]: numericValue };
       
-      // Check if this is a rent increase (not for ruecklastschrift_gebuehr)
-      const isIncrease = field !== 'ruecklastschrift_gebuehr' && 
-                        ((field === 'kaltmiete' && numericValue > oldKaltmiete) || 
-                         (field === 'betriebskosten' && numericValue > oldBetriebskosten));
-      
-      if (isIncrease) {
+      // Only set letzte_mieterhoehung_am if it's an official rent increase
+      if (field === 'kaltmiete' && isOfficialRentIncrease) {
         updateData.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
       }
 
@@ -409,10 +436,10 @@ export default function MietvertragDetailsModal({
 
       if (error) throw error;
 
-      if (isIncrease) {
+      if (field === 'kaltmiete' && isOfficialRentIncrease) {
         toast({
           title: "Mieterhöhung dokumentiert",
-          description: `${field === 'kaltmiete' ? 'Kaltmiete' : 'Betriebskosten'} wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt.`,
+          description: "Kaltmiete wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt.",
         });
       } else {
         const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : 
@@ -428,17 +455,22 @@ export default function MietvertragDetailsModal({
       await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
 
     } catch (error) {
-      console.error('Fehler beim Aktualisieren:', error);
-      const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : 
-                       field === 'betriebskosten' ? 'Betriebskosten' : 
-                       field === 'neue_anschrift' ? 'Neue Anschrift' :
-                       'Rücklastschrift-Gebühr';
+      console.error('Fehler beim Speichern:', error);
       toast({
         title: "Fehler",
-        description: `${fieldName} konnte nicht aktualisiert werden.`,
+        description: "Änderung konnte nicht gespeichert werden.",
         variant: "destructive",
       });
     }
+  };
+
+  // Handle rent increase confirmation
+  const handleRentIncreaseConfirm = async (isOfficialIncrease: boolean) => {
+    if (pendingKaltmieteValue !== null) {
+      await saveNumericField('kaltmiete', pendingKaltmieteValue, isOfficialIncrease);
+    }
+    setShowRentIncreaseConfirm(false);
+    setPendingKaltmieteValue(null);
   };
 
   const handleEditKaution = async (field: 'soll' | 'ist', value: string) => {
@@ -760,6 +792,7 @@ export default function MietvertragDetailsModal({
   }
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] h-[95vh] md:h-auto overflow-hidden flex flex-col p-4 md:p-6">
         <DialogHeader className="flex-shrink-0">
@@ -924,5 +957,40 @@ export default function MietvertragDetailsModal({
         />
       </DialogContent>
     </Dialog>
+
+    {/* Rent Increase Confirmation Dialog */}
+    <AlertDialog open={showRentIncreaseConfirm} onOpenChange={setShowRentIncreaseConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Mietänderung bestätigen</AlertDialogTitle>
+          <AlertDialogDescription>
+            Sie haben die Kaltmiete geändert. Handelt es sich um eine offizielle Mieterhöhung?
+            <br /><br />
+            <strong>Ja:</strong> Das Datum der letzten Mieterhöhung wird automatisch auf heute gesetzt.
+            <br />
+            <strong>Nein:</strong> Die Miete wird nur korrigiert, ohne das Mieterhöhungsdatum zu ändern.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => {
+            setShowRentIncreaseConfirm(false);
+            setPendingKaltmieteValue(null);
+            setEditingMietvertrag(null);
+          }}>
+            Abbrechen
+          </AlertDialogCancel>
+          <Button
+            variant="outline"
+            onClick={() => handleRentIncreaseConfirm(false)}
+          >
+            Nein, nur Korrektur
+          </Button>
+          <AlertDialogAction onClick={() => handleRentIncreaseConfirm(true)}>
+            Ja, offizielle Mieterhöhung
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
