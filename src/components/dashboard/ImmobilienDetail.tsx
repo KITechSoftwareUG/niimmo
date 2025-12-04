@@ -170,9 +170,10 @@ export const ImmobilienDetail = ({
     },
   });
 
-  // Berechne Gesamtwerte
-  const gesamtKaltmiete = alleMietvertraege?.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0) || 0;
-  const gesamtBetriebskosten = alleMietvertraege?.reduce((sum, vertrag) => sum + (vertrag.betriebskosten || 0), 0) || 0;
+  // Berechne Gesamtwerte (nur aktive und gekündigte Verträge)
+  const aktiveMietvertraege = alleMietvertraege?.filter(v => v.status === 'aktiv' || v.status === 'gekuendigt') || [];
+  const gesamtKaltmiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0);
+  const gesamtBetriebskosten = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.betriebskosten || 0), 0);
   const gesamtWarmmiete = gesamtKaltmiete + gesamtBetriebskosten;
   const gesamtQm = einheiten?.reduce((sum, einheit) => sum + (einheit.qm || 0), 0) || 0;
 
