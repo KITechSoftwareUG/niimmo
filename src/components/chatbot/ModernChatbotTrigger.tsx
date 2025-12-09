@@ -1,9 +1,16 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Sparkles } from "lucide-react";
 import { ModernChatbot } from "./ModernChatbot";
 
 export function ModernChatbotTrigger() {
+  const location = useLocation();
+  
+  // Don't show chatbot on auth page
+  if (location.pathname === "/auth") {
+    return null;
+  }
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
