@@ -6,22 +6,19 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Zap, 
   Sparkles, 
-  MessageCircle, 
   Send, 
   Trash2, 
   X,
   Bot,
-  User,
-  Bell
+  User
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
-  text: string;
-  isUser: boolean;
+  role: "user" | "assistant";
+  content: string;
   timestamp: Date;
-  isNotification?: boolean;
 }
 
 interface ModernChatbotProps {
@@ -29,22 +26,19 @@ interface ModernChatbotProps {
   onClose: () => void;
 }
 
-const CHAT_API_URL = "https://k01-2025-u36730.vm.elestio.app/webhook/f7e1b37f-228d-488f-ae76-36f92bb02646/chat";
-const NOTIFICATIONS_API_URL = "https://k01-2025-u36730.vm.elestio.app/webhook/f7e1b37f-228d-488f-ae76-36f92bb02646/notifications";
+const CHAT_URL = `https://kmtgzrnpitlslivdvlyq.functions.supabase.co/functions/v1/chat`;
 
 export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
-      text: "Hallo! Ich bin Chilla, dein KI‑Assistent für die Immobilienverwaltung. Wie kann ich dir heute helfen?",
-      isUser: false,
+      role: "assistant",
+      content: "Hallo! Ich bin Chilla, dein KI‑Assistent für die Immobilienverwaltung. Wie kann ich dir heute helfen?",
       timestamp: new Date(),
-      isNotification: false
     }
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -66,46 +60,14 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     }
   }, [messages]);
 
-  // Notification polling every 30 seconds
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const pollNotifications = async () => {
-      try {
-        const response = await fetch(`${NOTIFICATIONS_API_URL}?session_id=${sessionId}`);
-        if (response.ok) {
-          const notifications = await response.json();
-          if (notifications && notifications.length > 0) {
-            notifications.forEach((notification: any) => {
-              const notificationMessage: Message = {
-                id: `notification-${Date.now()}-${Math.random()}`,
-                text: notification.message || notification.text,
-                isUser: false,
-                timestamp: new Date(),
-                isNotification: true
-              };
-              setMessages(prev => [...prev, notificationMessage]);
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error polling notifications:', error);
-      }
-    };
-
-    const intervalId = setInterval(pollNotifications, 30000);
-    return () => clearInterval(intervalId);
-  }, [isOpen, sessionId]);
-
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
-      text: inputMessage.trim(),
-      isUser: true,
+      role: "user",
+      content: inputMessage.trim(),
       timestamp: new Date(),
-      isNotification: false
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -113,52 +75,125 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     setInputMessage("");
     setIsLoading(true);
 
+    // Prepare messages for API (exclude welcome message if it's the only assistant message)
+    const apiMessages = messages
+      .filter(m => m.id !== "welcome" || messages.length > 1)
+      .map(m => ({ role: m.role, content: m.content }));
+    apiMessages.push({ role: "user", content: messageToSend });
+
+    let assistantContent = "";
+
     try {
-      const response = await fetch(CHAT_API_URL, {
-        method: 'POST',
+      const response = await fetch(CHAT_URL, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          message: messageToSend,
-          timestamp: new Date().toISOString(),
-          session_id: sessionId
-        })
+        body: JSON.stringify({ messages: apiMessages }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      const aiResponse = data.output || data.response || data.message || data.text || "Entschuldigung, ich konnte keine passende Antwort generieren.";
-      
-      const aiMessage: Message = {
-        id: `ai-${Date.now()}`,
-        text: aiResponse,
-        isUser: false,
-        timestamp: new Date(),
-        isNotification: false
-      };
+      if (!response.body) {
+        throw new Error("No response body");
+      }
 
-      setMessages(prev => [...prev, aiMessage]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+
+      // Create initial assistant message
+      const assistantMessageId = `assistant-${Date.now()}`;
+      setMessages(prev => [...prev, {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+      }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              setMessages(prev => prev.map(m => 
+                m.id === assistantMessageId 
+                  ? { ...m, content: assistantContent }
+                  : m
+              ));
+            }
+          } catch {
+            // Incomplete JSON, put it back
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Final flush
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split("\n")) {
+          if (!raw) continue;
+          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+          if (raw.startsWith(":") || raw.trim() === "") continue;
+          if (!raw.startsWith("data: ")) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              setMessages(prev => prev.map(m => 
+                m.id === assistantMessageId 
+                  ? { ...m, content: assistantContent }
+                  : m
+              ));
+            }
+          } catch { /* ignore */ }
+        }
+      }
 
     } catch (error) {
       console.error('Error sending message:', error);
       
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
-        text: "Entschuldigung, es gab einen Fehler beim Verarbeiten Ihrer Nachricht. Bitte versuchen Sie es erneut.",
-        isUser: false,
+        role: "assistant",
+        content: "Entschuldigung, es gab einen Fehler beim Verarbeiten deiner Nachricht. Bitte versuche es erneut.",
         timestamp: new Date(),
-        isNotification: false
       };
 
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => {
+        // Remove empty assistant message if exists
+        const filtered = prev.filter(m => m.content !== "" || m.role !== "assistant");
+        return [...filtered, errorMessage];
+      });
       
       toast({
         title: "Verbindungsfehler",
-        description: "Konnte nicht mit dem KI-Service verbinden.",
+        description: error instanceof Error ? error.message : "Konnte nicht mit dem KI-Service verbinden.",
         variant: "destructive",
       });
     } finally {
@@ -171,10 +206,9 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     setMessages([
       {
         id: "welcome-new",
-        text: "Chat wurde geleert. Wie kann ich Ihnen helfen?",
-        isUser: false,
+        role: "assistant",
+        content: "Chat wurde geleert. Wie kann ich dir helfen?",
         timestamp: new Date(),
-        isNotification: false
       }
     ]);
     toast({
@@ -247,35 +281,27 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
                 <div
                   key={message.id}
                   className={`flex animate-fade-in ${
-                    message.isUser ? 'justify-end' : 'justify-start'
+                    message.role === "user" ? 'justify-end' : 'justify-start'
                   }`}
-                  style={{ animationDelay: `${index * 0.1}s` }}
+                  style={{ animationDelay: `${index * 0.05}s` }}
                 >
                   <div
-                    className={`max-w-[85%] p-4 rounded-2xl backdrop-blur-sm transition-all duration-200 hover:scale-[1.02] ${
-                      message.isUser
+                    className={`max-w-[85%] p-4 rounded-2xl backdrop-blur-sm transition-all duration-200 ${
+                      message.role === "user"
                         ? 'bg-gradient-to-r from-red-600 to-red-700 text-white rounded-br-sm shadow-lg'
-                        : message.isNotification
-                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-bl-sm shadow-lg'
                         : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 dark:from-gray-700 dark:to-gray-600 dark:text-gray-100 rounded-bl-sm shadow-lg'
                     }`}
                   >
                     <div className="flex items-start space-x-2">
-                      {!message.isUser && (
-                        <div className="flex-shrink-0 mt-0.5">
-                          {message.isNotification ? (
-                            <Bell className="h-4 w-4" />
-                          ) : (
-                            <Bot className="h-4 w-4" />
-                          )}
-                        </div>
+                      {message.role === "assistant" && (
+                        <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
                       )}
-                      {message.isUser && (
+                      {message.role === "user" && (
                         <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm leading-relaxed break-words">{message.text}</p>
-                        <p className={`text-xs mt-2 opacity-70`}>
+                        <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-xs mt-2 opacity-70">
                           {formatTime(message.timestamp)}
                         </p>
                       </div>
@@ -284,7 +310,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
                 </div>
               ))}
               
-              {isLoading && (
+              {isLoading && messages[messages.length - 1]?.content === "" && (
                 <div className="flex justify-start animate-fade-in">
                   <div className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-800 dark:text-gray-100 p-4 rounded-2xl rounded-bl-sm backdrop-blur-sm shadow-lg">
                     <div className="flex items-center space-x-3">
