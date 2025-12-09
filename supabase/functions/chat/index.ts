@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,25 +14,181 @@ serve(async (req) => {
   try {
     const { messages } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error("Supabase credentials are not configured");
+    }
+
+    // Create Supabase client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    console.log("Fetching database context...");
+
+    // Fetch database context
+    const [
+      immobilienResult,
+      mietvertraegeResult,
+      mieterResult,
+      zahlungenResult,
+      forderungenResult,
+      einheitenResult
+    ] = await Promise.all([
+      supabase.from("immobilien").select("id, name, adresse, einheiten_anzahl, objekttyp"),
+      supabase.from("mietvertrag").select(`
+        id, 
+        kaltmiete, 
+        betriebskosten, 
+        status, 
+        start_datum, 
+        ende_datum,
+        kuendigungsdatum,
+        mahnstufe,
+        kaution_betrag,
+        kaution_ist,
+        einheit_id
+      `),
+      supabase.from("mieter").select("id, vorname, nachname, hauptmail, telnr"),
+      supabase.from("zahlungen")
+        .select("id, betrag, buchungsdatum, kategorie, mietvertrag_id, zugeordneter_monat")
+        .order("buchungsdatum", { ascending: false })
+        .limit(100),
+      supabase.from("mietforderungen")
+        .select("id, sollbetrag, sollmonat, ist_faellig, mietvertrag_id")
+        .eq("ist_faellig", true),
+      supabase.from("einheiten").select("id, immobilie_id, qm, etage, einheitentyp")
+    ]);
+
+    // Fetch mietvertrag_mieter relations
+    const mietvertragMieterResult = await supabase
+      .from("mietvertrag_mieter")
+      .select("mietvertrag_id, mieter_id");
+
+    // Build context
+    const immobilien = immobilienResult.data || [];
+    const mietvertraege = mietvertraegeResult.data || [];
+    const mieter = mieterResult.data || [];
+    const zahlungen = zahlungenResult.data || [];
+    const forderungen = forderungenResult.data || [];
+    const einheiten = einheitenResult.data || [];
+    const mietvertragMieter = mietvertragMieterResult.data || [];
+
+    console.log(`Loaded: ${immobilien.length} Immobilien, ${mietvertraege.length} Mietverträge, ${mieter.length} Mieter`);
+
+    // Calculate statistics
+    const aktiveMietvertraege = mietvertraege.filter(v => v.status === "aktiv");
+    const gekuendigteMietvertraege = mietvertraege.filter(v => v.status === "gekuendigt");
+    const beendeteMietvertraege = mietvertraege.filter(v => v.status === "beendet");
+    
+    const gesamtKaltmiete = aktiveMietvertraege.reduce((sum, v) => sum + (v.kaltmiete || 0), 0);
+    const gesamtBetriebskosten = aktiveMietvertraege.reduce((sum, v) => sum + (v.betriebskosten || 0), 0);
+    
+    const offeneForderungen = forderungen.filter(f => f.ist_faellig);
+    const gesamtRueckstand = offeneForderungen.reduce((sum, f) => sum + (f.sollbetrag || 0), 0);
+    
+    const vertraegeInMahnung = mietvertraege.filter(v => (v.mahnstufe || 0) > 0);
+
+    // Build detailed immobilien info
+    const immobilienDetails = immobilien.map(immo => {
+      const immoEinheiten = einheiten.filter(e => e.immobilie_id === immo.id);
+      const immoVertraege = mietvertraege.filter(v => {
+        const einheit = immoEinheiten.find(e => e.id === v.einheit_id);
+        return einheit !== undefined;
+      });
+      const aktiveVertraege = immoVertraege.filter(v => v.status === "aktiv" || v.status === "gekuendigt");
+      const immoKaltmiete = aktiveVertraege.reduce((sum, v) => sum + (v.kaltmiete || 0), 0);
+      
+      return `- ${immo.name} (${immo.adresse}): ${immo.einheiten_anzahl} Einheiten, ${aktiveVertraege.length} aktive Verträge, ${immoKaltmiete.toFixed(2)}€ Kaltmiete/Monat`;
+    }).join("\n");
+
+    // Build mieter with contracts info
+    const mieterDetails = mieter.slice(0, 30).map(m => {
+      const mieterVertraege = mietvertragMieter
+        .filter(mv => mv.mieter_id === m.id)
+        .map(mv => mietvertraege.find(v => v.id === mv.mietvertrag_id))
+        .filter(v => v !== undefined);
+      
+      const aktiverVertrag = mieterVertraege.find(v => v?.status === "aktiv");
+      const status = aktiverVertrag ? "aktiv" : "kein aktiver Vertrag";
+      
+      return `- ${m.vorname} ${m.nachname || ""}: ${status}${aktiverVertrag ? `, ${aktiverVertrag.kaltmiete}€ Kaltmiete` : ""}`;
+    }).join("\n");
+
+    // Build Rückstände info
+    const rueckstandDetails = vertraegeInMahnung.slice(0, 20).map(v => {
+      const einheit = einheiten.find(e => e.id === v.einheit_id);
+      const immo = einheit ? immobilien.find(i => i.id === einheit.immobilie_id) : null;
+      const vertragMieter = mietvertragMieter.filter(mv => mv.mietvertrag_id === v.id);
+      const mieterNamen = vertragMieter
+        .map(vm => mieter.find(m => m.id === vm.mieter_id))
+        .filter(m => m)
+        .map(m => `${m?.vorname} ${m?.nachname || ""}`)
+        .join(", ");
+      
+      return `- Mahnstufe ${v.mahnstufe}: ${mieterNamen || "Unbekannt"} (${immo?.name || "Unbekannt"})`;
+    }).join("\n");
+
+    // Recent payments
+    const recentPayments = zahlungen.slice(0, 10).map(z => {
+      return `- ${z.buchungsdatum}: ${z.betrag.toFixed(2)}€ (${z.kategorie || "Nicht zugeordnet"})`;
+    }).join("\n");
+
+    const databaseContext = `
+=== AKTUELLE DATENBANK-ÜBERSICHT ===
+
+STATISTIKEN:
+- Anzahl Immobilien: ${immobilien.length}
+- Anzahl Einheiten gesamt: ${einheiten.length}
+- Aktive Mietverträge: ${aktiveMietvertraege.length}
+- Gekündigte Mietverträge: ${gekuendigteMietvertraege.length}
+- Beendete Mietverträge: ${beendeteMietvertraege.length}
+- Anzahl Mieter: ${mieter.length}
+- Gesamte monatliche Kaltmiete: ${gesamtKaltmiete.toFixed(2)}€
+- Gesamte monatliche Betriebskosten: ${gesamtBetriebskosten.toFixed(2)}€
+- Gesamte monatliche Warmmiete: ${(gesamtKaltmiete + gesamtBetriebskosten).toFixed(2)}€
+- Offene Forderungen (fällig): ${offeneForderungen.length}
+- Geschätzter Gesamtrückstand: ${gesamtRueckstand.toFixed(2)}€
+- Verträge in Mahnung: ${vertraegeInMahnung.length}
+
+IMMOBILIEN:
+${immobilienDetails || "Keine Immobilien vorhanden"}
+
+MIETER (Auszug):
+${mieterDetails || "Keine Mieter vorhanden"}
+
+RÜCKSTÄNDE/MAHNUNGEN:
+${rueckstandDetails || "Keine Rückstände vorhanden"}
+
+LETZTE ZAHLUNGEN:
+${recentPayments || "Keine Zahlungen vorhanden"}
+`;
+
     const systemPrompt = `Du bist Chilla, ein freundlicher und kompetenter KI-Assistent für die Immobilienverwaltung bei NiImmo. 
 
+Du hast Zugriff auf die aktuelle Datenbank und kannst konkrete Fragen zu Immobilien, Mietern, Zahlungen und Verträgen beantworten.
+
+${databaseContext}
+
 Deine Aufgaben:
-- Beantworte Fragen zur Immobilienverwaltung
-- Hilf bei Fragen zu Mietverträgen, Zahlungen, Mieterhöhungen und Mahnungen
+- Beantworte Fragen zur Immobilienverwaltung basierend auf den echten Daten
+- Gib Auskunft über Immobilien, Mieter, Mietverträge und Zahlungen
+- Hilf bei der Analyse von Rückständen und Mahnungen
 - Erkläre Funktionen des NiImmo Dashboards
-- Gib praktische Tipps zur Verwaltung von Immobilien
 
 Wichtige Regeln:
 - Antworte immer auf Deutsch
+- Nutze die Daten aus der Datenbank für konkrete Antworten
 - Sei freundlich, professionell und hilfsbereit
 - Halte deine Antworten prägnant aber informativ
 - Bei rechtlichen Fragen weise darauf hin, dass professionelle Rechtsberatung eingeholt werden sollte
-- Du kannst keine direkten Änderungen an der Datenbank vornehmen, aber du kannst erklären wie Funktionen im Dashboard genutzt werden`;
+- Du kannst keine direkten Änderungen an der Datenbank vornehmen, aber du kannst die aktuellen Daten lesen und analysieren`;
+
+    console.log("Sending request to Lovable AI...");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -69,6 +226,8 @@ Wichtige Regeln:
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log("Streaming response...");
 
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
