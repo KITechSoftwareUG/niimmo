@@ -126,15 +126,20 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
   const checkContractMeetsCriteria = (contract: ContractWithDetails): boolean => {
     const today = new Date();
     const threeMonthsFromNow = addMonths(today, 3);
+    const oneMonthAgo = addMonths(today, -1);
 
     if (uebergabeType === "einzug") {
+      // Leerstehend (beendet)
       const isBeendet = contract.status === "beendet";
-      const isFreshWithoutReadings = contract.status === "aktiv" && 
+      // Frisch eingezogen (start_datum nicht älter als 1 Monat) ohne Einzugs-Zählerstände
+      const isFreshMoveIn = contract.status === "aktiv" && 
+        contract.start_datum &&
+        isAfter(new Date(contract.start_datum), oneMonthAgo) &&
         !contract.strom_einzug && 
         !contract.gas_einzug && 
         !contract.kaltwasser_einzug && 
         !contract.warmwasser_einzug;
-      return isBeendet || isFreshWithoutReadings;
+      return isBeendet || isFreshMoveIn;
     } else if (uebergabeType === "auszug") {
       const isGekuendigt = contract.status === "gekuendigt";
       const isExpiringWithin3Months = contract.status === "aktiv" && 
@@ -143,11 +148,17 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
         isAfter(new Date(contract.kuendigungsdatum), today);
       const isRecentlyEnded = contract.status === "beendet" && 
         contract.ende_datum && 
-        isAfter(new Date(contract.ende_datum), addMonths(today, -1));
+        isAfter(new Date(contract.ende_datum), oneMonthAgo);
       return isGekuendigt || isExpiringWithin3Months || isRecentlyEnded;
     }
     return false;
   };
+
+  // Get all other contracts that don't meet criteria
+  const otherContracts = useMemo(() => {
+    if (!contracts || !uebergabeType || searchQuery.trim()) return [];
+    return contracts.filter(c => !checkContractMeetsCriteria(c));
+  }, [contracts, uebergabeType, searchQuery]);
 
   // Group linked contracts by mieter
   const groupedContracts = useMemo(() => {
@@ -438,116 +449,196 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
           </div>
         )}
 
-        {/* Contract Cards */}
+        {/* Contract Cards - Meeting Criteria */}
         {!isLoading && displayItems.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            {displayItems.map((group, groupIndex) => (
-              <button
-                key={group.contracts.map(c => c.id).join("-")}
-                onClick={() => handleContractClick(group)}
-                className={cn(
-                  "glass-card p-4 sm:p-5 rounded-xl hover:shadow-lg transition-all duration-200 text-left group",
-                  group.meetsCriteria === false && "border-2 border-amber-300 bg-amber-50/30"
-                )}
-              >
-                {/* Warning for non-matching criteria */}
-                {group.meetsCriteria === false && (
-                  <div className="flex items-center gap-2 mb-3 text-amber-600 text-xs bg-amber-100 rounded-lg p-2">
-                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                    <span>{(group as any).warningMessage || `Erfüllt nicht die Kriterien für ${uebergabeType === "einzug" ? "Einzug" : "Auszug"}`}</span>
-                  </div>
-                )}
+          <>
+            {!searchQuery.trim() && (
+              <h2 className="text-sm font-medium text-gray-500 mb-3">
+                {uebergabeType === "einzug" ? "Bereit für Einzug-Übergabe" : "Bereit für Auszug-Übergabe"}
+              </h2>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              {displayItems.map((group, groupIndex) => (
+                <button
+                  key={group.contracts.map(c => c.id).join("-")}
+                  onClick={() => handleContractClick(group)}
+                  className={cn(
+                    "glass-card p-4 sm:p-5 rounded-xl hover:shadow-lg transition-all duration-200 text-left group",
+                    group.meetsCriteria === false && "border-2 border-amber-300 bg-amber-50/30"
+                  )}
+                >
+                  {/* Warning for non-matching criteria */}
+                  {group.meetsCriteria === false && (
+                    <div className="flex items-center gap-2 mb-3 text-amber-600 text-xs bg-amber-100 rounded-lg p-2">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <span>{(group as any).warningMessage || `Erfüllt nicht die Kriterien für ${uebergabeType === "einzug" ? "Einzug" : "Auszug"}`}</span>
+                    </div>
+                  )}
 
-                {/* Linked Contracts Badge */}
-                {group.contracts.length > 1 && (
-                  <div className="flex items-center gap-2 mb-3">
-                    <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-700">
-                      <Link2 className="h-3 w-3" />
-                      {group.contracts.length} verbundene Einheiten
-                    </Badge>
-                  </div>
-                )}
+                  {/* Linked Contracts Badge */}
+                  {group.contracts.length > 1 && (
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-700">
+                        <Link2 className="h-3 w-3" />
+                        {group.contracts.length} verbundene Einheiten
+                      </Badge>
+                    </div>
+                  )}
 
-                {/* Hint for different end dates */}
-                {group.isLinked && group.hasDifferentEndDates && (
-                  <div className="flex items-center gap-2 mb-3 text-blue-600 text-xs bg-blue-50 rounded-lg p-2">
-                    <Link2 className="h-4 w-4 flex-shrink-0" />
-                    <span>Diese Mieter haben weitere Einheiten mit anderem Enddatum</span>
-                  </div>
-                )}
+                  {/* Hint for different end dates */}
+                  {group.isLinked && group.hasDifferentEndDates && (
+                    <div className="flex items-center gap-2 mb-3 text-blue-600 text-xs bg-blue-50 rounded-lg p-2">
+                      <Link2 className="h-4 w-4 flex-shrink-0" />
+                      <span>Diese Mieter haben weitere Einheiten mit anderem Enddatum</span>
+                    </div>
+                  )}
 
-                {/* Contracts in Group */}
-                {group.contracts.map((contract, idx) => (
-                  <div 
-                    key={contract.id} 
-                    className={cn(
-                      idx > 0 && "mt-3 pt-3 border-t border-gray-200"
-                    )}
-                  >
-                    {/* Property Info */}
-                    <div className="flex items-start gap-3 mb-2">
-                      <div className={cn(
-                        "p-2 rounded-lg flex-shrink-0",
-                        uebergabeType === "einzug" ? "bg-green-50" : "bg-orange-50"
-                      )}>
-                        <Building2 className={cn(
-                          "h-4 w-4",
-                          uebergabeType === "einzug" ? "text-green-600" : "text-orange-600"
-                        )} />
+                  {/* Contracts in Group */}
+                  {group.contracts.map((contract, idx) => (
+                    <div 
+                      key={contract.id} 
+                      className={cn(
+                        idx > 0 && "mt-3 pt-3 border-t border-gray-200"
+                      )}
+                    >
+                      {/* Property Info */}
+                      <div className="flex items-start gap-3 mb-2">
+                        <div className={cn(
+                          "p-2 rounded-lg flex-shrink-0",
+                          uebergabeType === "einzug" ? "bg-green-50" : "bg-orange-50"
+                        )}>
+                          <Building2 className={cn(
+                            "h-4 w-4",
+                            uebergabeType === "einzug" ? "text-green-600" : "text-orange-600"
+                          )} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-gray-800 truncate text-sm">
+                            {contract.einheit.immobilie.name}
+                          </h3>
+                          <div className="flex items-center gap-1 text-gray-500 text-xs">
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{contract.einheit.immobilie.adresse}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-gray-800 truncate text-sm">
-                          {contract.einheit.immobilie.name}
-                        </h3>
-                        <div className="flex items-center gap-1 text-gray-500 text-xs">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
-                          <span className="truncate">{contract.einheit.immobilie.adresse}</span>
+
+                      {/* Unit Info */}
+                      <div className="bg-gray-50 rounded-lg p-2 mb-2">
+                        <div className="text-xs text-gray-600">
+                          <span className="font-medium">Einheit:</span>{" "}
+                          {contract.einheit.etage || "–"} / Nr. {contract.einheit.zaehler || "–"}
                         </div>
                       </div>
                     </div>
+                  ))}
 
-                    {/* Unit Info */}
-                    <div className="bg-gray-50 rounded-lg p-2 mb-2">
-                      <div className="text-xs text-gray-600">
-                        <span className="font-medium">Einheit:</span>{" "}
-                        {contract.einheit.etage || "–"} / Nr. {contract.einheit.zaehler || "–"}
+                  {/* Tenant Info (shown once for group) */}
+                  {group.contracts[0].mieter.length > 0 && (
+                    <div className="flex items-center gap-2 mb-3 text-sm">
+                      <User className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-700 truncate">
+                        {group.contracts[0].mieter.map(m => `${m.vorname} ${m.nachname}`).join(", ")}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Status & Dates */}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={cn(
+                      "px-2 py-1 rounded-full font-medium",
+                      group.contracts[0].status === "aktiv" && "bg-green-100 text-green-700",
+                      group.contracts[0].status === "gekuendigt" && "bg-orange-100 text-orange-700",
+                      group.contracts[0].status === "beendet" && "bg-gray-100 text-gray-700"
+                    )}>
+                      {group.contracts[0].status === "aktiv" && "Aktiv"}
+                      {group.contracts[0].status === "gekuendigt" && "Gekündigt"}
+                      {group.contracts[0].status === "beendet" && "Beendet"}
+                    </span>
+                    
+                    {group.contracts[0].kuendigungsdatum && (
+                      <div className="flex items-center gap-1 text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        <span>{format(new Date(group.contracts[0].kuendigungsdatum), "dd.MM.yyyy", { locale: de })}</span>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Other Contracts Section */}
+        {!isLoading && !searchQuery.trim() && otherContracts.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-sm font-medium text-gray-400 mb-3">
+              Weitere Einheiten
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              {otherContracts.map((contract) => (
+                <button
+                  key={contract.id}
+                  onClick={() => handleContractClick({ 
+                    contracts: [contract], 
+                    meetsCriteria: false,
+                    isLinked: false,
+                    hasDifferentEndDates: false,
+                    mieterIds: contract.mieter.map(m => m.id),
+                    warningMessage: getWarningMessage(contract)
+                  } as any)}
+                  className="glass-card p-4 sm:p-5 rounded-xl hover:shadow-lg transition-all duration-200 text-left opacity-60 hover:opacity-100"
+                >
+                  {/* Property Info */}
+                  <div className="flex items-start gap-3 mb-2">
+                    <div className="p-2 rounded-lg flex-shrink-0 bg-gray-100">
+                      <Building2 className="h-4 w-4 text-gray-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-semibold text-gray-800 truncate text-sm">
+                        {contract.einheit.immobilie.name}
+                      </h3>
+                      <div className="flex items-center gap-1 text-gray-500 text-xs">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{contract.einheit.immobilie.adresse}</span>
                       </div>
                     </div>
                   </div>
-                ))}
 
-                {/* Tenant Info (shown once for group) */}
-                {group.contracts[0].mieter.length > 0 && (
-                  <div className="flex items-center gap-2 mb-3 text-sm">
-                    <User className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-700 truncate">
-                      {group.contracts[0].mieter.map(m => `${m.vorname} ${m.nachname}`).join(", ")}
-                    </span>
+                  {/* Unit Info */}
+                  <div className="bg-gray-50 rounded-lg p-2 mb-2">
+                    <div className="text-xs text-gray-600">
+                      <span className="font-medium">Einheit:</span>{" "}
+                      {contract.einheit.etage || "–"} / Nr. {contract.einheit.zaehler || "–"}
+                    </div>
                   </div>
-                )}
 
-                {/* Status & Dates */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className={cn(
-                    "px-2 py-1 rounded-full font-medium",
-                    group.contracts[0].status === "aktiv" && "bg-green-100 text-green-700",
-                    group.contracts[0].status === "gekuendigt" && "bg-orange-100 text-orange-700",
-                    group.contracts[0].status === "beendet" && "bg-gray-100 text-gray-700"
-                  )}>
-                    {group.contracts[0].status === "aktiv" && "Aktiv"}
-                    {group.contracts[0].status === "gekuendigt" && "Gekündigt"}
-                    {group.contracts[0].status === "beendet" && "Beendet"}
-                  </span>
-                  
-                  {group.contracts[0].kuendigungsdatum && (
-                    <div className="flex items-center gap-1 text-gray-500">
-                      <Calendar className="h-3 w-3" />
-                      <span>{format(new Date(group.contracts[0].kuendigungsdatum), "dd.MM.yyyy", { locale: de })}</span>
+                  {/* Tenant Info */}
+                  {contract.mieter.length > 0 && (
+                    <div className="flex items-center gap-2 mb-3 text-sm">
+                      <User className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-700 truncate">
+                        {contract.mieter.map(m => `${m.vorname} ${m.nachname}`).join(", ")}
+                      </span>
                     </div>
                   )}
-                </div>
-              </button>
-            ))}
+
+                  {/* Status */}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={cn(
+                      "px-2 py-1 rounded-full font-medium",
+                      contract.status === "aktiv" && "bg-green-100 text-green-700",
+                      contract.status === "gekuendigt" && "bg-orange-100 text-orange-700",
+                      contract.status === "beendet" && "bg-gray-100 text-gray-700"
+                    )}>
+                      {contract.status === "aktiv" && "Aktiv"}
+                      {contract.status === "gekuendigt" && "Gekündigt"}
+                      {contract.status === "beendet" && "Beendet"}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
