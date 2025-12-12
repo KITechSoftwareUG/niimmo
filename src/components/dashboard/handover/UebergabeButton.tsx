@@ -121,11 +121,21 @@ export const UebergabeButton = ({
       <UebergabeDialog
         isOpen={showDialog}
         onClose={() => setShowDialog(false)}
-        vertragId={vertrag.id}
-        einheit={einheit}
-        immobilie={immobilie}
+        vertragIds={[vertrag.id]}
+        contracts={[{
+          id: vertrag.id,
+          einheit: {
+            id: einheit?.id || "",
+            nummer: einheit?.nummer,
+            etage: einheit?.etage,
+            immobilie: {
+              name: immobilie?.name || "",
+              adresse: immobilie?.adresse || ""
+            }
+          },
+          kuendigungsdatum: vertrag.kuendigungsdatum
+        }]}
         mieterName={mieterName}
-        kuendigungsdatum={vertrag.kuendigungsdatum}
         onSuccess={onSuccess}
       />
     </>
