@@ -162,64 +162,64 @@ export const DashboardStats = ({ immobilien, onNavigateToContract, onShowMietUeb
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
       {stats.map((stat, index) => (
         <div 
           key={stat.title} 
-          className={`metric-card p-6 rounded-2xl border ${stat.border} ${stat.bg} ${
+          className={`metric-card p-3 sm:p-4 lg:p-6 rounded-xl sm:rounded-2xl border ${stat.border} ${stat.bg} ${
             stat.isRentCard ? 'cursor-pointer hover:shadow-lg transition-all duration-200' : ''
           }`}
           style={{animationDelay: `${index * 0.1}s`}}
           onClick={stat.isRentCard ? onShowMietUebersicht : undefined}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-sm font-medium font-sans text-gray-600 mb-1">{stat.title}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium font-sans text-gray-600 mb-1 truncate">{stat.title}</p>
               {stat.isRentCard ? (
-                <div className="space-y-2">
+                <div className="space-y-1 sm:space-y-2">
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Erwartete Miete</p>
-                    <p className="text-2xl font-bold font-sans text-gray-900">€{erwartedMiete.toLocaleString()}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500">Erwartet</p>
+                    <p className="text-base sm:text-xl lg:text-2xl font-bold font-sans text-gray-900">€{erwartedMiete.toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">Erfasste Miete</p>
-                    <p className="text-2xl font-bold font-sans text-gray-900">€{erfassedMiete?.toLocaleString() || 0}</p>
+                    <p className="text-[10px] sm:text-xs text-gray-500">Erfasst</p>
+                    <p className="text-base sm:text-xl lg:text-2xl font-bold font-sans text-gray-900">€{erfassedMiete?.toLocaleString() || 0}</p>
                   </div>
                 </div>
               ) : stat.isStatusCard ? (
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Leerstände</p>
-                    <p className="text-2xl font-bold font-sans text-gray-900">{leerstände}</p>
+                <div className="space-y-1 sm:space-y-2">
+                  <div className="flex items-center justify-between sm:block">
+                    <p className="text-[10px] sm:text-xs text-gray-500">Leerstände</p>
+                    <p className="text-lg sm:text-xl lg:text-2xl font-bold font-sans text-gray-900">{leerstände}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Gekündigt</p>
-                    <p className="text-xl font-bold font-sans text-red-600">{gekuendigteMietvertraege.length}</p>
+                  <div className="flex items-center justify-between sm:block">
+                    <p className="text-[10px] sm:text-xs text-gray-500">Gekündigt</p>
+                    <p className="text-base sm:text-lg lg:text-xl font-bold font-sans text-red-600">{gekuendigteMietvertraege.length}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Nächstes Auslaufdatum</p>
-                    <p 
-                      className="text-sm font-medium font-sans text-gray-800 cursor-pointer hover:text-blue-600 transition-colors"
-                      onClick={() => {
-                        if (naechsterVertrag && onNavigateToContract) {
-                          onNavigateToContract(
-                            naechsterVertrag.einheiten?.immobilie_id,
-                            naechsterVertrag.einheit_id,
-                            naechsterVertrag.id
-                          );
-                        }
-                      }}
-                    >
+                  <div 
+                    className="hidden sm:block cursor-pointer hover:bg-white/50 rounded-lg p-1 -m-1 transition-colors"
+                    onClick={() => {
+                      if (naechsterVertrag && onNavigateToContract) {
+                        onNavigateToContract(
+                          naechsterVertrag.einheiten?.immobilie_id,
+                          naechsterVertrag.einheit_id,
+                          naechsterVertrag.id
+                        );
+                      }
+                    }}
+                  >
+                    <p className="text-[10px] sm:text-xs text-gray-500">Nächstes Auslaufdatum</p>
+                    <p className="text-xs sm:text-sm font-medium font-sans text-gray-800 hover:text-blue-600 transition-colors">
                       {formatDatum(naechstesDatum)}
                     </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-3xl font-bold font-sans text-gray-900">{stat.value}</p>
+                <p className="text-xl sm:text-2xl lg:text-3xl font-bold font-sans text-gray-900">{stat.value}</p>
               )}
             </div>
-            <div className={`p-3 rounded-xl ${stat.bg} ${stat.border} border`}>
-              <stat.icon className={`h-6 w-6 ${stat.color}`} />
+            <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl ${stat.bg} ${stat.border} border flex-shrink-0`}>
+              <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 ${stat.color}`} />
             </div>
           </div>
         </div>
