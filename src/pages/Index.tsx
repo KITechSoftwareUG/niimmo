@@ -258,50 +258,56 @@ const Index = () => {
     }} />;
   }
   return <div className="min-h-screen modern-dashboard-bg">
-      <div className="container mx-auto p-8">
+      <div className="container mx-auto px-4 py-4 sm:p-6 lg:p-8">
         {/* Header */}
-        <div className="mb-6">
-          <div className="glass-card p-6 rounded-2xl mb-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <img src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" alt="NiImmo Logo" className="h-12 w-auto" />
-                <div>
-                  <h1 className="text-2xl lg:text-3xl font-sans font-bold text-gradient-red">
-                    NiImmo Dashboard
-                  </h1>
-                  <p className="text-gray-600 font-sans text-sm">
-                    Zentrale Verwaltung für Mieter, Zahlungen und Immobilien
-                  </p>
+        <div className="mb-4 sm:mb-6">
+          <div className="glass-card p-4 sm:p-6 rounded-xl sm:rounded-2xl mb-4 sm:mb-6">
+            <div className="flex flex-col gap-4">
+              {/* Logo & Title Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <img src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" alt="NiImmo Logo" className="h-8 sm:h-12 w-auto" />
+                  <div>
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-sans font-bold text-gradient-red">
+                      NiImmo
+                    </h1>
+                    <p className="text-gray-600 font-sans text-xs sm:text-sm hidden sm:block">
+                      Zentrale Verwaltung
+                    </p>
+                  </div>
                 </div>
+                <UserMenu />
               </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              
+              {/* Action Buttons - Mobile Horizontal Scroll */}
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide">
                 <Button 
                   onClick={() => setShowAnalytics(true)} 
                   variant="ghost"
-                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 w-full sm:w-auto"
+                  size="sm"
+                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
                 >
-                  <BarChart3 className="h-4 w-4 mr-2" />
+                  <BarChart3 className="h-4 w-4 mr-1.5" />
                   Analytics
                 </Button>
                 <Button 
                   onClick={() => setShowControlboard(true)} 
                   variant="ghost"
-                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 w-full sm:w-auto"
+                  size="sm"
+                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
                 >
-                  <Settings className="h-4 w-4 mr-2" />
+                  <Settings className="h-4 w-4 mr-1.5" />
                   Controlboard
                 </Button>
                 <Button 
                   onClick={() => setShowZahlungen(true)} 
                   variant="ghost"
-                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 w-full sm:w-auto"
+                  size="sm"
+                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
                 >
-                  <Euro className="h-4 w-4 mr-2" />
+                  <Euro className="h-4 w-4 mr-1.5" />
                   Zahlungen
                 </Button>
-                <div className="flex items-center gap-4 w-full sm:w-auto">
-                  <UserMenu />
-                </div>
               </div>
             </div>
           </div>
@@ -340,12 +346,12 @@ const Index = () => {
         </div>
 
         {/* Immobilien Grid */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-sans font-bold text-gray-800">Ihre Immobilien</h2>
+        <div className="mb-4 sm:mb-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-2xl font-sans font-bold text-gray-800">Ihre Immobilien</h2>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {sortedImmobilien?.map((immobilie, index) => (
               <div 
                 key={immobilie.id} 

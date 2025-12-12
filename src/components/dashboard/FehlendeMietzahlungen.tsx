@@ -125,37 +125,37 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div id="rueckstaende-section" className="glass-card p-6 rounded-2xl border border-red-100 bg-red-50/30">
+      <div id="rueckstaende-section" className="glass-card p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-red-100 bg-red-50/30">
         <CollapsibleTrigger className="w-full">
           {/* Header */}
-          <div className="flex items-center justify-between mb-4 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-100">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+          <div className="flex items-center justify-between mb-3 sm:mb-4 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-red-100 flex-shrink-0">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
               </div>
-              <div className="text-left">
-                <h2 className="text-lg font-semibold text-gray-800">Rückstände & Guthaben</h2>
-                <p className="text-sm text-gray-600">
-                  {fehlendeMietzahlungen?.length || 0} Mietvertrag{(fehlendeMietzahlungen?.length || 0) !== 1 ? 'e' : ''} mit Rückständen oder Guthaben
+              <div className="text-left min-w-0">
+                <h2 className="text-sm sm:text-lg font-semibold text-gray-800">Rückstände & Guthaben</h2>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">
+                  {fehlendeMietzahlungen?.length || 0} Vertrag{(fehlendeMietzahlungen?.length || 0) !== 1 ? 'e' : ''}
                 </p>
               </div>
             </div>
             
             <div className="flex items-center gap-2">
               {(gesamtRueckstandBetrag > 0 || gesamtGuthabenBetrag > 0) && (
-                <div className="text-right mr-4 flex gap-4">
+                <div className="text-right mr-2 sm:mr-4 hidden xs:flex gap-2 sm:gap-4">
                   {gesamtRueckstandBetrag > 0 && (
                     <div>
-                      <p className="text-sm text-gray-600">Rückstände</p>
-                      <p className="text-xl font-bold text-red-600">
+                      <p className="text-xs sm:text-sm text-gray-600">Rückstände</p>
+                      <p className="text-sm sm:text-xl font-bold text-red-600">
                         {formatBetrag(gesamtRueckstandBetrag)}
                       </p>
                     </div>
                   )}
                   {gesamtGuthabenBetrag > 0 && (
                     <div>
-                      <p className="text-sm text-gray-600">Guthaben</p>
-                      <p className="text-xl font-bold text-green-600">
+                      <p className="text-xs sm:text-sm text-gray-600">Guthaben</p>
+                      <p className="text-sm sm:text-xl font-bold text-green-600">
                         {formatBetrag(gesamtGuthabenBetrag)}
                       </p>
                     </div>
@@ -163,24 +163,43 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                 </div>
               )}
               {isOpen ? (
-                <ChevronUp className="h-5 w-5 text-gray-500" />
+                <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 flex-shrink-0" />
               ) : (
-                <ChevronDown className="h-5 w-5 text-gray-500" />
+                <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 flex-shrink-0" />
               )}
             </div>
           </div>
         </CollapsibleTrigger>
 
         <CollapsibleContent>
+          {/* Mobile Summary - Shows on small screens */}
+          {(gesamtRueckstandBetrag > 0 || gesamtGuthabenBetrag > 0) && (
+            <div className="flex xs:hidden gap-3 mb-3 p-2 bg-white/50 rounded-lg">
+              {gesamtRueckstandBetrag > 0 && (
+                <div className="flex-1 text-center">
+                  <p className="text-xs text-gray-600">Rückstände</p>
+                  <p className="text-sm font-bold text-red-600">{formatBetrag(gesamtRueckstandBetrag)}</p>
+                </div>
+              )}
+              {gesamtGuthabenBetrag > 0 && (
+                <div className="flex-1 text-center">
+                  <p className="text-xs text-gray-600">Guthaben</p>
+                  <p className="text-sm font-bold text-green-600">{formatBetrag(gesamtGuthabenBetrag)}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Sorting Controls */}
           {fehlendeMietzahlungen && fehlendeMietzahlungen.length > 0 && (
-            <div className="mb-4 flex flex-wrap gap-2 items-center justify-between border-b border-red-200 pb-4">
-              <div className="flex flex-wrap gap-2">
+            <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between border-b border-red-200 pb-3 sm:pb-4">
+              {/* Sort Buttons - Horizontal scroll on mobile */}
+              <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
                 <Button
                   variant={sortBy === 'object' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleSort('object')}
-                  className="gap-1"
+                  className="gap-1 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
                 >
                   Objekt {getSortIcon('object')}
                 </Button>
@@ -188,7 +207,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                   variant={sortBy === 'amount' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleSort('amount')}
-                  className="gap-1"
+                  className="gap-1 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
                 >
                   Betrag {getSortIcon('amount')}
                 </Button>
@@ -196,7 +215,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                   variant={sortBy === 'mahnstufe' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleSort('mahnstufe')}
-                  className="gap-1"
+                  className="gap-1 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
                 >
                   Mahnstufe {getSortIcon('mahnstufe')}
                 </Button>
@@ -204,37 +223,36 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                   variant={sortBy === 'tenant' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleSort('tenant')}
-                  className="gap-1"
+                  className="gap-1 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
                 >
                   Mieter {getSortIcon('tenant')}
                 </Button>
               </div>
               
               {/* Filter Controls */}
-              <div className="flex flex-wrap gap-2 items-center">
-                <div className="flex items-center gap-1 text-sm text-gray-600">
-                  <Filter className="h-4 w-4" />
-                  <span>Filter:</span>
+              <div className="flex gap-2 items-center overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+                <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600 flex-shrink-0">
+                  <Filter className="h-3 w-3 sm:h-4 sm:w-4" />
                 </div>
                 
                 <Select value={amountFilter} onValueChange={(value: AmountFilter) => setAmountFilter(value)}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-24 sm:w-32 h-8 text-xs sm:text-sm flex-shrink-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Alle</SelectItem>
-                    <SelectItem value="debt">Nur Rückstände</SelectItem>
-                    <SelectItem value="credit">Nur Guthaben</SelectItem>
+                    <SelectItem value="debt">Rückstände</SelectItem>
+                    <SelectItem value="credit">Guthaben</SelectItem>
                   </SelectContent>
                 </Select>
                 
                 <Select value={minAmountFilter} onValueChange={(value: MinAmountFilter) => setMinAmountFilter(value)}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-24 sm:w-36 h-8 text-xs sm:text-sm flex-shrink-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Alle Beträge</SelectItem>
-                    <SelectItem value="over100">Über 100€</SelectItem>
+                    <SelectItem value="all">Alle €</SelectItem>
+                    <SelectItem value="over100">&gt;100€</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
