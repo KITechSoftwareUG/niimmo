@@ -12,53 +12,76 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardList, Loader2 } from "lucide-react";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface ContractInfo {
+  id: string;
+  einheit: {
+    id: string;
+    nummer?: string;
+    etage?: string;
+    immobilie: {
+      name: string;
+      adresse: string;
+    };
+  };
+  kuendigungsdatum?: string;
+}
 
 interface UebergabeDialogProps {
   isEinzug?: boolean;
   isOpen: boolean;
   onClose: () => void;
-  vertragId: string;
-  einheit?: {
-    id: string;
-    nummer?: string;
-    etage?: string;
-  };
-  immobilie?: {
-    name: string;
-    adresse: string;
-  };
+  vertragIds: string[];
+  contracts: ContractInfo[];
   mieterName?: string;
-  kuendigungsdatum?: string;
   onSuccess?: () => void;
+}
+
+interface ZaehlerstaendePerContract {
+  [contractId: string]: {
+    strom: string;
+    gas: string;
+    wasser: string;
+    warmwasser: string;
+  };
 }
 
 export const UebergabeDialog = ({
   isOpen,
   onClose,
-  vertragId,
-  einheit,
-  immobilie,
+  vertragIds,
+  contracts,
   mieterName,
-  kuendigungsdatum,
   onSuccess,
   isEinzug = false,
 }: UebergabeDialogProps) => {
   const [uebergabeDatum, setUebergabeDatum] = useState<Date | undefined>(
-    kuendigungsdatum ? new Date(kuendigungsdatum) : undefined
+    contracts[0]?.kuendigungsdatum ? new Date(contracts[0].kuendigungsdatum) : undefined
   );
   const [schluesselAnzahl, setSchluesselAnzahl] = useState<string>("");
-  const [zaehlerstaende, setZaehlerstaende] = useState({
-    strom: "",
-    gas: "",
-    wasser: "",
-    warmwasser: "",
+  const [zaehlerstaendePerContract, setZaehlerstaendePerContract] = useState<ZaehlerstaendePerContract>(() => {
+    const initial: ZaehlerstaendePerContract = {};
+    contracts.forEach(c => {
+      initial[c.id] = { strom: "", gas: "", wasser: "", warmwasser: "" };
+    });
+    return initial;
   });
   const [protokollNotizen, setProtokollNotizen] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+
+  const updateZaehlerstand = (contractId: string, field: string, value: string) => {
+    setZaehlerstaendePerContract(prev => ({
+      ...prev,
+      [contractId]: {
+        ...prev[contractId],
+        [field]: value
+      }
+    }));
+  };
 
   const handleSubmit = async () => {
     if (!uebergabeDatum) {
@@ -73,45 +96,38 @@ export const UebergabeDialog = ({
     setIsSubmitting(true);
 
     try {
-      if (isEinzug) {
-        // Update the contract with move-in meter readings
-        const { error: updateError } = await supabase
-          .from("mietvertrag")
-          .update({
-            strom_einzug: zaehlerstaende.strom ? parseFloat(zaehlerstaende.strom) : null,
-            gas_einzug: zaehlerstaende.gas ? parseFloat(zaehlerstaende.gas) : null,
-            kaltwasser_einzug: zaehlerstaende.wasser ? parseFloat(zaehlerstaende.wasser) : null,
-            warmwasser_einzug: zaehlerstaende.warmwasser ? parseFloat(zaehlerstaende.warmwasser) : null,
-            start_datum: format(uebergabeDatum, "yyyy-MM-dd"),
-          })
-          .eq("id", vertragId);
+      // Update all contracts
+      for (const contract of contracts) {
+        const zaehlerstaende = zaehlerstaendePerContract[contract.id] || { strom: "", gas: "", wasser: "", warmwasser: "" };
+        
+        if (isEinzug) {
+          const { error: updateError } = await supabase
+            .from("mietvertrag")
+            .update({
+              strom_einzug: zaehlerstaende.strom ? parseFloat(zaehlerstaende.strom) : null,
+              gas_einzug: zaehlerstaende.gas ? parseFloat(zaehlerstaende.gas) : null,
+              kaltwasser_einzug: zaehlerstaende.wasser ? parseFloat(zaehlerstaende.wasser) : null,
+              warmwasser_einzug: zaehlerstaende.warmwasser ? parseFloat(zaehlerstaende.warmwasser) : null,
+              start_datum: format(uebergabeDatum, "yyyy-MM-dd"),
+            })
+            .eq("id", contract.id);
 
-        if (updateError) throw updateError;
+          if (updateError) throw updateError;
+        } else {
+          const { error: updateError } = await supabase
+            .from("mietvertrag")
+            .update({
+              strom_auszug: zaehlerstaende.strom ? parseFloat(zaehlerstaende.strom) : null,
+              gas_auszug: zaehlerstaende.gas ? parseFloat(zaehlerstaende.gas) : null,
+              kaltwasser_auszug: zaehlerstaende.wasser ? parseFloat(zaehlerstaende.wasser) : null,
+              warmwasser_auszug: zaehlerstaende.warmwasser ? parseFloat(zaehlerstaende.warmwasser) : null,
+              status: "beendet",
+              ende_datum: format(uebergabeDatum, "yyyy-MM-dd"),
+            })
+            .eq("id", contract.id);
 
-        toast({
-          title: "Einzug erfolgreich",
-          description: "Die Einzugs-Übergabe wurde dokumentiert.",
-        });
-      } else {
-        // Update the contract with move-out meter readings
-        const { error: updateError } = await supabase
-          .from("mietvertrag")
-          .update({
-            strom_auszug: zaehlerstaende.strom ? parseFloat(zaehlerstaende.strom) : null,
-            gas_auszug: zaehlerstaende.gas ? parseFloat(zaehlerstaende.gas) : null,
-            kaltwasser_auszug: zaehlerstaende.wasser ? parseFloat(zaehlerstaende.wasser) : null,
-            warmwasser_auszug: zaehlerstaende.warmwasser ? parseFloat(zaehlerstaende.warmwasser) : null,
-            status: "beendet",
-            ende_datum: format(uebergabeDatum, "yyyy-MM-dd"),
-          })
-          .eq("id", vertragId);
-
-        if (updateError) throw updateError;
-
-        toast({
-          title: "Auszug erfolgreich",
-          description: "Die Auszugs-Übergabe wurde dokumentiert.",
-        });
+          if (updateError) throw updateError;
+        }
       }
 
       onSuccess?.();
@@ -130,21 +146,30 @@ export const UebergabeDialog = ({
 
   const content = (
     <div className="space-y-6 p-1">
-      {/* Property and Unit Info */}
-      <div className="bg-muted/50 rounded-lg p-3 sm:p-4">
-        <p className="text-sm font-medium">{immobilie?.name}</p>
-        <p className="text-xs text-muted-foreground">{immobilie?.adresse}</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          Einheit {einheit?.nummer || einheit?.id?.slice(0, 8)}
-          {einheit?.etage && ` (${einheit.etage})`}
-        </p>
-        {mieterName && (
-          <p className="text-xs mt-1">
-            <span className="text-muted-foreground">Mieter:</span>{" "}
-            <span className="font-medium">{mieterName}</span>
+      {/* Tenant Info */}
+      {mieterName && (
+        <div className="bg-muted/50 rounded-lg p-3 sm:p-4">
+          <p className="text-xs text-muted-foreground">Mieter</p>
+          <p className="text-sm font-medium">{mieterName}</p>
+        </div>
+      )}
+
+      {/* Contracts Info */}
+      {contracts.length > 1 && (
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+          <p className="text-xs text-blue-700 font-medium mb-2">
+            {contracts.length} verbundene Einheiten werden gemeinsam übergeben:
           </p>
-        )}
-      </div>
+          <ul className="space-y-1">
+            {contracts.map(c => (
+              <li key={c.id} className="text-xs text-blue-600 flex items-center gap-1">
+                <Building2 className="h-3 w-3" />
+                {c.einheit.immobilie.name} - {c.einheit.etage || "–"} / Nr. {c.einheit.nummer || "–"}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Übergabedatum */}
       <div className="space-y-2">
@@ -193,62 +218,61 @@ export const UebergabeDialog = ({
         />
       </div>
 
-      {/* Zählerstände */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">
-          Zählerstände bei {isEinzug ? "Einzug" : "Auszug"}
-        </Label>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Strom (kWh)</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={zaehlerstaende.strom}
-              onChange={(e) =>
-                setZaehlerstaende((prev) => ({ ...prev, strom: e.target.value }))
-              }
-              className="h-12 sm:h-10"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Gas (m³)</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={zaehlerstaende.gas}
-              onChange={(e) =>
-                setZaehlerstaende((prev) => ({ ...prev, gas: e.target.value }))
-              }
-              className="h-12 sm:h-10"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Kaltwasser (m³)</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={zaehlerstaende.wasser}
-              onChange={(e) =>
-                setZaehlerstaende((prev) => ({ ...prev, wasser: e.target.value }))
-              }
-              className="h-12 sm:h-10"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Warmwasser (m³)</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              value={zaehlerstaende.warmwasser}
-              onChange={(e) =>
-                setZaehlerstaende((prev) => ({ ...prev, warmwasser: e.target.value }))
-              }
-              className="h-12 sm:h-10"
-            />
+      {/* Zählerstände per Contract */}
+      {contracts.map((contract, idx) => (
+        <div key={contract.id} className="space-y-3">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            {contracts.length > 1 && (
+              <span className="bg-gray-100 px-2 py-0.5 rounded text-xs">
+                {contract.einheit.immobilie.name} - {contract.einheit.etage || "–"}
+              </span>
+            )}
+            Zählerstände bei {isEinzug ? "Einzug" : "Auszug"}
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Strom (kWh)</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={zaehlerstaendePerContract[contract.id]?.strom || ""}
+                onChange={(e) => updateZaehlerstand(contract.id, "strom", e.target.value)}
+                className="h-12 sm:h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Gas (m³)</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={zaehlerstaendePerContract[contract.id]?.gas || ""}
+                onChange={(e) => updateZaehlerstand(contract.id, "gas", e.target.value)}
+                className="h-12 sm:h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Kaltwasser (m³)</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={zaehlerstaendePerContract[contract.id]?.wasser || ""}
+                onChange={(e) => updateZaehlerstand(contract.id, "wasser", e.target.value)}
+                className="h-12 sm:h-10"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Warmwasser (m³)</Label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={zaehlerstaendePerContract[contract.id]?.warmwasser || ""}
+                onChange={(e) => updateZaehlerstand(contract.id, "warmwasser", e.target.value)}
+                className="h-12 sm:h-10"
+              />
+            </div>
           </div>
         </div>
-      </div>
+      ))}
 
       {/* Protokollnotizen */}
       <div className="space-y-2">
@@ -285,7 +309,9 @@ export const UebergabeDialog = ({
               Speichern...
             </>
           ) : (
-            "Übergabe abschließen"
+            contracts.length > 1 
+              ? `${contracts.length} Übergaben abschließen` 
+              : "Übergabe abschließen"
           )}
         </Button>
       </div>
