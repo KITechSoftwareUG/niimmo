@@ -12,8 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check } from "lucide-react";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check, RotateCcw, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SignatureCanvas } from "./SignatureCanvas";
+import { MeterPhotoUpload } from "./MeterPhotoUpload";
+
 interface ContractInfo {
   id: string;
   einheit: {
@@ -47,6 +50,15 @@ interface ZaehlerstaendePerContract {
   };
 }
 
+interface MeterPhotosPerContract {
+  [contractId: string]: {
+    strom?: string;
+    gas?: string;
+    wasser?: string;
+    warmwasser?: string;
+  };
+}
+
 export const UebergabeDialog = ({
   isOpen,
   onClose,
@@ -57,7 +69,7 @@ export const UebergabeDialog = ({
   isEinzug = false,
 }: UebergabeDialogProps) => {
   const [uebergabeDatum, setUebergabeDatum] = useState<Date | undefined>(
-    contracts[0]?.kuendigungsdatum ? new Date(contracts[0].kuendigungsdatum) : undefined
+    contracts[0]?.kuendigungsdatum ? new Date(contracts[0].kuendigungsdatum) : new Date()
   );
   const [schluesselAnzahl, setSchluesselAnzahl] = useState<string>("");
   const [zaehlerstaendePerContract, setZaehlerstaendePerContract] = useState<ZaehlerstaendePerContract>(() => {
@@ -67,8 +79,19 @@ export const UebergabeDialog = ({
     });
     return initial;
   });
+  const [meterPhotosPerContract, setMeterPhotosPerContract] = useState<MeterPhotosPerContract>(() => {
+    const initial: MeterPhotosPerContract = {};
+    contracts.forEach(c => {
+      initial[c.id] = {};
+    });
+    return initial;
+  });
   const [protokollNotizen, setProtokollNotizen] = useState("");
+  const [vermieterSignature, setVermieterSignature] = useState<string | null>(null);
+  const [mieterSignature, setMieterSignature] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfGenerated, setPdfGenerated] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -82,9 +105,32 @@ export const UebergabeDialog = ({
     }));
   };
 
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [pdfGenerated, setPdfGenerated] = useState(false);
-  const [generatedFilePath, setGeneratedFilePath] = useState<string | null>(null);
+  const updateMeterPhoto = (contractId: string, meterType: string, photoPath: string) => {
+    setMeterPhotosPerContract(prev => ({
+      ...prev,
+      [contractId]: {
+        ...prev[contractId],
+        [meterType]: photoPath
+      }
+    }));
+  };
+
+  const resetForm = () => {
+    setUebergabeDatum(contracts[0]?.kuendigungsdatum ? new Date(contracts[0].kuendigungsdatum) : new Date());
+    setSchluesselAnzahl("");
+    const initialZaehler: ZaehlerstaendePerContract = {};
+    const initialPhotos: MeterPhotosPerContract = {};
+    contracts.forEach(c => {
+      initialZaehler[c.id] = { strom: "", gas: "", wasser: "", warmwasser: "" };
+      initialPhotos[c.id] = {};
+    });
+    setZaehlerstaendePerContract(initialZaehler);
+    setMeterPhotosPerContract(initialPhotos);
+    setProtokollNotizen("");
+    setVermieterSignature(null);
+    setMieterSignature(null);
+    setPdfGenerated(false);
+  };
 
   const handleSubmit = async () => {
     if (!uebergabeDatum) {
@@ -99,7 +145,6 @@ export const UebergabeDialog = ({
     setIsSubmitting(true);
 
     try {
-      // Update all contracts
       for (const contract of contracts) {
         const zaehlerstaende = zaehlerstaendePerContract[contract.id] || { strom: "", gas: "", wasser: "", warmwasser: "" };
         
@@ -167,14 +212,16 @@ export const UebergabeDialog = ({
           uebergabeDatum: format(uebergabeDatum, "yyyy-MM-dd"),
           schluesselAnzahl,
           zaehlerstaendePerContract,
-          protokollNotizen
+          protokollNotizen,
+          vermieterSignature,
+          mieterSignature,
+          meterPhotosPerContract
         }
       });
 
       if (response.error) throw response.error;
       
       const { filePath, fileName } = response.data;
-      setGeneratedFilePath(filePath);
       setPdfGenerated(true);
 
       toast({
@@ -182,7 +229,6 @@ export const UebergabeDialog = ({
         description: "Das Übergabeprotokoll wurde erfolgreich erstellt und gespeichert.",
       });
 
-      // Download the PDF
       const { data: downloadData } = await supabase.storage
         .from('dokumente')
         .download(filePath);
@@ -283,8 +329,8 @@ export const UebergabeDialog = ({
         />
       </div>
 
-      {/* Zählerstände per Contract */}
-      {contracts.map((contract, idx) => (
+      {/* Zählerstände per Contract with Photo Upload */}
+      {contracts.map((contract) => (
         <div key={contract.id} className="space-y-3">
           <Label className="text-sm font-medium flex items-center gap-2">
             {contracts.length > 1 && (
@@ -294,46 +340,86 @@ export const UebergabeDialog = ({
             )}
             Zählerstände bei {isEinzug ? "Einzug" : "Auszug"}
           </Label>
+          
           <div className="grid grid-cols-2 gap-3">
+            {/* Strom */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Strom (kWh)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={zaehlerstaendePerContract[contract.id]?.strom || ""}
-                onChange={(e) => updateZaehlerstand(contract.id, "strom", e.target.value)}
-                className="h-12 sm:h-10"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={zaehlerstaendePerContract[contract.id]?.strom || ""}
+                  onChange={(e) => updateZaehlerstand(contract.id, "strom", e.target.value)}
+                  className="h-10 flex-1"
+                />
+                <MeterPhotoUpload
+                  contractId={contract.id}
+                  meterType="strom"
+                  isEinzug={isEinzug}
+                  onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "strom", path)}
+                />
+              </div>
             </div>
+
+            {/* Gas */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Gas (m³)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={zaehlerstaendePerContract[contract.id]?.gas || ""}
-                onChange={(e) => updateZaehlerstand(contract.id, "gas", e.target.value)}
-                className="h-12 sm:h-10"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={zaehlerstaendePerContract[contract.id]?.gas || ""}
+                  onChange={(e) => updateZaehlerstand(contract.id, "gas", e.target.value)}
+                  className="h-10 flex-1"
+                />
+                <MeterPhotoUpload
+                  contractId={contract.id}
+                  meterType="gas"
+                  isEinzug={isEinzug}
+                  onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "gas", path)}
+                />
+              </div>
             </div>
+
+            {/* Kaltwasser */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Kaltwasser (m³)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={zaehlerstaendePerContract[contract.id]?.wasser || ""}
-                onChange={(e) => updateZaehlerstand(contract.id, "wasser", e.target.value)}
-                className="h-12 sm:h-10"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={zaehlerstaendePerContract[contract.id]?.wasser || ""}
+                  onChange={(e) => updateZaehlerstand(contract.id, "wasser", e.target.value)}
+                  className="h-10 flex-1"
+                />
+                <MeterPhotoUpload
+                  contractId={contract.id}
+                  meterType="wasser"
+                  isEinzug={isEinzug}
+                  onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "wasser", path)}
+                />
+              </div>
             </div>
+
+            {/* Warmwasser */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Warmwasser (m³)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={zaehlerstaendePerContract[contract.id]?.warmwasser || ""}
-                onChange={(e) => updateZaehlerstand(contract.id, "warmwasser", e.target.value)}
-                className="h-12 sm:h-10"
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={zaehlerstaendePerContract[contract.id]?.warmwasser || ""}
+                  onChange={(e) => updateZaehlerstand(contract.id, "warmwasser", e.target.value)}
+                  className="h-10 flex-1"
+                />
+                <MeterPhotoUpload
+                  contractId={contract.id}
+                  meterType="warmwasser"
+                  isEinzug={isEinzug}
+                  onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "warmwasser", path)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -353,8 +439,23 @@ export const UebergabeDialog = ({
         />
       </div>
 
+      {/* Digital Signatures */}
+      <div className="space-y-4 border-t pt-4">
+        <h4 className="text-sm font-semibold text-gray-700">Digitale Unterschriften</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SignatureCanvas
+            label="Vermieter / Bevollmächtigter"
+            onSignatureChange={setVermieterSignature}
+          />
+          <SignatureCanvas
+            label="Mieter"
+            onSignatureChange={setMieterSignature}
+          />
+        </div>
+      </div>
+
       {/* Action Buttons */}
-      <div className="flex flex-col gap-3 pt-4">
+      <div className="flex flex-col gap-3 pt-4 border-t">
         {/* PDF Export Button */}
         <Button
           variant="outline"
@@ -378,6 +479,17 @@ export const UebergabeDialog = ({
               Übergabeprotokoll als PDF speichern
             </>
           )}
+        </Button>
+
+        {/* Reset Button */}
+        <Button
+          variant="ghost"
+          onClick={resetForm}
+          className="w-full h-10 text-gray-500"
+          disabled={isSubmitting || isGeneratingPdf}
+        >
+          <RotateCcw className="mr-2 h-4 w-4" />
+          Formular zurücksetzen (Neues Protokoll)
         </Button>
 
         <div className="flex flex-col-reverse sm:flex-row gap-2">
@@ -411,13 +523,12 @@ export const UebergabeDialog = ({
   );
 
   const dialogTitle = isEinzug ? "Übergabe (Einzug)" : "Übergabe (Auszug)";
-  const DialogIcon = isEinzug ? KeyRound : KeyRound;
+  const DialogIcon = KeyRound;
 
-  // Use Drawer on mobile, Dialog on desktop
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DrawerContent className="max-h-[90vh]">
+        <DrawerContent className="max-h-[95vh]">
           <DrawerHeader className="pb-2">
             <DrawerTitle className="flex items-center gap-2 text-lg">
               <DialogIcon className={cn("h-5 w-5", isEinzug ? "text-green-600" : "text-orange-600")} />
@@ -432,7 +543,7 @@ export const UebergabeDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <DialogIcon className={cn("h-5 w-5", isEinzug ? "text-green-600" : "text-orange-600")} />
