@@ -227,6 +227,19 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
     });
   }, [searchQuery, contracts]);
 
+  // Get warning message for non-matching criteria
+  const getWarningMessage = (contract: ContractWithDetails): string => {
+    if (uebergabeType === "einzug") {
+      if (contract.status === "aktiv" && (contract.strom_einzug || contract.gas_einzug || contract.kaltwasser_einzug || contract.warmwasser_einzug)) {
+        return "Dieser Mietvertrag ist bereits aktiv mit dokumentierter Einzugs-Übergabe";
+      }
+      if (contract.status === "gekuendigt") {
+        return "Dieser Mietvertrag ist gekündigt";
+      }
+    }
+    return "Erfüllt nicht die Kriterien für " + (uebergabeType === "einzug" ? "Einzug" : "Auszug");
+  };
+
   // Combine grouped and search results
   const displayItems = useMemo(() => {
     if (searchQuery.trim()) {
@@ -236,10 +249,12 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
         isLinked: false,
         hasDifferentEndDates: false,
         mieterIds: contract.mieter.map(m => m.id),
-        meetsCriteria: checkContractMeetsCriteria(contract)
+        meetsCriteria: checkContractMeetsCriteria(contract),
+        warningMessage: !checkContractMeetsCriteria(contract) ? getWarningMessage(contract) : undefined
       }));
     }
-    return groupedContracts.map(g => ({ ...g, meetsCriteria: true }));
+    // Without search, only show contracts that meet criteria
+    return groupedContracts.map(g => ({ ...g, meetsCriteria: true, warningMessage: undefined }));
   }, [searchQuery, searchResults, groupedContracts, uebergabeType]);
 
   const handleContractClick = (group: { contracts: ContractWithDetails[]; meetsCriteria?: boolean }) => {
@@ -439,7 +454,7 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
                 {group.meetsCriteria === false && (
                   <div className="flex items-center gap-2 mb-3 text-amber-600 text-xs bg-amber-100 rounded-lg p-2">
                     <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                    <span>Erfüllt nicht die Kriterien für {uebergabeType === "einzug" ? "Einzug" : "Auszug"}</span>
+                    <span>{(group as any).warningMessage || `Erfüllt nicht die Kriterien für ${uebergabeType === "einzug" ? "Einzug" : "Auszug"}`}</span>
                   </div>
                 )}
 
