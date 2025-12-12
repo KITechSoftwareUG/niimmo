@@ -12,9 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2 } from "lucide-react";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 interface ContractInfo {
   id: string;
   einheit: {
@@ -83,6 +82,10 @@ export const UebergabeDialog = ({
     }));
   };
 
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfGenerated, setPdfGenerated] = useState(false);
+  const [generatedFilePath, setGeneratedFilePath] = useState<string | null>(null);
+
   const handleSubmit = async () => {
     if (!uebergabeDatum) {
       toast({
@@ -141,6 +144,68 @@ export const UebergabeDialog = ({
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGeneratePdf = async () => {
+    if (!uebergabeDatum) {
+      toast({
+        title: "Fehler",
+        description: "Bitte wählen Sie erst ein Übergabedatum aus.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+
+    try {
+      const response = await supabase.functions.invoke('generate-uebergabe-pdf', {
+        body: {
+          mietvertragIds: vertragIds,
+          isEinzug,
+          uebergabeDatum: format(uebergabeDatum, "yyyy-MM-dd"),
+          schluesselAnzahl,
+          zaehlerstaendePerContract,
+          protokollNotizen
+        }
+      });
+
+      if (response.error) throw response.error;
+      
+      const { filePath, fileName } = response.data;
+      setGeneratedFilePath(filePath);
+      setPdfGenerated(true);
+
+      toast({
+        title: "PDF erstellt",
+        description: "Das Übergabeprotokoll wurde erfolgreich erstellt und gespeichert.",
+      });
+
+      // Download the PDF
+      const { data: downloadData } = await supabase.storage
+        .from('dokumente')
+        .download(filePath);
+
+      if (downloadData) {
+        const url = URL.createObjectURL(downloadData);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        title: "Fehler",
+        description: "Das PDF konnte nicht erstellt werden.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -289,31 +354,58 @@ export const UebergabeDialog = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+      <div className="flex flex-col gap-3 pt-4">
+        {/* PDF Export Button */}
         <Button
           variant="outline"
-          onClick={onClose}
-          className="w-full sm:w-auto h-12 sm:h-10"
-          disabled={isSubmitting}
+          onClick={handleGeneratePdf}
+          className="w-full h-12 sm:h-10 border-dashed"
+          disabled={isGeneratingPdf || isSubmitting}
         >
-          Abbrechen
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          className="w-full sm:w-auto h-12 sm:h-10"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
+          {isGeneratingPdf ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Speichern...
+              PDF wird erstellt...
+            </>
+          ) : pdfGenerated ? (
+            <>
+              <Check className="mr-2 h-4 w-4 text-green-600" />
+              PDF erstellt & heruntergeladen
             </>
           ) : (
-            contracts.length > 1 
-              ? `${contracts.length} Übergaben abschließen` 
-              : "Übergabe abschließen"
+            <>
+              <FileDown className="mr-2 h-4 w-4" />
+              Übergabeprotokoll als PDF speichern
+            </>
           )}
         </Button>
+
+        <div className="flex flex-col-reverse sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="w-full sm:w-auto h-12 sm:h-10"
+            disabled={isSubmitting}
+          >
+            Abbrechen
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            className="w-full sm:flex-1 h-12 sm:h-10"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Speichern...
+              </>
+            ) : (
+              contracts.length > 1 
+                ? `${contracts.length} Übergaben abschließen` 
+                : "Übergabe abschließen"
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
