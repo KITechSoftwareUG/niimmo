@@ -1,26 +1,22 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format } from "date-fns";
-import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardCheck, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface UebergabeDialogProps {
+  isEinzug?: boolean;
   isOpen: boolean;
   onClose: () => void;
   vertragId: string;
@@ -47,6 +43,7 @@ export const UebergabeDialog = ({
   mieterName,
   kuendigungsdatum,
   onSuccess,
+  isEinzug = false,
 }: UebergabeDialogProps) => {
   const [uebergabeDatum, setUebergabeDatum] = useState<Date | undefined>(
     kuendigungsdatum ? new Date(kuendigungsdatum) : undefined
@@ -76,25 +73,46 @@ export const UebergabeDialog = ({
     setIsSubmitting(true);
 
     try {
-      // Update the contract with move-out meter readings
-      const { error: updateError } = await supabase
-        .from("mietvertrag")
-        .update({
-          strom_auszug: zaehlerstaende.strom ? parseFloat(zaehlerstaende.strom) : null,
-          gas_auszug: zaehlerstaende.gas ? parseFloat(zaehlerstaende.gas) : null,
-          kaltwasser_auszug: zaehlerstaende.wasser ? parseFloat(zaehlerstaende.wasser) : null,
-          warmwasser_auszug: zaehlerstaende.warmwasser ? parseFloat(zaehlerstaende.warmwasser) : null,
-          status: "beendet",
-          ende_datum: format(uebergabeDatum, "yyyy-MM-dd"),
-        })
-        .eq("id", vertragId);
+      if (isEinzug) {
+        // Update the contract with move-in meter readings
+        const { error: updateError } = await supabase
+          .from("mietvertrag")
+          .update({
+            strom_einzug: zaehlerstaende.strom ? parseFloat(zaehlerstaende.strom) : null,
+            gas_einzug: zaehlerstaende.gas ? parseFloat(zaehlerstaende.gas) : null,
+            kaltwasser_einzug: zaehlerstaende.wasser ? parseFloat(zaehlerstaende.wasser) : null,
+            warmwasser_einzug: zaehlerstaende.warmwasser ? parseFloat(zaehlerstaende.warmwasser) : null,
+            start_datum: format(uebergabeDatum, "yyyy-MM-dd"),
+          })
+          .eq("id", vertragId);
 
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
 
-      toast({
-        title: "Übergabe erfolgreich",
-        description: "Die Wohnungsübergabe wurde dokumentiert.",
-      });
+        toast({
+          title: "Einzug erfolgreich",
+          description: "Die Einzugs-Übergabe wurde dokumentiert.",
+        });
+      } else {
+        // Update the contract with move-out meter readings
+        const { error: updateError } = await supabase
+          .from("mietvertrag")
+          .update({
+            strom_auszug: zaehlerstaende.strom ? parseFloat(zaehlerstaende.strom) : null,
+            gas_auszug: zaehlerstaende.gas ? parseFloat(zaehlerstaende.gas) : null,
+            kaltwasser_auszug: zaehlerstaende.wasser ? parseFloat(zaehlerstaende.wasser) : null,
+            warmwasser_auszug: zaehlerstaende.warmwasser ? parseFloat(zaehlerstaende.warmwasser) : null,
+            status: "beendet",
+            ende_datum: format(uebergabeDatum, "yyyy-MM-dd"),
+          })
+          .eq("id", vertragId);
+
+        if (updateError) throw updateError;
+
+        toast({
+          title: "Auszug erfolgreich",
+          description: "Die Auszugs-Übergabe wurde dokumentiert.",
+        });
+      }
 
       onSuccess?.();
       onClose();
@@ -177,7 +195,9 @@ export const UebergabeDialog = ({
 
       {/* Zählerstände */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Zählerstände bei Auszug</Label>
+        <Label className="text-sm font-medium">
+          Zählerstände bei {isEinzug ? "Einzug" : "Auszug"}
+        </Label>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Strom (kWh)</Label>
@@ -233,7 +253,7 @@ export const UebergabeDialog = ({
       {/* Protokollnotizen */}
       <div className="space-y-2">
         <Label className="text-sm font-medium flex items-center gap-2">
-          <ClipboardCheck className="h-4 w-4" />
+          <ClipboardList className="h-4 w-4" />
           Übergabeprotokoll Notizen
         </Label>
         <Textarea
@@ -272,6 +292,9 @@ export const UebergabeDialog = ({
     </div>
   );
 
+  const dialogTitle = isEinzug ? "Übergabe (Einzug)" : "Übergabe (Auszug)";
+  const DialogIcon = isEinzug ? KeyRound : KeyRound;
+
   // Use Drawer on mobile, Dialog on desktop
   if (isMobile) {
     return (
@@ -279,8 +302,8 @@ export const UebergabeDialog = ({
         <DrawerContent className="max-h-[90vh]">
           <DrawerHeader className="pb-2">
             <DrawerTitle className="flex items-center gap-2 text-lg">
-              <KeyRound className="h-5 w-5 text-primary" />
-              Übergabe (Auszug)
+              <DialogIcon className={cn("h-5 w-5", isEinzug ? "text-green-600" : "text-orange-600")} />
+              {dialogTitle}
             </DrawerTitle>
           </DrawerHeader>
           <div className="overflow-y-auto px-4 pb-6">{content}</div>
@@ -294,8 +317,8 @@ export const UebergabeDialog = ({
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5 text-primary" />
-            Übergabe (Auszug)
+            <DialogIcon className={cn("h-5 w-5", isEinzug ? "text-green-600" : "text-orange-600")} />
+            {dialogTitle}
           </DialogTitle>
         </DialogHeader>
         {content}

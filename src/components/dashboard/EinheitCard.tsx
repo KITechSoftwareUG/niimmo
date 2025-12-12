@@ -10,7 +10,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLinkedContracts } from "@/hooks/useLinkedContracts";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { UebergabeButton } from "./handover/UebergabeButton";
 
 interface EinheitCardProps {
   einheit: {
@@ -377,22 +376,9 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
             </div>
           )}
 
-          {/* Übergabe Button - only for active or gekuendigt contracts */}
-          {vertrag && vertrag.status !== 'beendet' && (
-            <div className="pt-3 border-t border-gray-200">
-              <div onClick={(e) => e.stopPropagation()}>
-                <UebergabeButton
-                  vertrag={vertrag}
-                  einheit={einheit}
-                  immobilie={immobilie}
-                />
-              </div>
-            </div>
-          )}
-
           {/* New contract button - only for vacant or terminated contracts */}
           {(!vertrag || vertrag.status === 'gekuendigt' || vertrag.status === 'beendet') && (
-            <div className={`space-y-2 ${vertrag && vertrag.status !== 'beendet' ? 'pt-2' : 'pt-3 border-t border-gray-200'}`}>
+            <div className="pt-3 border-t border-gray-200">
               <Button
                 onClick={(e) => {
                   e.stopPropagation();

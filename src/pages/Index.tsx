@@ -11,10 +11,10 @@ import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
 import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
-
+import { Uebergabe } from "@/pages/Uebergabe";
 
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3, Euro, Settings } from "lucide-react";
+import { Loader2, Building2, BarChart3, Euro, Settings, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
@@ -30,6 +30,7 @@ const Index = () => {
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
   const [scrollToContractId, setScrollToContractId] = useState<string | null>(null);
   const [showControlboard, setShowControlboard] = useState<boolean>(false);
+  const [showUebergabe, setShowUebergabe] = useState<boolean>(false);
   const {
     data: immobilien,
     isLoading,
@@ -243,6 +244,11 @@ const Index = () => {
     return <PaymentManagement onBack={() => setShowControlboard(false)} />;
   }
 
+  // Übergabe-Ansicht anzeigen
+  if (showUebergabe) {
+    return <Uebergabe onBack={() => setShowUebergabe(false)} />;
+  }
+
 
   if (selectedImmobilie) {
     return <ImmobilienDetail immobilieId={selectedImmobilie} onBack={handleBackClick} filters={{
@@ -307,6 +313,15 @@ const Index = () => {
                 >
                   <Euro className="h-4 w-4 mr-1.5" />
                   Zahlungen
+                </Button>
+                <Button 
+                  onClick={() => setShowUebergabe(true)} 
+                  variant="ghost"
+                  size="sm"
+                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                >
+                  <KeyRound className="h-4 w-4 mr-1.5" />
+                  Übergabe
                 </Button>
               </div>
             </div>

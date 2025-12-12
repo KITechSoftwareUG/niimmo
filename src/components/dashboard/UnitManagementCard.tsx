@@ -6,7 +6,6 @@ import { useState } from "react";
 import { NewTenantContractDialog } from "./NewTenantContractDialog";
 import MietvertragDetailsModal from "./MietvertragDetailsModal";
 import { TerminationDialog } from "./termination/TerminationDialog";
-import { UebergabeButton } from "./handover/UebergabeButton";
 interface UnitManagementCardProps {
   einheit: {
     id: string;
@@ -220,14 +219,6 @@ export const UnitManagementCard = ({
                   <FileText className="h-4 w-4 mr-2" />
                   Vertrag anzeigen
                 </Button>
-
-                {/* Übergabe Button - shown for all contracts */}
-                <UebergabeButton
-                  vertrag={vertrag}
-                  einheit={einheit}
-                  immobilie={immobilie}
-                  onSuccess={onContractChange}
-                />
 
                 {/* Show termination button for active contracts */}
                 {vertrag.status === 'aktiv' && (
