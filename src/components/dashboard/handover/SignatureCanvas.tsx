@@ -112,9 +112,9 @@ export const SignatureCanvas = ({ onSignatureChange, label }: SignatureCanvasPro
       <div className="relative border-2 border-dashed border-gray-300 rounded-lg bg-white overflow-hidden">
         <canvas
           ref={canvasRef}
-          width={400}
-          height={150}
-          className="w-full h-[120px] cursor-crosshair touch-none"
+          width={600}
+          height={200}
+          className="w-full h-[160px] cursor-crosshair touch-none"
           onMouseDown={startDrawing}
           onMouseMove={draw}
           onMouseUp={stopDrawing}
