@@ -261,25 +261,50 @@ export default function MietvertragDetailsModal({
     try {
       // Handle ende_datum field with validation
       if (field === 'ende_datum') {
+        const newEndForDb = value && value.trim() !== '' ? value : null;
+
         // Validate that end date is not before start date
-        if (value && vertrag.start_datum) {
+        if (newEndForDb && vertrag.start_datum) {
           const startDate = new Date(vertrag.start_datum);
-          const endDate = new Date(value);
-          
+          const endDate = new Date(newEndForDb);
+
           if (endDate < startDate) {
             toast({
               title: "Ungültiges Datum",
               description: "Das Mietende kann nicht vor dem Mietbeginn liegen.",
               variant: "destructive",
             });
-            setEditingMietvertrag(null);
+            // keep edit open so the user can correct
+            return;
+          }
+        }
+
+        // Risk mitigation: prevent overlaps when extending/changing the end date
+        if (vertrag?.einheit_id && vertrag.start_datum) {
+          const { checkContractOverlap } = await import("@/utils/contractOverlapValidation");
+          const overlapCheck = await checkContractOverlap(
+            vertrag.einheit_id,
+            vertrag.start_datum,
+            newEndForDb,
+            vertragId
+          );
+
+          if (overlapCheck.hasOverlap) {
+            toast({
+              title: "Überschneidung erkannt",
+              description:
+                overlapCheck.warningMessage ||
+                "Der gewählte Zeitraum überschneidet sich mit einem bestehenden Vertrag. Änderung wurde nicht gespeichert.",
+              variant: "destructive",
+            });
+            // keep edit open so the user can correct
             return;
           }
         }
 
         const { error } = await supabase
           .from('mietvertrag')
-          .update({ ende_datum: value || null })
+          .update({ ende_datum: newEndForDb })
           .eq('id', vertragId);
 
         if (error) {
@@ -287,12 +312,12 @@ export default function MietvertragDetailsModal({
           throw error;
         }
 
-        console.log('Ende datum updated successfully');
+        const isPast = !!newEndForDb && new Date(newEndForDb) < new Date();
 
         toast({
           title: "✅ Mietende aktualisiert",
-          description: value 
-            ? `Mietende wurde auf ${new Date(value).toLocaleDateString('de-DE')} gesetzt.`
+          description: newEndForDb
+            ? `Mietende wurde auf ${new Date(newEndForDb).toLocaleDateString('de-DE')} gesetzt.${isPast ? ' Hinweis: Datum liegt in der Vergangenheit – der Vertrag wird automatisch als beendet behandelt.' : ''}`
             : "Mietvertrag wurde auf unbefristet gesetzt.",
         });
 
@@ -314,10 +339,10 @@ export default function MietvertragDetailsModal({
         }
 
         console.log('Checking contract overlap for start_datum:', value);
-        
+
         // Import and use overlap validation
         const { checkContractOverlap } = await import('@/utils/contractOverlapValidation');
-        
+
         const overlapCheck = await checkContractOverlap(
           vertrag.einheit_id,
           value,
@@ -352,7 +377,7 @@ export default function MietvertragDetailsModal({
 
         toast({
           title: "✅ Startdatum aktualisiert",
-          description: overlapCheck.hasOverlap 
+          description: overlapCheck.hasOverlap
             ? "Startdatum wurde geändert. Bitte beachten Sie die Überschneidung mit anderen Verträgen."
             : "Startdatum wurde erfolgreich aktualisiert.",
         });
@@ -394,7 +419,7 @@ export default function MietvertragDetailsModal({
       }
 
       const oldKaltmiete = Number(vertrag?.kaltmiete || 0);
-      
+
       // If kaltmiete is being changed, ask for confirmation
       if (field === 'kaltmiete' && numericValue !== oldKaltmiete) {
         setPendingKaltmieteValue(numericValue);
@@ -407,8 +432,8 @@ export default function MietvertragDetailsModal({
 
     } catch (error) {
       console.error('Fehler beim Aktualisieren:', error);
-      const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : 
-                       field === 'betriebskosten' ? 'Betriebskosten' : 
+      const fieldName = field === 'kaltmiete' ? 'Kaltmiete' :
+                       field === 'betriebskosten' ? 'Betriebskosten' :
                        field === 'neue_anschrift' ? 'Neue Anschrift' :
                        'Rücklastschrift-Gebühr';
       toast({
@@ -602,6 +627,8 @@ export default function MietvertragDetailsModal({
   const handleStartGlobalEdit = () => {
     // Initialize edited values with current data
     const initialValues: Record<string, any> = {
+      start_datum: vertrag?.start_datum || '',
+      ende_datum: vertrag?.ende_datum || '',
       kaltmiete: vertrag?.kaltmiete || 0,
       betriebskosten: vertrag?.betriebskosten || 0,
       ruecklastschrift_gebuehr: vertrag?.ruecklastschrift_gebuehr || 7.50,
@@ -649,15 +676,68 @@ export default function MietvertragDetailsModal({
     try {
       // Prepare mietvertrag updates
       const mietvertragUpdates: any = {};
+
+      // Normalize date fields (Supabase expects null, not empty string)
+      const rawStart = (editedValues.start_datum ?? vertrag?.start_datum ?? '') as string;
+      const rawEnd = (editedValues.ende_datum ?? vertrag?.ende_datum ?? '') as string;
+      const startForDb = rawStart && rawStart.trim() !== '' ? rawStart : null;
+      const endForDb = rawEnd && rawEnd.trim() !== '' ? rawEnd : null;
+
+      // Validation: end date must not be before start date
+      if (startForDb && endForDb) {
+        const startDate = new Date(startForDb);
+        const endDate = new Date(endForDb);
+        if (endDate < startDate) {
+          toast({
+            title: "Ungültiges Datum",
+            description: "Das Mietende kann nicht vor dem Mietbeginn liegen.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Risk mitigation: prevent creating overlaps with other contracts of the same unit
+      if (vertrag?.einheit_id && startForDb) {
+        const { checkContractOverlap } = await import("@/utils/contractOverlapValidation");
+        const overlapCheck = await checkContractOverlap(
+          vertrag.einheit_id,
+          startForDb,
+          endForDb,
+          vertragId
+        );
+
+        if (overlapCheck.hasOverlap) {
+          toast({
+            title: "Überschneidung erkannt",
+            description:
+              overlapCheck.warningMessage ||
+              "Der gewählte Zeitraum überschneidet sich mit einem bestehenden Vertrag. Änderung wurde nicht gespeichert.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const mietvertragFields = [
+        'start_datum', 'ende_datum',
         'kaltmiete', 'betriebskosten', 'ruecklastschrift_gebuehr', 'neue_anschrift',
         'kaution_betrag', 'kaution_ist',
         'kaltwasser_einzug', 'warmwasser_einzug', 'strom_einzug', 'gas_einzug',
         'kaltwasser_auszug', 'warmwasser_auszug', 'strom_auszug', 'gas_auszug'
       ];
-      
+
       mietvertragFields.forEach(field => {
         if (editedValues[field] !== undefined) {
+          if (field === 'start_datum') {
+            mietvertragUpdates.start_datum = startForDb;
+            return;
+          }
+          if (field === 'ende_datum') {
+            mietvertragUpdates.ende_datum = endForDb;
+            return;
+          }
+
           mietvertragUpdates[field] = editedValues[field];
         }
       });
@@ -667,7 +747,7 @@ export default function MietvertragDetailsModal({
       const oldBetriebskosten = Number(vertrag?.betriebskosten || 0);
       const newKaltmiete = Number(editedValues.kaltmiete || 0);
       const newBetriebskosten = Number(editedValues.betriebskosten || 0);
-      
+
       if (newKaltmiete > oldKaltmiete || newBetriebskosten > oldBetriebskosten) {
         mietvertragUpdates.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
       }

@@ -63,19 +63,21 @@ export function MietvertragContractInfo({
           />
           <MietvertragEditableField
             label="Mietende"
-            value={vertrag.ende_datum || ''}
+            value={isGlobalEditMode ? (editedValues.ende_datum ?? (vertrag.ende_datum || '')) : (vertrag.ende_datum || '')}
             isEditing={isGlobalEditMode || editingMietvertrag === 'ende_datum'}
             onEdit={() => !isGlobalEditMode && onStartEdit('ende_datum')}
             onSave={(value) => {
               if (isGlobalEditMode) {
+                // In global edit mode, user expects the ✅ button to *actually* save.
                 onUpdateEditedValue?.('ende_datum', value);
+                onEditMietvertrag('ende_datum', value);
               } else {
                 onEditMietvertrag('ende_datum', value);
               }
             }}
             onCancel={onCancelEdit}
             type="date"
-            formatter={(val) => val ? formatDatum(val as string) : 'Unbefristet'}
+            formatter={(val) => (val ? formatDatum(val as string) : 'Unbefristet')}
             placeholder="Unbefristet"
             hideEditButton={true}
           />
