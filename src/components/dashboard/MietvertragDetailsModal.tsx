@@ -317,8 +317,6 @@ export default function MietvertragDetailsModal({
           throw error;
         }
 
-        const isPast = !!newEndForDb && new Date(newEndForDb) < new Date();
-
         toast({
           title: "✅ Mietende aktualisiert",
           description: newEndForDb
