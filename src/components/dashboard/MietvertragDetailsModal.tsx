@@ -302,9 +302,14 @@ export default function MietvertragDetailsModal({
           }
         }
 
+        const isPast = !!newEndForDb && new Date(newEndForDb) < new Date();
+
         const { error } = await supabase
           .from('mietvertrag')
-          .update({ ende_datum: newEndForDb })
+          .update({
+            ende_datum: newEndForDb,
+            ...(isPast ? { status: 'beendet' } : {}),
+          })
           .eq('id', vertragId);
 
         if (error) {
@@ -735,6 +740,11 @@ export default function MietvertragDetailsModal({
           }
           if (field === 'ende_datum') {
             mietvertragUpdates.ende_datum = endForDb;
+
+            // Wenn rückdatiert, Vertrag sofort als beendet markieren
+            if (endForDb && new Date(endForDb) < new Date()) {
+              mietvertragUpdates.status = 'beendet';
+            }
             return;
           }
 
