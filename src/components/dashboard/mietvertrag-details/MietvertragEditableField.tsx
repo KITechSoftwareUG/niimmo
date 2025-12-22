@@ -80,6 +80,7 @@ export function MietvertragEditableField({
           )}
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               onClick={handleSave}
               size="sm"
               className="h-8 w-8 p-0"
@@ -87,6 +88,7 @@ export function MietvertragEditableField({
               <Check className="h-4 w-4" />
             </Button>
             <Button
+              type="button"
               onClick={onCancel}
               size="sm"
               variant="outline"
