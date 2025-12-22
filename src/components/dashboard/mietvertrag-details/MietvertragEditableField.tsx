@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,13 @@ export function MietvertragEditableField({
   hideEditButton = false
 }: MietvertragEditableFieldProps) {
   const [editValue, setEditValue] = useState(value?.toString() || "");
+
+  // Sync editValue when value prop changes or when entering edit mode
+  useEffect(() => {
+    if (isEditing) {
+      setEditValue(value?.toString() || "");
+    }
+  }, [isEditing, value]);
 
   const handleEdit = () => {
     setEditValue(value?.toString() || "");
