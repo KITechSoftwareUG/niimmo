@@ -19,6 +19,7 @@ interface ImmobilienDetailProps {
   filters: {
     mietstatus: string;
     zahlungsstatus: string;
+    vertragsart: string;
   };
   scrollToEinheitId?: string | null;
   openMietvertragId?: string | null;

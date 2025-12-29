@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail, Link2 } from "lucide-react";
+import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail, Link2, Briefcase, UserCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { EinheitHistorieView } from "./EinheitHistorieView";
 import MietvertragDetailsModal from "./MietvertragDetailsModal";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useLinkedContracts } from "@/hooks/useLinkedContracts";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { getVertragstyp, getVertragstypColors } from "@/utils/tenantTypeUtils";
 
 interface EinheitCardProps {
   einheit: {
@@ -21,6 +22,7 @@ interface EinheitCardProps {
     warmwasser_zaehler?: string;
     strom_zaehler?: string;
     gas_zaehler?: string;
+    einheitentyp?: string;
   };
   vertrag?: {
     id: string;
@@ -188,6 +190,24 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
               <CardTitle className="text-lg">
                 Einheit {einheitIndex}
               </CardTitle>
+              {/* Vertragstyp Badge (Gewerbe/Privat) */}
+              {(() => {
+                const vertragstyp = getVertragstyp(einheit.einheitentyp);
+                const colors = getVertragstypColors(vertragstyp);
+                return (
+                  <Badge 
+                    variant="outline" 
+                    className={`${colors.bg} ${colors.text} ${colors.border} flex items-center gap-1 text-xs`}
+                  >
+                    {vertragstyp === 'Gewerbe' ? (
+                      <Briefcase className="h-3 w-3" />
+                    ) : (
+                      <UserCircle className="h-3 w-3" />
+                    )}
+                    {vertragstyp}
+                  </Badge>
+                );
+              })()}
               {/* Linked contracts indicator */}
               {hasLinkedContracts && (
                 <TooltipProvider>
