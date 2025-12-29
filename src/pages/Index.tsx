@@ -253,7 +253,8 @@ const Index = () => {
   if (selectedImmobilie) {
     return <ImmobilienDetail immobilieId={selectedImmobilie} onBack={handleBackClick} filters={{
       mietstatus: "all",
-      zahlungsstatus: "all"
+      zahlungsstatus: "all",
+      vertragsart: "all"
     }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} onContractModalClose={() => {
       // If user came from a dashboard list (Rückstände or Mieterhöhungen), go back to that list
       if (listSource) {
