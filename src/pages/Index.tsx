@@ -12,12 +12,15 @@ import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMiet
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
 import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
 import { Uebergabe } from "@/pages/Uebergabe";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Badge } from "@/components/ui/badge";
 
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3, Euro, Settings, KeyRound } from "lucide-react";
+import { Loader2, Building2, BarChart3, Euro, Settings, KeyRound, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
+  const { isAdmin, isHausmeister, isLoading: roleLoading } = useUserRole();
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
   const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
   const [selectedMietvertrag, setSelectedMietvertrag] = useState<string | null>(null);
@@ -220,7 +223,7 @@ const Index = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || roleLoading) {
     return <div className="min-h-screen modern-dashboard-bg flex items-center justify-center">
         <div className="glass-card p-12 rounded-3xl">
           <Loader2 className="h-12 w-12 animate-spin text-red-500 mx-auto mb-6" />
@@ -251,18 +254,26 @@ const Index = () => {
 
 
   if (selectedImmobilie) {
-    return <ImmobilienDetail immobilieId={selectedImmobilie} onBack={handleBackClick} filters={{
-      mietstatus: "all",
-      zahlungsstatus: "all",
-      vertragsart: "all"
-    }} scrollToEinheitId={selectedEinheit} openMietvertragId={selectedMietvertrag} onContractModalClose={() => {
-      // If user came from a dashboard list (Rückstände or Mieterhöhungen), go back to that list
-      if (listSource) {
-        handleBackClick();
-      } else {
-        setSelectedMietvertrag(null);
-      }
-    }} />;
+    return <ImmobilienDetail 
+      immobilieId={selectedImmobilie} 
+      onBack={handleBackClick} 
+      filters={{
+        mietstatus: "all",
+        zahlungsstatus: "all",
+        vertragsart: "all"
+      }} 
+      scrollToEinheitId={selectedEinheit} 
+      openMietvertragId={selectedMietvertrag} 
+      onContractModalClose={() => {
+        // If user came from a dashboard list (Rückstände or Mieterhöhungen), go back to that list
+        if (listSource) {
+          handleBackClick();
+        } else {
+          setSelectedMietvertrag(null);
+        }
+      }}
+      isHausmeister={isHausmeister}
+    />;
   }
   return <div className="min-h-screen modern-dashboard-bg">
       <div className="container mx-auto px-4 py-4 sm:p-6 lg:p-8">
@@ -275,83 +286,100 @@ const Index = () => {
                 <div className="flex items-center gap-3 sm:gap-4">
                   <img src="/lovable-uploads/c3157d5e-324c-4af6-82c4-55456f4ea211.png" alt="NiImmo Logo" className="h-8 sm:h-12 w-auto" />
                   <div>
-                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-sans font-bold text-gradient-red">
-                      NiImmo
-                    </h1>
+                    <div className="flex items-center gap-2">
+                      <h1 className="text-xl sm:text-2xl lg:text-3xl font-sans font-bold text-gradient-red">
+                        NiImmo
+                      </h1>
+                      {isHausmeister && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                          <Wrench className="h-3 w-3 mr-1" />
+                          Hausmeister
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-gray-600 font-sans text-xs sm:text-sm hidden sm:block">
-                      Zentrale Verwaltung
+                      {isHausmeister ? "Zähler & Einheiten" : "Zentrale Verwaltung"}
                     </p>
                   </div>
                 </div>
                 <UserMenu />
               </div>
               
-              {/* Action Buttons - Mobile Horizontal Scroll */}
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide">
-                <Button 
-                  onClick={() => setShowAnalytics(true)} 
-                  variant="ghost"
-                  size="sm"
-                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
-                >
-                  <BarChart3 className="h-4 w-4 mr-1.5" />
-                  Analytics
-                </Button>
-                <Button 
-                  onClick={() => setShowControlboard(true)} 
-                  variant="ghost"
-                  size="sm"
-                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
-                >
-                  <Settings className="h-4 w-4 mr-1.5" />
-                  Controlboard
-                </Button>
-                <Button 
-                  onClick={() => setShowZahlungen(true)} 
-                  variant="ghost"
-                  size="sm"
-                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
-                >
-                  <Euro className="h-4 w-4 mr-1.5" />
-                  Zahlungen
-                </Button>
-                <Button 
-                  onClick={() => setShowUebergabe(true)} 
-                  variant="ghost"
-                  size="sm"
-                  className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
-                >
-                  <KeyRound className="h-4 w-4 mr-1.5" />
-                  Übergabe
-                </Button>
-              </div>
+              {/* Action Buttons - Only for Admin */}
+              {isAdmin && (
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide">
+                  <Button 
+                    onClick={() => setShowAnalytics(true)} 
+                    variant="ghost"
+                    size="sm"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-1.5" />
+                    Analytics
+                  </Button>
+                  <Button 
+                    onClick={() => setShowControlboard(true)} 
+                    variant="ghost"
+                    size="sm"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                  >
+                    <Settings className="h-4 w-4 mr-1.5" />
+                    Controlboard
+                  </Button>
+                  <Button 
+                    onClick={() => setShowZahlungen(true)} 
+                    variant="ghost"
+                    size="sm"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                  >
+                    <Euro className="h-4 w-4 mr-1.5" />
+                    Zahlungen
+                  </Button>
+                  <Button 
+                    onClick={() => setShowUebergabe(true)} 
+                    variant="ghost"
+                    size="sm"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                  >
+                    <KeyRound className="h-4 w-4 mr-1.5" />
+                    Übergabe
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
           
-          <DashboardStats 
-            immobilien={immobilien} 
-            onNavigateToContract={handleNavigateToContract}
-            onShowMietUebersicht={() => setShowMietUebersicht(true)}
-          />
+          {/* Dashboard Stats - Only for Admin */}
+          {isAdmin && (
+            <DashboardStats 
+              immobilien={immobilien} 
+              onNavigateToContract={handleNavigateToContract}
+              onShowMietUebersicht={() => setShowMietUebersicht(true)}
+            />
+          )}
         </div>
 
-        {/* Fehlende Mietzahlungen Übersicht */}
-        <div className="mb-6">
-          <FehlendeMietzahlungen 
-            open={rueckstaendeOpen}
-            onOpenChange={setRueckstaendeOpen}
-            onMietvertragClick={(id) => { setListSource('rueckstaende'); setRueckstaendeOpen(true); handleMietvertragClick(id); }} 
-          />
-        </div>
+        {/* Fehlende Mietzahlungen Übersicht - Only for Admin */}
+        {isAdmin && (
+          <div className="mb-6">
+            <FehlendeMietzahlungen 
+              open={rueckstaendeOpen}
+              onOpenChange={setRueckstaendeOpen}
+              onMietvertragClick={(id) => { setListSource('rueckstaende'); setRueckstaendeOpen(true); handleMietvertragClick(id); }} 
+            />
+          </div>
+        )}
 
-        {/* Mögliche Mieterhöhungen */}
-        <div className="mb-6">
-          <RentIncreaseList 
-            open={rentIncreaseOpen}
-            onOpenChange={setRentIncreaseOpen}
-            onContractClick={(id) => { setListSource('rentincrease'); setRentIncreaseOpen(true); handleRentIncreaseContractClick(id); }}
-          />
-        </div>
+        {/* Mögliche Mieterhöhungen - Only for Admin */}
+        {isAdmin && (
+          <div className="mb-6">
+            <RentIncreaseList 
+              open={rentIncreaseOpen}
+              onOpenChange={setRentIncreaseOpen}
+              onContractClick={(id) => { setListSource('rentincrease'); setRentIncreaseOpen(true); handleRentIncreaseContractClick(id); }}
+            />
+          </div>
+        )}
 
         {/* Suchfunktion */}
         <div id="search-panel">
@@ -396,10 +424,13 @@ const Index = () => {
           </div>}
       </div>
       
-      <EditableMietUebersichtModal 
-        open={showMietUebersicht} 
-        onOpenChange={setShowMietUebersicht} 
-      />
+      {/* Mietübersicht Modal - Only for Admin */}
+      {isAdmin && (
+        <EditableMietUebersichtModal 
+          open={showMietUebersicht} 
+          onOpenChange={setShowMietUebersicht} 
+        />
+      )}
     </div>;
 };
 export default Index;

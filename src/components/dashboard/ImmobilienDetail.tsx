@@ -24,13 +24,15 @@ interface ImmobilienDetailProps {
   scrollToEinheitId?: string | null;
   openMietvertragId?: string | null;
   onContractModalClose?: () => void;
+  isHausmeister?: boolean;
 }
 export const ImmobilienDetail = ({
   immobilieId,
   onBack,
   scrollToEinheitId,
   openMietvertragId,
-  onContractModalClose
+  onContractModalClose,
+  isHausmeister = false
 }: ImmobilienDetailProps) => {
   const einheitRefs = useRef<{
     [key: string]: HTMLDivElement | null;
