@@ -30,11 +30,20 @@ interface MeterReading {
   stand: string;
 }
 
+interface PropertyMeterReading {
+  immobilieId: string;
+  type: 'wasser' | 'strom' | 'gas';
+  zaehlerNummer: string;
+  stand: string;
+}
+
 export const HausmeisterDashboard = () => {
   const queryClient = useQueryClient();
   const [expandedImmobilien, setExpandedImmobilien] = useState<Set<string>>(new Set());
   const [editedReadings, setEditedReadings] = useState<Record<string, MeterReading>>({});
+  const [editedPropertyReadings, setEditedPropertyReadings] = useState<Record<string, PropertyMeterReading>>({});
   const [savingUnits, setSavingUnits] = useState<Set<string>>(new Set());
+  const [savingProperties, setSavingProperties] = useState<Set<string>>(new Set());
 
   // Fetch all properties with their units
   const { data: immobilien, isLoading } = useQuery({
@@ -42,7 +51,12 @@ export const HausmeisterDashboard = () => {
     queryFn: async () => {
       const { data: props, error: propsError } = await supabase
         .from('immobilien')
-        .select('id, name, adresse');
+        .select(`
+          id, name, adresse,
+          allgemein_wasser_zaehler, allgemein_wasser_stand, allgemein_wasser_datum,
+          allgemein_strom_zaehler, allgemein_strom_stand, allgemein_strom_datum,
+          allgemein_gas_zaehler, allgemein_gas_stand, allgemein_gas_datum
+        `);
       
       if (propsError) throw propsError;
 
@@ -123,6 +137,20 @@ export const HausmeisterDashboard = () => {
     }
   });
 
+  const updatePropertyMeterMutation = useMutation({
+    mutationFn: async ({ immobilieId, updates }: { immobilieId: string; updates: Record<string, unknown> }) => {
+      const { error } = await supabase
+        .from('immobilien')
+        .update(updates)
+        .eq('id', immobilieId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hausmeister-immobilien'] });
+    }
+  });
+
   const toggleImmobilie = (id: string) => {
     setExpandedImmobilien(prev => {
       const next = new Set(prev);
@@ -153,6 +181,79 @@ export const HausmeisterDashboard = () => {
     const edited = editedReadings[key];
     if (!edited) return undefined;
     return field === 'zaehler' ? edited.zaehlerNummer : edited.stand;
+  };
+
+  const handlePropertyInputChange = (immobilieId: string, type: string, field: 'zaehler' | 'stand', value: string) => {
+    const key = `${immobilieId}-${type}`;
+    setEditedPropertyReadings(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        immobilieId,
+        type: type as PropertyMeterReading['type'],
+        [field === 'zaehler' ? 'zaehlerNummer' : 'stand']: value
+      }
+    }));
+  };
+
+  const getEditedPropertyValue = (immobilieId: string, type: string, field: 'zaehler' | 'stand') => {
+    const key = `${immobilieId}-${type}`;
+    const edited = editedPropertyReadings[key];
+    if (!edited) return undefined;
+    return field === 'zaehler' ? edited.zaehlerNummer : edited.stand;
+  };
+
+  const hasUnsavedPropertyChanges = (immobilieId: string) => {
+    return Object.keys(editedPropertyReadings).some(key => key.startsWith(`${immobilieId}-`));
+  };
+
+  const savePropertyChanges = async (immobilieId: string) => {
+    const propChanges = Object.entries(editedPropertyReadings)
+      .filter(([key]) => key.startsWith(`${immobilieId}-`))
+      .map(([, reading]) => reading);
+
+    if (propChanges.length === 0) return;
+
+    setSavingProperties(prev => new Set(prev).add(immobilieId));
+
+    try {
+      const updates: Record<string, unknown> = {};
+      const today = format(new Date(), 'yyyy-MM-dd');
+
+      for (const change of propChanges) {
+        if (change.zaehlerNummer !== undefined) {
+          updates[`allgemein_${change.type}_zaehler`] = change.zaehlerNummer || null;
+        }
+        if (change.stand !== undefined) {
+          const standValue = change.stand ? parseFloat(change.stand) : null;
+          updates[`allgemein_${change.type}_stand`] = standValue;
+          if (standValue !== null) {
+            updates[`allgemein_${change.type}_datum`] = today;
+          }
+        }
+      }
+
+      await updatePropertyMeterMutation.mutateAsync({ immobilieId, updates });
+
+      setEditedPropertyReadings(prev => {
+        const next = { ...prev };
+        Object.keys(next)
+          .filter(key => key.startsWith(`${immobilieId}-`))
+          .forEach(key => delete next[key]);
+        return next;
+      });
+
+      toast.success("Hausanschlusszähler gespeichert");
+    } catch (error) {
+      console.error('Error saving property meter readings:', error);
+      toast.error("Fehler beim Speichern");
+    } finally {
+      setSavingProperties(prev => {
+        const next = new Set(prev);
+        next.delete(immobilieId);
+        return next;
+      });
+    }
   };
 
   const hasUnsavedChanges = (einheitId: string) => {
@@ -224,7 +325,17 @@ export const HausmeisterDashboard = () => {
       case 'warmwasser': return 'WW';
       case 'strom': return 'Strom';
       case 'gas': return 'Gas';
+      case 'wasser': return 'Wasser';
       default: return type;
+    }
+  };
+
+  const getPropertyMeterIcon = (type: string, className = "h-3.5 w-3.5") => {
+    switch (type) {
+      case 'wasser': return <Droplets className={`${className} text-blue-600`} />;
+      case 'strom': return <Zap className={`${className} text-yellow-600`} />;
+      case 'gas': return <Flame className={`${className} text-red-500`} />;
+      default: return null;
     }
   };
 
@@ -296,6 +407,75 @@ export const HausmeisterDashboard = () => {
 
                 <CollapsibleContent>
                   <div className="border-t">
+                    {/* Hausanschlusszähler Section */}
+                    <div className="bg-muted/30 p-2 border-b">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Hausanschlusszähler</span>
+                        {hasUnsavedPropertyChanges(immobilie.id) && (
+                          <Button
+                            size="sm"
+                            onClick={() => savePropertyChanges(immobilie.id)}
+                            disabled={savingProperties.has(immobilie.id)}
+                            className="h-5 px-2 text-xs bg-green-600 hover:bg-green-700"
+                          >
+                            {savingProperties.has(immobilie.id) ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <>
+                                <Save className="h-3 w-3 mr-1" />
+                                Speichern
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['wasser', 'strom', 'gas'] as const).map((type) => {
+                          const zaehlerKey = `allgemein_${type}_zaehler` as keyof typeof immobilie;
+                          const standKey = `allgemein_${type}_stand` as keyof typeof immobilie;
+                          const datumKey = `allgemein_${type}_datum` as keyof typeof immobilie;
+                          
+                          const currentZaehler = immobilie[zaehlerKey] as string | null;
+                          const currentStand = immobilie[standKey] as number | null;
+                          const standDatum = immobilie[datumKey] as string | null;
+
+                          const editedZaehler = getEditedPropertyValue(immobilie.id, type, 'zaehler');
+                          const editedStand = getEditedPropertyValue(immobilie.id, type, 'stand');
+
+                          return (
+                            <div key={type} className="bg-background rounded p-1.5">
+                              <div className="flex items-center gap-1 mb-1">
+                                {getPropertyMeterIcon(type, "h-3 w-3")}
+                                <span className="text-xs font-medium">{getMeterLabel(type)}</span>
+                              </div>
+                              <div className="space-y-0.5">
+                                <Input
+                                  placeholder="Zähler-Nr."
+                                  value={editedZaehler ?? currentZaehler ?? ''}
+                                  onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'zaehler', e.target.value)}
+                                  className="h-5 text-xs px-1.5"
+                                />
+                                <div className="flex items-center gap-0.5">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="Stand"
+                                    value={editedStand ?? currentStand ?? ''}
+                                    onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'stand', e.target.value)}
+                                    className="h-5 text-xs px-1.5 flex-1"
+                                  />
+                                  <span className="text-[9px] text-muted-foreground">
+                                    {formatStandDatum(standDatum)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Einheiten Table */}
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>

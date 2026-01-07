@@ -198,6 +198,15 @@ export type Database = {
         Row: {
           adresse: string
           aktualisiert_am: string | null
+          allgemein_gas_datum: string | null
+          allgemein_gas_stand: number | null
+          allgemein_gas_zaehler: string | null
+          allgemein_strom_datum: string | null
+          allgemein_strom_stand: number | null
+          allgemein_strom_zaehler: string | null
+          allgemein_wasser_datum: string | null
+          allgemein_wasser_stand: number | null
+          allgemein_wasser_zaehler: string | null
           Annuität: number | null
           baujahr: number | null
           beschreibung: string | null
@@ -213,6 +222,15 @@ export type Database = {
         Insert: {
           adresse: string
           aktualisiert_am?: string | null
+          allgemein_gas_datum?: string | null
+          allgemein_gas_stand?: number | null
+          allgemein_gas_zaehler?: string | null
+          allgemein_strom_datum?: string | null
+          allgemein_strom_stand?: number | null
+          allgemein_strom_zaehler?: string | null
+          allgemein_wasser_datum?: string | null
+          allgemein_wasser_stand?: number | null
+          allgemein_wasser_zaehler?: string | null
           Annuität?: number | null
           baujahr?: number | null
           beschreibung?: string | null
@@ -228,6 +246,15 @@ export type Database = {
         Update: {
           adresse?: string
           aktualisiert_am?: string | null
+          allgemein_gas_datum?: string | null
+          allgemein_gas_stand?: number | null
+          allgemein_gas_zaehler?: string | null
+          allgemein_strom_datum?: string | null
+          allgemein_strom_stand?: number | null
+          allgemein_strom_zaehler?: string | null
+          allgemein_wasser_datum?: string | null
+          allgemein_wasser_stand?: number | null
+          allgemein_wasser_zaehler?: string | null
           Annuität?: number | null
           baujahr?: number | null
           beschreibung?: string | null
