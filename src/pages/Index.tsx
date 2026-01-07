@@ -12,6 +12,7 @@ import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMiet
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
 import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
 import { Uebergabe } from "@/pages/Uebergabe";
+import { HausmeisterDashboard } from "@/components/dashboard/HausmeisterDashboard";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
 
@@ -230,6 +231,11 @@ const Index = () => {
           <p className="text-gray-700 font-sans font-medium text-lg text-center">Dashboard wird geladen...</p>
         </div>
       </div>;
+  }
+
+  // Hausmeister bekommt eigenes Dashboard
+  if (isHausmeister) {
+    return <HausmeisterDashboard />;
   }
 
   // Analytics-Ansicht anzeigen
