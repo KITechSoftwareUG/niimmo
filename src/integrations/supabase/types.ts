@@ -115,14 +115,22 @@ export type Database = {
           einheitentyp: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am: string | null
           etage: string | null
+          gas_stand_aktuell: number | null
+          gas_stand_datum: string | null
           gas_zaehler: string | null
           id: string
           immobilie_id: string | null
+          kaltwasser_stand_aktuell: number | null
+          kaltwasser_stand_datum: string | null
           kaltwasser_zaehler: string | null
           qm: number | null
+          strom_stand_aktuell: number | null
+          strom_stand_datum: string | null
           strom_zaehler: string | null
           verteilerschluessel_art: string | null
           verteilerschluessel_wert: number | null
+          warmwasser_stand_aktuell: number | null
+          warmwasser_stand_datum: string | null
           warmwasser_zaehler: string | null
           zaehler: number | null
         }
@@ -132,14 +140,22 @@ export type Database = {
           einheitentyp?: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am?: string | null
           etage?: string | null
+          gas_stand_aktuell?: number | null
+          gas_stand_datum?: string | null
           gas_zaehler?: string | null
           id?: string
           immobilie_id?: string | null
+          kaltwasser_stand_aktuell?: number | null
+          kaltwasser_stand_datum?: string | null
           kaltwasser_zaehler?: string | null
           qm?: number | null
+          strom_stand_aktuell?: number | null
+          strom_stand_datum?: string | null
           strom_zaehler?: string | null
           verteilerschluessel_art?: string | null
           verteilerschluessel_wert?: number | null
+          warmwasser_stand_aktuell?: number | null
+          warmwasser_stand_datum?: string | null
           warmwasser_zaehler?: string | null
           zaehler?: number | null
         }
@@ -149,14 +165,22 @@ export type Database = {
           einheitentyp?: Database["public"]["Enums"]["einheitentyp"] | null
           erstellt_am?: string | null
           etage?: string | null
+          gas_stand_aktuell?: number | null
+          gas_stand_datum?: string | null
           gas_zaehler?: string | null
           id?: string
           immobilie_id?: string | null
+          kaltwasser_stand_aktuell?: number | null
+          kaltwasser_stand_datum?: string | null
           kaltwasser_zaehler?: string | null
           qm?: number | null
+          strom_stand_aktuell?: number | null
+          strom_stand_datum?: string | null
           strom_zaehler?: string | null
           verteilerschluessel_art?: string | null
           verteilerschluessel_wert?: number | null
+          warmwasser_stand_aktuell?: number | null
+          warmwasser_stand_datum?: string | null
           warmwasser_zaehler?: string | null
           zaehler?: number | null
         }
