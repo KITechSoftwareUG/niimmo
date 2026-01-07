@@ -42,13 +42,17 @@ export const HausmeisterDashboard = () => {
     queryFn: async () => {
       const { data: props, error: propsError } = await supabase
         .from('immobilien')
-        .select('id, name, adresse')
-        .order('name');
+        .select('id, name, adresse');
       
       if (propsError) throw propsError;
+
+      // Natural sort: "Objekt 01" comes before "Objekt 10"
+      const sortedProps = [...(props || [])].sort((a, b) => {
+        return a.name.localeCompare(b.name, 'de', { numeric: true });
+      });
       
       const propsWithUnits = await Promise.all(
-        props.map(async (prop) => {
+        sortedProps.map(async (prop) => {
           const { data: units, error: unitsError } = await supabase
             .from('einheiten')
             .select(`
