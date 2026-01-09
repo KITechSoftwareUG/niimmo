@@ -29,7 +29,8 @@ export const DashboardStats = ({ immobilien, onNavigateToContract, onShowMietUeb
         .from('mietvertrag')
         .select(`
           id, 
-          kaltmiete, 
+          kaltmiete,
+          betriebskosten,
           status, 
           ende_datum, 
           kuendigungsdatum,
@@ -71,7 +72,7 @@ export const DashboardStats = ({ immobilien, onNavigateToContract, onShowMietUeb
 
   const aktiveMietvertraege = mietvertraege?.filter(mv => mv.status === 'aktiv') || [];
   const gekuendigteMietvertraege = mietvertraege?.filter(mv => mv.status === 'gekuendigt') || [];
-  const erwartedMiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0);
+  const erwartedMiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0) + (vertrag.betriebskosten || 0), 0);
   const leerstände = gesamtEinheiten ? gesamtEinheiten - aktiveMietvertraege.length : 0;
 
   // Berechne das nächste Kündigungs- oder Auslaufdatum und finde den zugehörigen Vertrag
