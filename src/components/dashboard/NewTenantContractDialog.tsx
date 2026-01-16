@@ -34,6 +34,8 @@ interface NewTenant {
   telnr: string;
   geburtsdatum: string;
   rolle: 'hauptmieter' | 'mitmieter';
+  istUnternehmen: boolean;
+  firmenname: string;
 }
 
 interface ContractData {
@@ -74,7 +76,9 @@ export const NewTenantContractDialog = ({
     hauptmail: '',
     telnr: '',
     geburtsdatum: '',
-    rolle: 'hauptmieter'
+    rolle: 'hauptmieter',
+    istUnternehmen: false,
+    firmenname: ''
   }]);
   
   // Existing tenant selection state
@@ -130,7 +134,9 @@ export const NewTenantContractDialog = ({
         hauptmail: '',
         telnr: '',
         geburtsdatum: '',
-        rolle: 'hauptmieter'
+        rolle: 'hauptmieter',
+        istUnternehmen: false,
+        firmenname: ''
       }]);
       setSelectedTenantIds([]);
       setContractData({
@@ -174,16 +180,28 @@ export const NewTenantContractDialog = ({
       hauptmail: '',
       telnr: '',
       geburtsdatum: '',
-      rolle: 'mitmieter'
+      rolle: 'mitmieter',
+      istUnternehmen: false,
+      firmenname: ''
     }]);
   };
 
-  const updateNewTenant = (index: number, field: keyof NewTenant, value: string | 'hauptmieter' | 'mitmieter') => {
+  const updateNewTenant = (index: number, field: keyof NewTenant, value: string | boolean | 'hauptmieter' | 'mitmieter') => {
     const updated = [...newTenants];
     if (field === 'rolle') {
       updated[index][field] = value as 'hauptmieter' | 'mitmieter';
+    } else if (field === 'istUnternehmen') {
+      updated[index][field] = value as boolean;
+      // Bei Wechsel zu Unternehmen: Felder leeren
+      if (value === true) {
+        updated[index].vorname = '';
+        updated[index].nachname = '';
+        updated[index].geburtsdatum = '';
+      } else {
+        updated[index].firmenname = '';
+      }
     } else {
-      updated[index][field as keyof Omit<NewTenant, 'rolle'>] = value as string;
+      updated[index][field as keyof Omit<NewTenant, 'rolle' | 'istUnternehmen'>] = value as string;
     }
     setNewTenants(updated);
   };
@@ -204,9 +222,12 @@ export const NewTenantContractDialog = ({
 
   const validateTenantStep = () => {
     if (activeTab === 'new-tenant') {
-      const hasValidTenants = newTenants.every(tenant => 
-        tenant.vorname.trim() && tenant.nachname.trim()
-      );
+      const hasValidTenants = newTenants.every(tenant => {
+        if (tenant.istUnternehmen) {
+          return tenant.firmenname.trim();
+        }
+        return tenant.vorname.trim() && tenant.nachname.trim();
+      });
       const hasMainTenant = newTenants.some(tenant => tenant.rolle === 'hauptmieter');
       return hasValidTenants && hasMainTenant;
     } else {
@@ -288,7 +309,9 @@ export const NewTenantContractDialog = ({
             hauptmail: mieter.hauptmail || '',
             telnr: mieter.telnr || '',
             geburtsdatum: mieter.geburtsdatum || '',
-            rolle: mieter.rolle || 'hauptmieter'
+            rolle: mieter.rolle || 'hauptmieter',
+            istUnternehmen: false,
+            firmenname: ''
           })));
           
           toast({
@@ -358,11 +381,14 @@ export const NewTenantContractDialog = ({
     try {
       // Step 1: Validate input data before creating anything
       if (activeTab === 'new-tenant') {
-        const hasValidTenants = newTenants.every(tenant => 
-          tenant.vorname.trim() && tenant.nachname.trim()
-        );
+        const hasValidTenants = newTenants.every(tenant => {
+          if (tenant.istUnternehmen) {
+            return tenant.firmenname.trim();
+          }
+          return tenant.vorname.trim() && tenant.nachname.trim();
+        });
         if (!hasValidTenants) {
-          throw new Error('Bitte füllen Sie mindestens Vor- und Nachname für alle Mieter aus.');
+          throw new Error('Bitte füllen Sie alle Pflichtfelder für die Mieter aus.');
         }
       } else if (selectedTenantIds.length === 0) {
         throw new Error('Bitte wählen Sie mindestens einen Mieter aus.');
@@ -379,21 +405,37 @@ export const NewTenantContractDialog = ({
         console.log('Creating new tenants:', newTenants.length);
         
         for (const tenant of newTenants) {
+          // Bei Unternehmen: Firmenname in Vorname und Nachname aufteilen
+          let vorname = tenant.vorname.trim();
+          let nachname = tenant.nachname.trim();
+          
+          if (tenant.istUnternehmen && tenant.firmenname.trim()) {
+            const firmenteile = tenant.firmenname.trim().split(' ');
+            if (firmenteile.length >= 2) {
+              vorname = firmenteile.slice(0, -1).join(' ');
+              nachname = firmenteile[firmenteile.length - 1];
+            } else {
+              vorname = tenant.firmenname.trim();
+              nachname = '(Firma)';
+            }
+          }
+          
           const { data, error } = await supabase
             .from('mieter')
             .insert({
-              vorname: tenant.vorname.trim(),
-              nachname: tenant.nachname.trim(),
+              vorname: vorname,
+              nachname: nachname,
               hauptmail: tenant.hauptmail?.trim() || null,
               telnr: tenant.telnr?.trim() || null,
-              geburtsdatum: tenant.geburtsdatum || null
+              geburtsdatum: tenant.istUnternehmen ? null : (tenant.geburtsdatum || null)
             })
             .select('id')
             .single();
           
           if (error) {
             console.error('Error creating tenant:', error);
-            throw new Error(`Fehler beim Erstellen des Mieters ${tenant.vorname} ${tenant.nachname}: ${error.message}`);
+            const displayName = tenant.istUnternehmen ? tenant.firmenname : `${tenant.vorname} ${tenant.nachname}`;
+            throw new Error(`Fehler beim Erstellen des Mieters ${displayName}: ${error.message}`);
           }
           
           createdTenantIds.push(data.id);
@@ -635,85 +677,141 @@ export const NewTenantContractDialog = ({
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor={`vorname-${index}`}>Vorname *</Label>
-                    <Input
-                      id={`vorname-${index}`}
-                      value={tenant.vorname}
-                      onChange={(e) => updateNewTenant(index, 'vorname', e.target.value)}
-                      placeholder="Max"
-                    />
+                {/* Toggle Privatperson / Unternehmen */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    {tenant.istUnternehmen ? (
+                      <Building2 className="h-4 w-4 text-primary" />
+                    ) : (
+                      <User className="h-4 w-4 text-primary" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {tenant.istUnternehmen ? 'Unternehmen' : 'Privatperson'}
+                    </span>
                   </div>
-                  <div>
-                    <Label htmlFor={`nachname-${index}`}>Nachname *</Label>
-                    <Input
-                      id={`nachname-${index}`}
-                      value={tenant.nachname}
-                      onChange={(e) => updateNewTenant(index, 'nachname', e.target.value)}
-                      placeholder="Mustermann"
-                    />
-                  </div>
+                  <Switch
+                    checked={tenant.istUnternehmen}
+                    onCheckedChange={(checked) => updateNewTenant(index, 'istUnternehmen', checked)}
+                  />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor={`email-${index}`}>E-Mail</Label>
-                    <Input
-                      id={`email-${index}`}
-                      type="email"
-                      value={tenant.hauptmail}
-                      onChange={(e) => updateNewTenant(index, 'hauptmail', e.target.value)}
-                      placeholder="max@example.com"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor={`phone-${index}`}>Telefon</Label>
-                    <Input
-                      id={`phone-${index}`}
-                      value={tenant.telnr}
-                      onChange={(e) => updateNewTenant(index, 'telnr', e.target.value)}
-                      placeholder="0123 456789"
-                    />
-                  </div>
-                </div>
+                {tenant.istUnternehmen ? (
+                  // Unternehmens-Felder
+                  <>
+                    <div>
+                      <Label htmlFor={`firmenname-${index}`}>Firmenname *</Label>
+                      <Input
+                        id={`firmenname-${index}`}
+                        value={tenant.firmenname}
+                        onChange={(e) => updateNewTenant(index, 'firmenname', e.target.value)}
+                        placeholder="Musterfirma GmbH"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor={`email-${index}`}>E-Mail</Label>
+                        <Input
+                          id={`email-${index}`}
+                          type="email"
+                          value={tenant.hauptmail}
+                          onChange={(e) => updateNewTenant(index, 'hauptmail', e.target.value)}
+                          placeholder="kontakt@firma.de"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`phone-${index}`}>Telefon</Label>
+                        <Input
+                          id={`phone-${index}`}
+                          value={tenant.telnr}
+                          onChange={(e) => updateNewTenant(index, 'telnr', e.target.value)}
+                          placeholder="0123 456789"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // Privatperson-Felder
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor={`vorname-${index}`}>Vorname *</Label>
+                        <Input
+                          id={`vorname-${index}`}
+                          value={tenant.vorname}
+                          onChange={(e) => updateNewTenant(index, 'vorname', e.target.value)}
+                          placeholder="Max"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`nachname-${index}`}>Nachname *</Label>
+                        <Input
+                          id={`nachname-${index}`}
+                          value={tenant.nachname}
+                          onChange={(e) => updateNewTenant(index, 'nachname', e.target.value)}
+                          placeholder="Mustermann"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor={`email-${index}`}>E-Mail</Label>
+                        <Input
+                          id={`email-${index}`}
+                          type="email"
+                          value={tenant.hauptmail}
+                          onChange={(e) => updateNewTenant(index, 'hauptmail', e.target.value)}
+                          placeholder="max@example.com"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`phone-${index}`}>Telefon</Label>
+                        <Input
+                          id={`phone-${index}`}
+                          value={tenant.telnr}
+                          onChange={(e) => updateNewTenant(index, 'telnr', e.target.value)}
+                          placeholder="0123 456789"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor={`birth-${index}`}>Geburtsdatum</Label>
+                      <Input
+                        id={`birth-${index}`}
+                        type="date"
+                        value={tenant.geburtsdatum}
+                        onChange={(e) => updateNewTenant(index, 'geburtsdatum', e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
                 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor={`birth-${index}`}>Geburtsdatum</Label>
-                    <Input
-                      id={`birth-${index}`}
-                      type="date"
-                      value={tenant.geburtsdatum}
-                      onChange={(e) => updateNewTenant(index, 'geburtsdatum', e.target.value)}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor={`role-${index}`}>Rolle *</Label>
-                    <Select 
-                      value={tenant.rolle} 
-                      onValueChange={(value) => updateNewTenant(index, 'rolle', value as 'hauptmieter' | 'mitmieter')}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Rolle auswählen" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="hauptmieter">
-                          <div className="flex items-center gap-2">
-                            <Crown className="h-4 w-4 text-yellow-600" />
-                            Hauptmieter
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="mitmieter">
-                          <div className="flex items-center gap-2">
-                            <UserCheck className="h-4 w-4 text-blue-600" />
-                            Mitmieter
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <Label htmlFor={`role-${index}`}>Rolle *</Label>
+                  <Select 
+                    value={tenant.rolle} 
+                    onValueChange={(value) => updateNewTenant(index, 'rolle', value as 'hauptmieter' | 'mitmieter')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Rolle auswählen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hauptmieter">
+                        <div className="flex items-center gap-2">
+                          <Crown className="h-4 w-4 text-yellow-600" />
+                          Hauptmieter
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="mitmieter">
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="h-4 w-4 text-blue-600" />
+                          Mitmieter
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
