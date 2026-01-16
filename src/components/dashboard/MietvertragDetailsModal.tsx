@@ -69,6 +69,8 @@ export default function MietvertragDetailsModal({
           queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] });
           queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
+          queryClient.invalidateQueries({ queryKey: ['immobilien'] });
         }
       )
       .on(
@@ -84,6 +86,8 @@ export default function MietvertragDetailsModal({
           queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] });
           queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
+          queryClient.invalidateQueries({ queryKey: ['immobilien'] });
         }
       )
       .on(
@@ -98,6 +102,9 @@ export default function MietvertragDetailsModal({
           console.log('Contract details changed:', payload);
           queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
+          queryClient.invalidateQueries({ queryKey: ['immobilien'] });
+          queryClient.invalidateQueries({ queryKey: ['einheiten'] });
         }
       )
       .subscribe();
@@ -406,7 +413,11 @@ export default function MietvertragDetailsModal({
         });
 
         setEditingMietvertrag(null);
-        await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
+          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
+          queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
+        ]);
         return;
       }
 
@@ -480,7 +491,13 @@ export default function MietvertragDetailsModal({
       }
 
       setEditingMietvertrag(null);
-      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
+        queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
+        queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] }),
+      ]);
 
     } catch (error) {
       console.error('Fehler beim Speichern:', error);
@@ -530,7 +547,11 @@ export default function MietvertragDetailsModal({
       });
 
       setEditingKaution(null);
-      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
+      ]);
 
     } catch (error) {
       console.error('Fehler beim Aktualisieren:', error);
@@ -567,7 +588,10 @@ export default function MietvertragDetailsModal({
       });
 
       setEditingMeter(null);
-      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
+      ]);
 
     } catch (error) {
       console.error('Fehler beim Aktualisieren des Zählerstands:', error);
@@ -603,8 +627,12 @@ export default function MietvertragDetailsModal({
       });
 
       setEditingMeterNumber(null);
-      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-      await queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData.id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData.id] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
+        queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
+      ]);
 
     } catch (error) {
       console.error('Fehler beim Aktualisieren der Zählernummer:', error);
@@ -618,8 +646,13 @@ export default function MietvertragDetailsModal({
 
   const handleTerminationSuccess = () => {
     setShowTerminationDialog(false);
-    queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-    queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
+      queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
+      queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
+      queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
+      queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
+    ]);
     toast({
       title: "Kündigung erfolgreich",
       description: "Der Mietvertrag wurde erfolgreich gekündigt.",
@@ -820,11 +853,19 @@ export default function MietvertragDetailsModal({
         }
       }
 
-      // Invalidate queries
-      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-      await queryClient.invalidateQueries({ queryKey: ['mietvertrag-mieter-detail', vertragId] });
-      await queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData?.id] });
-      await queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+      // Invalidate all related queries for instant updates
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['mietvertrag-mieter-detail', vertragId] }),
+        queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
+        // Parent queries for instant UI updates without leaving
+        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
+        queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
+        queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] }),
+        queryClient.invalidateQueries({ queryKey: ['mietvertraege'] }),
+      ]);
 
       toast({
         title: "Erfolgreich gespeichert",
@@ -1010,8 +1051,12 @@ export default function MietvertragDetailsModal({
           isOpen={showMahnungModal}
           onClose={() => {
             setShowMahnungModal(false);
-            queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-            queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
+            Promise.all([
+              queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
+              queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
+              queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
+              queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
+            ]);
           }}
           contractData={vertrag ? {
             mietvertrag_id: vertragId,
