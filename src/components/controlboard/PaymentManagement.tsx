@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format } from "date-fns";
 import { AssignPaymentDialog } from "./AssignPaymentDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useCsvUploadProgress } from "@/hooks/useCsvUploadProgress";
 
 interface PaymentManagementProps {
   onBack: () => void;
@@ -18,12 +19,13 @@ interface PaymentManagementProps {
 
 export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isProcessing, setProcessing, reset: resetProgress } = useCsvUploadProgress();
 
   // Fetch last CSV upload info
   const { data: lastUpload } = useQuery({
@@ -109,7 +111,17 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       return;
     }
 
-    setIsProcessing(true);
+    if (isProcessing) {
+      toast({
+        title: "Verarbeitung läuft bereits",
+        description: "Bitte warten Sie, bis die aktuelle Verarbeitung abgeschlossen ist.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    
     try {
       // Send to webhook for processing using FormData
       const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/csv-upload';
@@ -118,6 +130,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       const formData = new FormData();
       formData.append('file', csvFile, csvFile.name);
       
+      // Start global processing indicator immediately after sending
+      setProcessing(true, csvFile.name);
+      
       const response = await fetch(webhookUrl, {
         method: 'POST',
         body: formData,
@@ -125,9 +140,11 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       });
 
       if (!response.ok) {
+        resetProgress();
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
+      // Wait for n8n to process and respond when done
       const result = await response.json();
 
       // Create upload record
@@ -138,9 +155,12 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         status: 'verarbeitet',
       });
 
+      // Stop the progress bar - processing is complete
+      resetProgress();
+
       toast({
         title: "CSV erfolgreich verarbeitet",
-        description: `${result.recordCount || 0} Datensätze wurden importiert.`,
+        description: `${result.recordCount || 0} Datensätze wurden importiert und zugeordnet.`,
       });
 
       // Refresh data
@@ -151,13 +171,14 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       setCsvFile(null);
     } catch (error: any) {
       console.error('CSV processing error:', error);
+      resetProgress();
       toast({
         title: "Fehler bei der Verarbeitung",
         description: error.message || "Die CSV-Datei konnte nicht verarbeitet werden.",
         variant: "destructive",
       });
     } finally {
-      setIsProcessing(false);
+      setIsUploading(false);
     }
   };
 
@@ -229,7 +250,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                 type="file"
                 accept=".csv"
                 onChange={handleFileChange}
-                disabled={isProcessing}
+                disabled={isUploading || isProcessing}
                 className="mt-2 cursor-pointer file:cursor-pointer"
               />
               {csvFile && (
@@ -242,13 +263,18 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             {/* Process Button */}
             <Button
               onClick={handleProcessCsv}
-              disabled={!csvFile || isProcessing}
+              disabled={!csvFile || isUploading || isProcessing}
               className="w-full"
             >
-              {isProcessing ? (
+              {isUploading ? (
                 <>
                   <Upload className="mr-2 h-4 w-4 animate-pulse" />
-                  Wird verarbeitet...
+                  Datei wird hochgeladen...
+                </>
+              ) : isProcessing ? (
+                <>
+                  <Upload className="mr-2 h-4 w-4 animate-pulse" />
+                  Wird in n8n verarbeitet...
                 </>
               ) : (
                 <>
