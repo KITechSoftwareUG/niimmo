@@ -11,7 +11,7 @@ import { sortUnitsByNumber, getCurrentContract, filterActiveAndTerminatedContrac
 import { useEditableField } from "@/hooks/useEditableField";
 import { Input } from "@/components/ui/input";
 import { ImmobilienDocumentsTab } from "./ImmobilienDocumentsTab";
-import { ImmobilienNebenkostenTab } from "./ImmobilienNebenkostenTab";
+import { ImmobilienNebenkostenTabNew } from "./nebenkosten/ImmobilienNebenkostenTabNew";
 
 interface ImmobilienDetailProps {
   immobilieId: string;
@@ -489,7 +489,7 @@ export const ImmobilienDetail = ({
           </TabsContent>
 
           <TabsContent value="zahlungen">
-            <ImmobilienNebenkostenTab immobilieId={immobilieId} />
+            <ImmobilienNebenkostenTabNew immobilieId={immobilieId} />
           </TabsContent>
         </Tabs>
       </div>
