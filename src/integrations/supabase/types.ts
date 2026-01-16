@@ -514,6 +514,132 @@ export type Database = {
         }
         Relationships: []
       }
+      nebenkosten_anteile: {
+        Row: {
+          aktualisiert_am: string | null
+          anteil_wert: number | null
+          einheit_id: string
+          erstellt_am: string | null
+          id: string
+          nebenkostenart_id: string
+        }
+        Insert: {
+          aktualisiert_am?: string | null
+          anteil_wert?: number | null
+          einheit_id: string
+          erstellt_am?: string | null
+          id?: string
+          nebenkostenart_id: string
+        }
+        Update: {
+          aktualisiert_am?: string | null
+          anteil_wert?: number | null
+          einheit_id?: string
+          erstellt_am?: string | null
+          id?: string
+          nebenkostenart_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nebenkosten_anteile_einheit_id_fkey"
+            columns: ["einheit_id"]
+            isOneToOne: false
+            referencedRelation: "einheiten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nebenkosten_anteile_nebenkostenart_id_fkey"
+            columns: ["nebenkostenart_id"]
+            isOneToOne: false
+            referencedRelation: "nebenkostenarten"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nebenkosten_zahlungen: {
+        Row: {
+          einheit_id: string | null
+          erstellt_am: string | null
+          id: string
+          nebenkostenart_id: string | null
+          verteilung_typ: string
+          zahlung_id: string
+        }
+        Insert: {
+          einheit_id?: string | null
+          erstellt_am?: string | null
+          id?: string
+          nebenkostenart_id?: string | null
+          verteilung_typ?: string
+          zahlung_id: string
+        }
+        Update: {
+          einheit_id?: string | null
+          erstellt_am?: string | null
+          id?: string
+          nebenkostenart_id?: string | null
+          verteilung_typ?: string
+          zahlung_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nebenkosten_zahlungen_einheit_id_fkey"
+            columns: ["einheit_id"]
+            isOneToOne: false
+            referencedRelation: "einheiten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nebenkosten_zahlungen_nebenkostenart_id_fkey"
+            columns: ["nebenkostenart_id"]
+            isOneToOne: false
+            referencedRelation: "nebenkostenarten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nebenkosten_zahlungen_zahlung_id_fkey"
+            columns: ["zahlung_id"]
+            isOneToOne: true
+            referencedRelation: "zahlungen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nebenkostenarten: {
+        Row: {
+          aktualisiert_am: string | null
+          erstellt_am: string | null
+          id: string
+          immobilie_id: string
+          name: string
+          verteilerschluessel_art: string
+        }
+        Insert: {
+          aktualisiert_am?: string | null
+          erstellt_am?: string | null
+          id?: string
+          immobilie_id: string
+          name: string
+          verteilerschluessel_art?: string
+        }
+        Update: {
+          aktualisiert_am?: string | null
+          erstellt_am?: string | null
+          id?: string
+          immobilie_id?: string
+          name?: string
+          verteilerschluessel_art?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nebenkostenarten_immobilie_id_fkey"
+            columns: ["immobilie_id"]
+            isOneToOne: false
+            referencedRelation: "immobilien"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_logs: {
         Row: {
           created_at: string | null
