@@ -3,14 +3,10 @@ import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Sparkles } from "lucide-react";
 import { ModernChatbot } from "./ModernChatbot";
+import { CsvUploadProgressBar } from "./CsvUploadProgressBar";
 
 export function ModernChatbotTrigger() {
   const location = useLocation();
-  
-  // Don't show chatbot on auth page
-  if (location.pathname === "/auth") {
-    return null;
-  }
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -28,8 +24,16 @@ export function ModernChatbotTrigger() {
     };
   }, [isChatOpen]);
 
+  // Don't show chatbot on auth page
+  if (location.pathname === "/auth") {
+    return null;
+  }
+
   return (
     <>
+      {/* CSV Upload Progress Bar - above the chatbot */}
+      <CsvUploadProgressBar />
+
       {/* Backdrop overlay when chat is open */}
       {isChatOpen && (
         <div 
