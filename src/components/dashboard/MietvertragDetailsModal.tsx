@@ -105,6 +105,34 @@ export default function MietvertragDetailsModal({
           queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
           queryClient.invalidateQueries({ queryKey: ['immobilien'] });
           queryClient.invalidateQueries({ queryKey: ['einheiten'] });
+          // Invalidate all mietvertrag-detail queries with predicate
+          queryClient.invalidateQueries({ predicate: (query) => 
+            Array.isArray(query.queryKey) && query.queryKey[0] === 'mietvertrag-detail'
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'mieter'
+        },
+        (payload) => {
+          console.log('Mieter data changed:', payload);
+          // Invalidate all tenant-related queries for instant UI updates
+          queryClient.invalidateQueries({ queryKey: ['mietvertrag-mieter-detail', vertragId] });
+          queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
+          queryClient.invalidateQueries({ queryKey: ['mieter'] });
+          // Invalidate all mietvertrag-detail queries to refresh tenant info in unit cards
+          queryClient.invalidateQueries({ predicate: (query) => 
+            Array.isArray(query.queryKey) && query.queryKey[0] === 'mietvertrag-detail'
+          });
+          queryClient.invalidateQueries({ predicate: (query) => 
+            Array.isArray(query.queryKey) && 
+            (query.queryKey[0] === 'mietvertrag-mieter' || query.queryKey[0] === 'mietvertrag-mieter-detail')
+          });
+          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
         }
       )
       .subscribe();
@@ -865,6 +893,17 @@ export default function MietvertragDetailsModal({
         queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
         queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] }),
         queryClient.invalidateQueries({ queryKey: ['mietvertraege'] }),
+        // Invalidate ALL mietvertrag-detail queries (for ImmobilienDetail which uses different key format)
+        queryClient.invalidateQueries({ predicate: (query) => 
+          Array.isArray(query.queryKey) && query.queryKey[0] === 'mietvertrag-detail'
+        }),
+        // Invalidate mieter queries for tenant data updates
+        queryClient.invalidateQueries({ queryKey: ['mieter'] }),
+        queryClient.invalidateQueries({ queryKey: ['all-tenants'] }),
+        queryClient.invalidateQueries({ predicate: (query) => 
+          Array.isArray(query.queryKey) && 
+          (query.queryKey[0] === 'mietvertrag-mieter' || query.queryKey[0] === 'mietvertrag-mieter-detail')
+        }),
       ]);
 
       toast({
