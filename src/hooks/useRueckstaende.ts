@@ -142,10 +142,10 @@ export const useRueckstaende = () => {
       
       const rueckstaende: FehlendeMietzahlung[] = [];
       
-      // Berechne für jeden aktiven Mietvertrag
+      // Berechne für jeden Mietvertrag (aktiv, gekündigt, beendet)
       for (const mietvertrag of mietvertraege || []) {
-        // Nur aktive Mietverträge berücksichtigen
-        if (mietvertrag.status !== 'aktiv') continue;
+        // Alle Verträge berücksichtigen, die potenziell Rückstände haben könnten
+        // (aktiv, gekündigt, beendet)
         
         // Skip wenn keine Miete definiert ist
         if ((mietvertrag.kaltmiete || 0) === 0 && (mietvertrag.betriebskosten || 0) === 0) continue;
@@ -216,7 +216,8 @@ export const useRueckstaende = () => {
             dokumente: mietvertragDokumente,
             kaltmiete: mietvertrag.kaltmiete || 0,
             betriebskosten: mietvertrag.betriebskosten || 0,
-            mietvertrag_status: 'Aktiv',
+            mietvertrag_status: mietvertrag.status === 'aktiv' ? 'Aktiv' : 
+                                mietvertrag.status === 'gekuendigt' ? 'Gekündigt' : 'Beendet',
             mahnstufe: mietvertrag.mahnstufe || 0,
             // Fälligkeitsinformationen
             faellige_forderungen: faelligeForderungen.length,

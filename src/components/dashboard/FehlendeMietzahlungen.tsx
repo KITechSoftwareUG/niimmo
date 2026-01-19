@@ -322,6 +322,19 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                               <Badge variant="outline" className="text-[10px] sm:text-xs">
                                 {rueckstand.einheit_typ} - {rueckstand.einheit_etage}
                               </Badge>
+                              {/* Vertragsstatus anzeigen wenn nicht aktiv */}
+                              {rueckstand.mietvertrag_status !== 'Aktiv' && (
+                                <Badge 
+                                  variant="secondary" 
+                                  className={`text-[10px] sm:text-xs ${
+                                    rueckstand.mietvertrag_status === 'Gekündigt' 
+                                      ? 'bg-orange-100 text-orange-700 border-orange-200' 
+                                      : 'bg-gray-100 text-gray-700 border-gray-200'
+                                  }`}
+                                >
+                                  {rueckstand.mietvertrag_status}
+                                </Badge>
+                              )}
                               {/* Mahnstufe - Show inline on mobile */}
                               {rueckstand.mahnstufe > 0 && (
                                 <Badge variant="destructive" className="text-[10px] sm:text-xs sm:hidden">
@@ -430,6 +443,19 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                               <Badge variant="outline" className="text-[10px] sm:text-xs">
                                 {guthabenItem.einheit_typ} - {guthabenItem.einheit_etage}
                               </Badge>
+                              {/* Vertragsstatus anzeigen wenn nicht aktiv */}
+                              {guthabenItem.mietvertrag_status !== 'Aktiv' && (
+                                <Badge 
+                                  variant="secondary" 
+                                  className={`text-[10px] sm:text-xs ${
+                                    guthabenItem.mietvertrag_status === 'Gekündigt' 
+                                      ? 'bg-orange-100 text-orange-700 border-orange-200' 
+                                      : 'bg-gray-100 text-gray-700 border-gray-200'
+                                  }`}
+                                >
+                                  {guthabenItem.mietvertrag_status}
+                                </Badge>
+                              )}
                             </div>
                             
                             {/* Address */}
