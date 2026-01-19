@@ -291,15 +291,15 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
               {/* Rückstände Section */}
               {rueckstaende.length > 0 && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-red-600" />
-                      <h3 className="font-semibold text-red-900">Rückstände</h3>
-                      <Badge variant="destructive" className="text-xs">
+                      <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                      <h3 className="font-semibold text-red-900 text-sm sm:text-base">Rückstände</h3>
+                      <Badge variant="destructive" className="text-[10px] sm:text-xs">
                         {rueckstaende.length} Vertrag{rueckstaende.length !== 1 ? 'e' : ''}
                       </Badge>
                     </div>
-                    <p className="font-bold text-red-600">
+                    <p className="font-bold text-red-600 text-sm sm:text-base">
                       {formatBetrag(gesamtRueckstandBetrag)}
                     </p>
                   </div>
@@ -311,38 +311,47 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                       className="border border-red-200 bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer hover-scale"
                       onClick={(e) => handleMietvertragClick(rueckstand.mietvertrag_id, e)}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 space-y-2">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1 space-y-2 min-w-0">
                             {/* Property and Unit Info */}
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-gray-900">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                              <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
                                 {rueckstand.immobilie_name}
                               </h3>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-[10px] sm:text-xs">
                                 {rueckstand.einheit_typ} - {rueckstand.einheit_etage}
                               </Badge>
+                              {/* Mahnstufe - Show inline on mobile */}
+                              {rueckstand.mahnstufe > 0 && (
+                                <Badge variant="destructive" className="text-[10px] sm:text-xs sm:hidden">
+                                  Mahnstufe {rueckstand.mahnstufe}
+                                </Badge>
+                              )}
                             </div>
                             
                             {/* Address */}
-                            <p className="text-sm text-gray-600">{rueckstand.immobilie_adresse}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 truncate">{rueckstand.immobilie_adresse}</p>
                             
-                            {/* Tenant Info */}
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                            {/* Tenant Info - Stack on mobile */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-600">
                               <div className="flex items-center gap-1">
-                                <User className="h-4 w-4" />
-                                <span>{rueckstand.mieter_name}</span>
+                                <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                <span className="truncate">{rueckstand.mieter_name}</span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Euro className="h-4 w-4" />
-                                <span>Kaltmiete: {formatBetrag(rueckstand.kaltmiete)}</span>
+                              <div className="flex items-center gap-2 sm:gap-4">
+                                <div className="flex items-center gap-1">
+                                  <Euro className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                  <span className="whitespace-nowrap">Kaltmiete: {formatBetrag(rueckstand.kaltmiete)}</span>
+                                </div>
+                                {rueckstand.einheit_qm > 0 && (
+                                  <span className="whitespace-nowrap">{rueckstand.einheit_qm} m²</span>
+                                )}
                               </div>
-                              {rueckstand.einheit_qm > 0 && (
-                                <span>{rueckstand.einheit_qm} m²</span>
-                              )}
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4 pt-2 text-sm">
+                            {/* Financial grid - 2 cols on mobile, 3 on desktop */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 pt-2 text-xs sm:text-sm">
                               <div>
                                 <p className="text-gray-600">Forderungen</p>
                                 <p className="font-medium">{formatBetrag(rueckstand.gesamt_forderungen)}</p>
@@ -351,17 +360,17 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                                 <p className="text-gray-600">Zahlungen</p>
                                 <p className="font-medium text-green-600">{formatBetrag(rueckstand.gesamt_zahlungen)}</p>
                               </div>
-                              <div>
+                              <div className="col-span-2 sm:col-span-1 pt-1 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                                 <p className="text-gray-600">Rückstand</p>
-                                <p className="font-bold text-red-600">
+                                <p className="font-bold text-red-600 text-sm sm:text-base">
                                   {formatBetrag(rueckstand.fehlend_betrag)}
                                 </p>
                               </div>
                             </div>
                           </div>
 
-                          {/* Action Section */}
-                          <div className="flex flex-col items-end gap-2 ml-4">
+                          {/* Action Section - Hidden on mobile, details accessible via card click */}
+                          <div className="hidden sm:flex flex-col items-end gap-2 ml-4 flex-shrink-0">
                             {/* Mahnstufe */}
                             {rueckstand.mahnstufe > 0 && (
                               <Badge variant="destructive" className="text-xs">
@@ -390,15 +399,15 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
               {/* Guthaben Section */}
               {guthaben.length > 0 && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-2 sm:p-3 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <Euro className="h-5 w-5 text-green-600" />
-                      <h3 className="font-semibold text-green-900">Guthaben</h3>
-                      <Badge className="text-xs bg-green-600">
+                      <Euro className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                      <h3 className="font-semibold text-green-900 text-sm sm:text-base">Guthaben</h3>
+                      <Badge className="text-[10px] sm:text-xs bg-green-600">
                         {guthaben.length} Vertrag{guthaben.length !== 1 ? 'e' : ''}
                       </Badge>
                     </div>
-                    <p className="font-bold text-green-600">
+                    <p className="font-bold text-green-600 text-sm sm:text-base">
                       {formatBetrag(gesamtGuthabenBetrag)}
                     </p>
                   </div>
@@ -410,38 +419,41 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                       className="border border-green-200 bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer hover-scale"
                       onClick={(e) => handleMietvertragClick(guthabenItem.mietvertrag_id, e)}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 space-y-2">
+                      <CardContent className="p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1 space-y-2 min-w-0">
                             {/* Property and Unit Info */}
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-gray-900">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                              <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
                                 {guthabenItem.immobilie_name}
                               </h3>
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-[10px] sm:text-xs">
                                 {guthabenItem.einheit_typ} - {guthabenItem.einheit_etage}
                               </Badge>
                             </div>
                             
                             {/* Address */}
-                            <p className="text-sm text-gray-600">{guthabenItem.immobilie_adresse}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 truncate">{guthabenItem.immobilie_adresse}</p>
                             
-                            {/* Tenant Info */}
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                            {/* Tenant Info - Stack on mobile */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-600">
                               <div className="flex items-center gap-1">
-                                <User className="h-4 w-4" />
-                                <span>{guthabenItem.mieter_name}</span>
+                                <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                <span className="truncate">{guthabenItem.mieter_name}</span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Euro className="h-4 w-4" />
-                                <span>Kaltmiete: {formatBetrag(guthabenItem.kaltmiete)}</span>
+                              <div className="flex items-center gap-2 sm:gap-4">
+                                <div className="flex items-center gap-1">
+                                  <Euro className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                                  <span className="whitespace-nowrap">Kaltmiete: {formatBetrag(guthabenItem.kaltmiete)}</span>
+                                </div>
+                                {guthabenItem.einheit_qm > 0 && (
+                                  <span className="whitespace-nowrap">{guthabenItem.einheit_qm} m²</span>
+                                )}
                               </div>
-                              {guthabenItem.einheit_qm > 0 && (
-                                <span>{guthabenItem.einheit_qm} m²</span>
-                              )}
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4 pt-2 text-sm">
+                            {/* Financial grid - 2 cols on mobile, 3 on desktop */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 pt-2 text-xs sm:text-sm">
                               <div>
                                 <p className="text-gray-600">Forderungen</p>
                                 <p className="font-medium">{formatBetrag(guthabenItem.gesamt_forderungen)}</p>
@@ -450,18 +462,17 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                                 <p className="text-gray-600">Zahlungen</p>
                                 <p className="font-medium text-green-600">{formatBetrag(guthabenItem.gesamt_zahlungen)}</p>
                               </div>
-                              <div>
+                              <div className="col-span-2 sm:col-span-1 pt-1 sm:pt-0 border-t sm:border-t-0 border-gray-200">
                                 <p className="text-gray-600">Guthaben</p>
-                                <p className="font-bold text-green-600">
+                                <p className="font-bold text-green-600 text-sm sm:text-base">
                                   {formatBetrag(guthabenItem.fehlend_betrag)}
                                 </p>
                               </div>
                             </div>
                           </div>
 
-                          {/* Action Section */}
-                          <div className="flex flex-col items-end gap-2 ml-4">
-                            {/* View Button */}
+                          {/* Action Section - Hidden on mobile */}
+                          <div className="hidden sm:flex flex-col items-end gap-2 ml-4 flex-shrink-0">
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -481,18 +492,18 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
               
               {/* Summary Footer */}
               <div className="pt-4 border-t border-gray-300">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-gray-600">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <p className="text-xs sm:text-sm text-gray-600">
                     {sortedFehlendeMietzahlungen.length} Mietvertrag{sortedFehlendeMietzahlungen.length !== 1 ? 'e' : ''} mit Rückständen oder Guthaben
                   </p>
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap gap-2 sm:gap-4">
                     {rueckstaende.length > 0 && (
-                      <p className="font-semibold text-red-600">
+                      <p className="font-semibold text-red-600 text-xs sm:text-sm">
                         Rückstände: {formatBetrag(gesamtRueckstandBetrag)}
                       </p>
                     )}
                     {guthaben.length > 0 && (
-                      <p className="font-semibold text-green-600">
+                      <p className="font-semibold text-green-600 text-xs sm:text-sm">
                         Guthaben: {formatBetrag(gesamtGuthabenBetrag)}
                       </p>
                     )}
