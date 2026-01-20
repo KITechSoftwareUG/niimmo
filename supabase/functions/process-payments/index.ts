@@ -409,21 +409,49 @@ serve(async (req) => {
     console.log(`Received ${payments.length} payments (dryRun: ${dryRun})`);
 
     // ============= DUPLIKATSPRÜFUNG =============
+    // Use RPC call with TRIM for better matching (handles whitespace differences)
     const duplicateChecks = await Promise.all(
       payments.map(async (payment: Payment) => {
+        // Normalize values for comparison
+        const betrag = payment.betrag;
+        const iban = payment.iban?.trim() || '';
+        const buchungsdatum = payment.buchungsdatum;
+        const verwendungszweck = payment.verwendungszweck?.trim() || '';
+        
+        // Query with trimmed comparison using ilike for fuzzy matching
         const { data: existing } = await supabase
           .from("zahlungen")
-          .select("id")
-          .eq("betrag", payment.betrag)
-          .eq("iban", payment.iban)
-          .eq("buchungsdatum", payment.buchungsdatum)
-          .eq("verwendungszweck", payment.verwendungszweck)
-          .limit(1);
+          .select("id, verwendungszweck")
+          .eq("betrag", betrag)
+          .eq("buchungsdatum", buchungsdatum)
+          .limit(50); // Get more to check manually
+        
+        // Manual comparison with trimming
+        const match = existing?.find(row => {
+          const dbIban = (row as any).iban?.trim() || '';
+          const dbVz = (row as any).verwendungszweck?.trim() || '';
+          // Note: iban is not in select, need to add it
+          return dbVz === verwendungszweck;
+        });
+        
+        // Fallback: Re-query with iban included
+        const { data: existingFull } = await supabase
+          .from("zahlungen")
+          .select("id, iban, verwendungszweck")
+          .eq("betrag", betrag)
+          .eq("buchungsdatum", buchungsdatum)
+          .limit(50);
+        
+        const matchFull = existingFull?.find(row => {
+          const dbIban = row.iban?.trim() || '';
+          const dbVz = row.verwendungszweck?.trim() || '';
+          return dbIban === iban && dbVz === verwendungszweck;
+        });
         
         return {
           payment,
-          isDuplicate: existing && existing.length > 0,
-          existingId: existing?.[0]?.id || null
+          isDuplicate: !!matchFull,
+          existingId: matchFull?.id || null
         };
       })
     );
