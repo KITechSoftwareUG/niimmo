@@ -168,10 +168,12 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         row[header] = values[idx] || '';
       });
       
-      // Map CSV columns to payment object (adjust based on your CSV format)
+      // Map CSV columns to payment object
+      // WICHTIG: Buchungstag (nicht Wertstellungstag!) für Duplikat-Check
       const buchungsdatum = row['Buchungstag'] || row['Buchungsdatum'] || row['Datum'];
       const betrag = row['Betrag'] || row['Umsatz'];
-      const iban = row['Auftraggeber-Konto'] || row['IBAN'] || row['Konto'];
+      // IBAN des Zahlenden/Empfängers - NICHT das eigene Konto!
+      const iban = row['Kontonummer/IBAN'] || row['IBAN des Absenders'] || row['IBAN'] || row['Auftraggeber-Konto'];
       const verwendungszweck = row['Verwendungszweck'] || row['Buchungstext'];
       const empfaengername = row['Beguenstigter/Zahlungspflichtiger'] || row['Name'] || row['Empfänger'];
       
