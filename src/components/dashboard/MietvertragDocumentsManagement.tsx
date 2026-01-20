@@ -214,47 +214,120 @@ export const MietvertragDocumentsManagement = ({
   return (
     <>
       <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-background to-muted/50 border-b">
-          <div className="flex items-center justify-between">
+        <CardHeader className="bg-gradient-to-r from-background to-muted/50 border-b px-4 md:px-6 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <CardTitle className="flex items-center space-x-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <FileText className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <span className="text-xl font-semibold">Dokumente</span>
-                <p className="text-sm text-muted-foreground font-normal mt-1">
+                <span className="text-lg md:text-xl font-semibold">Dokumente</span>
+                <p className="text-xs md:text-sm text-muted-foreground font-normal mt-0.5">
                   {dokumente?.length || 0} Dokument(e) verfügbar
                 </p>
               </div>
             </CardTitle>
             <Button
               onClick={() => setIsUploadDialogOpen(true)}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
+              size="sm"
             >
               <Plus className="h-4 w-4" />
-              Dokument hochladen
+              <span className="sm:inline">Hochladen</span>
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-4 md:p-6">
           {!dokumente || dokumente.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="p-4 bg-muted rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <FileText className="h-8 w-8 text-muted-foreground" />
+            <div className="text-center py-8 md:py-12">
+              <div className="p-3 md:p-4 bg-muted rounded-full w-14 h-14 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 flex items-center justify-center">
+                <FileText className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground text-lg">Keine Dokumente vorhanden</p>
-              <p className="text-muted-foreground/60 text-sm mt-2">
+              <p className="text-muted-foreground text-base md:text-lg">Keine Dokumente vorhanden</p>
+              <p className="text-muted-foreground/60 text-xs md:text-sm mt-1 md:mt-2">
                 Laden Sie Dokumente hoch, um sie hier anzuzeigen.
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {dokumente.map((dokument) => (
                 <div
                   key={dokument.id}
-                  className="p-4 bg-card rounded-xl border hover:shadow-md transition-all duration-200 group"
+                  className="p-3 md:p-4 bg-card rounded-xl border hover:shadow-md transition-all duration-200 group"
                 >
-                  <div className="flex items-center justify-between">
+                  {/* Mobile Layout */}
+                  <div className="flex flex-col gap-3 md:hidden">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+                        <FileText className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm text-foreground line-clamp-2">
+                          {dokument.titel || 'Unbenanntes Dokument'}
+                        </h4>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>
+                            {dokument.hochgeladen_am
+                              ? new Date(dokument.hochgeladen_am).toLocaleDateString('de-DE', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })
+                              : 'Unbekannt'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap gap-1.5">
+                        {dokument.kategorie && (
+                          <Badge variant="outline" className={`${getCategoryColor(dokument.kategorie)} border-0 text-xs px-2 py-0.5`}>
+                            {dokument.kategorie}
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className={`${getFileTypeColor(dokument.dateityp)} border-0 text-xs px-2 py-0.5`}>
+                          {dokument.dateityp?.toUpperCase() || '?'}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePreview(dokument)}
+                          className="h-8 w-8"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDownload(dokument)}
+                          disabled={downloading === dokument.id}
+                          className="h-8 w-8"
+                        >
+                          {downloading === dokument.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteClick(dokument.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop Layout */}
+                  <div className="hidden md:flex items-center justify-between">
                     <div className="flex items-center space-x-4 flex-1 min-w-0">
                       <div className="p-2 bg-primary/10 rounded-lg shrink-0">
                         <FileText className="h-5 w-5 text-primary" />
