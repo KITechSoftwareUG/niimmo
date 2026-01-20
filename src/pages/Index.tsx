@@ -313,42 +313,42 @@ const Index = () => {
               
               {/* Action Buttons - Only for Admin */}
               {isAdmin && (
-                <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide">
+                <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-2 sm:flex-wrap">
                   <Button 
                     onClick={() => setShowAnalytics(true)} 
                     variant="ghost"
                     size="sm"
-                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
                   >
-                    <BarChart3 className="h-4 w-4 mr-1.5" />
-                    Analytics
+                    <BarChart3 className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="truncate">Analytics</span>
                   </Button>
                   <Button 
                     onClick={() => setShowControlboard(true)} 
                     variant="ghost"
                     size="sm"
-                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
                   >
-                    <Settings className="h-4 w-4 mr-1.5" />
-                    Controlboard
+                    <Settings className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="truncate">Controlboard</span>
                   </Button>
                   <Button 
                     onClick={() => setShowZahlungen(true)} 
                     variant="ghost"
                     size="sm"
-                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
                   >
-                    <Euro className="h-4 w-4 mr-1.5" />
-                    Zahlungen
+                    <Euro className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="truncate">Zahlungen</span>
                   </Button>
                   <Button 
                     onClick={() => setShowUebergabe(true)} 
                     variant="ghost"
                     size="sm"
-                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 whitespace-nowrap flex-shrink-0"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
                   >
-                    <KeyRound className="h-4 w-4 mr-1.5" />
-                    Übergabe
+                    <KeyRound className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="truncate">Übergabe</span>
                   </Button>
                 </div>
               )}
