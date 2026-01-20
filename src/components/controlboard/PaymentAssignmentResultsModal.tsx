@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -30,8 +30,19 @@ interface ProcessedPayment {
   immobilie_name?: string;
 }
 
+interface DuplicatePayment {
+  buchungsdatum: string;
+  betrag: number;
+  iban: string;
+  verwendungszweck: string;
+  empfaengername?: string;
+  existingId: string;
+}
+
 interface Stats {
   total: number;
+  neue: number;
+  duplikate: number;
   zugeordnet: number;
   nicht_zugeordnet: number;
   nach_kategorie: {
@@ -47,6 +58,7 @@ interface PaymentAssignmentResultsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   results: ProcessedPayment[];
+  duplicates: DuplicatePayment[];
   stats: Stats;
   onApply: () => Promise<void>;
 }
@@ -55,6 +67,7 @@ export function PaymentAssignmentResultsModal({
   open,
   onOpenChange,
   results,
+  duplicates,
   stats,
   onApply,
 }: PaymentAssignmentResultsModalProps) {
@@ -117,10 +130,18 @@ export function PaymentAssignmentResultsModal({
         </DialogHeader>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 py-4 border-b">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 py-4 border-b">
           <div className="bg-muted/50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold">{stats.total}</div>
-            <div className="text-xs text-muted-foreground">Gesamt</div>
+            <div className="text-xs text-muted-foreground">Gesamt in CSV</div>
+          </div>
+          <div className="bg-orange-50 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-orange-700">{stats.duplikate}</div>
+            <div className="text-xs text-orange-600">Duplikate</div>
+          </div>
+          <div className="bg-blue-50 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-blue-700">{stats.neue}</div>
+            <div className="text-xs text-blue-600">Neue Zahlungen</div>
           </div>
           <div className="bg-green-50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-green-700">{stats.zugeordnet}</div>
@@ -130,15 +151,24 @@ export function PaymentAssignmentResultsModal({
             <div className="text-2xl font-bold text-amber-700">{stats.nicht_zugeordnet}</div>
             <div className="text-xs text-amber-600">Nicht zugeordnet</div>
           </div>
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-blue-700">{stats.durchschnittliche_konfidenz}%</div>
-            <div className="text-xs text-blue-600">Ø Konfidenz</div>
-          </div>
           <div className="bg-purple-50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-purple-700">{stats.nach_kategorie.miete}</div>
-            <div className="text-xs text-purple-600">Mietzahlungen</div>
+            <div className="text-2xl font-bold text-purple-700">{stats.durchschnittliche_konfidenz}%</div>
+            <div className="text-xs text-purple-600">Ø Konfidenz</div>
           </div>
         </div>
+
+        {/* Duplicates Info */}
+        {duplicates.length > 0 && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm">
+            <div className="flex items-center gap-2 text-orange-800 font-medium mb-1">
+              <Copy className="h-4 w-4" />
+              {duplicates.length} Duplikate erkannt und übersprungen
+            </div>
+            <div className="text-orange-600 text-xs">
+              Diese Zahlungen existieren bereits in der Datenbank (gleicher Betrag, IBAN, Datum und Verwendungszweck).
+            </div>
+          </div>
+        )}
 
         {/* Results Table */}
         <ScrollArea className="flex-1 min-h-0">

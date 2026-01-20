@@ -34,6 +34,8 @@ interface ProcessedPayment {
 
 interface AIAssignmentStats {
   total: number;
+  neue: number;
+  duplikate: number;
   zugeordnet: number;
   nicht_zugeordnet: number;
   nach_kategorie: {
@@ -45,6 +47,15 @@ interface AIAssignmentStats {
   durchschnittliche_konfidenz: number;
 }
 
+interface DuplicatePayment {
+  buchungsdatum: string;
+  betrag: number;
+  iban: string;
+  verwendungszweck: string;
+  empfaengername?: string;
+  existingId: string;
+}
+
 export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -54,6 +65,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   
   // AI Assignment Results State
   const [aiResults, setAiResults] = useState<ProcessedPayment[]>([]);
+  const [aiDuplicates, setAiDuplicates] = useState<DuplicatePayment[]>([]);
   const [aiStats, setAiStats] = useState<AIAssignmentStats | null>(null);
   const [resultsModalOpen, setResultsModalOpen] = useState(false);
   
@@ -284,6 +296,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       
       // Store results and show modal
       setAiResults(enrichedResults);
+      setAiDuplicates(result.duplicates || []);
       setAiStats(result.stats);
       setResultsModalOpen(true);
       
@@ -335,6 +348,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     
     setCsvFile(null);
     setAiResults([]);
+    setAiDuplicates([]);
     setAiStats(null);
   };
 
@@ -539,6 +553,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           open={resultsModalOpen}
           onOpenChange={setResultsModalOpen}
           results={aiResults}
+          duplicates={aiDuplicates}
           stats={aiStats}
           onApply={handleApplyAssignments}
         />
