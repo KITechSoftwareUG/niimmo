@@ -373,6 +373,7 @@ export type Database = {
           kaution_status: string | null
           kuendigungsdatum: string | null
           lastschrift: boolean
+          lastschrift_wartetage: number | null
           letzte_mahnung_am: string | null
           letzte_mieterhoehung_am: string | null
           mahnstufe: number | null
@@ -407,6 +408,7 @@ export type Database = {
           kaution_status?: string | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
+          lastschrift_wartetage?: number | null
           letzte_mahnung_am?: string | null
           letzte_mieterhoehung_am?: string | null
           mahnstufe?: number | null
@@ -441,6 +443,7 @@ export type Database = {
           kaution_status?: string | null
           kuendigungsdatum?: string | null
           lastschrift?: boolean
+          lastschrift_wartetage?: number | null
           letzte_mahnung_am?: string | null
           letzte_mieterhoehung_am?: string | null
           mahnstufe?: number | null
@@ -788,6 +791,7 @@ export type Database = {
           immobilie_id: string | null
           import_datum: string | null
           kategorie: Database["public"]["Enums"]["zahlkategorien"] | null
+          lastschrift_bestaetigt_am: string | null
           mietvertrag_id: string | null
           ruecklastschrift_gebuehr: number | null
           verwendungszweck: string | null
@@ -802,6 +806,7 @@ export type Database = {
           immobilie_id?: string | null
           import_datum?: string | null
           kategorie?: Database["public"]["Enums"]["zahlkategorien"] | null
+          lastschrift_bestaetigt_am?: string | null
           mietvertrag_id?: string | null
           ruecklastschrift_gebuehr?: number | null
           verwendungszweck?: string | null
@@ -816,6 +821,7 @@ export type Database = {
           immobilie_id?: string | null
           import_datum?: string | null
           kategorie?: Database["public"]["Enums"]["zahlkategorien"] | null
+          lastschrift_bestaetigt_am?: string | null
           mietvertrag_id?: string | null
           ruecklastschrift_gebuehr?: number | null
           verwendungszweck?: string | null
