@@ -6,10 +6,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Bekannte Utility-Schlüsselwörter für Versorgungskosten
-const UTILITY_KEYWORDS = ["avacon", "darlehen", "leine", "stadtwerke", "evi", "wasserzweckverband"];
+// ============= HARTE KATEGORISIERUNGSREGELN (aus n8n) =============
 
-// BG-Zahlung IBAN (Jobcenter/Sozialamt)
+// Empfänger-basierte Regeln für "Nichtmiete" (contains/equals checks)
+const NICHTMIETE_EMPFAENGER_CONTAINS = [
+  "Avacon",     // Energieversorger
+  "Darlehen",   // Kreditzahlungen
+  "Leine ",     // Leine-Versorger (mit Leerzeichen!)
+  "Stadtwerk",  // Stadtwerke allgemein
+];
+
+const NICHTMIETE_EMPFAENGER_EQUALS = [
+  "EVI ENERGIEVERSORGUNG HILDESHEIM GMBH CO. KG",
+  "Wasserzweckverband Peine",
+];
+
+// Rücklastschrift-Erkennung im Verwendungszweck
+const RETOURE_KEYWORD = "Retoure SEPA Lastschrift";
+
+// BG-Zahlung IBAN (Jobcenter/Sozialamt - immer gleiche IBAN vom Staat)
 const BG_ZAHLUNG_IBAN = "DE94760000000076001601";
 
 interface Payment {
@@ -366,22 +381,31 @@ Analysiere die Rücklastschrift und finde den zugehörigen Mietvertrag.
   }
 }
 
-function categorizePaymentType(payment: Payment): "retoure" | "utility" | "bg_zahlung" | "standard" {
-  const verwendungszweck = payment.verwendungszweck?.toLowerCase() || "";
+// Kategorisierung nach den harten n8n-Regeln (case-sensitive wie im Original!)
+function categorizePaymentType(payment: Payment): "retoure" | "nichtmiete" | "bg_zahlung" | "standard" {
+  const verwendungszweck = payment.verwendungszweck || "";
+  const empfaenger = payment.empfaengername || "";
   
-  // Rücklastschrift erkennen
-  if (verwendungszweck.includes("retoure") || verwendungszweck.includes("rücklastschrift")) {
+  // 1. BG-Zahlung (Jobcenter) - IBAN-Match hat höchste Priorität
+  if (payment.iban === BG_ZAHLUNG_IBAN) {
+    return "bg_zahlung";
+  }
+  
+  // 2. Rücklastschrift erkennen (case-sensitive wie in n8n!)
+  if (verwendungszweck.includes(RETOURE_KEYWORD)) {
     return "retoure";
   }
   
-  // Versorgungskosten erkennen
-  if (UTILITY_KEYWORDS.some(keyword => verwendungszweck.includes(keyword))) {
-    return "utility";
+  // 3. Empfänger-basierte Nichtmiete-Erkennung (contains - case-sensitive)
+  for (const keyword of NICHTMIETE_EMPFAENGER_CONTAINS) {
+    if (empfaenger.includes(keyword)) {
+      return "nichtmiete";
+    }
   }
   
-  // BG-Zahlung (Jobcenter) erkennen
-  if (payment.iban === BG_ZAHLUNG_IBAN) {
-    return "bg_zahlung";
+  // 4. Empfänger-basierte Nichtmiete-Erkennung (equals - case-sensitive)
+  if (NICHTMIETE_EMPFAENGER_EQUALS.includes(empfaenger)) {
+    return "nichtmiete";
   }
   
   return "standard";
@@ -497,17 +521,17 @@ serve(async (req) => {
     for (const payment of newPayments) {
       const paymentType = categorizePaymentType(payment);
       
-      if (paymentType === "utility") {
-        // Versorgungskosten - automatisch kategorisieren
+      if (paymentType === "nichtmiete") {
+        // Harte Regel: Versorgungskosten/Darlehen → Nichtmiete
         results.push({
           ...payment,
           mietvertrag_id: null,
           kategorie: "Nichtmiete",
-          zuordnungsgrund: "Versorgungskosten (automatisch erkannt)",
+          zuordnungsgrund: `Harte Regel: Empfänger "${payment.empfaengername}" ist Versorger/Darlehen`,
           confidence: 100
         });
       } else if (paymentType === "retoure") {
-        // Rücklastschrift - versuche erst Regel-Matching
+        // Rücklastschrift - versuche erst IBAN-Matching für Vertragszuordnung
         const ruleMatch = matchPaymentByRules(payment, contracts);
         if (ruleMatch) {
           results.push({
@@ -519,7 +543,7 @@ serve(async (req) => {
           needsAI.push({ payment, type: "retoure" });
         }
       } else if (paymentType === "bg_zahlung") {
-        // BG-Zahlung - braucht AI wegen komplexer Namensextraktion
+        // BG-Zahlung (Jobcenter) - braucht AI wegen komplexer Namensextraktion
         needsAI.push({ payment, type: "bg_zahlung" });
       } else {
         // Standard: Erst Regel-Matching versuchen
@@ -527,7 +551,7 @@ serve(async (req) => {
         if (ruleMatch) {
           results.push(ruleMatch);
         } else {
-          // Negative Beträge ohne Match → Nichtmiete
+          // Negative Beträge ohne Match → Nichtmiete (Abbuchungen)
           if (payment.betrag < 0) {
             results.push({
               ...payment,
@@ -537,6 +561,7 @@ serve(async (req) => {
               confidence: 50
             });
           } else {
+            // Positive Zahlungen ohne Match → brauchen manuelle Zuordnung
             needsAI.push({ payment, type: "standard" });
           }
         }
