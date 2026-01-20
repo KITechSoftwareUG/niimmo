@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Upload, Search, FileText, Calendar, DollarSign } from "lucide-react";
+import { ArrowLeft, Upload, Search, FileText, Calendar, DollarSign, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,11 +10,39 @@ import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
 import { AssignPaymentDialog } from "./AssignPaymentDialog";
+import { PaymentAssignmentResultsModal } from "./PaymentAssignmentResultsModal";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCsvUploadProgress } from "@/hooks/useCsvUploadProgress";
 
 interface PaymentManagementProps {
   onBack: () => void;
+}
+
+interface ProcessedPayment {
+  buchungsdatum: string;
+  betrag: number;
+  iban: string;
+  verwendungszweck: string;
+  empfaengername?: string;
+  mietvertrag_id: string | null;
+  kategorie: string;
+  zuordnungsgrund: string;
+  confidence: number;
+  mieter_name?: string;
+  immobilie_name?: string;
+}
+
+interface AIAssignmentStats {
+  total: number;
+  zugeordnet: number;
+  nicht_zugeordnet: number;
+  nach_kategorie: {
+    miete: number;
+    mietkaution: number;
+    ruecklastschrift: number;
+    nichtmiete: number;
+  };
+  durchschnittliche_konfidenz: number;
 }
 
 export function PaymentManagement({ onBack }: PaymentManagementProps) {
@@ -23,6 +51,12 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  
+  // AI Assignment Results State
+  const [aiResults, setAiResults] = useState<ProcessedPayment[]>([]);
+  const [aiStats, setAiStats] = useState<AIAssignmentStats | null>(null);
+  const [resultsModalOpen, setResultsModalOpen] = useState(false);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isProcessing, setProcessing, reset: resetProgress } = useCsvUploadProgress();
@@ -101,6 +135,104 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     }
   };
 
+  // Parse CSV and extract payments
+  const parseCsvToPayments = async (file: File): Promise<any[]> => {
+    const text = await file.text();
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) return [];
+    
+    // Parse header
+    const headers = lines[0].split(';').map(h => h.trim().replace(/"/g, ''));
+    
+    const payments: any[] = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(';').map(v => v.trim().replace(/"/g, ''));
+      if (values.length < headers.length) continue;
+      
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx] || '';
+      });
+      
+      // Map CSV columns to payment object (adjust based on your CSV format)
+      const buchungsdatum = row['Buchungstag'] || row['Buchungsdatum'] || row['Datum'];
+      const betrag = row['Betrag'] || row['Umsatz'];
+      const iban = row['Auftraggeber-Konto'] || row['IBAN'] || row['Konto'];
+      const verwendungszweck = row['Verwendungszweck'] || row['Buchungstext'];
+      const empfaengername = row['Beguenstigter/Zahlungspflichtiger'] || row['Name'] || row['Empfänger'];
+      
+      if (!buchungsdatum || !betrag) continue;
+      
+      // Convert date from DD.MM.YYYY to YYYY-MM-DD
+      let formattedDate = buchungsdatum;
+      if (buchungsdatum.includes('.')) {
+        const [day, month, year] = buchungsdatum.split('.');
+        formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      }
+      
+      // Convert amount (German format: comma as decimal separator)
+      const betragNum = parseFloat(betrag.replace('.', '').replace(',', '.'));
+      
+      payments.push({
+        buchungsdatum: formattedDate,
+        betrag: betragNum,
+        iban: iban,
+        verwendungszweck: verwendungszweck,
+        empfaengername: empfaengername,
+      });
+    }
+    
+    return payments;
+  };
+
+  // Enrich results with tenant/property names
+  const enrichResults = async (results: ProcessedPayment[]): Promise<ProcessedPayment[]> => {
+    const contractIds = results
+      .filter(r => r.mietvertrag_id)
+      .map(r => r.mietvertrag_id as string);
+    
+    if (contractIds.length === 0) return results;
+    
+    const { data: contracts } = await supabase
+      .from('mietvertrag')
+      .select(`
+        id,
+        einheiten!inner (
+          etage,
+          immobilien!inner (
+            name
+          )
+        ),
+        mietvertrag_mieter (
+          mieter (
+            vorname,
+            nachname
+          )
+        )
+      `)
+      .in('id', contractIds);
+    
+    const contractMap = new Map();
+    contracts?.forEach((c: any) => {
+      const mieterNames = c.mietvertrag_mieter?.map((mm: any) => 
+        `${mm.mieter?.vorname || ''} ${mm.mieter?.nachname || ''}`.trim()
+      ).filter(Boolean).join(', ');
+      
+      contractMap.set(c.id, {
+        mieter_name: mieterNames || 'Unbekannt',
+        immobilie_name: `${c.einheiten?.immobilien?.name || ''} ${c.einheiten?.etage || ''}`.trim()
+      });
+    });
+    
+    return results.map(r => ({
+      ...r,
+      mieter_name: r.mietvertrag_id ? contractMap.get(r.mietvertrag_id)?.mieter_name : undefined,
+      immobilie_name: r.mietvertrag_id ? contractMap.get(r.mietvertrag_id)?.immobilie_name : undefined,
+    }));
+  };
+
   const handleProcessCsv = async () => {
     if (!csvFile) {
       toast({
@@ -121,54 +253,42 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     }
 
     setIsUploading(true);
+    setProcessing(true, csvFile.name);
     
     try {
-      // Send to webhook for processing using FormData
-      const webhookUrl = 'https://k01-2025-u36730.vm.elestio.app/webhook/csv-upload';
+      // Parse CSV locally
+      const payments = await parseCsvToPayments(csvFile);
       
-      // Create FormData and append file with the field name 'file'
-      const formData = new FormData();
-      formData.append('file', csvFile, csvFile.name);
-      
-      // Start global processing indicator immediately after sending
-      setProcessing(true, csvFile.name);
-      
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        body: formData,
-        // Don't set Content-Type header - it will be set automatically with boundary
-      });
-
-      if (!response.ok) {
-        resetProgress();
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (payments.length === 0) {
+        throw new Error("Keine gültigen Zahlungen in der CSV gefunden");
       }
-
-      // Wait for n8n to process and respond when done
-      const result = await response.json();
-
-      // Create upload record
-      await supabase.from('csv_uploads').insert({
-        dateiname: csvFile.name,
-        dateigroe_bytes: csvFile.size,
-        anzahl_datensaetze: result.recordCount || 0,
-        status: 'verarbeitet',
-      });
-
-      // Stop the progress bar - processing is complete
-      resetProgress();
-
+      
       toast({
-        title: "CSV erfolgreich verarbeitet",
-        description: `${result.recordCount || 0} Datensätze wurden importiert und zugeordnet.`,
+        title: "CSV geladen",
+        description: `${payments.length} Zahlungen werden von der AI analysiert...`,
       });
-
-      // Refresh data
-      await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
-      await queryClient.invalidateQueries({ queryKey: ['last-csv-upload'] });
-      await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
-
-      setCsvFile(null);
+      
+      // Call AI Edge Function for assignment (dry run first)
+      const { data: result, error } = await supabase.functions.invoke('process-payments', {
+        body: { payments, dryRun: true }
+      });
+      
+      if (error) throw error;
+      
+      if (!result.success) {
+        throw new Error(result.error || "AI-Verarbeitung fehlgeschlagen");
+      }
+      
+      // Enrich results with names
+      const enrichedResults = await enrichResults(result.results);
+      
+      // Store results and show modal
+      setAiResults(enrichedResults);
+      setAiStats(result.stats);
+      setResultsModalOpen(true);
+      
+      resetProgress();
+      
     } catch (error: any) {
       console.error('CSV processing error:', error);
       resetProgress();
@@ -180,6 +300,42 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // Apply AI assignments to database
+  const handleApplyAssignments = async () => {
+    const assignmentsToApply = aiResults.filter(r => r.mietvertrag_id);
+    
+    for (const result of assignmentsToApply) {
+      // Find existing payment by matching criteria
+      const { error } = await supabase
+        .from('zahlungen')
+        .update({
+          mietvertrag_id: result.mietvertrag_id,
+          kategorie: result.kategorie as any,
+        })
+        .eq('buchungsdatum', result.buchungsdatum)
+        .eq('betrag', result.betrag)
+        .eq('iban', result.iban);
+      
+      if (error) {
+        console.error("Assignment update error:", error);
+      }
+    }
+    
+    // Create upload record
+    if (csvFile) {
+      await supabase.from('csv_uploads').insert({
+        dateiname: csvFile.name,
+        dateigroe_bytes: csvFile.size,
+        anzahl_datensaetze: aiResults.length,
+        status: 'verarbeitet',
+      });
+    }
+    
+    setCsvFile(null);
+    setAiResults([]);
+    setAiStats(null);
   };
 
   const handleAssignPayment = (payment: any) => {
@@ -266,20 +422,15 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
               disabled={!csvFile || isUploading || isProcessing}
               className="w-full"
             >
-              {isUploading ? (
+              {isUploading || isProcessing ? (
                 <>
-                  <Upload className="mr-2 h-4 w-4 animate-pulse" />
-                  Datei wird hochgeladen...
-                </>
-              ) : isProcessing ? (
-                <>
-                  <Upload className="mr-2 h-4 w-4 animate-pulse" />
-                  Wird in n8n verarbeitet...
+                  <Bot className="mr-2 h-4 w-4 animate-pulse" />
+                  AI analysiert Zahlungen...
                 </>
               ) : (
                 <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Zahlungsdaten verarbeiten
+                  <Bot className="mr-2 h-4 w-4" />
+                  Mit AI zuordnen
                 </>
               )}
             </Button>
@@ -381,6 +532,17 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         onOpenChange={setAssignDialogOpen}
         payment={selectedPayment}
       />
+
+      {/* AI Assignment Results Modal */}
+      {aiStats && (
+        <PaymentAssignmentResultsModal
+          open={resultsModalOpen}
+          onOpenChange={setResultsModalOpen}
+          results={aiResults}
+          stats={aiStats}
+          onApply={handleApplyAssignments}
+        />
+      )}
     </div>
   );
 }
