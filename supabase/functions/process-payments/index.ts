@@ -6,31 +6,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ============= HARTE KATEGORISIERUNGSREGELN (aus n8n) =============
-
-// Empfänger-basierte Regeln für "Nichtmiete" (contains/equals checks)
-const NICHTMIETE_EMPFAENGER_CONTAINS = [
-  "Avacon",     // Energieversorger
-  "Darlehen",   // Kreditzahlungen
-  "Leine ",     // Leine-Versorger (mit Leerzeichen!)
-  "Stadtwerk",  // Stadtwerke allgemein
-];
-
-const NICHTMIETE_EMPFAENGER_EQUALS = [
-  "EVI ENERGIEVERSORGUNG HILDESHEIM GMBH CO. KG",
-  "Wasserzweckverband Peine",
-];
-
-// Rücklastschrift-Erkennung im Verwendungszweck
-const RETOURE_KEYWORD = "Retoure SEPA Lastschrift";
-
 // BG-Zahlung IBAN (Jobcenter/Sozialamt - immer gleiche IBAN vom Staat)
 const BG_ZAHLUNG_IBAN = "DE94760000000076001601";
 
+// ============= INTERFACES =============
+
 interface Payment {
-  // Buchungstag aus CSV (wird im Frontend als buchungsdatum gemappt)
   buchungsdatum: string;
-  // Optional: Wertstellung/Valuta aus CSV, um Duplikate trotz Datums-Drift zu erkennen
   wertstellungsdatum?: string;
   betrag: number;
   iban: string;
@@ -43,11 +25,13 @@ interface ProcessedPayment extends Payment {
   kategorie: string;
   zuordnungsgrund: string;
   confidence: number;
+  selected?: boolean; // For UI checkbox state
 }
 
 interface ContractInfo {
   id: string;
   mieter: string;
+  mieterNamen: string[]; // Array of individual names for fuzzy matching
   gesamtmiete: number;
   kaution: number | null;
   iban: string | null;
@@ -57,6 +41,68 @@ interface ContractInfo {
   etage: string | null;
   status: string;
 }
+
+interface NichtmieteRegel {
+  id: string;
+  regel_typ: "empfaenger_contains" | "empfaenger_equals" | "iban_equals" | "verwendungszweck_contains";
+  wert: string;
+  beschreibung: string | null;
+  aktiv: boolean;
+}
+
+// ============= FUZZY MATCHING (Levenshtein Distance) =============
+
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  
+  return matrix[b.length][a.length];
+}
+
+function fuzzyMatch(text: string, searchTerm: string, maxDistance: number = 2): boolean {
+  if (!text || !searchTerm) return false;
+  
+  const textLower = text.toLowerCase();
+  const searchLower = searchTerm.toLowerCase();
+  
+  // Exact match first
+  if (textLower.includes(searchLower)) return true;
+  
+  // Split into words and check each
+  const words = textLower.split(/\s+/);
+  for (const word of words) {
+    if (word.length >= 3 && searchLower.length >= 3) {
+      const distance = levenshteinDistance(word, searchLower);
+      // Allow proportional distance based on word length
+      const allowedDistance = Math.min(maxDistance, Math.floor(searchLower.length / 3));
+      if (distance <= allowedDistance) return true;
+    }
+  }
+  
+  return false;
+}
+
+// ============= AI CALL =============
 
 async function callAI(systemPrompt: string, userPrompt: string): Promise<any> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -127,6 +173,22 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<any> {
   throw new Error("Keine gültige AI-Antwort erhalten");
 }
 
+// ============= DB CONTEXT LOADING =============
+
+async function getNichtmieteRegeln(supabase: any): Promise<NichtmieteRegel[]> {
+  const { data, error } = await supabase
+    .from("nichtmiete_regeln")
+    .select("*")
+    .eq("aktiv", true);
+  
+  if (error) {
+    console.error("Error fetching nichtmiete_regeln:", error);
+    return [];
+  }
+  
+  return data || [];
+}
+
 async function getContractContext(supabase: any): Promise<ContractInfo[]> {
   const { data: contracts, error } = await supabase
     .from("mietvertrag")
@@ -166,16 +228,28 @@ async function getContractContext(supabase: any): Promise<ContractInfo[]> {
   }
 
   return contracts.map((c: any) => {
-    const mieter = c.mietvertrag_mieter?.map((mm: any) => 
-      `${mm.mieter?.vorname || ""} ${mm.mieter?.nachname || ""}`.trim()
-    ).filter(Boolean).join(", ") || "Unbekannt";
+    const mieterNames: string[] = [];
+    const mieterDisplay: string[] = [];
+    
+    c.mietvertrag_mieter?.forEach((mm: any) => {
+      const vorname = mm.mieter?.vorname || "";
+      const nachname = mm.mieter?.nachname || "";
+      const fullName = `${vorname} ${nachname}`.trim();
+      if (fullName) {
+        mieterDisplay.push(fullName);
+        // Add individual parts for fuzzy matching
+        if (vorname) mieterNames.push(vorname.toLowerCase());
+        if (nachname) mieterNames.push(nachname.toLowerCase());
+      }
+    });
     
     const immobilie = c.einheiten?.immobilien;
     const gesamtmiete = (c.kaltmiete || 0) + (c.betriebskosten || 0);
     
     return {
       id: c.id,
-      mieter,
+      mieter: mieterDisplay.join(", ") || "Unbekannt",
+      mieterNamen: mieterNames,
       gesamtmiete,
       kaution: c.kaution_betrag,
       iban: c.bankkonto_mieter,
@@ -188,84 +262,136 @@ async function getContractContext(supabase: any): Promise<ContractInfo[]> {
   });
 }
 
-// Rule-based matching without AI - fast and reliable
+// ============= CATEGORIZATION WITH DB RULES =============
+
+function categorizePaymentType(
+  payment: Payment, 
+  regeln: NichtmieteRegel[]
+): "retoure" | "nichtmiete" | "bg_zahlung" | "standard" {
+  const verwendungszweck = payment.verwendungszweck || "";
+  const empfaenger = payment.empfaengername || "";
+  
+  // 1. BG-Zahlung (Jobcenter) - IBAN-Match hat höchste Priorität
+  if (payment.iban === BG_ZAHLUNG_IBAN) {
+    return "bg_zahlung";
+  }
+  
+  // 2. Check DB rules
+  for (const regel of regeln) {
+    switch (regel.regel_typ) {
+      case "verwendungszweck_contains":
+        // Special case: Rücklastschrift detection
+        if (verwendungszweck.includes(regel.wert)) {
+          if (regel.wert.toLowerCase().includes("retoure") || 
+              regel.wert.toLowerCase().includes("rücklastschrift") ||
+              regel.wert.toLowerCase().includes("lastschrift")) {
+            return "retoure";
+          }
+          return "nichtmiete";
+        }
+        break;
+      case "empfaenger_contains":
+        if (empfaenger.includes(regel.wert)) {
+          return "nichtmiete";
+        }
+        break;
+      case "empfaenger_equals":
+        if (empfaenger === regel.wert) {
+          return "nichtmiete";
+        }
+        break;
+      case "iban_equals":
+        if (payment.iban === regel.wert) {
+          return "nichtmiete";
+        }
+        break;
+    }
+  }
+  
+  return "standard";
+}
+
+// ============= RULE-BASED MATCHING =============
+
+const BETRAG_TOLERANZ = 5; // ±5€ tolerance
+
 function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): ProcessedPayment | null {
   const verwendungszweck = payment.verwendungszweck?.toLowerCase() || "";
   const empfaenger = payment.empfaengername?.toLowerCase() || "";
   
-  // 1. IBAN-Match (highest priority)
+  // 1. IBAN-Match (highest priority - includes weitere_bankkonten)
   for (const contract of contracts) {
+    // Primary IBAN
     if (contract.iban && payment.iban === contract.iban) {
       const isKaution = verwendungszweck.includes("kaution") && 
                         contract.kaution && 
-                        Math.abs(payment.betrag - contract.kaution) < 5;
+                        Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
       return {
         ...payment,
         mietvertrag_id: contract.id,
         kategorie: isKaution ? "Mietkaution" : "Miete",
         zuordnungsgrund: `IBAN-Match: ${contract.mieter}`,
-        confidence: 95
+        confidence: 95,
+        selected: true
       };
     }
     
-    // Check weitere_bankkonten (could be comma-separated)
+    // Weitere Bankkonten (comma-separated)
     if (contract.weitere_iban) {
       const weitereIbans = contract.weitere_iban.split(',').map(i => i.trim());
       if (weitereIbans.includes(payment.iban)) {
         const isKaution = verwendungszweck.includes("kaution") && 
                           contract.kaution && 
-                          Math.abs(payment.betrag - contract.kaution) < 5;
+                          Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
         return {
           ...payment,
           mietvertrag_id: contract.id,
           kategorie: isKaution ? "Mietkaution" : "Miete",
           zuordnungsgrund: `Weitere IBAN-Match: ${contract.mieter}`,
-          confidence: 90
+          confidence: 90,
+          selected: true
         };
       }
     }
   }
   
-  // 2. Verwendungszweck-Match (check if contract's verwendungszweck is in payment)
+  // 2. Verwendungszweck-Match (contract's keywords in payment)
   for (const contract of contracts) {
     if (contract.verwendungszweck && Array.isArray(contract.verwendungszweck)) {
       for (const vzweck of contract.verwendungszweck) {
         if (vzweck && verwendungszweck.includes(vzweck.toLowerCase())) {
           const isKaution = verwendungszweck.includes("kaution") && 
                             contract.kaution && 
-                            Math.abs(payment.betrag - contract.kaution) < 5;
+                            Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
           return {
             ...payment,
             mietvertrag_id: contract.id,
             kategorie: isKaution ? "Mietkaution" : "Miete",
             zuordnungsgrund: `Verwendungszweck-Match: "${vzweck}" für ${contract.mieter}`,
-            confidence: 85
+            confidence: 85,
+            selected: true
           };
         }
       }
     }
   }
   
-  // 3. Name-Match (check if tenant name appears in verwendungszweck or empfänger)
+  // 3. Fuzzy Name-Match (tenant name in verwendungszweck or empfänger)
   for (const contract of contracts) {
-    const mieterNames = contract.mieter.toLowerCase().split(",").map(n => n.trim());
-    
-    for (const name of mieterNames) {
-      if (name.length > 3) { // Avoid matching short names like "Max"
-        const nameParts = name.split(" ").filter(p => p.length > 2);
-        
-        // Check if last name (usually more unique) is in verwendungszweck or empfänger
-        const lastName = nameParts[nameParts.length - 1];
-        if (lastName && (verwendungszweck.includes(lastName) || empfaenger.includes(lastName))) {
+    for (const name of contract.mieterNamen) {
+      if (name.length >= 3) {
+        // Check with fuzzy matching
+        if (fuzzyMatch(verwendungszweck, name) || fuzzyMatch(empfaenger, name)) {
           const isKaution = verwendungszweck.includes("kaution") && 
                             contract.kaution && 
-                            Math.abs(payment.betrag - contract.kaution) < 5;
+                            Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
           return {
             ...payment,
             mietvertrag_id: contract.id,
             kategorie: isKaution ? "Mietkaution" : "Miete",
-            zuordnungsgrund: `Namen-Match: "${lastName}" für ${contract.mieter}`,
-            confidence: 75
+            zuordnungsgrund: `Namen-Match: "${name}" für ${contract.mieter}`,
+            confidence: 75,
+            selected: true
           };
         }
       }
@@ -274,27 +400,29 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
   
   // 4. Amount-Match with tolerance (only if unique match)
   const amountMatches = contracts.filter(c => 
-    Math.abs(c.gesamtmiete - payment.betrag) < 5 && payment.betrag > 0
+    Math.abs(c.gesamtmiete - payment.betrag) <= BETRAG_TOLERANZ && payment.betrag > 0
   );
   
   if (amountMatches.length === 1) {
     const contract = amountMatches[0];
     const isKaution = verwendungszweck.includes("kaution") && 
                       contract.kaution && 
-                      Math.abs(payment.betrag - contract.kaution) < 5;
+                      Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
     return {
       ...payment,
       mietvertrag_id: contract.id,
       kategorie: isKaution ? "Mietkaution" : "Miete",
-      zuordnungsgrund: `Betrags-Match (eindeutig): ${contract.gesamtmiete}€ für ${contract.mieter}`,
-      confidence: 60
+      zuordnungsgrund: `Betrags-Match (eindeutig ±${BETRAG_TOLERANZ}€): ${contract.gesamtmiete}€ für ${contract.mieter}`,
+      confidence: 60,
+      selected: true
     };
   }
   
   return null;
 }
 
-// Process BG-Zahlung (Jobcenter) with AI
+// ============= AI PROCESSING =============
+
 async function processBGZahlung(
   payment: Payment, 
   contractContext: string
@@ -326,7 +454,8 @@ Finde den passenden Mieter und kategorisiere die Zahlung.`;
       mietvertrag_id: result.mietvertrag_id || null,
       kategorie: result.kategorie || "Miete",
       zuordnungsgrund: result.zuordnungsgrund,
-      confidence: result.confidence
+      confidence: result.confidence,
+      selected: true
     };
   } catch (error) {
     console.error("BG-Zahlung AI Error:", error);
@@ -335,12 +464,12 @@ Finde den passenden Mieter und kategorisiere die Zahlung.`;
       mietvertrag_id: null,
       kategorie: "Miete",
       zuordnungsgrund: "AI-Fehler bei BG-Zahlung",
-      confidence: 0
+      confidence: 0,
+      selected: false
     };
   }
 }
 
-// Process Rücklastschrift with AI
 async function processRuecklastschrift(
   payment: Payment, 
   contractContext: string
@@ -370,7 +499,8 @@ Analysiere die Rücklastschrift und finde den zugehörigen Mietvertrag.
       mietvertrag_id: result.mietvertrag_id || null,
       kategorie: "Rücklastschrift",
       zuordnungsgrund: result.zuordnungsgrund,
-      confidence: result.confidence
+      confidence: result.confidence,
+      selected: true
     };
   } catch (error) {
     console.error("Rücklastschrift AI Error:", error);
@@ -379,40 +509,13 @@ Analysiere die Rücklastschrift und finde den zugehörigen Mietvertrag.
       mietvertrag_id: null,
       kategorie: "Rücklastschrift",
       zuordnungsgrund: "AI-Fehler bei Rücklastschrift",
-      confidence: 0
+      confidence: 0,
+      selected: false
     };
   }
 }
 
-// Kategorisierung nach den harten n8n-Regeln (case-sensitive wie im Original!)
-function categorizePaymentType(payment: Payment): "retoure" | "nichtmiete" | "bg_zahlung" | "standard" {
-  const verwendungszweck = payment.verwendungszweck || "";
-  const empfaenger = payment.empfaengername || "";
-  
-  // 1. BG-Zahlung (Jobcenter) - IBAN-Match hat höchste Priorität
-  if (payment.iban === BG_ZAHLUNG_IBAN) {
-    return "bg_zahlung";
-  }
-  
-  // 2. Rücklastschrift erkennen (case-sensitive wie in n8n!)
-  if (verwendungszweck.includes(RETOURE_KEYWORD)) {
-    return "retoure";
-  }
-  
-  // 3. Empfänger-basierte Nichtmiete-Erkennung (contains - case-sensitive)
-  for (const keyword of NICHTMIETE_EMPFAENGER_CONTAINS) {
-    if (empfaenger.includes(keyword)) {
-      return "nichtmiete";
-    }
-  }
-  
-  // 4. Empfänger-basierte Nichtmiete-Erkennung (equals - case-sensitive)
-  if (NICHTMIETE_EMPFAENGER_EQUALS.includes(empfaenger)) {
-    return "nichtmiete";
-  }
-  
-  return "standard";
-}
+// ============= MAIN HANDLER =============
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -435,10 +538,16 @@ serve(async (req) => {
 
     console.log(`Received ${payments.length} payments (dryRun: ${dryRun})`);
 
+    // Load DB rules and contracts in parallel
+    const [nichtmieteRegeln, contracts] = await Promise.all([
+      getNichtmieteRegeln(supabase),
+      getContractContext(supabase)
+    ]);
+    
+    console.log(`Loaded ${nichtmieteRegeln.length} Nichtmiete-Regeln, ${contracts.length} contracts`);
+    const contractContextString = JSON.stringify(contracts, null, 2);
+
     // ============= DUPLIKATSPRÜFUNG =============
-    // Robust: match on (betrag + IBAN + Verwendungszweck) und akzeptiere sowohl Buchungstag
-    // als auch Wertstellung/Valuta, da historische Imports teilweise das jeweils andere Datum
-    // als `buchungsdatum` gespeichert haben.
     const duplicateChecks = await Promise.all(
       payments.map(async (payment: Payment) => {
         const betrag = payment.betrag;
@@ -449,10 +558,7 @@ serve(async (req) => {
           new Set([payment.buchungsdatum, payment.wertstellungsdatum].filter(Boolean) as string[])
         );
 
-        // 1) Exakt-Match auf betrag + (buchungsdatum ODER wertstellungsdatum) + iban + verwendungszweck
-        let match:
-          | { id: string; iban: string | null; verwendungszweck: string | null; buchungsdatum: string }
-          | undefined;
+        let match: { id: string; iban: string | null; verwendungszweck: string | null; buchungsdatum: string } | undefined;
 
         if (candidateDates.length > 0) {
           const { data } = await supabase
@@ -470,7 +576,7 @@ serve(async (req) => {
           });
         }
 
-        // 2) Fallback: kleiner Datums-Drift (z.B. Jahreswechsel Buchungstag vs. Valuta)
+        // Fallback: date drift ±5 days
         if (!match && payment.buchungsdatum) {
           const base = new Date(`${payment.buchungsdatum}T00:00:00Z`);
           if (!Number.isNaN(base.getTime())) {
@@ -515,7 +621,6 @@ serve(async (req) => {
 
     console.log(`Duplikatsprüfung: ${newPayments.length} neue, ${duplicates.length} bereits vorhanden`);
 
-    // Falls keine neuen Zahlungen, gib früh zurück
     if (newPayments.length === 0) {
       return new Response(
         JSON.stringify({ 
@@ -537,28 +642,23 @@ serve(async (req) => {
       );
     }
 
-    // Hole Vertragskontext
-    const contracts = await getContractContext(supabase);
-    const contractContextString = JSON.stringify(contracts, null, 2);
-
     const results: ProcessedPayment[] = [];
     const needsAI: { payment: Payment; type: string }[] = [];
 
-    // PHASE 1: Fast rule-based matching (no AI)
+    // PHASE 1: Fast rule-based matching
     for (const payment of newPayments) {
-      const paymentType = categorizePaymentType(payment);
+      const paymentType = categorizePaymentType(payment, nichtmieteRegeln);
       
       if (paymentType === "nichtmiete") {
-        // Harte Regel: Versorgungskosten/Darlehen → Nichtmiete
         results.push({
           ...payment,
           mietvertrag_id: null,
           kategorie: "Nichtmiete",
-          zuordnungsgrund: `Harte Regel: Empfänger "${payment.empfaengername}" ist Versorger/Darlehen`,
-          confidence: 100
+          zuordnungsgrund: `DB-Regel: Empfänger/Verwendungszweck als Versorger/Darlehen erkannt`,
+          confidence: 100,
+          selected: true
         });
       } else if (paymentType === "retoure") {
-        // Rücklastschrift - versuche erst IBAN-Matching für Vertragszuordnung
         const ruleMatch = matchPaymentByRules(payment, contracts);
         if (ruleMatch) {
           results.push({
@@ -570,25 +670,22 @@ serve(async (req) => {
           needsAI.push({ payment, type: "retoure" });
         }
       } else if (paymentType === "bg_zahlung") {
-        // BG-Zahlung (Jobcenter) - braucht AI wegen komplexer Namensextraktion
         needsAI.push({ payment, type: "bg_zahlung" });
       } else {
-        // Standard: Erst Regel-Matching versuchen
         const ruleMatch = matchPaymentByRules(payment, contracts);
         if (ruleMatch) {
           results.push(ruleMatch);
         } else {
-          // Negative Beträge ohne Match → Nichtmiete (Abbuchungen)
           if (payment.betrag < 0) {
             results.push({
               ...payment,
               mietvertrag_id: null,
               kategorie: "Nichtmiete",
               zuordnungsgrund: "Abbuchung ohne Vertragszuordnung",
-              confidence: 50
+              confidence: 50,
+              selected: true
             });
           } else {
-            // Positive Zahlungen ohne Match → brauchen manuelle Zuordnung
             needsAI.push({ payment, type: "standard" });
           }
         }
@@ -597,8 +694,8 @@ serve(async (req) => {
 
     console.log(`Rule-based: ${results.length} matched, ${needsAI.length} need AI`);
 
-    // PHASE 2: AI processing for unmatched payments (limited batch)
-    const MAX_AI_CALLS = 20; // Limit AI calls to prevent timeout
+    // PHASE 2: AI processing (limited batch)
+    const MAX_AI_CALLS = 20;
     const aiQueue = needsAI.slice(0, MAX_AI_CALLS);
     const skippedAI = needsAI.slice(MAX_AI_CALLS);
 
@@ -612,37 +709,35 @@ serve(async (req) => {
       } else if (type === "retoure") {
         processed = await processRuecklastschrift(payment, contractContextString);
       } else {
-        // For standard payments that couldn't be rule-matched, mark as unknown
         processed = {
           ...payment,
           mietvertrag_id: null,
           kategorie: "Nichtmiete",
           zuordnungsgrund: "Keine automatische Zuordnung möglich",
-          confidence: 0
+          confidence: 0,
+          selected: false
         };
       }
       
       results.push(processed);
-      
-      // Small delay between AI calls
       await new Promise(resolve => setTimeout(resolve, 200));
     }
 
-    // Add skipped payments as unprocessed
     for (const { payment } of skippedAI) {
       results.push({
         ...payment,
         mietvertrag_id: null,
         kategorie: "Nichtmiete",
         zuordnungsgrund: "Nicht verarbeitet (Batch-Limit)",
-        confidence: 0
+        confidence: 0,
+        selected: false
       });
     }
 
-    // Optional: In DB speichern wenn nicht dryRun
+    // Optional: Save to DB if not dryRun
     if (!dryRun) {
       for (const result of results) {
-        if (result.mietvertrag_id) {
+        if (result.mietvertrag_id && result.selected !== false) {
           const { error } = await supabase
             .from("zahlungen")
             .update({
@@ -660,7 +755,7 @@ serve(async (req) => {
       }
     }
 
-    // Statistiken erstellen
+    // Statistics
     const stats = {
       total: payments.length,
       neue: newPayments.length,

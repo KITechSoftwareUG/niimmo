@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy, CheckCheck, Square } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ interface ProcessedPayment {
   confidence: number;
   mieter_name?: string;
   immobilie_name?: string;
+  selected?: boolean;
 }
 
 interface DuplicatePayment {
@@ -60,7 +62,7 @@ interface PaymentAssignmentResultsModalProps {
   results: ProcessedPayment[];
   duplicates: DuplicatePayment[];
   stats: Stats;
-  onApply: () => Promise<void>;
+  onApply: (selectedResults: ProcessedPayment[]) => Promise<void>;
 }
 
 export function PaymentAssignmentResultsModal({
@@ -72,19 +74,64 @@ export function PaymentAssignmentResultsModal({
   onApply,
 }: PaymentAssignmentResultsModalProps) {
   const [isApplying, setIsApplying] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+    // Default: select all results with mietvertrag_id
+    const defaultSelected = new Set<string>();
+    results.forEach((r, idx) => {
+      if (r.mietvertrag_id || r.kategorie !== "Nichtmiete") {
+        defaultSelected.add(`${idx}`);
+      }
+    });
+    return defaultSelected;
+  });
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Recalculate selected when results change
+  useMemo(() => {
+    const newSelected = new Set<string>();
+    results.forEach((r, idx) => {
+      if (r.selected !== false && (r.mietvertrag_id || r.kategorie !== "Nichtmiete")) {
+        newSelected.add(`${idx}`);
+      }
+    });
+    setSelectedIds(newSelected);
+  }, [results]);
+
+  const toggleSelection = (idx: number) => {
+    const key = `${idx}`;
+    const newSet = new Set(selectedIds);
+    if (newSet.has(key)) {
+      newSet.delete(key);
+    } else {
+      newSet.add(key);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const selectAll = () => {
+    const newSet = new Set<string>();
+    results.forEach((_, idx) => newSet.add(`${idx}`));
+    setSelectedIds(newSet);
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const selectedResults = results.filter((_, idx) => selectedIds.has(`${idx}`));
+  const selectedWithAssignment = selectedResults.filter(r => r.mietvertrag_id);
 
   const handleApply = async () => {
     setIsApplying(true);
     try {
-      await onApply();
+      await onApply(selectedResults);
       toast({
         title: "Zuordnungen übernommen",
-        description: `${stats.zugeordnet} Zahlungen wurden erfolgreich zugeordnet.`,
+        description: `${selectedWithAssignment.length} Zahlungen wurden erfolgreich zugeordnet.`,
       });
       onOpenChange(false);
-      // Refresh data
       await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
       await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
     } catch (error) {
@@ -157,6 +204,30 @@ export function PaymentAssignmentResultsModal({
           </div>
         </div>
 
+        {/* Selection Controls */}
+        <div className="flex items-center justify-between py-2 border-b flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-muted-foreground">
+              {selectedIds.size} von {results.length} ausgewählt
+            </span>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={selectAll} className="h-7 text-xs">
+                <CheckCheck className="h-3 w-3 mr-1" />
+                Alle
+              </Button>
+              <Button variant="ghost" size="sm" onClick={deselectAll} className="h-7 text-xs">
+                <Square className="h-3 w-3 mr-1" />
+                Keine
+              </Button>
+            </div>
+          </div>
+          {selectedWithAssignment.length > 0 && (
+            <Badge variant="outline" className="bg-green-50 text-green-700">
+              {selectedWithAssignment.length} mit Zuordnung
+            </Badge>
+          )}
+        </div>
+
         {/* Duplicates Info */}
         {duplicates.length > 0 && (
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-2 text-sm flex-shrink-0">
@@ -173,7 +244,13 @@ export function PaymentAssignmentResultsModal({
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableHead className="w-[50px]">Status</TableHead>
+                  <TableHead className="w-[40px]">
+                    <Checkbox 
+                      checked={selectedIds.size === results.length && results.length > 0}
+                      onCheckedChange={(checked) => checked ? selectAll() : deselectAll()}
+                    />
+                  </TableHead>
+                  <TableHead className="w-[40px]">Status</TableHead>
                   <TableHead className="w-[90px]">Datum</TableHead>
                   <TableHead className="text-right w-[100px]">Betrag</TableHead>
                   <TableHead>Verwendungszweck</TableHead>
@@ -183,55 +260,67 @@ export function PaymentAssignmentResultsModal({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {results.map((result, idx) => (
-                  <TableRow key={idx} className={result.mietvertrag_id ? "" : "bg-amber-50/50"}>
-                    <TableCell className="py-2">
-                      {result.mietvertrag_id ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap py-2 text-sm">
-                      {format(new Date(result.buchungsdatum), "dd.MM.yy")}
-                    </TableCell>
-                    <TableCell className={`text-right font-medium whitespace-nowrap py-2 text-sm ${
-                      result.betrag < 0 ? "text-destructive" : "text-green-600"
-                    }`}>
-                      {result.betrag.toFixed(2)} €
-                    </TableCell>
-                    <TableCell className="max-w-[180px] py-2">
-                      <div className="truncate text-xs" title={result.verwendungszweck}>
-                        {result.verwendungszweck || "-"}
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">{getKategorieBadge(result.kategorie)}</TableCell>
-                    <TableCell className="py-2">
-                      <div className="text-xs">
-                        {result.mieter_name && (
-                          <div className="font-medium">{result.mieter_name}</div>
+                {results.map((result, idx) => {
+                  const isSelected = selectedIds.has(`${idx}`);
+                  return (
+                    <TableRow 
+                      key={idx} 
+                      className={`${result.mietvertrag_id ? "" : "bg-amber-50/50"} ${!isSelected ? "opacity-50" : ""}`}
+                    >
+                      <TableCell className="py-2">
+                        <Checkbox 
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelection(idx)}
+                        />
+                      </TableCell>
+                      <TableCell className="py-2">
+                        {result.mietvertrag_id ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
                         )}
-                        {result.immobilie_name && (
-                          <div className="text-muted-foreground">{result.immobilie_name}</div>
-                        )}
-                        <div className="text-muted-foreground mt-0.5">
-                          {result.zuordnungsgrund}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap py-2 text-sm">
+                        {format(new Date(result.buchungsdatum), "dd.MM.yy")}
+                      </TableCell>
+                      <TableCell className={`text-right font-medium whitespace-nowrap py-2 text-sm ${
+                        result.betrag < 0 ? "text-destructive" : "text-green-600"
+                      }`}>
+                        {result.betrag.toFixed(2)} €
+                      </TableCell>
+                      <TableCell className="max-w-[180px] py-2">
+                        <div className="truncate text-xs" title={result.verwendungszweck}>
+                          {result.verwendungszweck || "-"}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-2">{getConfidenceBadge(result.confidence)}</TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="py-2">{getKategorieBadge(result.kategorie)}</TableCell>
+                      <TableCell className="py-2">
+                        <div className="text-xs">
+                          {result.mieter_name && (
+                            <div className="font-medium">{result.mieter_name}</div>
+                          )}
+                          {result.immobilie_name && (
+                            <div className="text-muted-foreground">{result.immobilie_name}</div>
+                          )}
+                          <div className="text-muted-foreground mt-0.5">
+                            {result.zuordnungsgrund}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2">{getConfidenceBadge(result.confidence)}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </ScrollArea>
         </div>
 
-        <DialogFooter className="pt-4 border-t">
+        <DialogFooter className="pt-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Abbrechen
           </Button>
-          <Button onClick={handleApply} disabled={isApplying || stats.zugeordnet === 0}>
+          <Button onClick={handleApply} disabled={isApplying || selectedIds.size === 0}>
             {isApplying ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -240,7 +329,7 @@ export function PaymentAssignmentResultsModal({
             ) : (
               <>
                 <ArrowRight className="mr-2 h-4 w-4" />
-                {stats.zugeordnet} Zuordnungen übernehmen
+                {selectedIds.size} Zahlungen übernehmen
               </>
             )}
           </Button>
