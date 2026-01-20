@@ -27,6 +27,19 @@ interface ProcessedPayment extends Payment {
   confidence: number;
 }
 
+interface ContractInfo {
+  id: string;
+  mieter: string;
+  gesamtmiete: number;
+  kaution: number | null;
+  iban: string | null;
+  weitere_iban: string | null;
+  verwendungszweck: string[] | null;
+  immobilie: string;
+  etage: string | null;
+  status: string;
+}
+
 async function callAI(systemPrompt: string, userPrompt: string): Promise<any> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY nicht konfiguriert");
@@ -96,8 +109,7 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<any> {
   throw new Error("Keine gültige AI-Antwort erhalten");
 }
 
-async function getContractContext(supabase: any): Promise<string> {
-  // Hole alle aktiven Mietverträge mit Mietern und Einheiten
+async function getContractContext(supabase: any): Promise<ContractInfo[]> {
   const { data: contracts, error } = await supabase
     .from("mietvertrag")
     .select(`
@@ -132,11 +144,10 @@ async function getContractContext(supabase: any): Promise<string> {
 
   if (error) {
     console.error("Error fetching contracts:", error);
-    return "Keine Vertragsdaten verfügbar";
+    return [];
   }
 
-  // Formatiere die Vertragsdaten für den AI-Kontext
-  const contractInfo = contracts.map((c: any) => {
+  return contracts.map((c: any) => {
     const mieter = c.mietvertrag_mieter?.map((mm: any) => 
       `${mm.mieter?.vorname || ""} ${mm.mieter?.nachname || ""}`.trim()
     ).filter(Boolean).join(", ") || "Unbekannt";
@@ -157,53 +168,115 @@ async function getContractContext(supabase: any): Promise<string> {
       status: c.status
     };
   });
-
-  return JSON.stringify(contractInfo, null, 2);
 }
 
-async function processRuecklastschrift(
-  payment: Payment, 
-  contractContext: string
-): Promise<ProcessedPayment> {
-  const systemPrompt = `Du bist ein Experte für die Zuordnung von Rücklastschriften in einer Immobilienverwaltung.
-
-KONTEXT - Aktive Mietverträge:
-${contractContext}
-
-AUFGABE:
-Analysiere die Rücklastschrift und finde den zugehörigen Mietvertrag.
-- Suche im Verwendungszweck nach Hinweisen auf Objekt, Einheit oder Mietername
-- Die Original-Lastschrift wurde vom Mieterkonto eingezogen und dann zurückgebucht
-- Kategorie ist IMMER "Rücklastschrift"`;
-
-  const userPrompt = `Rücklastschrift analysieren:
-- Betrag: ${payment.betrag} €
-- IBAN: ${payment.iban}
-- Verwendungszweck: ${payment.verwendungszweck}
-- Empfänger: ${payment.empfaengername || "N/A"}
-- Datum: ${payment.buchungsdatum}`;
-
-  try {
-    const result = await callAI(systemPrompt, userPrompt);
+// Rule-based matching without AI - fast and reliable
+function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): ProcessedPayment | null {
+  const verwendungszweck = payment.verwendungszweck?.toLowerCase() || "";
+  const empfaenger = payment.empfaengername?.toLowerCase() || "";
+  
+  // 1. IBAN-Match (highest priority)
+  for (const contract of contracts) {
+    if (contract.iban && payment.iban === contract.iban) {
+      const isKaution = verwendungszweck.includes("kaution") && 
+                        contract.kaution && 
+                        Math.abs(payment.betrag - contract.kaution) < 5;
+      return {
+        ...payment,
+        mietvertrag_id: contract.id,
+        kategorie: isKaution ? "Mietkaution" : "Miete",
+        zuordnungsgrund: `IBAN-Match: ${contract.mieter}`,
+        confidence: 95
+      };
+    }
+    
+    // Check weitere_bankkonten (could be comma-separated)
+    if (contract.weitere_iban) {
+      const weitereIbans = contract.weitere_iban.split(',').map(i => i.trim());
+      if (weitereIbans.includes(payment.iban)) {
+        const isKaution = verwendungszweck.includes("kaution") && 
+                          contract.kaution && 
+                          Math.abs(payment.betrag - contract.kaution) < 5;
+        return {
+          ...payment,
+          mietvertrag_id: contract.id,
+          kategorie: isKaution ? "Mietkaution" : "Miete",
+          zuordnungsgrund: `Weitere IBAN-Match: ${contract.mieter}`,
+          confidence: 90
+        };
+      }
+    }
+  }
+  
+  // 2. Verwendungszweck-Match (check if contract's verwendungszweck is in payment)
+  for (const contract of contracts) {
+    if (contract.verwendungszweck && Array.isArray(contract.verwendungszweck)) {
+      for (const vzweck of contract.verwendungszweck) {
+        if (vzweck && verwendungszweck.includes(vzweck.toLowerCase())) {
+          const isKaution = verwendungszweck.includes("kaution") && 
+                            contract.kaution && 
+                            Math.abs(payment.betrag - contract.kaution) < 5;
+          return {
+            ...payment,
+            mietvertrag_id: contract.id,
+            kategorie: isKaution ? "Mietkaution" : "Miete",
+            zuordnungsgrund: `Verwendungszweck-Match: "${vzweck}" für ${contract.mieter}`,
+            confidence: 85
+          };
+        }
+      }
+    }
+  }
+  
+  // 3. Name-Match (check if tenant name appears in verwendungszweck or empfänger)
+  for (const contract of contracts) {
+    const mieterNames = contract.mieter.toLowerCase().split(",").map(n => n.trim());
+    
+    for (const name of mieterNames) {
+      if (name.length > 3) { // Avoid matching short names like "Max"
+        const nameParts = name.split(" ").filter(p => p.length > 2);
+        
+        // Check if last name (usually more unique) is in verwendungszweck or empfänger
+        const lastName = nameParts[nameParts.length - 1];
+        if (lastName && (verwendungszweck.includes(lastName) || empfaenger.includes(lastName))) {
+          const isKaution = verwendungszweck.includes("kaution") && 
+                            contract.kaution && 
+                            Math.abs(payment.betrag - contract.kaution) < 5;
+          return {
+            ...payment,
+            mietvertrag_id: contract.id,
+            kategorie: isKaution ? "Mietkaution" : "Miete",
+            zuordnungsgrund: `Namen-Match: "${lastName}" für ${contract.mieter}`,
+            confidence: 75
+          };
+        }
+      }
+    }
+  }
+  
+  // 4. Amount-Match with tolerance (only if unique match)
+  const amountMatches = contracts.filter(c => 
+    Math.abs(c.gesamtmiete - payment.betrag) < 5 && payment.betrag > 0
+  );
+  
+  if (amountMatches.length === 1) {
+    const contract = amountMatches[0];
+    const isKaution = verwendungszweck.includes("kaution") && 
+                      contract.kaution && 
+                      Math.abs(payment.betrag - contract.kaution) < 5;
     return {
       ...payment,
-      mietvertrag_id: result.mietvertrag_id || null,
-      kategorie: "Rücklastschrift",
-      zuordnungsgrund: result.zuordnungsgrund,
-      confidence: result.confidence
-    };
-  } catch (error) {
-    console.error("Rücklastschrift AI Error:", error);
-    return {
-      ...payment,
-      mietvertrag_id: null,
-      kategorie: "Rücklastschrift",
-      zuordnungsgrund: "AI-Fehler bei Zuordnung",
-      confidence: 0
+      mietvertrag_id: contract.id,
+      kategorie: isKaution ? "Mietkaution" : "Miete",
+      zuordnungsgrund: `Betrags-Match (eindeutig): ${contract.gesamtmiete}€ für ${contract.mieter}`,
+      confidence: 60
     };
   }
+  
+  return null;
 }
 
+// Process BG-Zahlung (Jobcenter) with AI
 async function processBGZahlung(
   payment: Payment, 
   contractContext: string
@@ -243,62 +316,51 @@ Finde den passenden Mieter und kategorisiere die Zahlung.`;
       ...payment,
       mietvertrag_id: null,
       kategorie: "Miete",
-      zuordnungsgrund: "AI-Fehler bei Zuordnung",
+      zuordnungsgrund: "AI-Fehler bei BG-Zahlung",
       confidence: 0
     };
   }
 }
 
-async function processStandardPayment(
+// Process Rücklastschrift with AI
+async function processRuecklastschrift(
   payment: Payment, 
   contractContext: string
 ): Promise<ProcessedPayment> {
-  const systemPrompt = `Du bist ein Experte für die Zuordnung von Mietzahlungen in einer Immobilienverwaltung.
+  const systemPrompt = `Du bist ein Experte für die Zuordnung von Rücklastschriften in einer Immobilienverwaltung.
 
 KONTEXT - Aktive Mietverträge:
 ${contractContext}
 
 AUFGABE:
-Ordne die Zahlung dem richtigen Mietvertrag zu.
+Analysiere die Rücklastschrift und finde den zugehörigen Mietvertrag.
+- Suche im Verwendungszweck nach Hinweisen auf Objekt, Einheit oder Mietername
+- Die Original-Lastschrift wurde vom Mieterkonto eingezogen und dann zurückgebucht
+- Kategorie ist IMMER "Rücklastschrift"`;
 
-PRIORISIERTE ZUORDNUNGSLOGIK:
-1. IBAN-Match: Vergleiche payment.iban mit bankkonto_mieter oder weitere_iban
-2. Verwendungszweck-Match: Suche nach dem Mietvertrag-verwendungszweck im Payment-Verwendungszweck
-3. Namens-Match: Suche nach Mieternamen im Verwendungszweck oder Empfängername
-4. Betrags-Match: Vergleiche mit gesamtmiete (Toleranz ±5€)
-
-KATEGORISIERUNG:
-- "Mietkaution": NUR wenn "Kaution" explizit im Verwendungszweck UND Betrag passt zum kaution_betrag
-- "Miete": Wenn Betrag zur monatlichen Miete passt
-- "Nichtmiete": Bei Unklarheit oder anderen Zahlungsarten
-
-WICHTIG: Im Zweifel eher "Miete" als "Mietkaution" wählen!`;
-
-  const userPrompt = `Zahlung analysieren:
+  const userPrompt = `Rücklastschrift analysieren:
 - Betrag: ${payment.betrag} €
 - IBAN: ${payment.iban}
 - Verwendungszweck: ${payment.verwendungszweck}
-- Empfänger/Auftraggeber: ${payment.empfaengername || "N/A"}
-- Datum: ${payment.buchungsdatum}
-
-Finde den passenden Mietvertrag und kategorisiere die Zahlung.`;
+- Empfänger: ${payment.empfaengername || "N/A"}
+- Datum: ${payment.buchungsdatum}`;
 
   try {
     const result = await callAI(systemPrompt, userPrompt);
     return {
       ...payment,
       mietvertrag_id: result.mietvertrag_id || null,
-      kategorie: result.kategorie || "Nichtmiete",
+      kategorie: "Rücklastschrift",
       zuordnungsgrund: result.zuordnungsgrund,
       confidence: result.confidence
     };
   } catch (error) {
-    console.error("Standard Payment AI Error:", error);
+    console.error("Rücklastschrift AI Error:", error);
     return {
       ...payment,
       mietvertrag_id: null,
-      kategorie: "Nichtmiete",
-      zuordnungsgrund: "AI-Fehler bei Zuordnung",
+      kategorie: "Rücklastschrift",
+      zuordnungsgrund: "AI-Fehler bei Rücklastschrift",
       confidence: 0
     };
   }
@@ -347,7 +409,6 @@ serve(async (req) => {
     console.log(`Received ${payments.length} payments (dryRun: ${dryRun})`);
 
     // ============= DUPLIKATSPRÜFUNG =============
-    // Prüfe jede Zahlung auf Existenz in der DB (anhand Betrag, IBAN, Datum, Verwendungszweck)
     const duplicateChecks = await Promise.all(
       payments.map(async (payment: Payment) => {
         const { data: existing } = await supabase
@@ -397,45 +458,105 @@ serve(async (req) => {
       );
     }
 
-    // Hole Vertragskontext einmal für alle
-    const contractContext = await getContractContext(supabase);
+    // Hole Vertragskontext
+    const contracts = await getContractContext(supabase);
+    const contractContextString = JSON.stringify(contracts, null, 2);
 
     const results: ProcessedPayment[] = [];
+    const needsAI: { payment: Payment; type: string }[] = [];
 
-    // Verarbeite nur NEUE Zahlungen (keine Duplikate)
+    // PHASE 1: Fast rule-based matching (no AI)
     for (const payment of newPayments) {
       const paymentType = categorizePaymentType(payment);
+      
+      if (paymentType === "utility") {
+        // Versorgungskosten - automatisch kategorisieren
+        results.push({
+          ...payment,
+          mietvertrag_id: null,
+          kategorie: "Nichtmiete",
+          zuordnungsgrund: "Versorgungskosten (automatisch erkannt)",
+          confidence: 100
+        });
+      } else if (paymentType === "retoure") {
+        // Rücklastschrift - versuche erst Regel-Matching
+        const ruleMatch = matchPaymentByRules(payment, contracts);
+        if (ruleMatch) {
+          results.push({
+            ...ruleMatch,
+            kategorie: "Rücklastschrift",
+            zuordnungsgrund: `Rücklastschrift: ${ruleMatch.zuordnungsgrund}`
+          });
+        } else {
+          needsAI.push({ payment, type: "retoure" });
+        }
+      } else if (paymentType === "bg_zahlung") {
+        // BG-Zahlung - braucht AI wegen komplexer Namensextraktion
+        needsAI.push({ payment, type: "bg_zahlung" });
+      } else {
+        // Standard: Erst Regel-Matching versuchen
+        const ruleMatch = matchPaymentByRules(payment, contracts);
+        if (ruleMatch) {
+          results.push(ruleMatch);
+        } else {
+          // Negative Beträge ohne Match → Nichtmiete
+          if (payment.betrag < 0) {
+            results.push({
+              ...payment,
+              mietvertrag_id: null,
+              kategorie: "Nichtmiete",
+              zuordnungsgrund: "Abbuchung ohne Vertragszuordnung",
+              confidence: 50
+            });
+          } else {
+            needsAI.push({ payment, type: "standard" });
+          }
+        }
+      }
+    }
+
+    console.log(`Rule-based: ${results.length} matched, ${needsAI.length} need AI`);
+
+    // PHASE 2: AI processing for unmatched payments (limited batch)
+    const MAX_AI_CALLS = 20; // Limit AI calls to prevent timeout
+    const aiQueue = needsAI.slice(0, MAX_AI_CALLS);
+    const skippedAI = needsAI.slice(MAX_AI_CALLS);
+
+    for (const { payment, type } of aiQueue) {
       let processed: ProcessedPayment;
-
-      console.log(`Payment: ${payment.betrag}€, Type: ${paymentType}`);
-
-      switch (paymentType) {
-        case "retoure":
-          processed = await processRuecklastschrift(payment, contractContext);
-          break;
-        case "bg_zahlung":
-          processed = await processBGZahlung(payment, contractContext);
-          break;
-        case "utility":
-          // Versorgungskosten werden als Nichtmiete kategorisiert
-          processed = {
-            ...payment,
-            mietvertrag_id: null,
-            kategorie: "Nichtmiete",
-            zuordnungsgrund: "Versorgungskosten (automatisch erkannt)",
-            confidence: 100
-          };
-          break;
-        default:
-          processed = await processStandardPayment(payment, contractContext);
+      
+      console.log(`AI Processing: ${payment.betrag}€, Type: ${type}`);
+      
+      if (type === "bg_zahlung") {
+        processed = await processBGZahlung(payment, contractContextString);
+      } else if (type === "retoure") {
+        processed = await processRuecklastschrift(payment, contractContextString);
+      } else {
+        // For standard payments that couldn't be rule-matched, mark as unknown
+        processed = {
+          ...payment,
+          mietvertrag_id: null,
+          kategorie: "Nichtmiete",
+          zuordnungsgrund: "Keine automatische Zuordnung möglich",
+          confidence: 0
+        };
       }
-
+      
       results.push(processed);
+      
+      // Small delay between AI calls
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
 
-      // Rate-limiting: 500ms Pause zwischen AI-Calls
-      if (paymentType !== "utility") {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
+    // Add skipped payments as unprocessed
+    for (const { payment } of skippedAI) {
+      results.push({
+        ...payment,
+        mietvertrag_id: null,
+        kategorie: "Nichtmiete",
+        zuordnungsgrund: "Nicht verarbeitet (Batch-Limit)",
+        confidence: 0
+      });
     }
 
     // Optional: In DB speichern wenn nicht dryRun
