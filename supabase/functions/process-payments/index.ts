@@ -344,14 +344,66 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${payments.length} payments (dryRun: ${dryRun})`);
+    console.log(`Received ${payments.length} payments (dryRun: ${dryRun})`);
+
+    // ============= DUPLIKATSPRÜFUNG =============
+    // Prüfe jede Zahlung auf Existenz in der DB (anhand Betrag, IBAN, Datum, Verwendungszweck)
+    const duplicateChecks = await Promise.all(
+      payments.map(async (payment: Payment) => {
+        const { data: existing } = await supabase
+          .from("zahlungen")
+          .select("id")
+          .eq("betrag", payment.betrag)
+          .eq("iban", payment.iban)
+          .eq("buchungsdatum", payment.buchungsdatum)
+          .eq("verwendungszweck", payment.verwendungszweck)
+          .limit(1);
+        
+        return {
+          payment,
+          isDuplicate: existing && existing.length > 0,
+          existingId: existing?.[0]?.id || null
+        };
+      })
+    );
+
+    const newPayments = duplicateChecks.filter(c => !c.isDuplicate).map(c => c.payment);
+    const duplicates = duplicateChecks.filter(c => c.isDuplicate).map(c => ({
+      ...c.payment,
+      existingId: c.existingId
+    }));
+
+    console.log(`Duplikatsprüfung: ${newPayments.length} neue, ${duplicates.length} bereits vorhanden`);
+
+    // Falls keine neuen Zahlungen, gib früh zurück
+    if (newPayments.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          dryRun,
+          stats: {
+            total: payments.length,
+            neue: 0,
+            duplikate: duplicates.length,
+            zugeordnet: 0,
+            nicht_zugeordnet: 0,
+            nach_kategorie: { miete: 0, mietkaution: 0, ruecklastschrift: 0, nichtmiete: 0 },
+            durchschnittliche_konfidenz: 0
+          },
+          results: [],
+          duplicates
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Hole Vertragskontext einmal für alle
     const contractContext = await getContractContext(supabase);
 
     const results: ProcessedPayment[] = [];
 
-    for (const payment of payments) {
+    // Verarbeite nur NEUE Zahlungen (keine Duplikate)
+    for (const payment of newPayments) {
       const paymentType = categorizePaymentType(payment);
       let processed: ProcessedPayment;
 
@@ -409,7 +461,9 @@ serve(async (req) => {
 
     // Statistiken erstellen
     const stats = {
-      total: results.length,
+      total: payments.length,
+      neue: newPayments.length,
+      duplikate: duplicates.length,
       zugeordnet: results.filter(r => r.mietvertrag_id).length,
       nicht_zugeordnet: results.filter(r => !r.mietvertrag_id).length,
       nach_kategorie: {
@@ -418,9 +472,9 @@ serve(async (req) => {
         ruecklastschrift: results.filter(r => r.kategorie === "Rücklastschrift").length,
         nichtmiete: results.filter(r => r.kategorie === "Nichtmiete").length,
       },
-      durchschnittliche_konfidenz: Math.round(
-        results.reduce((sum, r) => sum + r.confidence, 0) / results.length
-      )
+      durchschnittliche_konfidenz: results.length > 0 
+        ? Math.round(results.reduce((sum, r) => sum + r.confidence, 0) / results.length)
+        : 0
     };
 
     return new Response(
@@ -428,7 +482,8 @@ serve(async (req) => {
         success: true, 
         dryRun,
         stats,
-        results 
+        results,
+        duplicates
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
