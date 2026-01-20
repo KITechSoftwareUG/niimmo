@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,10 +21,13 @@ import {
   EyeOff,
   FileText,
   Wallet,
-  GripVertical
+  GripVertical,
+  Clock,
+  Timer
 } from "lucide-react";
 import { PaymentSplitModal } from "../PaymentSplitModal";
 import { PaymentUndoSplitModal } from "../PaymentUndoSplitModal";
+import { isLastschriftConfirmed, getRemainingWaitDays } from "@/utils/rueckstandsberechnung";
 
 interface MietvertragTimelineViewProps {
   forderungen: any[];
@@ -282,15 +286,14 @@ export function MietvertragTimelineView({
     });
   };
 
-  // Helper function to check if lastschrift payment should be shown as "open"
+  // Helper function to check if lastschrift payment should be shown as "pending"
   const isLastschriftPendingPayment = (zahlung: any) => {
-    if (!vertrag?.lastschrift) return false;
-    
-    const buchungsdatum = new Date(zahlung.buchungsdatum);
-    const heute = new Date();
-    const daysDifference = Math.floor((heute.getTime() - buchungsdatum.getTime()) / (1000 * 60 * 60 * 24));
-    
-    return daysDifference <= 4;
+    return !isLastschriftConfirmed(zahlung, vertrag);
+  };
+
+  // Get remaining days for pending Lastschrift payment
+  const getPaymentRemainingDays = (zahlung: any) => {
+    return getRemainingWaitDays(zahlung, vertrag);
   };
 
   // Group data by months for timeline display
@@ -441,12 +444,31 @@ export function MietvertragTimelineView({
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
 
-        {/* Lastschrift Pending Badge */}
+        {/* Lastschrift Pending Badge with remaining days */}
         {isLastschriftPending && (
           <div className="mb-2">
-            <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
-              Lastschrift unbestätigt
-            </Badge>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700 flex items-center gap-1 w-fit">
+                    <Timer className="h-3 w-3" />
+                    <span>
+                      {getPaymentRemainingDays(zahlung) > 0 
+                        ? `Wartezeit: noch ${getPaymentRemainingDays(zahlung)} Tag${getPaymentRemainingDays(zahlung) !== 1 ? 'e' : ''}`
+                        : 'Wartet auf Bestätigung'
+                      }
+                    </span>
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">
+                    Lastschrift-Zahlung wird nach {vertrag?.lastschrift_wartetage || 4} Tagen automatisch bestätigt.
+                    <br />
+                    Bis dahin wird sie nicht in den Rückstand eingerechnet.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
 
