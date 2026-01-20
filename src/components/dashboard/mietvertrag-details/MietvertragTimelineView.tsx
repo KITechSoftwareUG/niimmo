@@ -14,12 +14,13 @@ import {
   Calendar, 
   ArrowRightLeft, 
   AlertCircle,
-  Mail,
-  Phone,
   Split,
   Undo2,
   Eye,
-  EyeOff
+  EyeOff,
+  FileText,
+  Wallet,
+  GripVertical
 } from "lucide-react";
 import { PaymentSplitModal } from "../PaymentSplitModal";
 import { PaymentUndoSplitModal } from "../PaymentUndoSplitModal";
@@ -332,433 +333,430 @@ export function MietvertragTimelineView({
 
   const hasIgnoredPayments = zahlungen.some(z => z.kategorie === 'Ignorieren');
 
+  // Render a Forderung Card
+  const renderForderungCard = (forderung: any, index: number, total: number) => (
+    <div 
+      key={forderung.id} 
+      className="group relative bg-gradient-to-br from-rose-50 to-red-50 dark:from-rose-950/30 dark:to-red-950/30 border border-rose-200 dark:border-rose-800/50 rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-all duration-200"
+    >
+      {/* Delete button */}
+      <Button
+        onClick={() => handleDeleteForderung(forderung.id)}
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-100"
+        title="Forderung löschen"
+      >
+        <Trash2 className="h-3 w-3" />
+      </Button>
+      
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-rose-100 dark:bg-rose-900/50">
+          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-rose-600 dark:text-rose-400" />
+        </div>
+        <span className="text-xs sm:text-sm font-medium text-rose-700 dark:text-rose-300">
+          Forderung {total > 1 ? `${index + 1}/${total}` : ''}
+        </span>
+      </div>
+      
+      {/* Amount */}
+      {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'betrag' ? (
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            value={editForderungValue}
+            onChange={(e) => setEditForderungValue(e.target.value)}
+            className="w-24 h-8 text-center text-sm"
+            step="0.01"
+          />
+          <Button onClick={() => handleSaveForderung(editForderungValue)} size="sm" className="h-7 w-7 p-0 bg-rose-600 hover:bg-rose-700">
+            <Check className="h-3 w-3" />
+          </Button>
+          <Button onClick={handleCancelForderungEdit} size="sm" variant="outline" className="h-7 w-7 p-0">
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      ) : (
+        <p 
+          className="text-lg sm:text-xl font-bold text-rose-700 dark:text-rose-300 cursor-pointer hover:bg-rose-100/50 dark:hover:bg-rose-900/30 px-2 py-1 rounded-lg inline-block transition-colors"
+          onClick={() => handleEditForderung(forderung.id, 'betrag', forderung.sollbetrag.toString())}
+        >
+          {formatBetrag(Number(forderung.sollbetrag))}
+        </p>
+      )}
+    </div>
+  );
+
+  // Render a Zahlung Card
+  const renderZahlungCard = (zahlung: any) => {
+    const isIgnored = zahlung.kategorie === 'Ignorieren';
+    const isLastschriftPending = isLastschriftPendingPayment(zahlung);
+    const isKaution = zahlung.kategorie === 'Mietkaution';
+    
+    const bgColor = isIgnored 
+      ? 'from-gray-50 to-slate-50 dark:from-gray-950/30 dark:to-slate-950/30'
+      : isKaution 
+        ? 'from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30'
+        : 'from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30';
+    
+    const borderColor = isIgnored 
+      ? 'border-gray-200 dark:border-gray-800/50 border-dashed'
+      : isKaution
+        ? 'border-blue-200 dark:border-blue-800/50'
+        : isLastschriftPending 
+          ? 'border-amber-300 dark:border-amber-700/50'
+          : 'border-emerald-200 dark:border-emerald-800/50';
+    
+    const iconBg = isIgnored 
+      ? 'bg-gray-100 dark:bg-gray-900/50'
+      : isKaution
+        ? 'bg-blue-100 dark:bg-blue-900/50'
+        : 'bg-emerald-100 dark:bg-emerald-900/50';
+    
+    const iconColor = isIgnored 
+      ? 'text-gray-400'
+      : isKaution
+        ? 'text-blue-600 dark:text-blue-400'
+        : 'text-emerald-600 dark:text-emerald-400';
+    
+    const textColor = isIgnored 
+      ? 'text-gray-400'
+      : isKaution
+        ? 'text-blue-700 dark:text-blue-300'
+        : 'text-emerald-700 dark:text-emerald-300';
+
+    return (
+      <div
+        key={zahlung.id}
+        className={`group relative bg-gradient-to-br ${bgColor} border ${borderColor} rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-all duration-200 cursor-move ${
+          isIgnored ? 'opacity-50 hover:opacity-80' : ''
+        }`}
+        draggable
+        onDragStart={(e) => handleDragStart(e, zahlung.id)}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Drag handle */}
+        <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-50 transition-opacity">
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+
+        {/* Lastschrift Pending Badge */}
+        {isLastschriftPending && (
+          <div className="mb-2">
+            <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700">
+              Lastschrift unbestätigt
+            </Badge>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className={`flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full ${iconBg}`}>
+            <Wallet className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${iconColor}`} />
+          </div>
+          <span className={`text-xs sm:text-sm font-medium ${textColor}`}>
+            Zahlung
+          </span>
+        </div>
+
+        {/* Amount */}
+        <p className={`text-lg sm:text-xl font-bold ${textColor} mb-1`}>
+          {formatBetrag(Number(zahlung.betrag))}
+        </p>
+
+        {/* Date */}
+        <p className="text-xs sm:text-sm text-muted-foreground mb-1">
+          {formatDatum(zahlung.buchungsdatum)}
+        </p>
+
+        {/* Verwendungszweck */}
+        {zahlung.verwendungszweck && (
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-2 line-clamp-2">
+            {zahlung.verwendungszweck}
+          </p>
+        )}
+
+        {/* Action Badges */}
+        <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-2">
+          {/* Kategorie */}
+          {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'kategorie' ? (
+            <div className="flex items-center gap-1 flex-wrap">
+              <Select value={editPaymentValue} onValueChange={setEditPaymentValue}>
+                <SelectTrigger className="w-24 sm:w-28 h-6 sm:h-7 text-[10px] sm:text-xs">
+                  <SelectValue placeholder="Kategorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Miete">Miete</SelectItem>
+                  <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                  <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
+                  <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                <Check className="h-3 w-3" />
+              </Button>
+              <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Badge 
+                variant={isIgnored ? 'secondary' : 'outline'} 
+                className={`text-[10px] sm:text-xs ${isIgnored ? 'bg-gray-100 text-gray-400' : ''}`}
+              >
+                {zahlung.kategorie || 'Sonstige'}
+              </Badge>
+              <Button
+                onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
+                size="sm"
+                variant="ghost"
+                className="h-5 w-5 sm:h-6 sm:w-6 p-0 opacity-60 hover:opacity-100"
+              >
+                <Edit2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              </Button>
+              {!isSplitPayment(zahlung) ? (
+                <Button
+                  onClick={() => setSplittingPayment(zahlung)}
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 w-5 sm:h-6 sm:w-6 p-0 opacity-60 hover:opacity-100 text-blue-600 hover:text-blue-800"
+                  title="Zahlung aufteilen"
+                >
+                  <Split className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setUndoingSplitPayments(getSplitGroupPayments(zahlung))}
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 w-5 sm:h-6 sm:w-6 p-0 opacity-60 hover:opacity-100 text-amber-600 hover:text-amber-800"
+                  title="Aufteilung rückgängig machen"
+                >
+                  <Undo2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Month Edit */}
+        <div className="mt-2">
+          {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'monat' ? (
+            <div className="flex items-center gap-1 flex-wrap">
+              <Select value={editPaymentValue} onValueChange={(value) => setEditPaymentValue(value)}>
+                <SelectTrigger className="w-28 sm:w-32 h-6 sm:h-7 text-[10px] sm:text-xs">
+                  <SelectValue placeholder="Monat wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(() => {
+                    const availableMonths = new Set<string>();
+                    (forderungen || []).forEach(forderung => {
+                      if (forderung.sollmonat) availableMonths.add(forderung.sollmonat);
+                    });
+                    const now = new Date();
+                    for (let i = -6; i <= 12; i++) {
+                      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+                      const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                      availableMonths.add(monthStr);
+                    }
+                    return Array.from(availableMonths).sort().map(month => {
+                      const [year, monthNum] = month.split('-');
+                      const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('de-DE', { 
+                        year: 'numeric', 
+                        month: 'long' 
+                      });
+                      return <SelectItem key={month} value={month}>{monthName}</SelectItem>;
+                    });
+                  })()}
+                </SelectContent>
+              </Select>
+              <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
+                <Check className="h-3 w-3" />
+              </Button>
+              <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Badge variant="secondary" className="text-[10px] sm:text-xs">
+                {zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || 'Unzugeordnet'}
+              </Badge>
+              {(() => {
+                const zahlungsJahr = new Date(zahlung.buchungsdatum).getFullYear();
+                const hatForderungen = (forderungen || []).length > 0;
+                const canEditMonth = zahlungsJahr >= 2025 && hatForderungen;
+                return canEditMonth ? (
+                  <Button
+                    onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || '')}
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 w-5 sm:h-6 sm:w-6 p-0 opacity-60 hover:opacity-100"
+                  >
+                    <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                  </Button>
+                ) : null;
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Mietvertrag Edit */}
+        <div className="mt-2">
+          {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'mietvertrag' ? (
+            <div className="space-y-2">
+              <Input
+                placeholder="Suche Mietvertrag..."
+                value={mietvertragSearchTerm}
+                onChange={(e) => setMietvertragSearchTerm(e.target.value)}
+                className="w-full h-7 text-xs"
+              />
+              <div className="max-h-28 overflow-y-auto space-y-1">
+                {allMietvertraege?.filter(mv => {
+                  if (!mietvertragSearchTerm) return true;
+                  const searchTerm = mietvertragSearchTerm.toLowerCase();
+                  const mieterNames = mv.mietvertrag_mieter?.map((mm: any) => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || '';
+                  const immobilieName = mv.einheiten?.immobilien?.name || '';
+                  const adresse = mv.einheiten?.immobilien?.adresse || '';
+                  const einheitId = mv.einheit_id || '';
+                  return mieterNames.toLowerCase().includes(searchTerm) ||
+                         immobilieName.toLowerCase().includes(searchTerm) ||
+                         adresse.toLowerCase().includes(searchTerm) ||
+                         einheitId.toLowerCase().includes(searchTerm);
+                }).map(mv => {
+                  const mieterNames = mv.mietvertrag_mieter?.map((mm: any) => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || 'Keine Mieter';
+                  const einheitId = mv.einheit_id?.slice(-2) || 'XX';
+                  return (
+                    <button
+                      key={mv.id}
+                      onClick={() => handleSavePaymentField(mv.id)}
+                      className="w-full text-left p-2 text-xs bg-background hover:bg-muted rounded-lg transition-colors"
+                    >
+                      <div className="font-medium">{mv.einheiten?.immobilien?.name} - Einheit {einheitId}</div>
+                      <div className="text-muted-foreground">{mv.einheiten?.immobilien?.adresse}</div>
+                      <div className="text-primary mt-1">{mieterNames}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 text-xs">
+                Abbrechen
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Badge variant="outline" className="text-[10px] sm:text-xs">
+                <ArrowRightLeft className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
+                Objekt
+              </Badge>
+              <Button
+                onClick={() => handleEditPaymentField(zahlung.id, 'mietvertrag', zahlung.mietvertrag_id || '')}
+                size="sm"
+                variant="ghost"
+                className="h-5 w-5 sm:h-6 sm:w-6 p-0 opacity-60 hover:opacity-100"
+              >
+                <Edit2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="relative px-8 py-8">
+    <div className="relative px-2 sm:px-4 md:px-8 py-4 sm:py-6 md:py-8">
       {/* Toggle for ignored payments */}
       {hasIgnoredPayments && (
-        <div className="mb-6 flex justify-end">
+        <div className="mb-4 sm:mb-6 flex justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowIgnoredPayments(!showIgnoredPayments)}
-            className="flex items-center space-x-2 text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground"
           >
             {showIgnoredPayments ? (
               <>
-                <EyeOff className="h-4 w-4" />
-                <span>Ignorierte ausblenden</span>
+                <EyeOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Ignorierte ausblenden</span>
+                <span className="sm:hidden">Ausblenden</span>
               </>
             ) : (
               <>
-                <Eye className="h-4 w-4" />
-                <span>Ignorierte anzeigen</span>
+                <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Ignorierte anzeigen</span>
+                <span className="sm:hidden">Anzeigen</span>
               </>
             )}
           </Button>
         </div>
       )}
       
-      {/* Central Timeline */}
-      <div className="absolute left-1/2 top-0 w-0.5 bg-gradient-to-b from-blue-400 via-indigo-400 to-purple-400 h-full transform -translate-x-0.5 z-0 opacity-60"></div>
+      {/* Timeline */}
+      <div className="relative">
+        {/* Central Timeline Line - Hidden on mobile */}
+        <div className="hidden md:block absolute left-1/2 top-0 w-0.5 bg-gradient-to-b from-primary/60 via-primary/40 to-primary/20 h-full transform -translate-x-0.5 z-0" />
 
-      {sortedMonths.map((month, index) => {
-        const data = monthlyData.get(month);
-        const monthDate = new Date(month + '-01');
-        const forderungenData = data.forderungen;
-        const zahlungenData = data.zahlungen;
+        {sortedMonths.map((month) => {
+          const data = monthlyData.get(month);
+          const monthDate = new Date(month + '-01');
+          const forderungenData = data.forderungen;
+          const zahlungenData = data.zahlungen.filter((zahlung: any) => {
+            if (zahlung.kategorie === 'Ignorieren' && !showIgnoredPayments) return false;
+            return true;
+          });
 
-        return (
-          <div
-            key={month}
-            className="relative mb-20 min-h-[180px] animate-fade-in"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, month)}
-          >
-            {/* Month marker */}
-            <div className="absolute left-1/2 w-6 h-6 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full border-3 border-white shadow-lg transform -translate-x-1/2 z-20">
-              <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                <div className="bg-white shadow-md rounded-lg px-4 py-2 border border-gray-100">
-                  <span className="text-sm font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          // Skip months with no visible data
+          if (forderungenData.length === 0 && zahlungenData.length === 0) return null;
+
+          return (
+            <div
+              key={month}
+              className="relative mb-6 sm:mb-10 md:mb-16 animate-fade-in"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, month)}
+            >
+              {/* Month marker */}
+              <div className="flex items-center justify-center mb-4 sm:mb-6">
+                {/* Timeline dot - Hidden on mobile */}
+                <div className="hidden md:block absolute left-1/2 w-4 h-4 bg-primary rounded-full border-2 border-background shadow-md transform -translate-x-1/2 z-10" />
+                
+                {/* Month badge */}
+                <div className="bg-background shadow-md rounded-full px-3 sm:px-4 py-1.5 sm:py-2 border border-border z-20">
+                  <span className="text-xs sm:text-sm font-semibold text-primary">
                     {monthDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
                   </span>
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-20 pt-16">
-              {/* Left side - Forderungen */}
-              <div className="pr-10">
-                {forderungenData.length > 0 ? (
-                  <div className="space-y-3">
-                    {forderungenData.map((forderung: any) => (
-                      <div key={forderung.id} className="w-full">
-                        <div className="w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm group relative">
-                          {/* Delete icon in top left */}
-                          <Button
-                            onClick={() => handleDeleteForderung(forderung.id)}
-                            variant="ghost"
-                            size="sm"
-                            className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                            title="Forderung löschen"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                          
-                          <div className="flex justify-center items-center flex-col text-center pt-2">
-                            <div className="flex items-center justify-center mb-2">
-                              <div className="bg-red-100 rounded-full p-1.5 mr-2">
-                                <span className="text-red-600 text-xs">📋</span>
-                              </div>
-                              <p className="font-semibold text-red-600 text-sm">
-                                Forderung {forderungenData.length > 1 ? `${forderungenData.indexOf(forderung) + 1}/${forderungenData.length}` : ''}
-                              </p>
-                            </div>
-                            
-                            {/* Editable amount */}
-                            {editingForderung?.forderungId === forderung.id && editingForderung?.field === 'betrag' ? (
-                              <div className="flex items-center space-x-2">
-                                <Input
-                                  type="number"
-                                  value={editForderungValue}
-                                  onChange={(e) => setEditForderungValue(e.target.value)}
-                                  className="w-24 h-8 text-center"
-                                  step="0.01"
-                                />
-                                <Button onClick={() => handleSaveForderung(editForderungValue)} size="sm" className="h-6 text-xs">
-                                  ✓
-                                </Button>
-                                <Button onClick={handleCancelForderungEdit} size="sm" variant="outline" className="h-6 text-xs">
-                                  ✕
-                                </Button>
-                              </div>
-                            ) : (
-                              <p 
-                                className="text-xl font-bold text-red-700 mb-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded"
-                                onClick={() => handleEditForderung(forderung.id, 'betrag', forderung.sollbetrag.toString())}
-                              >
-                                {formatBetrag(Number(forderung.sollbetrag))}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
+              {/* Content Grid - Stacked on mobile, side-by-side on desktop */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-8">
+                {/* Left side - Forderungen */}
+                <div className="md:pr-6 lg:pr-10 order-1">
+                  {forderungenData.length > 0 && (
+                    <div className="space-y-2 sm:space-y-3">
+                      {forderungenData.map((forderung: any, index: number) => 
+                        renderForderungCard(forderung, index, forderungenData.length)
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              {/* Right side - Zahlungen */}
-              <div className="pl-10">
-                {zahlungenData.length > 0 ? (
-                  <div className="space-y-3">
-                    {zahlungenData
-                      .filter(zahlung => {
-                        // Filtere ignorierte Zahlungen basierend auf Toggle-Zustand
-                        if (zahlung.kategorie === 'Ignorieren' && !showIgnoredPayments) {
-                          return false;
-                        }
-                        return true;
-                      })
-                      .map((zahlung: any) => {
-                        const isIgnored = zahlung.kategorie === 'Ignorieren';
-                        const isLastschriftPending = isLastschriftPendingPayment(zahlung);
-                        return (
-                          <div
-                            key={zahlung.id}
-                            className={`w-full p-4 bg-white border border-gray-200 rounded-lg shadow-sm cursor-move transition-all duration-300 ${
-                              isIgnored 
-                                ? 'opacity-20 hover:opacity-60 border-dashed border-gray-300 bg-gray-50/50' 
-                                : isLastschriftPending
-                                ? 'border-orange-300 bg-orange-50/30'
-                                : ''
-                            }`}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, zahlung.id)}
-                            onDragEnd={handleDragEnd}
-                          >
-                            <div className="flex justify-between items-start">
-                             <div className="flex-1">
-                               {/* Lastschrift Pending Indicator */}
-                                {isLastschriftPending && (
-                                  <div className="mb-2">
-                                    <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 border-orange-300">
-                                      Lastschrift unbestätigt
-                                    </Badge>
-                                  </div>
-                                )}
-                              <div className="flex items-center mb-2">
-                                <div className={`rounded-full p-1.5 mr-2 ${
-                                  zahlung.kategorie === 'Ignorieren' 
-                                    ? 'bg-gray-100' 
-                                    : zahlung.kategorie === 'Mietkaution' 
-                                      ? 'bg-blue-100' 
-                                      : 'bg-green-100'
-                                }`}>
-                                  <span className={`text-xs ${
-                                    zahlung.kategorie === 'Ignorieren' 
-                                      ? 'text-gray-400' 
-                                      : zahlung.kategorie === 'Mietkaution' 
-                                        ? 'text-blue-600' 
-                                        : 'text-green-600'
-                                  }`}>💰</span>
-                                </div>
-                                <p className={`font-semibold text-sm ${
-                                  zahlung.kategorie === 'Ignorieren' 
-                                    ? 'text-gray-400' 
-                                    : zahlung.kategorie === 'Mietkaution' 
-                                      ? 'text-blue-600' 
-                                      : 'text-green-600'
-                                }`}>Zahlung</p>
-                              </div>
-
-                              <p className={`text-xl font-bold mb-1 ${
-                                zahlung.kategorie === 'Ignorieren' 
-                                  ? 'text-gray-400' 
-                                  : zahlung.kategorie === 'Mietkaution' 
-                                    ? 'text-blue-700' 
-                                    : 'text-green-700'
-                              }`}>
-                                {formatBetrag(Number(zahlung.betrag))}
-                              </p>
-
-                            {/* Rücklastschrift fees are now handled automatically via database trigger */}
-
-                            <p className="text-sm text-muted-foreground mb-1">
-                              {formatDatum(zahlung.buchungsdatum)}
-                            </p>
-
-                            {zahlung.verwendungszweck && (
-                              <p className="text-xs text-muted-foreground mb-2">
-                                {zahlung.verwendungszweck}
-                              </p>
-                            )}
-
-                            <div className="flex items-center space-x-2">
-                              {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'kategorie' ? (
-                                <div className="flex items-center space-x-1">
-                                  <Select
-                                    value={editPaymentValue}
-                                    onValueChange={setEditPaymentValue}
-                                  >
-                                    <SelectTrigger className="w-32 h-6 text-xs">
-                                      <SelectValue placeholder="Kategorie" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="Miete">Miete</SelectItem>
-                                      <SelectItem value="Mietkaution">Mietkaution</SelectItem>
-                                      <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
-                                      <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                  <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center space-x-1">
-                                  <Badge 
-                                    variant={zahlung.kategorie === 'Ignorieren' ? 'secondary' : 'outline'} 
-                                    className={`text-sm ${
-                                      zahlung.kategorie === 'Ignorieren' 
-                                        ? 'bg-gray-100 text-gray-400 border-gray-200' 
-                                        : ''
-                                    }`}
-                                  >
-                                    {zahlung.kategorie || 'Sonstige'}
-                                  </Badge>
-                                  <Button
-                                    onClick={() => handleEditPaymentField(zahlung.id, 'kategorie', zahlung.kategorie || '')}
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                                    title="Kategorie bearbeiten"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </Button>
-                                  {!isSplitPayment(zahlung) ? (
-                                    <Button
-                                      onClick={() => setSplittingPayment(zahlung)}
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-6 w-6 p-0 opacity-60 hover:opacity-100 text-blue-600 hover:text-blue-800"
-                                      title="Zahlung aufteilen"
-                                    >
-                                      <Split className="h-3 w-3" />
-                                    </Button>
-                                  ) : (
-                                    <Button
-                                      onClick={() => setUndoingSplitPayments(getSplitGroupPayments(zahlung))}
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-6 w-6 p-0 opacity-60 hover:opacity-100 text-orange-600 hover:text-orange-800"
-                                      title="Aufteilung rückgängig machen"
-                                    >
-                                      <Undo2 className="h-3 w-3" />
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Month Edit */}
-                            <div className="mt-2">
-                              {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'monat' ? (
-                                <div className="flex items-center space-x-1">
-                                  <Select
-                                    value={editPaymentValue}
-                                    onValueChange={(value) => setEditPaymentValue(value)}
-                                  >
-                                    <SelectTrigger className="w-32 h-6 text-xs">
-                                      <SelectValue placeholder="Monat wählen" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {(() => {
-                                        // Generate available months from Forderungen
-                                        const availableMonths = new Set<string>();
-                                        
-                                        // Add months from Forderungen
-                                        (forderungen || []).forEach(forderung => {
-                                          if (forderung.sollmonat) {
-                                            availableMonths.add(forderung.sollmonat);
-                                          }
-                                        });
-                                        
-                                        // Add current and next 12 months
-                                        const now = new Date();
-                                        for (let i = -6; i <= 12; i++) {
-                                          const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-                                          const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                                          availableMonths.add(monthStr);
-                                        }
-                                        
-                                        // Convert to sorted array
-                                        return Array.from(availableMonths)
-                                          .sort()
-                                          .map(month => {
-                                            const [year, monthNum] = month.split('-');
-                                            const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('de-DE', { 
-                                              year: 'numeric', 
-                                              month: 'long' 
-                                            });
-                                            return (
-                                              <SelectItem key={month} value={month}>
-                                                {monthName}
-                                              </SelectItem>
-                                            );
-                                          });
-                                      })()}
-                                    </SelectContent>
-                                  </Select>
-                                  <Button onClick={() => handleSavePaymentField()} size="sm" className="h-6 w-6 p-0">
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                  <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 w-6 p-0">
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center space-x-1">
-                                  <Badge variant="secondary" className="text-xs">
-                                    {zahlung.zugeordneter_monat || zahlung.buchungsdatum?.slice(0, 7) || 'Unzugeordnet'}
-                                  </Badge>
-                                  {(() => {
-                                    const zahlungsJahr = new Date(zahlung.buchungsdatum).getFullYear();
-                                    const hatForderungen = (forderungen || []).length > 0;
-                                    const canEditMonth = zahlungsJahr >= 2025 && hatForderungen;
-                                    
-                                    return canEditMonth ? (
-                                      <Button
-                                        onClick={() => handleEditPaymentField(zahlung.id, 'monat', zahlung.zugeordneter_monat || '')}
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                                      >
-                                        <Calendar className="h-3 w-3" />
-                                      </Button>
-                                    ) : null;
-                                  })()}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Mietvertrag Edit */}
-                            <div className="mt-2">
-                              {editingPayment?.zahlungId === zahlung.id && editingPayment.field === 'mietvertrag' ? (
-                                <div className="space-y-2">
-                                  <Input
-                                    placeholder="Suche Mietvertrag..."
-                                    value={mietvertragSearchTerm}
-                                    onChange={(e) => setMietvertragSearchTerm(e.target.value)}
-                                    className="w-full h-6 text-xs"
-                                  />
-                                  <div className="max-h-32 overflow-y-auto space-y-1">
-                                    {allMietvertraege?.filter(mv => {
-                                      if (!mietvertragSearchTerm) return true;
-                                      
-                                      const searchTerm = mietvertragSearchTerm.toLowerCase();
-                                      const mieterNames = mv.mietvertrag_mieter?.map((mm: any) => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || '';
-                                      const immobilieName = mv.einheiten?.immobilien?.name || '';
-                                      const adresse = mv.einheiten?.immobilien?.adresse || '';
-                                      const einheitId = mv.einheit_id || '';
-                                      
-                                      return mieterNames.toLowerCase().includes(searchTerm) ||
-                                             immobilieName.toLowerCase().includes(searchTerm) ||
-                                             adresse.toLowerCase().includes(searchTerm) ||
-                                             einheitId.toLowerCase().includes(searchTerm);
-                                    }).map(mv => {
-                                      const mieterNames = mv.mietvertrag_mieter?.map((mm: any) => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`).join(', ') || 'Keine Mieter';
-                                      const einheitId = mv.einheit_id?.slice(-2) || 'XX';
-                                      return (
-                                        <button
-                                          key={mv.id}
-                                          onClick={() => handleSavePaymentField(mv.id)}
-                                          className="w-full text-left p-2 text-xs bg-gray-50 hover:bg-gray-100 rounded"
-                                        >
-                                          <div className="font-medium">{mv.einheiten?.immobilien?.name} - Einheit {einheitId}</div>
-                                          <div className="text-muted-foreground">{mv.einheiten?.immobilien?.adresse}</div>
-                                          <div className="text-blue-600 mt-1">{mieterNames}</div>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                  <div className="flex items-center space-x-1">
-                                    <Button onClick={handleCancelPaymentEdit} size="sm" variant="outline" className="h-6 text-xs">
-                                      Abbrechen
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="flex items-center space-x-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    <ArrowRightLeft className="h-3 w-3 mr-1" />
-                                    Objekt
-                                  </Badge>
-                                  <Button
-                                    onClick={() => handleEditPaymentField(zahlung.id, 'mietvertrag', zahlung.mietvertrag_id || '')}
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
+                {/* Right side - Zahlungen */}
+                <div className="md:pl-6 lg:pl-10 order-2">
+                  {zahlungenData.length > 0 && (
+                    <div className="space-y-2 sm:space-y-3">
+                      {zahlungenData.map((zahlung: any) => renderZahlungCard(zahlung))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
       
       {/* Payment Split Modal */}
       <PaymentSplitModal
