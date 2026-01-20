@@ -33,6 +33,7 @@ interface MietvertragOverviewTabProps {
   onStartEditMeterNumber: (field: string) => void;
   onCancelEditMeterNumber: () => void;
   onCreateForderung: () => void;
+  onContractUpdate?: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
 }
@@ -66,6 +67,7 @@ export function MietvertragOverviewTab({
   onStartEditMeterNumber,
   onCancelEditMeterNumber,
   onCreateForderung,
+  onContractUpdate,
   formatDatum,
   formatBetrag
 }: MietvertragOverviewTabProps) {
@@ -139,6 +141,7 @@ export function MietvertragOverviewTab({
         formatBetrag={formatBetrag}
         formatDatum={formatDatum}
         onCreateForderung={onCreateForderung}
+        onContractUpdate={onContractUpdate}
       />
     </div>
   );

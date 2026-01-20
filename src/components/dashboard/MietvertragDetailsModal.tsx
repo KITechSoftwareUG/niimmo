@@ -1023,6 +1023,9 @@ export default function MietvertragDetailsModal({
                 onStartEditMeterNumber={setEditingMeterNumber}
                 onCancelEditMeterNumber={() => setEditingMeterNumber(null)}
                 onCreateForderung={() => setShowCreateForderungModal(true)}
+                onContractUpdate={() => {
+                  queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+                }}
                 allMietvertraege={allMietvertraege}
                 vertragId={vertragId}
                 formatDatum={formatDatum}
