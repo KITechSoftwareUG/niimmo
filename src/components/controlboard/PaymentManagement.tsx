@@ -334,12 +334,12 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     }
   };
 
-  // Apply AI assignments to database
-  const handleApplyAssignments = async () => {
-    const assignmentsToApply = aiResults.filter(r => r.mietvertrag_id);
+  // Apply AI assignments to database (receives selected results from modal)
+  const handleApplyAssignments = async (selectedResults?: any[]) => {
+    const resultsToApply = selectedResults || aiResults;
+    const assignmentsToApply = resultsToApply.filter(r => r.mietvertrag_id);
     
     for (const result of assignmentsToApply) {
-      // Find existing payment by matching criteria
       const { error } = await supabase
         .from('zahlungen')
         .update({

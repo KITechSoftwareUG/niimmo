@@ -643,6 +643,36 @@ export type Database = {
           },
         ]
       }
+      nichtmiete_regeln: {
+        Row: {
+          aktiv: boolean
+          aktualisiert_am: string
+          beschreibung: string | null
+          erstellt_am: string
+          id: string
+          regel_typ: string
+          wert: string
+        }
+        Insert: {
+          aktiv?: boolean
+          aktualisiert_am?: string
+          beschreibung?: string | null
+          erstellt_am?: string
+          id?: string
+          regel_typ: string
+          wert: string
+        }
+        Update: {
+          aktiv?: boolean
+          aktualisiert_am?: string
+          beschreibung?: string | null
+          erstellt_am?: string
+          id?: string
+          regel_typ?: string
+          wert?: string
+        }
+        Relationships: []
+      }
       system_logs: {
         Row: {
           created_at: string | null
