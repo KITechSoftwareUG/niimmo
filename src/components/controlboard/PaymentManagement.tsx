@@ -169,32 +169,49 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       });
       
       // Map CSV columns to payment object
-      // WICHTIG: Buchungstag (nicht Wertstellungstag!) für Duplikat-Check
-      const buchungsdatum = row['Buchungstag'] || row['Buchungsdatum'] || row['Datum'];
-      const betrag = row['Betrag'] || row['Umsatz'];
+      // WICHTIG: Viele Bank-CSVs enthalten sowohl Buchungstag als auch Wertstellung/Valuta.
+      // Wir senden beides an die Edge Function, damit Duplikate auch dann erkannt werden,
+      // wenn historische Importe das jeweils andere Datum gespeichert haben.
+      const buchungsdatumRaw = row["Buchungstag"] || row["Buchungsdatum"] || row["Datum"];
+      const wertstellungsdatumRaw =
+        row["Wertstellung"] || row["Wertstellungstag"] || row["Valuta"] || row["Valutadatum"];
+
+      const betrag = row["Betrag"] || row["Umsatz"];
       // IBAN des Zahlenden/Empfängers - NICHT das eigene Konto!
-      const iban = row['Kontonummer/IBAN'] || row['IBAN des Absenders'] || row['IBAN'] || row['Auftraggeber-Konto'];
-      const verwendungszweck = row['Verwendungszweck'] || row['Buchungstext'];
-      const empfaengername = row['Beguenstigter/Zahlungspflichtiger'] || row['Name'] || row['Empfänger'];
-      
-      if (!buchungsdatum || !betrag) continue;
-      
-      // Convert date from DD.MM.YYYY to YYYY-MM-DD
-      let formattedDate = buchungsdatum;
-      if (buchungsdatum.includes('.')) {
-        const [day, month, year] = buchungsdatum.split('.');
-        formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-      }
-      
+      const iban =
+        row["Kontonummer/IBAN"] ||
+        row["IBAN des Absenders"] ||
+        row["IBAN"] ||
+        row["Auftraggeber-Konto"];
+
+      const verwendungszweck = row["Verwendungszweck"] || row["Buchungstext"];
+      const empfaengername =
+        row["Beguenstigter/Zahlungspflichtiger"] || row["Name"] || row["Empfänger"];
+
+      if (!buchungsdatumRaw || !betrag) continue;
+
+      const toIsoDate = (d: string) => {
+        if (!d) return d;
+        if (d.includes('.')) {
+          const [day, month, year] = d.split('.');
+          return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        return d;
+      };
+
+      const buchungsdatum = toIsoDate(buchungsdatumRaw);
+      const wertstellungsdatum = wertstellungsdatumRaw ? toIsoDate(wertstellungsdatumRaw) : undefined;
+
       // Convert amount (German format: comma as decimal separator)
       const betragNum = parseFloat(betrag.replace('.', '').replace(',', '.'));
-      
+
       payments.push({
-        buchungsdatum: formattedDate,
+        buchungsdatum,
+        wertstellungsdatum,
         betrag: betragNum,
-        iban: iban,
-        verwendungszweck: verwendungszweck,
-        empfaengername: empfaengername,
+        iban,
+        verwendungszweck,
+        empfaengername,
       });
     }
     

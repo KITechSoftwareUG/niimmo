@@ -28,7 +28,10 @@ const RETOURE_KEYWORD = "Retoure SEPA Lastschrift";
 const BG_ZAHLUNG_IBAN = "DE94760000000076001601";
 
 interface Payment {
+  // Buchungstag aus CSV (wird im Frontend als buchungsdatum gemappt)
   buchungsdatum: string;
+  // Optional: Wertstellung/Valuta aus CSV, um Duplikate trotz Datums-Drift zu erkennen
+  wertstellungsdatum?: string;
   betrag: number;
   iban: string;
   verwendungszweck: string;
@@ -433,49 +436,73 @@ serve(async (req) => {
     console.log(`Received ${payments.length} payments (dryRun: ${dryRun})`);
 
     // ============= DUPLIKATSPRÜFUNG =============
-    // Use RPC call with TRIM for better matching (handles whitespace differences)
+    // Robust: match on (betrag + IBAN + Verwendungszweck) und akzeptiere sowohl Buchungstag
+    // als auch Wertstellung/Valuta, da historische Imports teilweise das jeweils andere Datum
+    // als `buchungsdatum` gespeichert haben.
     const duplicateChecks = await Promise.all(
       payments.map(async (payment: Payment) => {
-        // Normalize values for comparison
         const betrag = payment.betrag;
-        const iban = payment.iban?.trim() || '';
-        const buchungsdatum = payment.buchungsdatum;
-        const verwendungszweck = payment.verwendungszweck?.trim() || '';
-        
-        // Query with trimmed comparison using ilike for fuzzy matching
-        const { data: existing } = await supabase
-          .from("zahlungen")
-          .select("id, verwendungszweck")
-          .eq("betrag", betrag)
-          .eq("buchungsdatum", buchungsdatum)
-          .limit(50); // Get more to check manually
-        
-        // Manual comparison with trimming
-        const match = existing?.find(row => {
-          const dbIban = (row as any).iban?.trim() || '';
-          const dbVz = (row as any).verwendungszweck?.trim() || '';
-          // Note: iban is not in select, need to add it
-          return dbVz === verwendungszweck;
-        });
-        
-        // Fallback: Re-query with iban included
-        const { data: existingFull } = await supabase
-          .from("zahlungen")
-          .select("id, iban, verwendungszweck")
-          .eq("betrag", betrag)
-          .eq("buchungsdatum", buchungsdatum)
-          .limit(50);
-        
-        const matchFull = existingFull?.find(row => {
-          const dbIban = row.iban?.trim() || '';
-          const dbVz = row.verwendungszweck?.trim() || '';
-          return dbIban === iban && dbVz === verwendungszweck;
-        });
-        
+        const iban = payment.iban?.trim() || "";
+        const verwendungszweck = payment.verwendungszweck?.trim() || "";
+
+        const candidateDates = Array.from(
+          new Set([payment.buchungsdatum, payment.wertstellungsdatum].filter(Boolean) as string[])
+        );
+
+        // 1) Exakt-Match auf betrag + (buchungsdatum ODER wertstellungsdatum) + iban + verwendungszweck
+        let match:
+          | { id: string; iban: string | null; verwendungszweck: string | null; buchungsdatum: string }
+          | undefined;
+
+        if (candidateDates.length > 0) {
+          const { data } = await supabase
+            .from("zahlungen")
+            .select("id, iban, verwendungszweck, buchungsdatum")
+            .eq("betrag", betrag)
+            .in("buchungsdatum", candidateDates)
+            .limit(50);
+
+          const rows = (data as any[]) ?? [];
+          match = rows.find((row) => {
+            const dbIban = (row.iban ?? "").toString().trim();
+            const dbVz = (row.verwendungszweck ?? "").toString().trim();
+            return dbIban === iban && dbVz === verwendungszweck;
+          });
+        }
+
+        // 2) Fallback: kleiner Datums-Drift (z.B. Jahreswechsel Buchungstag vs. Valuta)
+        if (!match && payment.buchungsdatum) {
+          const base = new Date(`${payment.buchungsdatum}T00:00:00Z`);
+          if (!Number.isNaN(base.getTime())) {
+            const from = new Date(base);
+            from.setUTCDate(from.getUTCDate() - 5);
+            const to = new Date(base);
+            to.setUTCDate(to.getUTCDate() + 5);
+
+            const fromIso = from.toISOString().slice(0, 10);
+            const toIso = to.toISOString().slice(0, 10);
+
+            const { data } = await supabase
+              .from("zahlungen")
+              .select("id, iban, verwendungszweck, buchungsdatum")
+              .eq("betrag", betrag)
+              .gte("buchungsdatum", fromIso)
+              .lte("buchungsdatum", toIso)
+              .limit(200);
+
+            const rows = (data as any[]) ?? [];
+            match = rows.find((row) => {
+              const dbIban = (row.iban ?? "").toString().trim();
+              const dbVz = (row.verwendungszweck ?? "").toString().trim();
+              return dbIban === iban && dbVz === verwendungszweck;
+            });
+          }
+        }
+
         return {
           payment,
-          isDuplicate: !!matchFull,
-          existingId: matchFull?.id || null
+          isDuplicate: !!match,
+          existingId: match?.id || null,
         };
       })
     );
