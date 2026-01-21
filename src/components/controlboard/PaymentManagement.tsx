@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Upload, Search, FileText, Calendar, DollarSign, Bot, Euro, Building2, Home, User, Edit2, X, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Upload, Search, FileText, Calendar, DollarSign, Bot, Euro, Building2, Home, User, Edit2, X, AlertTriangle, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { NichtmieteRegelnManager } from "./NichtmieteRegelnManager";
 
 interface PaymentManagementProps {
   onBack: () => void;
@@ -580,22 +581,29 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-white/80">
+          <TabsList className="grid w-full grid-cols-4 bg-white/80">
             <TabsTrigger value="upload" className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
-              CSV-Upload
+              <span className="hidden sm:inline">CSV-Upload</span>
+              <span className="sm:hidden">Upload</span>
             </TabsTrigger>
             <TabsTrigger value="alle" className="flex items-center gap-2">
               <Euro className="h-4 w-4" />
-              Alle Zahlungen
-              {allPayments && <Badge variant="secondary" className="ml-1">{allPayments.length}</Badge>}
+              <span className="hidden sm:inline">Alle Zahlungen</span>
+              <span className="sm:hidden">Alle</span>
+              {allPayments && <Badge variant="secondary" className="ml-1 hidden sm:inline-flex">{allPayments.length}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="unzugeordnet" className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
-              Nicht zugeordnet
+              <span className="hidden sm:inline">Nicht zugeordnet</span>
+              <span className="sm:hidden">Offen</span>
               {unassignedPayments && unassignedPayments.length > 0 && (
                 <Badge variant="destructive" className="ml-1">{unassignedPayments.length}</Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="regeln" className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Regeln</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1001,6 +1009,13 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                   </Table>
                 )}
               </ScrollArea>
+            </Card>
+          </TabsContent>
+
+          {/* Tab 4: Nichtmiete-Regeln */}
+          <TabsContent value="regeln">
+            <Card className="p-6 bg-white">
+              <NichtmieteRegelnManager />
             </Card>
           </TabsContent>
         </Tabs>
