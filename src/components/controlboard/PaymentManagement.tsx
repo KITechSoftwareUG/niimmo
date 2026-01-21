@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ArrowLeft, Upload, Search, FileText, Calendar, DollarSign, Bot, Euro, Building2, Home, User, Edit2, X, AlertTriangle, Settings2 } from "lucide-react";
+import { ArrowLeft, Upload, Search, FileText, Calendar, Bot, Euro, Building2, Home, User, Edit2, X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { NichtmieteRegelnManager } from "./NichtmieteRegelnManager";
+import { NebenkostenPaymentsTab } from "./NebenkostenPaymentsTab";
 
 interface PaymentManagementProps {
   onBack: () => void;
@@ -601,9 +601,10 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                 <Badge variant="destructive" className="ml-1">{unassignedPayments.length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="regeln" className="flex items-center gap-2">
-              <Settings2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Regeln</span>
+            <TabsTrigger value="nebenkosten" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Nebenkosten</span>
+              <span className="sm:hidden">NK</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1012,10 +1013,10 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             </Card>
           </TabsContent>
 
-          {/* Tab 4: Nichtmiete-Regeln */}
-          <TabsContent value="regeln">
+          {/* Tab 4: Nebenkosten (Nichtmiete-Zahlungen) */}
+          <TabsContent value="nebenkosten">
             <Card className="p-6 bg-white">
-              <NichtmieteRegelnManager />
+              <NebenkostenPaymentsTab />
             </Card>
           </TabsContent>
         </Tabs>
