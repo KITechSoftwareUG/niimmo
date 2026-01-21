@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.check-rent-increase-eligibility]
 verify_jwt = false
+
+[functions.classify-nebenkosten]
+verify_jwt = false
