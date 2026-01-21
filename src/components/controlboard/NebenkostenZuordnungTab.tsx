@@ -70,7 +70,6 @@ const getConfidenceBadge = (confidence: "high" | "medium" | "low") => {
 
 export function NebenkostenZuordnungTab() {
   const queryClient = useQueryClient();
-  const [selectedYear, setSelectedYear] = useState<number>(2025);
   const [activeTab, setActiveTab] = useState<"high" | "medium" | "low">("high");
   const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
   const [immobilien, setImmobilien] = useState<Immobilie[]>([]);
@@ -78,21 +77,14 @@ export function NebenkostenZuordnungTab() {
   const [hasClassified, setHasClassified] = useState(false);
   const [selectedImmobilieOverrides, setSelectedImmobilieOverrides] = useState<Record<string, string>>({});
 
-  const availableYears = [2024, 2025, 2026];
-
   // Fetch bereits zugeordnete Zahlungen
   const { data: zugeordneteZahlungen, isLoading: zugeordneteLoading } = useQuery({
-    queryKey: ['zugeordnete-nebenkosten', selectedYear],
+    queryKey: ['zugeordnete-nebenkosten'],
     queryFn: async () => {
-      const yearStart = `${selectedYear}-01-01`;
-      const yearEnd = `${selectedYear}-12-31`;
-      
       const { data, error } = await supabase
         .from('zahlungen')
         .select('*, immobilie:immobilie_id(id, name, adresse)')
         .eq('kategorie', 'Nichtmiete')
-        .gte('buchungsdatum', yearStart)
-        .lte('buchungsdatum', yearEnd)
         .not('immobilie_id', 'is', null)
         .order('buchungsdatum', { ascending: false });
       
@@ -118,7 +110,7 @@ export function NebenkostenZuordnungTab() {
     
     try {
       const response = await supabase.functions.invoke('classify-nebenkosten', {
-        body: { year: selectedYear }
+        body: {}
       });
 
       if (response.error) throw response.error;
@@ -239,41 +231,23 @@ export function NebenkostenZuordnungTab() {
           </p>
         </div>
         
-        <div className="flex gap-3">
-          <Select value={selectedYear.toString()} onValueChange={(v) => {
-            setSelectedYear(parseInt(v));
-            setClassifications([]);
-            setHasClassified(false);
-          }}>
-            <SelectTrigger className="w-[120px]">
-              <Calendar className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map(year => (
-                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button 
-            onClick={startClassification} 
-            disabled={isClassifying}
-            className="gap-2"
-          >
-            {isClassifying ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Analysiere...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                KI-Analyse starten
-              </>
-            )}
-          </Button>
-        </div>
+        <Button 
+          onClick={startClassification} 
+          disabled={isClassifying}
+          className="gap-2"
+        >
+          {isClassifying ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Analysiere...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="h-4 w-4" />
+              KI-Analyse starten
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Stats */}

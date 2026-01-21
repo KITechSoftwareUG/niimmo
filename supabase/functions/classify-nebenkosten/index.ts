@@ -48,19 +48,11 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { year } = await req.json();
-    const selectedYear = year || 2025;
-
-    // Fetch all Nichtmiete payments for the year
-    const yearStart = `${selectedYear}-01-01`;
-    const yearEnd = `${selectedYear}-12-31`;
-
+    // Fetch all unassigned Nichtmiete payments (no year filter)
     const { data: zahlungen, error: zahlungenError } = await supabase
       .from("zahlungen")
       .select("*")
       .eq("kategorie", "Nichtmiete")
-      .gte("buchungsdatum", yearStart)
-      .lte("buchungsdatum", yearEnd)
       .is("immobilie_id", null)
       .order("buchungsdatum", { ascending: false });
 
