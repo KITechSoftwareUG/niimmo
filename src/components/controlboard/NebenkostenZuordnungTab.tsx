@@ -132,7 +132,13 @@ export function NebenkostenZuordnungTab() {
       setImmobilien(data.immobilien || []);
       setHasClassified(true);
       
-      toast.success(`${data.processed} von ${data.total_unassigned} Zahlungen analysiert`);
+      const autoCount = data.auto_classified || 0;
+      const aiCount = data.ai_classified || 0;
+      const excludedCount = data.excluded_count || 0;
+      
+      toast.success(
+        `${autoCount + aiCount} Betriebskosten erkannt (${autoCount} automatisch, ${aiCount} per KI). ${excludedCount} Zahlungen ausgeschlossen (Darlehen etc.)`
+      );
     } catch (error) {
       console.error("Classification error:", error);
       toast.error("Fehler bei der KI-Klassifizierung");
