@@ -22,7 +22,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { NebenkostenPaymentsTab } from "./NebenkostenPaymentsTab";
+import { NebenkostenZuordnungTab } from "./NebenkostenZuordnungTab";
 
 interface PaymentManagementProps {
   onBack: () => void;
@@ -1016,7 +1016,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           {/* Tab 4: Nebenkosten (Nichtmiete-Zahlungen) */}
           <TabsContent value="nebenkosten">
             <Card className="p-6 bg-white">
-              <NebenkostenPaymentsTab />
+              <NebenkostenZuordnungTab />
             </Card>
           </TabsContent>
         </Tabs>
