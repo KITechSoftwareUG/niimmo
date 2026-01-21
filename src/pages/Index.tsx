@@ -5,7 +5,7 @@ import { ImmobilienDetail } from "@/components/dashboard/ImmobilienDetail";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { FehlendeMietzahlungen } from "@/components/dashboard/FehlendeMietzahlungen";
 import { Analytics } from "@/components/dashboard/Analytics";
-import { ZahlungenUebersicht } from "@/components/dashboard/ZahlungenUebersicht";
+
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
 import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
@@ -17,7 +17,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
 
 import { useState, useMemo } from "react";
-import { Loader2, Building2, BarChart3, Euro, Settings, KeyRound, Wrench } from "lucide-react";
+import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 const Index = () => {
@@ -26,7 +26,7 @@ const Index = () => {
   const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
   const [selectedMietvertrag, setSelectedMietvertrag] = useState<string | null>(null);
   const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
-  const [showZahlungen, setShowZahlungen] = useState<boolean>(false);
+  
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
   const [navigationSource, setNavigationSource] = useState<'dashboard' | 'immobilie' | 'search'>('dashboard');
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
@@ -243,10 +243,6 @@ const Index = () => {
     return <Analytics onBack={() => setShowAnalytics(false)} />;
   }
 
-  // Zahlungen-Ansicht anzeigen
-  if (showZahlungen) {
-    return <ZahlungenUebersicht onBack={() => setShowZahlungen(false)} />;
-  }
 
   // Controlboard-Ansicht anzeigen
   if (showControlboard) {
@@ -331,15 +327,6 @@ const Index = () => {
                   >
                     <Settings className="h-4 w-4 mr-1.5 shrink-0" />
                     <span className="truncate">Controlboard</span>
-                  </Button>
-                  <Button 
-                    onClick={() => setShowZahlungen(true)} 
-                    variant="ghost"
-                    size="sm"
-                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
-                  >
-                    <Euro className="h-4 w-4 mr-1.5 shrink-0" />
-                    <span className="truncate">Zahlungen</span>
                   </Button>
                   <Button 
                     onClick={() => setShowUebergabe(true)} 
