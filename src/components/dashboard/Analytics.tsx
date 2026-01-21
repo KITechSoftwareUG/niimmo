@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, Legend } from 'recharts';
-import { Euro, TrendingUp, TrendingDown, Building, Users, ArrowLeft, Home, AlertTriangle, DollarSign, PiggyBank, BarChart3, Calendar } from 'lucide-react';
+import { Euro, TrendingUp, TrendingDown, Building, Users, ArrowLeft, Home, AlertTriangle, DollarSign, PiggyBank, BarChart3, Calendar, Landmark, CreditCard } from 'lucide-react';
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -106,14 +106,49 @@ export const Analytics = ({ onBack }: AnalyticsProps = {}) => {
     });
     const mieteProm2 = gesamtQm > 0 ? gesamtMiete / gesamtQm : 0;
 
+    // Finanzierungs-Zahlungen (Darlehen, Kredit, etc.)
+    const finanzierungsPatterns = [
+      /darlehen/i, /kredit/i, /tilgung/i, /zins(en)?/i, /annuität/i,
+      /hypothek/i, /baufinanzierung/i, /ratenkredit/i, /immobilienfinanzierung/i
+    ];
+    
+    const finanzierungsZahlungen = zahlungen.filter(z => {
+      const text = `${z.empfaengername || ''} ${z.verwendungszweck || ''}`;
+      return finanzierungsPatterns.some(pattern => pattern.test(text));
+    });
+
+    // Finanzierungszahlungen nach Monat gruppieren
+    const finanzierungNachMonat: Record<string, number> = {};
+    finanzierungsZahlungen.forEach(z => {
+      const datum = new Date(z.buchungsdatum);
+      const monatKey = `${datum.getFullYear()}-${String(datum.getMonth() + 1).padStart(2, '0')}`;
+      if (!finanzierungNachMonat[monatKey]) {
+        finanzierungNachMonat[monatKey] = 0;
+      }
+      finanzierungNachMonat[monatKey] += Math.abs(z.betrag);
+    });
+
+    // Gesamte Finanzierungskosten
+    const gesamtFinanzierung = finanzierungsZahlungen.reduce((sum, z) => sum + Math.abs(z.betrag), 0);
+    const monatlicheFinanzierung = Object.keys(finanzierungNachMonat).length > 0 
+      ? gesamtFinanzierung / Object.keys(finanzierungNachMonat).length 
+      : 0;
+
     // Zahlungen nach Monat gruppieren
     const zahlungenNachMonat = zahlungen.reduce((acc: any, z) => {
       const datum = new Date(z.buchungsdatum);
       const monatKey = `${datum.getFullYear()}-${String(datum.getMonth() + 1).padStart(2, '0')}`;
       if (!acc[monatKey]) {
-        acc[monatKey] = { kaltmiete: 0, betriebskosten: 0, sonstige: 0 };
+        acc[monatKey] = { kaltmiete: 0, betriebskosten: 0, sonstige: 0, finanzierung: 0 };
       }
-      if (z.kategorie === 'Miete') {
+      
+      // Check if it's a financing payment
+      const text = `${z.empfaengername || ''} ${z.verwendungszweck || ''}`;
+      const isFinanzierung = finanzierungsPatterns.some(pattern => pattern.test(text));
+      
+      if (isFinanzierung) {
+        acc[monatKey].finanzierung += Math.abs(z.betrag);
+      } else if (z.kategorie === 'Miete') {
         acc[monatKey].kaltmiete += z.betrag;
       } else if (z.kategorie === 'Mietkaution') {
         acc[monatKey].betriebskosten += z.betrag;
@@ -246,6 +281,11 @@ export const Analytics = ({ onBack }: AnalyticsProps = {}) => {
       cashflowData,
       roi,
       objekteNachRendite,
+      // Finanzierungsdaten
+      finanzierungsZahlungen,
+      gesamtFinanzierung,
+      monatlicheFinanzierung,
+      finanzierungNachMonat,
     };
   }, [immobilien, mietvertraege, einheiten, zahlungen, zeitraum]);
 
@@ -627,6 +667,91 @@ export const Analytics = ({ onBack }: AnalyticsProps = {}) => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Finanzierungsübersicht */}
+        {analytics.finanzierungsZahlungen.length > 0 && (
+          <div className="mb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Landmark className="h-5 w-5" />
+                  Finanzierung & Darlehen
+                </CardTitle>
+                <CardDescription>
+                  Übersicht aller Darlehensraten, Tilgungen und Zinszahlungen
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CreditCard className="h-5 w-5 text-red-600" />
+                      <span className="text-sm font-medium text-red-900">Gesamt Finanzierung</span>
+                    </div>
+                    <div className="text-2xl font-bold text-red-700">
+                      {analytics.gesamtFinanzierung.toLocaleString('de-DE')}€
+                    </div>
+                    <p className="text-xs text-red-600 mt-1">
+                      {analytics.finanzierungsZahlungen.length} Zahlungen
+                    </p>
+                  </div>
+                  <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingDown className="h-5 w-5 text-orange-600" />
+                      <span className="text-sm font-medium text-orange-900">Ø Monatlich</span>
+                    </div>
+                    <div className="text-2xl font-bold text-orange-700">
+                      {analytics.monatlicheFinanzierung.toLocaleString('de-DE', { maximumFractionDigits: 0 })}€
+                    </div>
+                    <p className="text-xs text-orange-600 mt-1">
+                      Durchschnitt pro Monat
+                    </p>
+                  </div>
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building className="h-5 w-5 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">Restschuld</span>
+                    </div>
+                    <div className="text-2xl font-bold text-blue-700">
+                      {analytics.gesamtRestschuld.toLocaleString('de-DE')}€
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Alle Immobilien
+                    </p>
+                  </div>
+                </div>
+
+                {/* Letzte Finanzierungszahlungen */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Letzte Zahlungen</h4>
+                  <div className="max-h-[300px] overflow-y-auto space-y-2">
+                    {analytics.finanzierungsZahlungen.slice(0, 20).map((zahlung: any, index: number) => (
+                      <div 
+                        key={zahlung.id || index}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{zahlung.empfaengername || 'Unbekannt'}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-md">
+                            {zahlung.verwendungszweck?.substring(0, 60)}...
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-red-600">
+                            -{Math.abs(zahlung.betrag).toLocaleString('de-DE')}€
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(zahlung.buchungsdatum).toLocaleDateString('de-DE')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Zusammenfassung & Weitere Kennzahlen */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
