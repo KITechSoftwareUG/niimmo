@@ -781,6 +781,11 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                                     <span className="text-xs text-muted-foreground">{formatDatum(zahlung.buchungsdatum)}</span>
                                     {zahlung.kategorie && <Badge variant="secondary" className="text-xs">{zahlung.kategorie}</Badge>}
                                   </div>
+                                  {zahlung.empfaengername && (
+                                    <p className="text-sm font-medium text-gray-800 truncate">
+                                      {zahlung.betrag < 0 ? 'An: ' : 'Von: '}{zahlung.empfaengername}
+                                    </p>
+                                  )}
                                   <p className={`text-lg font-bold ${zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'}`}>
                                     {formatBetrag(zahlung.betrag)}
                                   </p>
