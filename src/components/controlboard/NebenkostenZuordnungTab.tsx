@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
   Building2, Euro, Zap, Droplets, Flame, Check, 
   Calendar, Loader2, AlertTriangle, CheckCircle2, 
   Sparkles, RefreshCw, ThumbsUp, ThumbsDown, HelpCircle,
-  ChevronRight, Shield, Trash2, X
+  ChevronRight, Shield, Trash2, X, Database
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -74,8 +74,8 @@ export function NebenkostenZuordnungTab() {
   const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
   const [immobilien, setImmobilien] = useState<Immobilie[]>([]);
   const [isClassifying, setIsClassifying] = useState(false);
-  const [hasClassified, setHasClassified] = useState(false);
   const [selectedImmobilieOverrides, setSelectedImmobilieOverrides] = useState<Record<string, string>>({});
+  const [isFromCache, setIsFromCache] = useState(false);
 
   // Fetch bereits zugeordnete Zahlungen
   const { data: zugeordneteZahlungen, isLoading: zugeordneteLoading } = useQuery({
@@ -93,24 +93,18 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // Stats
-  const stats = useMemo(() => {
-    const high = classifications.filter(c => c.confidence === "high" && c.is_betriebskosten).length;
-    const medium = classifications.filter(c => c.confidence === "medium" && c.is_betriebskosten).length;
-    const low = classifications.filter(c => c.confidence === "low" || !c.is_betriebskosten).length;
-    const zugeordnet = zugeordneteZahlungen?.length || 0;
-    
-    return { high, medium, low, zugeordnet, total: high + medium + low };
-  }, [classifications, zugeordneteZahlungen]);
+  // Auto-load classifications on mount
+  useEffect(() => {
+    loadClassifications(false);
+  }, []);
 
-  // KI Klassifizierung starten
-  const startClassification = async () => {
+  // Load classifications (from cache or fresh)
+  const loadClassifications = async (force: boolean = false) => {
     setIsClassifying(true);
-    setHasClassified(false);
     
     try {
       const response = await supabase.functions.invoke('classify-nebenkosten', {
-        body: {}
+        body: { force }
       });
 
       if (response.error) throw response.error;
@@ -130,34 +124,59 @@ export function NebenkostenZuordnungTab() {
 
       setClassifications(data.classifications || []);
       setImmobilien(data.immobilien || []);
-      setHasClassified(true);
+      setIsFromCache(data.from_cache || false);
       
+      const cachedCount = data.cached_count || 0;
+      const newCount = data.new_count || 0;
       const autoCount = data.auto_classified || 0;
       const aiCount = data.ai_classified || 0;
       const excludedCount = data.excluded_count || 0;
       
-      toast.success(
-        `${autoCount + aiCount} Betriebskosten erkannt (${autoCount} automatisch, ${aiCount} per KI). ${excludedCount} Zahlungen ausgeschlossen (Darlehen etc.)`
-      );
+      if (data.from_cache && cachedCount > 0) {
+        toast.success(`${cachedCount} Klassifizierungen aus Cache geladen`);
+      } else if (newCount > 0) {
+        toast.success(
+          `${autoCount + aiCount} neue Betriebskosten erkannt (${autoCount} automatisch, ${aiCount} per KI). ${excludedCount} Zahlungen ausgeschlossen.`
+        );
+      } else if (cachedCount === 0 && newCount === 0) {
+        toast.info("Keine neuen Zahlungen zu klassifizieren");
+      }
     } catch (error) {
       console.error("Classification error:", error);
-      toast.error("Fehler bei der KI-Klassifizierung");
+      toast.error("Fehler beim Laden der Klassifizierungen");
     } finally {
       setIsClassifying(false);
     }
   };
 
+  // Stats
+  const stats = useMemo(() => {
+    const high = classifications.filter(c => c.confidence === "high" && c.is_betriebskosten).length;
+    const medium = classifications.filter(c => c.confidence === "medium" && c.is_betriebskosten).length;
+    const low = classifications.filter(c => c.confidence === "low" || !c.is_betriebskosten).length;
+    const zugeordnet = zugeordneteZahlungen?.length || 0;
+    
+    return { high, medium, low, zugeordnet, total: high + medium + low };
+  }, [classifications, zugeordneteZahlungen]);
+
   // Zahlung einer Immobilie zuordnen
   const assignMutation = useMutation({
     mutationFn: async ({ zahlungId, immobilieId }: { zahlungId: string; immobilieId: string }) => {
-      const { error } = await supabase
+      // Update zahlung
+      const { error: zahlungError } = await supabase
         .from('zahlungen')
         .update({ immobilie_id: immobilieId })
         .eq('id', zahlungId);
-      if (error) throw error;
+      if (zahlungError) throw zahlungError;
+
+      // Mark classification as confirmed
+      const { error: classError } = await supabase
+        .from('nebenkosten_klassifizierungen')
+        .update({ bestaetigt: true, bestaetigt_am: new Date().toISOString() })
+        .eq('zahlung_id', zahlungId);
+      if (classError) console.error("Error updating classification:", classError);
     },
     onSuccess: (_, variables) => {
-      // Remove from classifications
       setClassifications(prev => prev.filter(c => c.zahlung_id !== variables.zahlungId));
       queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
       toast.success("Zahlung zugeordnet");
@@ -187,6 +206,12 @@ export function NebenkostenZuordnungTab() {
             .from('zahlungen')
             .update({ immobilie_id: immobilieId })
             .eq('id', c.zahlung_id);
+          
+          await supabase
+            .from('nebenkosten_klassifizierungen')
+            .update({ bestaetigt: true, bestaetigt_am: new Date().toISOString() })
+            .eq('zahlung_id', c.zahlung_id);
+          
           success++;
         } catch (e) {
           console.error("Error assigning:", e);
@@ -199,9 +224,20 @@ export function NebenkostenZuordnungTab() {
     toast.success(`${success} Zahlungen zugeordnet`);
   };
 
-  // Zahlung aus Klassifizierung entfernen (nicht Betriebskosten)
-  const removeFromClassifications = (zahlungId: string) => {
-    setClassifications(prev => prev.filter(c => c.zahlung_id !== zahlungId));
+  // Zahlung aus Klassifizierung entfernen (überspringen)
+  const skipClassification = async (zahlungId: string) => {
+    try {
+      await supabase
+        .from('nebenkosten_klassifizierungen')
+        .update({ uebersprungen: true })
+        .eq('zahlung_id', zahlungId);
+      
+      setClassifications(prev => prev.filter(c => c.zahlung_id !== zahlungId));
+      toast.success("Zahlung übersprungen");
+    } catch (error) {
+      console.error("Error skipping:", error);
+      toast.error("Fehler beim Überspringen");
+    }
   };
 
   // Immobilie für Zahlung ändern
@@ -231,29 +267,38 @@ export function NebenkostenZuordnungTab() {
           <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             KI-Nebenkosten-Zuordnung
+            {isFromCache && (
+              <Badge variant="outline" className="ml-2 gap-1">
+                <Database className="h-3 w-3" />
+                Aus Cache
+              </Badge>
+            )}
           </h3>
           <p className="text-sm text-muted-foreground">
             Automatische Klassifizierung und Zuordnung zu Immobilien
           </p>
         </div>
         
-        <Button 
-          onClick={startClassification} 
-          disabled={isClassifying}
-          className="gap-2"
-        >
-          {isClassifying ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Analysiere...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4" />
-              KI-Analyse starten
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline"
+                  onClick={() => loadClassifications(true)} 
+                  disabled={isClassifying}
+                  className="gap-2"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isClassifying && "animate-spin")} />
+                  Neu analysieren
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Alle Zahlungen neu klassifizieren (ignoriert Cache)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Stats */}
@@ -306,29 +351,28 @@ export function NebenkostenZuordnungTab() {
       </div>
 
       {/* Main Content */}
-      {!hasClassified && !isClassifying ? (
-        <Card className="p-12">
-          <div className="text-center">
-            <Sparkles className="h-16 w-16 mx-auto text-primary/30 mb-4" />
-            <h4 className="text-lg font-medium mb-2">KI-Analyse starten</h4>
-            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Klicke auf "KI-Analyse starten", um alle Nichtmiete-Zahlungen automatisch zu klassifizieren 
-              und den passenden Immobilien zuzuordnen.
-            </p>
-            <Button onClick={startClassification} size="lg" className="gap-2">
-              <Sparkles className="h-5 w-5" />
-              Jetzt analysieren
-            </Button>
-          </div>
-        </Card>
-      ) : isClassifying ? (
+      {isClassifying && classifications.length === 0 ? (
         <Card className="p-12">
           <div className="text-center">
             <Loader2 className="h-16 w-16 mx-auto text-primary animate-spin mb-4" />
-            <h4 className="text-lg font-medium mb-2">KI analysiert Zahlungen...</h4>
+            <h4 className="text-lg font-medium mb-2">Lade Klassifizierungen...</h4>
             <p className="text-muted-foreground">
-              Die KI klassifiziert alle Nichtmiete-Zahlungen und schlägt Immobilien vor.
+              Prüfe auf neue Zahlungen und lade gecachte Ergebnisse.
             </p>
+          </div>
+        </Card>
+      ) : classifications.length === 0 ? (
+        <Card className="p-12">
+          <div className="text-center">
+            <CheckCircle2 className="h-16 w-16 mx-auto text-green-500/30 mb-4" />
+            <h4 className="text-lg font-medium mb-2">Keine Zahlungen zu prüfen</h4>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Alle Nichtmiete-Zahlungen wurden bereits zugeordnet oder es gibt keine neuen Zahlungen.
+            </p>
+            <Button onClick={() => loadClassifications(true)} variant="outline" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Erneut prüfen
+            </Button>
           </div>
         </Card>
       ) : (
@@ -418,19 +462,16 @@ export function NebenkostenZuordnungTab() {
                                   <p className="text-xs text-muted-foreground italic mb-3">
                                     KI: {classification.reasoning}
                                   </p>
-
-                                  {/* Immobilie Selector */}
-                                  <div className="flex items-center gap-2">
-                                    <Select 
-                                      value={selectedImmobilieId || "none"}
-                                      onValueChange={(v) => handleImmobilieChange(classification.zahlung_id, v)}
+                                  
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Select
+                                      value={selectedImmobilieId || ""}
+                                      onValueChange={(value) => handleImmobilieChange(classification.zahlung_id, value)}
                                     >
-                                      <SelectTrigger className="w-[200px] h-8 text-xs">
-                                        <Building2 className="h-3 w-3 mr-1" />
+                                      <SelectTrigger className="w-[200px] h-8 text-sm">
                                         <SelectValue placeholder="Immobilie wählen..." />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="none">Keine Zuordnung</SelectItem>
                                         {immobilien.map(imm => (
                                           <SelectItem key={imm.id} value={imm.id}>
                                             {imm.name}
@@ -439,47 +480,37 @@ export function NebenkostenZuordnungTab() {
                                       </SelectContent>
                                     </Select>
                                     
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="sm"
-                                            variant="default"
-                                            className="h-8 gap-1"
-                                            disabled={!selectedImmobilieId || selectedImmobilieId === "none"}
-                                            onClick={() => selectedImmobilieId && assignMutation.mutate({
-                                              zahlungId: classification.zahlung_id,
-                                              immobilieId: selectedImmobilieId
-                                            })}
-                                          >
-                                            <ThumbsUp className="h-3 w-3" />
-                                            Bestätigen
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Zahlung dieser Immobilie zuordnen</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-8"
-                                            onClick={() => removeFromClassifications(classification.zahlung_id)}
-                                          >
-                                            <X className="h-4 w-4" />
-                                          </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>Keine Betriebskosten - überspringen</TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        const immId = selectedImmobilieId;
+                                        if (immId) {
+                                          assignMutation.mutate({ zahlungId: classification.zahlung_id, immobilieId: immId });
+                                        } else {
+                                          toast.error("Bitte eine Immobilie auswählen");
+                                        }
+                                      }}
+                                      disabled={!selectedImmobilieId || assignMutation.isPending}
+                                      className="gap-1"
+                                    >
+                                      <Check className="h-3 w-3" />
+                                      Bestätigen
+                                    </Button>
+                                    
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => skipClassification(classification.zahlung_id)}
+                                      className="gap-1 text-muted-foreground"
+                                    >
+                                      <X className="h-3 w-3" />
+                                      Überspringen
+                                    </Button>
                                   </div>
                                 </div>
-
-                                <div className="text-right text-xs text-muted-foreground">
-                                  {format(new Date(classification.zahlung.buchungsdatum), 'dd.MM.yy', { locale: de })}
+                                
+                                <div className="text-xs text-muted-foreground">
+                                  {format(new Date(classification.zahlung.buchungsdatum), "dd.MM.yy", { locale: de })}
                                 </div>
                               </div>
                             </Card>
@@ -493,58 +524,60 @@ export function NebenkostenZuordnungTab() {
             </Card>
           </div>
 
-          {/* Bereits zugeordnete */}
-          <div className="lg:col-span-1">
-            <Card className="h-full">
-              <CardHeader className="pb-3">
+          {/* Bereits zugeordnet */}
+          <div>
+            <Card>
+              <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
-                  Zugeordnet ({stats.zugeordnet})
+                  Bereits zugeordnet
                 </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  In der Immobilie unter "Nebenkosten" verteilen
-                </p>
               </CardHeader>
               <CardContent>
-                {zugeordneteLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
-                ) : zugeordneteZahlungen?.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Building2 className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                    <p className="text-sm">Noch keine zugeordneten Zahlungen</p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[500px]">
+                <ScrollArea className="h-[500px]">
+                  {zugeordneteLoading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : !zugeordneteZahlungen || zugeordneteZahlungen.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Building2 className="h-8 w-8 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">Noch keine Zuordnungen</p>
+                    </div>
+                  ) : (
                     <div className="space-y-2">
-                      {zugeordneteZahlungen?.map(z => (
+                      {zugeordneteZahlungen.slice(0, 20).map(zahlung => (
                         <div 
-                          key={z.id}
+                          key={zahlung.id}
                           className="p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="font-medium text-sm">
-                              {formatBetrag(z.betrag)}
+                              {formatBetrag(zahlung.betrag)}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {format(new Date(z.buchungsdatum), 'dd.MM.yy', { locale: de })}
+                              {format(new Date(zahlung.buchungsdatum), "dd.MM.yy", { locale: de })}
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground truncate">
-                            {z.empfaengername}
+                            {zahlung.empfaengername}
                           </p>
-                          <div className="flex items-center gap-1 mt-2">
-                            <ChevronRight className="h-3 w-3 text-primary" />
-                            <span className="text-xs font-medium text-primary">
-                              {(z.immobilie as any)?.name || 'Unbekannt'}
+                          <div className="flex items-center gap-1 mt-1">
+                            <Building2 className="h-3 w-3 text-primary" />
+                            <span className="text-xs text-primary">
+                              {(zahlung.immobilie as any)?.name || 'Unbekannt'}
                             </span>
                           </div>
                         </div>
                       ))}
+                      {zugeordneteZahlungen.length > 20 && (
+                        <p className="text-xs text-muted-foreground text-center pt-2">
+                          +{zugeordneteZahlungen.length - 20} weitere
+                        </p>
+                      )}
                     </div>
-                  </ScrollArea>
-                )}
+                  )}
+                </ScrollArea>
               </CardContent>
             </Card>
           </div>

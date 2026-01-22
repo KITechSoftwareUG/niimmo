@@ -559,6 +559,63 @@ export type Database = {
           },
         ]
       }
+      nebenkosten_klassifizierungen: {
+        Row: {
+          bestaetigt: boolean
+          bestaetigt_am: string | null
+          category: string
+          confidence: string
+          id: string
+          is_betriebskosten: boolean
+          klassifiziert_am: string
+          reasoning: string | null
+          suggested_immobilie_id: string | null
+          uebersprungen: boolean
+          zahlung_id: string
+        }
+        Insert: {
+          bestaetigt?: boolean
+          bestaetigt_am?: string | null
+          category: string
+          confidence: string
+          id?: string
+          is_betriebskosten?: boolean
+          klassifiziert_am?: string
+          reasoning?: string | null
+          suggested_immobilie_id?: string | null
+          uebersprungen?: boolean
+          zahlung_id: string
+        }
+        Update: {
+          bestaetigt?: boolean
+          bestaetigt_am?: string | null
+          category?: string
+          confidence?: string
+          id?: string
+          is_betriebskosten?: boolean
+          klassifiziert_am?: string
+          reasoning?: string | null
+          suggested_immobilie_id?: string | null
+          uebersprungen?: boolean
+          zahlung_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nebenkosten_klassifizierungen_suggested_immobilie_id_fkey"
+            columns: ["suggested_immobilie_id"]
+            isOneToOne: false
+            referencedRelation: "immobilien"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nebenkosten_klassifizierungen_zahlung_id_fkey"
+            columns: ["zahlung_id"]
+            isOneToOne: true
+            referencedRelation: "zahlungen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nebenkosten_zahlungen: {
         Row: {
           einheit_id: string | null

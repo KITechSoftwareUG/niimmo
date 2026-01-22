@@ -112,7 +112,7 @@ const BETRIEBSKOSTEN_PATTERNS: { pattern: RegExp; category: string }[] = [
   { pattern: /stadtwerk/i, category: "Strom" },
 ];
 
-function classifyWithRegex(zahlung: Zahlung): ClassificationResult | null {
+function classifyWithRegex(zahlung: Zahlung): ClassificationResult | null | undefined {
   const text = `${zahlung.empfaengername || ""} ${zahlung.verwendungszweck || ""}`;
   
   // Check if should be excluded (Darlehen etc.)
@@ -138,7 +138,7 @@ function classifyWithRegex(zahlung: Zahlung): ClassificationResult | null {
     }
   }
   
-  return undefined as any; // Needs AI classification
+  return undefined; // Needs AI classification
 }
 
 function tryMatchImmobilie(zahlung: Zahlung, immobilien: Immobilie[]): string | null {
@@ -169,6 +169,9 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const body = await req.json().catch(() => ({}));
+    const forceReclassify = body.force === true;
+
     // Fetch all unassigned Nichtmiete payments
     const { data: zahlungen, error: zahlungenError } = await supabase
       .from("zahlungen")
@@ -186,6 +189,19 @@ serve(async (req) => {
 
     if (immobilienError) throw immobilienError;
 
+    // Fetch existing cached classifications
+    const { data: existingClassifications, error: classError } = await supabase
+      .from("nebenkosten_klassifizierungen")
+      .select("*")
+      .eq("bestaetigt", false)
+      .eq("uebersprungen", false);
+
+    if (classError) throw classError;
+
+    const existingClassMap = new Map(
+      (existingClassifications || []).map(c => [c.zahlung_id, c])
+    );
+
     if (!zahlungen || zahlungen.length === 0) {
       return new Response(
         JSON.stringify({ 
@@ -193,6 +209,48 @@ serve(async (req) => {
           excluded: [],
           message: "Keine unzugeordneten Zahlungen gefunden",
           immobilien: immobilien || [],
+          from_cache: true,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Filter: which payments need classification?
+    const needsClassification: Zahlung[] = [];
+    const cachedResults: ClassificationResult[] = [];
+
+    for (const zahlung of zahlungen) {
+      const existing = existingClassMap.get(zahlung.id);
+      
+      if (existing && !forceReclassify) {
+        // Use cached result
+        cachedResults.push({
+          zahlung_id: existing.zahlung_id,
+          is_betriebskosten: existing.is_betriebskosten,
+          confidence: existing.confidence as "high" | "medium" | "low",
+          category: existing.category,
+          suggested_immobilie_id: existing.suggested_immobilie_id,
+          suggested_immobilie_name: immobilien?.find(i => i.id === existing.suggested_immobilie_id)?.name || null,
+          reasoning: existing.reasoning || "",
+          zahlung,
+        });
+      } else {
+        needsClassification.push(zahlung);
+      }
+    }
+
+    // If all are cached, return immediately
+    if (needsClassification.length === 0) {
+      return new Response(
+        JSON.stringify({
+          classifications: cachedResults,
+          excluded_count: 0,
+          auto_classified: 0,
+          ai_classified: 0,
+          cached_count: cachedResults.length,
+          total_unassigned: zahlungen.length,
+          immobilien: immobilien || [],
+          from_cache: true,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -202,8 +260,8 @@ serve(async (req) => {
     const needsAI: Zahlung[] = [];
     const excluded: Zahlung[] = [];
 
-    // First pass: Regex classification
-    for (const zahlung of zahlungen) {
+    // First pass: Regex classification for new payments
+    for (const zahlung of needsClassification) {
       const result = classifyWithRegex(zahlung);
       
       if (result === null) {
@@ -221,7 +279,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Auto-classified: ${autoClassified.length}, Needs AI: ${needsAI.length}, Excluded: ${excluded.length}`);
+    console.log(`Cached: ${cachedResults.length}, Auto-classified: ${autoClassified.length}, Needs AI: ${needsAI.length}, Excluded: ${excluded.length}`);
 
     // Only call AI if we have uncertain payments and not too many
     let aiClassified: ClassificationResult[] = [];
@@ -331,8 +389,33 @@ Antworte nur mit der Funktion classify_payments.`;
       }));
     }
 
-    // Combine all results
-    const allClassifications = [...autoClassified, ...aiClassified];
+    // Save new classifications to cache
+    const newClassifications = [...autoClassified, ...aiClassified];
+    
+    if (newClassifications.length > 0) {
+      const toInsert = newClassifications.map(c => ({
+        zahlung_id: c.zahlung_id,
+        is_betriebskosten: c.is_betriebskosten,
+        confidence: c.confidence,
+        category: c.category,
+        suggested_immobilie_id: c.suggested_immobilie_id,
+        reasoning: c.reasoning,
+      }));
+
+      // Upsert to handle re-classification
+      const { error: insertError } = await supabase
+        .from("nebenkosten_klassifizierungen")
+        .upsert(toInsert, { onConflict: "zahlung_id" });
+
+      if (insertError) {
+        console.error("Error caching classifications:", insertError);
+      } else {
+        console.log(`Cached ${toInsert.length} new classifications`);
+      }
+    }
+
+    // Combine all results: cached + new
+    const allClassifications = [...cachedResults, ...autoClassified, ...aiClassified];
 
     return new Response(
       JSON.stringify({
@@ -340,8 +423,11 @@ Antworte nur mit der Funktion classify_payments.`;
         excluded_count: excluded.length,
         auto_classified: autoClassified.length,
         ai_classified: aiClassified.length,
+        cached_count: cachedResults.length,
+        new_count: newClassifications.length,
         total_unassigned: zahlungen.length,
         immobilien: immobilien || [],
+        from_cache: cachedResults.length > 0 && newClassifications.length === 0,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
