@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,9 @@ import {
   Wallet,
   GripVertical,
   Clock,
-  Timer
+  Timer,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { PaymentSplitModal } from "../PaymentSplitModal";
 import { PaymentUndoSplitModal } from "../PaymentUndoSplitModal";
@@ -60,6 +62,7 @@ export function MietvertragTimelineView({
   const [splittingPayment, setSplittingPayment] = useState<any | null>(null);
   const [undoingSplitPayments, setUndoingSplitPayments] = useState<any[] | null>(null);
   const [showIgnoredPayments, setShowIgnoredPayments] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   // Drag and drop handlers
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, zahlungId: string) => {
@@ -323,9 +326,25 @@ export function MietvertragTimelineView({
   });
 
   // Sort months chronologically (newest first)
-  const sortedMonths = Array.from(monthlyData.keys()).sort().reverse();
+  const allSortedMonths = Array.from(monthlyData.keys()).sort().reverse();
+  
+  // Extract available years for navigation
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    allSortedMonths.forEach(month => {
+      const year = parseInt(month.split('-')[0]);
+      years.add(year);
+    });
+    return Array.from(years).sort().reverse();
+  }, [allSortedMonths]);
 
-  if (sortedMonths.length === 0) {
+  // Filter months by selected year (or show all if no year selected)
+  const sortedMonths = useMemo(() => {
+    if (selectedYear === null) return allSortedMonths;
+    return allSortedMonths.filter(month => month.startsWith(`${selectedYear}-`));
+  }, [allSortedMonths, selectedYear]);
+
+  if (allSortedMonths.length === 0) {
     return (
       <div className="text-center py-12">
         <AlertCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -690,9 +709,73 @@ export function MietvertragTimelineView({
 
   return (
     <div className="relative px-2 sm:px-4 md:px-8 py-4 sm:py-6 md:py-8">
-      {/* Toggle for ignored payments */}
-      {hasIgnoredPayments && (
-        <div className="mb-4 sm:mb-6 flex justify-end">
+      {/* Year Navigation & Controls */}
+      <div className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-3">
+        {/* Year Filter */}
+        {availableYears.length > 1 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs sm:text-sm text-muted-foreground">Jahr:</span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const currentIndex = selectedYear === null ? -1 : availableYears.indexOf(selectedYear);
+                  const nextIndex = currentIndex + 1;
+                  if (nextIndex < availableYears.length) {
+                    setSelectedYear(availableYears[nextIndex]);
+                  }
+                }}
+                disabled={selectedYear === availableYears[availableYears.length - 1]}
+                className="h-7 w-7 p-0"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <Select 
+                value={selectedYear?.toString() || 'alle'} 
+                onValueChange={(v) => setSelectedYear(v === 'alle' ? null : parseInt(v))}
+              >
+                <SelectTrigger className="w-24 h-8 text-xs sm:text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alle">Alle</SelectItem>
+                  {availableYears.map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const currentIndex = selectedYear === null ? availableYears.length : availableYears.indexOf(selectedYear);
+                  const prevIndex = currentIndex - 1;
+                  if (prevIndex >= 0) {
+                    setSelectedYear(availableYears[prevIndex]);
+                  } else if (selectedYear !== null) {
+                    setSelectedYear(null);
+                  }
+                }}
+                disabled={selectedYear === null}
+                className="h-7 w-7 p-0"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {selectedYear !== null && (
+              <Badge variant="secondary" className="text-xs">
+                {sortedMonths.length} Monate
+              </Badge>
+            )}
+          </div>
+        )}
+        
+        {/* Toggle for ignored payments */}
+        {hasIgnoredPayments && (
           <Button
             variant="outline"
             size="sm"
@@ -713,8 +796,8 @@ export function MietvertragTimelineView({
               </>
             )}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
       
       {/* Timeline */}
       <div className="relative">
