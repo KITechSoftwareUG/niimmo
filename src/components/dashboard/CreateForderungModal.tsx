@@ -48,9 +48,10 @@ export const CreateForderungModal = ({
     { value: "12", label: "Dezember" }
   ];
 
-  // Only show years from 2025 onwards
-  const startYear = Math.max(2025, currentYear);
-  const years = Array.from({ length: 3 }, (_, i) => startYear + i);
+  // Show years from 2025 to current year + 1
+  const startYear = 2025;
+  const endYear = currentYear + 1;
+  const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
