@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, User, Building2, MapPin, Calendar } from "lucide-react";
+import { Search, User, Building2, MapPin, Calendar, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -32,9 +33,9 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch active contracts with related data
+  // Fetch contracts with related data (active, terminated, and ended)
   const { data: contracts, isLoading: contractsLoading } = useQuery({
-    queryKey: ['active-contracts-for-assignment'],
+    queryKey: ['contracts-for-assignment'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('mietvertrag')
@@ -44,6 +45,7 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
           ende_datum,
           kaltmiete,
           betriebskosten,
+          status,
           einheiten (
             id,
             etage,
@@ -62,7 +64,8 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
             )
           )
         `)
-        .eq('status', 'aktiv')
+        .in('status', ['aktiv', 'gekuendigt', 'beendet'])
+        .order('status', { ascending: true })
         .order('start_datum', { ascending: false });
 
       if (error) throw error;
@@ -328,7 +331,7 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
                 </div>
               ) : filteredContracts?.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
-                  Keine aktiven Mietverträge gefunden
+                  Keine Mietverträge gefunden
                 </div>
               ) : (
                 <div className="p-4 space-y-3">
@@ -340,17 +343,29 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
                       .join(', ');
                     const immobilie = contract.einheiten?.immobilien;
                     const warmmiete = (contract.kaltmiete || 0) + (contract.betriebskosten || 0);
+                    
+                    // Status styling
+                    const statusConfig = {
+                      aktiv: { label: 'Aktiv', variant: 'default' as const, icon: CheckCircle, className: 'bg-green-100 text-green-800 border-green-200' },
+                      gekuendigt: { label: 'Gekündigt', variant: 'secondary' as const, icon: Clock, className: 'bg-orange-100 text-orange-800 border-orange-200' },
+                      beendet: { label: 'Beendet', variant: 'outline' as const, icon: XCircle, className: 'bg-gray-100 text-gray-600 border-gray-200' },
+                    };
+                    const status = (contract as any).status as keyof typeof statusConfig || 'aktiv';
+                    const config = statusConfig[status] || statusConfig.aktiv;
+                    const StatusIcon = config.icon;
 
                     return (
                       <div
                         key={contract.id}
-                        className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group"
+                        className={`p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group ${
+                          status === 'beendet' ? 'opacity-75 border-dashed' : ''
+                        }`}
                         onClick={() => handleAssignToContract(contract.id)}
                       >
                         <div className="flex items-start justify-between">
                           <div className="space-y-2 flex-1">
-                            {/* Mieter - alle anzeigen */}
-                            <div className="flex items-center gap-2">
+                            {/* Mieter mit Status-Badge */}
+                            <div className="flex items-center gap-2 flex-wrap">
                               <User className="h-4 w-4 text-muted-foreground" />
                               <span className="font-semibold">
                                 {mieterNames || 'Kein Mieter'}
@@ -360,6 +375,11 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
                                   ({allMieter.length} Mieter)
                                 </span>
                               )}
+                              {/* Status Badge */}
+                              <Badge variant={config.variant} className={`text-xs flex items-center gap-1 ${config.className}`}>
+                                <StatusIcon className="h-3 w-3" />
+                                {config.label}
+                              </Badge>
                             </div>
 
                             {/* Immobilie */}
