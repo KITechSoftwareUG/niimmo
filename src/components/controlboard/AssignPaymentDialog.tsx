@@ -333,69 +333,78 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
               ) : (
                 <div className="p-4 space-y-3">
                   {filteredContracts?.map((contract) => {
-                  const mieter = contract.mietvertrag_mieter?.[0]?.mieter;
-                  const immobilie = contract.einheiten?.immobilien;
-                  const warmmiete = (contract.kaltmiete || 0) + (contract.betriebskosten || 0);
+                    // Alle Mieter des Vertrags sammeln
+                    const allMieter = contract.mietvertrag_mieter?.map(mm => mm.mieter).filter(Boolean) || [];
+                    const mieterNames = allMieter
+                      .map(m => `${m?.vorname} ${m?.nachname}`)
+                      .join(', ');
+                    const immobilie = contract.einheiten?.immobilien;
+                    const warmmiete = (contract.kaltmiete || 0) + (contract.betriebskosten || 0);
 
-                  return (
-                    <div
-                      key={contract.id}
-                      className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group"
-                      onClick={() => handleAssignToContract(contract.id)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2 flex-1">
-                          {/* Mieter */}
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-semibold">
-                              {mieter?.vorname} {mieter?.nachname}
-                            </span>
-                          </div>
-
-                          {/* Immobilie */}
-                          {immobilie && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Building2 className="h-4 w-4" />
-                              <span>{immobilie.name}</span>
-                            </div>
-                          )}
-
-                          {/* Adresse */}
-                          {immobilie?.adresse && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <MapPin className="h-4 w-4" />
-                              <span>{immobilie.adresse}</span>
-                            </div>
-                          )}
-
-                          {/* Vertragsdaten */}
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              <span>
-                                {format(new Date(contract.start_datum), 'dd.MM.yyyy')}
-                                {contract.ende_datum && ` - ${format(new Date(contract.ende_datum), 'dd.MM.yyyy')}`}
+                    return (
+                      <div
+                        key={contract.id}
+                        className="p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group"
+                        onClick={() => handleAssignToContract(contract.id)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2 flex-1">
+                            {/* Mieter - alle anzeigen */}
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-semibold">
+                                {mieterNames || 'Kein Mieter'}
                               </span>
+                              {allMieter.length > 1 && (
+                                <span className="text-xs text-muted-foreground">
+                                  ({allMieter.length} Mieter)
+                                </span>
+                              )}
                             </div>
-                            <div>
-                              <strong>{warmmiete.toFixed(2)} €</strong> / Monat
+
+                            {/* Immobilie */}
+                            {immobilie && (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Building2 className="h-4 w-4" />
+                                <span>{immobilie.name}</span>
+                              </div>
+                            )}
+
+                            {/* Adresse */}
+                            {immobilie?.adresse && (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <MapPin className="h-4 w-4" />
+                                <span>{immobilie.adresse}</span>
+                              </div>
+                            )}
+
+                            {/* Vertragsdaten */}
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                <span>
+                                  {format(new Date(contract.start_datum), 'dd.MM.yyyy')}
+                                  {contract.ende_datum && ` - ${format(new Date(contract.ende_datum), 'dd.MM.yyyy')}`}
+                                </span>
+                              </div>
+                              <div>
+                                <strong>{warmmiete.toFixed(2)} €</strong> / Monat
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={isAssigning}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          Zuordnen
-                        </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={isAssigning}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            Zuordnen
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             )}
           </ScrollArea>
