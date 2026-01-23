@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -18,27 +16,70 @@ import {
 import {
   Euro,
   Loader2,
-  Calendar,
   Users,
   TrendingUp,
-  TrendingDown,
   Plus,
-  FileText,
   Home,
-  ArrowRight,
-  ArrowDown,
   ArrowUp,
+  ArrowDown,
   Receipt,
   Calculator,
+  Ruler,
+  Equal,
+  Activity,
+  Percent,
   Settings,
+  Trash2,
+  Edit2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { KostenpositionModal } from "./KostenpositionModal";
+import { NebenkostenArtenManager } from "./NebenkostenArtenManager";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface NebenkostenAbrechnungTabProps {
   immobilieId: string;
+}
+
+interface Nebenkostenart {
+  id: string;
+  name: string;
+  verteilerschluessel_art: string;
+  ist_umlagefaehig: boolean;
+}
+
+interface Kostenposition {
+  id: string;
+  nebenkostenart_id: string | null;
+  gesamtbetrag: number;
+  zeitraum_von: string;
+  zeitraum_bis: string;
+  bezeichnung: string | null;
+  ist_umlagefaehig: boolean;
+}
+
+interface MieterKostenDetail {
+  nebenkostenartName: string;
+  verteilerschluessel: string;
+  gesamtKosten: number;
+  anteilProzent: number;
+  anteilBetrag: number;
 }
 
 interface MieterMitVertrag {
@@ -51,11 +92,28 @@ interface MieterMitVertrag {
   startDatum: string | null;
   endeDatum: string | null;
   qm: number | null;
-  anteilProzent: number;
+  anzahlPersonen: number;
   vorauszahlungenGesamt: number;
-  kostenAnteil: number;
+  kostenDetails: MieterKostenDetail[];
+  kostenAnteilGesamt: number;
   saldo: number;
 }
+
+const VERTEILERSCHLUESSEL_ICONS: Record<string, typeof Ruler> = {
+  qm: Ruler,
+  personen: Users,
+  verbrauch: Activity,
+  gleich: Equal,
+  individuell: Percent,
+};
+
+const VERTEILERSCHLUESSEL_LABELS: Record<string, string> = {
+  qm: 'm²',
+  personen: 'Pers.',
+  verbrauch: 'Verbr.',
+  gleich: 'Gleich',
+  individuell: 'Ind.',
+};
 
 export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungTabProps) {
   const { toast } = useToast();
@@ -63,11 +121,15 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
   const currentYear = new Date().getFullYear();
   const [abrechnungsjahr, setAbrechnungsjahr] = useState<number>(currentYear);
   const [kostenpositionModalOpen, setKostenpositionModalOpen] = useState(false);
+  const [editingPosition, setEditingPosition] = useState<Kostenposition | null>(null);
+  const [nebenkostenArtenOpen, setNebenkostenArtenOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const abrechnungsStart = `${abrechnungsjahr}-01-01`;
   const abrechnungsEnde = `${abrechnungsjahr}-12-31`;
 
-  // Fetch einheiten mit qm
+  // Fetch einheiten mit qm und Personenzahl
   const { data: einheiten, isLoading: einheitenLoading } = useQuery({
     queryKey: ['einheiten-abrechnung', immobilieId],
     queryFn: async () => {
@@ -115,6 +177,21 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
     enabled: !!einheiten && einheiten.length > 0,
   });
 
+  // Fetch nebenkostenarten
+  const { data: nebenkostenarten, isLoading: nebenkostenArtenLoading } = useQuery({
+    queryKey: ['nebenkostenarten', immobilieId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('nebenkostenarten')
+        .select('*')
+        .eq('immobilie_id', immobilieId)
+        .order('name');
+
+      if (error) throw error;
+      return (data || []) as Nebenkostenart[];
+    },
+  });
+
   // Fetch kostenpositionen für das Jahr
   const { data: kostenpositionen, isLoading: kostenLoading } = useQuery({
     queryKey: ['kostenpositionen-abrechnung', immobilieId, abrechnungsjahr],
@@ -127,21 +204,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         .gte('zeitraum_bis', abrechnungsStart);
 
       if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Fetch nebenkostenarten
-  const { data: nebenkostenarten } = useQuery({
-    queryKey: ['nebenkostenarten', immobilieId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('nebenkostenarten')
-        .select('*')
-        .eq('immobilie_id', immobilieId);
-
-      if (error) throw error;
-      return data || [];
+      return (data || []) as Kostenposition[];
     },
   });
 
@@ -160,34 +223,78 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
     },
   });
 
-  // Berechne Gesamtfläche
-  const gesamtQm = useMemo(() => {
-    return einheiten?.reduce((sum, e) => sum + (e.qm || 0), 0) || 0;
+  // Berechne Bezugsgrößen
+  const bezugsgroessen = useMemo(() => {
+    if (!einheiten) return { qm: 0, personen: 0, einheiten: 0 };
+    
+    return {
+      qm: einheiten.reduce((sum, e) => sum + (e.qm || 0), 0),
+      personen: einheiten.reduce((sum, e) => sum + (e.anzahl_personen || 1), 0),
+      einheiten: einheiten.length,
+    };
   }, [einheiten]);
 
-  // Berechne Gesamtkosten (umlagefähig)
+  // Kosten pro Nebenkostenart gruppieren
+  const kostenProArt = useMemo(() => {
+    if (!kostenpositionen || !nebenkostenarten) return new Map<string, number>();
+    
+    const map = new Map<string, number>();
+    
+    kostenpositionen.forEach(kp => {
+      if (!kp.ist_umlagefaehig) return;
+      
+      const artId = kp.nebenkostenart_id || 'ohne_art';
+      const current = map.get(artId) || 0;
+      map.set(artId, current + kp.gesamtbetrag);
+    });
+    
+    return map;
+  }, [kostenpositionen, nebenkostenarten]);
+
+  // Berechne Gesamtkosten
   const { gesamtKosten, umlagefaehigeKosten } = useMemo(() => {
     const gesamt = kostenpositionen?.reduce((sum, kp) => sum + kp.gesamtbetrag, 0) || 0;
     const umlagefaehig = kostenpositionen?.filter(kp => kp.ist_umlagefaehig).reduce((sum, kp) => sum + kp.gesamtbetrag, 0) || 0;
     return { gesamtKosten: gesamt, umlagefaehigeKosten: umlagefaehig };
   }, [kostenpositionen]);
 
-  // Berechne Mieter mit Anteilen
+  // Berechne Anteil für eine Einheit basierend auf Verteilerschlüssel
+  const berechneAnteil = (
+    einheit: { qm: number | null; anzahl_personen: number | null },
+    verteilerschluessel: string
+  ): number => {
+    switch (verteilerschluessel) {
+      case 'qm':
+        return bezugsgroessen.qm > 0 ? ((einheit.qm || 0) / bezugsgroessen.qm) : 0;
+      case 'personen':
+        return bezugsgroessen.personen > 0 ? ((einheit.anzahl_personen || 1) / bezugsgroessen.personen) : 0;
+      case 'gleich':
+        return bezugsgroessen.einheiten > 0 ? (1 / bezugsgroessen.einheiten) : 0;
+      case 'verbrauch':
+        // Verbrauch würde spezielle Zählerdaten benötigen - fallback auf qm
+        return bezugsgroessen.qm > 0 ? ((einheit.qm || 0) / bezugsgroessen.qm) : 0;
+      case 'individuell':
+        // Individuell würde manuelle Prozentsätze benötigen - fallback auf gleich
+        return bezugsgroessen.einheiten > 0 ? (1 / bezugsgroessen.einheiten) : 0;
+      default:
+        return bezugsgroessen.qm > 0 ? ((einheit.qm || 0) / bezugsgroessen.qm) : 0;
+    }
+  };
+
+  // Berechne Mieter mit detaillierten Kostenanteilen
   const mieterMitAnteilen: MieterMitVertrag[] = useMemo(() => {
-    if (!mietvertraege || !einheiten) return [];
+    if (!mietvertraege || !einheiten || !nebenkostenarten) return [];
 
     return mietvertraege.map(mv => {
       const einheit = einheiten.find(e => e.id === mv.einheit_id);
       const mieterData = mv.mietvertrag_mieter?.[0]?.mieter;
       const qm = einheit?.qm || 0;
+      const anzahlPersonen = einheit?.anzahl_personen || 1;
       
-      // Anteil basierend auf qm
-      const anteilProzent = gesamtQm > 0 ? (qm / gesamtQm) * 100 : 0;
-      
-      // Vorauszahlungen für das Jahr (12 Monate * monatliche Vorauszahlung)
+      // Vorauszahlungen für das Jahr
       const monatlicheVorauszahlung = mv.betriebskosten || 0;
       
-      // Zeitanteil berechnen (wie viele Monate war der Mieter da?)
+      // Zeitanteil berechnen
       const mvStart = mv.start_datum ? new Date(mv.start_datum) : new Date(abrechnungsStart);
       const mvEnde = mv.ende_datum ? new Date(mv.ende_datum) : new Date(abrechnungsEnde);
       const jahresStart = new Date(abrechnungsStart);
@@ -196,7 +303,6 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
       const effektivStart = mvStart > jahresStart ? mvStart : jahresStart;
       const effektivEnde = mvEnde < jahresEnde ? mvEnde : jahresEnde;
       
-      // Monate im Abrechnungszeitraum
       const monate = Math.max(0, 
         (effektivEnde.getFullYear() - effektivStart.getFullYear()) * 12 +
         (effektivEnde.getMonth() - effektivStart.getMonth()) + 1
@@ -204,11 +310,45 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
       
       const vorauszahlungenGesamt = monatlicheVorauszahlung * monate;
       
-      // Kostenanteil
-      const kostenAnteil = umlagefaehigeKosten * (anteilProzent / 100);
+      // Kostenanteile pro Nebenkostenart berechnen
+      const kostenDetails: MieterKostenDetail[] = [];
+      let kostenAnteilGesamt = 0;
+
+      kostenProArt.forEach((kosten, artId) => {
+        if (artId === 'ohne_art') {
+          // Kosten ohne Art: nach qm verteilen
+          const anteil = berechneAnteil({ qm, anzahl_personen: anzahlPersonen }, 'qm');
+          const betrag = kosten * anteil;
+          kostenAnteilGesamt += betrag;
+          kostenDetails.push({
+            nebenkostenartName: 'Sonstige',
+            verteilerschluessel: 'qm',
+            gesamtKosten: kosten,
+            anteilProzent: anteil * 100,
+            anteilBetrag: betrag,
+          });
+        } else {
+          const art = nebenkostenarten.find(n => n.id === artId);
+          if (art) {
+            const anteil = berechneAnteil(
+              { qm, anzahl_personen: anzahlPersonen },
+              art.verteilerschluessel_art
+            );
+            const betrag = kosten * anteil;
+            kostenAnteilGesamt += betrag;
+            kostenDetails.push({
+              nebenkostenartName: art.name,
+              verteilerschluessel: art.verteilerschluessel_art,
+              gesamtKosten: kosten,
+              anteilProzent: anteil * 100,
+              anteilBetrag: betrag,
+            });
+          }
+        }
+      });
       
       // Saldo: positiv = Nachzahlung, negativ = Guthaben
-      const saldo = kostenAnteil - vorauszahlungenGesamt;
+      const saldo = kostenAnteilGesamt - vorauszahlungenGesamt;
 
       const einheitName = einheit?.zaehler 
         ? `Einheit ${einheit.zaehler}` 
@@ -226,19 +366,49 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         startDatum: mv.start_datum,
         endeDatum: mv.ende_datum,
         qm,
-        anteilProzent,
+        anzahlPersonen,
         vorauszahlungenGesamt,
-        kostenAnteil,
+        kostenDetails,
+        kostenAnteilGesamt,
         saldo,
       };
     });
-  }, [mietvertraege, einheiten, gesamtQm, umlagefaehigeKosten, abrechnungsStart, abrechnungsEnde]);
+  }, [mietvertraege, einheiten, nebenkostenarten, kostenProArt, bezugsgroessen, abrechnungsStart, abrechnungsEnde]);
 
   // Summen
   const gesamtVorauszahlungen = mieterMitAnteilen.reduce((sum, m) => sum + m.vorauszahlungenGesamt, 0);
   const gesamtSaldo = mieterMitAnteilen.reduce((sum, m) => sum + m.saldo, 0);
 
-  const isLoading = einheitenLoading || mietvertraegeLoading || kostenLoading;
+  const handleDelete = async () => {
+    if (!deleteId) return;
+
+    try {
+      const { error } = await supabase
+        .from('kostenpositionen')
+        .delete()
+        .eq('id', deleteId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Kostenposition gelöscht",
+        description: "Die Kostenposition wurde erfolgreich entfernt.",
+      });
+
+      setDeleteDialogOpen(false);
+      setDeleteId(null);
+      queryClient.invalidateQueries({ queryKey: ['kostenpositionen-abrechnung', immobilieId, abrechnungsjahr] });
+    } catch (error: any) {
+      console.error('Error deleting Kostenposition:', error);
+      toast({
+        title: "Fehler",
+        description: error.message || "Die Kostenposition konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isLoading = einheitenLoading || mietvertraegeLoading || kostenLoading || nebenkostenArtenLoading;
 
   if (isLoading) {
     return (
@@ -293,8 +463,8 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Receipt className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Receipt className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Gesamtkosten</p>
@@ -307,8 +477,8 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Umlagefähig</p>
@@ -321,8 +491,8 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Euro className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Euro className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Vorauszahlungen</p>
@@ -335,16 +505,16 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${gesamtSaldo > 0 ? 'bg-red-100' : 'bg-green-100'}`}>
+              <div className={`p-2 rounded-lg ${gesamtSaldo > 0 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
                 {gesamtSaldo > 0 ? (
-                  <ArrowUp className="h-5 w-5 text-red-600" />
+                  <ArrowUp className="h-5 w-5 text-destructive" />
                 ) : (
-                  <ArrowDown className="h-5 w-5 text-green-600" />
+                  <ArrowDown className="h-5 w-5 text-primary" />
                 )}
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Gesamt-Saldo</p>
-                <p className={`text-xl font-bold ${gesamtSaldo > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <p className={`text-xl font-bold ${gesamtSaldo > 0 ? 'text-destructive' : 'text-primary'}`}>
                   {gesamtSaldo > 0 ? '+' : ''}{gesamtSaldo.toFixed(2)} €
                 </p>
               </div>
@@ -353,13 +523,40 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         </Card>
       </div>
 
+      {/* Nebenkostenarten Manager (Collapsible) */}
+      <Collapsible open={nebenkostenArtenOpen} onOpenChange={setNebenkostenArtenOpen}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="pb-3 cursor-pointer hover:bg-accent/50 transition-colors">
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Nebenkostenarten & Verteilerschlüssel
+                </div>
+                <Badge variant="outline">
+                  {nebenkostenarten?.length || 0} Arten
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <NebenkostenArtenManager
+                immobilieId={immobilieId}
+                nebenkostenarten={nebenkostenarten || []}
+              />
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Linke Spalte: Mieter-Übersicht */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Mieter & Vorauszahlungen
+              Mieter & Abrechnungssaldo
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -369,12 +566,12 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                 <p className="text-sm">Keine aktiven Mietverträge im Abrechnungszeitraum.</p>
               </div>
             ) : (
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-3">
+              <ScrollArea className="h-[600px]">
+                <div className="space-y-4">
                   {mieterMitAnteilen.map((mieter) => (
                     <div
                       key={mieter.mietvertragId}
-                      className="p-4 border rounded-lg bg-card hover:bg-accent/30 transition-colors"
+                      className="p-4 border rounded-lg bg-card"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -385,32 +582,52 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                             <span>•</span>
                             <span>{mieter.qm?.toFixed(0) || 0} m²</span>
                             <span>•</span>
-                            <span>{mieter.anteilProzent.toFixed(1)}%</span>
+                            <span>{mieter.anzahlPersonen} Pers.</span>
                           </div>
                         </div>
                         <Badge 
                           variant={mieter.saldo > 0 ? "destructive" : "default"}
-                          className={mieter.saldo <= 0 ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}
                         >
                           {mieter.saldo > 0 ? 'Nachzahlung' : 'Guthaben'}
                         </Badge>
                       </div>
+
+                      {/* Kostenaufschlüsselung */}
+                      {mieter.kostenDetails.length > 0 && (
+                        <div className="mb-3 space-y-1">
+                          {mieter.kostenDetails.map((detail, idx) => {
+                            const Icon = VERTEILERSCHLUESSEL_ICONS[detail.verteilerschluessel] || Ruler;
+                            return (
+                              <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-dashed last:border-0">
+                                <div className="flex items-center gap-2">
+                                  <Icon className="h-3 w-3 text-muted-foreground" />
+                                  <span>{detail.nebenkostenartName}</span>
+                                  <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                    {VERTEILERSCHLUESSEL_LABELS[detail.verteilerschluessel] || detail.verteilerschluessel}
+                                  </Badge>
+                                </div>
+                                <span className="font-medium">{detail.anteilBetrag.toFixed(2)} €</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div className="p-2 bg-muted/50 rounded">
                           <p className="text-xs text-muted-foreground">Vorauszahlung</p>
                           <p className="font-medium">{mieter.vorauszahlungenGesamt.toFixed(2)} €</p>
                           <p className="text-xs text-muted-foreground">
-                            ({mieter.betriebskostenVorauszahlung.toFixed(2)} €/Monat)
+                            ({mieter.betriebskostenVorauszahlung.toFixed(2)} €/Mon.)
                           </p>
                         </div>
                         <div className="p-2 bg-muted/50 rounded">
                           <p className="text-xs text-muted-foreground">Kostenanteil</p>
-                          <p className="font-medium">{mieter.kostenAnteil.toFixed(2)} €</p>
+                          <p className="font-medium">{mieter.kostenAnteilGesamt.toFixed(2)} €</p>
                         </div>
-                        <div className={`p-2 rounded ${mieter.saldo > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                        <div className={`p-2 rounded ${mieter.saldo > 0 ? 'bg-destructive/10' : 'bg-primary/10'}`}>
                           <p className="text-xs text-muted-foreground">Saldo</p>
-                          <p className={`font-bold ${mieter.saldo > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          <p className={`font-bold ${mieter.saldo > 0 ? 'text-destructive' : 'text-primary'}`}>
                             {mieter.saldo > 0 ? '+' : ''}{mieter.saldo.toFixed(2)} €
                           </p>
                         </div>
@@ -433,7 +650,10 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
               </div>
               <Button 
                 size="sm" 
-                onClick={() => setKostenpositionModalOpen(true)}
+                onClick={() => {
+                  setEditingPosition(null);
+                  setKostenpositionModalOpen(true);
+                }}
                 className="gap-1"
               >
                 <Plus className="h-4 w-4" />
@@ -443,22 +663,25 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
           </CardHeader>
           <CardContent>
             {kostenpositionen && kostenpositionen.length > 0 ? (
-              <ScrollArea className="h-[500px]">
+              <ScrollArea className="h-[600px]">
                 <div className="space-y-2">
                   {kostenpositionen.map((kp) => {
                     const nebenkostenart = nebenkostenarten?.find(n => n.id === kp.nebenkostenart_id);
+                    const Icon = nebenkostenart 
+                      ? VERTEILERSCHLUESSEL_ICONS[nebenkostenart.verteilerschluessel_art] || Ruler
+                      : Ruler;
                     
                     return (
                       <div
                         key={kp.id}
-                        className="p-3 border rounded-lg bg-card hover:bg-accent/30 transition-colors"
+                        className="p-3 border rounded-lg bg-card hover:bg-accent/30 transition-colors group"
                       >
                         <div className="flex items-start justify-between">
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm truncate">
                               {kp.bezeichnung || 'Ohne Bezeichnung'}
                             </p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-xs text-muted-foreground">
                                 {format(new Date(kp.zeitraum_von), 'dd.MM.yy', { locale: de })}
                                 {kp.zeitraum_von !== kp.zeitraum_bis && (
@@ -469,7 +692,8 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                                 )}
                               </span>
                               {nebenkostenart && (
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-xs gap-1">
+                                  <Icon className="h-3 w-3" />
                                   {nebenkostenart.name}
                                 </Badge>
                               )}
@@ -480,9 +704,35 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                               )}
                             </div>
                           </div>
-                          <p className="font-bold text-primary whitespace-nowrap ml-2">
-                            {kp.gesamtbetrag.toFixed(2)} €
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-primary whitespace-nowrap">
+                              {kp.gesamtbetrag.toFixed(2)} €
+                            </p>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={() => {
+                                  setEditingPosition(kp);
+                                  setKostenpositionModalOpen(true);
+                                }}
+                              >
+                                <Edit2 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  setDeleteId(kp.id);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -494,13 +744,16 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                 <Receipt className="h-12 w-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Noch keine Kostenpositionen für {abrechnungsjahr}.</p>
                 <p className="text-xs mt-1">
-                  Fügen Sie Kosten hinzu, um die Abrechnung zu erstellen.
+                  Fügen Sie Kosten hinzu oder ordnen Sie Zahlungen im Controlboard zu.
                 </p>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   className="mt-4 gap-1"
-                  onClick={() => setKostenpositionModalOpen(true)}
+                  onClick={() => {
+                    setEditingPosition(null);
+                    setKostenpositionModalOpen(true);
+                  }}
                 >
                   <Plus className="h-4 w-4" />
                   Kostenposition hinzufügen
@@ -518,11 +771,29 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         immobilieId={immobilieId}
         nebenkostenarten={nebenkostenarten || []}
         zahlungen={zahlungen || []}
-        editingPosition={null}
+        editingPosition={editingPosition}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['kostenpositionen-abrechnung', immobilieId, abrechnungsjahr] });
         }}
       />
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Kostenposition löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie diese Kostenposition wirklich löschen?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
