@@ -31,6 +31,7 @@ import {
   Settings,
   Trash2,
   Edit2,
+  Calendar,
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -97,7 +98,15 @@ interface MieterMitVertrag {
   kostenDetails: MieterKostenDetail[];
   kostenAnteilGesamt: number;
   saldo: number;
+  zeitanteilFaktor: number;
+  verbrauchsdaten?: {
+    strom?: { einzug: number | null; auszug: number | null };
+    gas?: { einzug: number | null; auszug: number | null };
+    wasser?: { einzug: number | null; auszug: number | null };
+  };
 }
+
+type VerteilungsModus = 'zeitanteilig' | 'zaehlerstaende' | 'kombiniert';
 
 const VERTEILERSCHLUESSEL_ICONS: Record<string, typeof Ruler> = {
   qm: Ruler,
@@ -125,6 +134,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
   const [nebenkostenArtenOpen, setNebenkostenArtenOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [verteilungsModus, setVerteilungsModus] = useState<VerteilungsModus>('kombiniert');
 
   const abrechnungsStart = `${abrechnungsjahr}-01-01`;
   const abrechnungsEnde = `${abrechnungsjahr}-12-31`;
@@ -282,8 +292,17 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
   };
 
   // Berechne Mieter mit detaillierten Kostenanteilen
+  // Berechne Mieter mit detaillierten Kostenanteilen
   const mieterMitAnteilen: MieterMitVertrag[] = useMemo(() => {
     if (!mietvertraege || !einheiten || !nebenkostenarten) return [];
+
+    // Gruppiere Mietverträge nach Einheit für zeitanteilige Berechnung
+    const vertraegeProEinheit = new Map<string, typeof mietvertraege>();
+    mietvertraege.forEach(mv => {
+      const existing = vertraegeProEinheit.get(mv.einheit_id) || [];
+      existing.push(mv);
+      vertraegeProEinheit.set(mv.einheit_id, existing);
+    });
 
     return mietvertraege.map(mv => {
       const einheit = einheiten.find(e => e.id === mv.einheit_id);
@@ -294,7 +313,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
       // Vorauszahlungen für das Jahr
       const monatlicheVorauszahlung = mv.betriebskosten || 0;
       
-      // Zeitanteil berechnen
+      // Zeitanteil berechnen (in Tagen)
       const mvStart = mv.start_datum ? new Date(mv.start_datum) : new Date(abrechnungsStart);
       const mvEnde = mv.ende_datum ? new Date(mv.ende_datum) : new Date(abrechnungsEnde);
       const jahresStart = new Date(abrechnungsStart);
@@ -303,48 +322,84 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
       const effektivStart = mvStart > jahresStart ? mvStart : jahresStart;
       const effektivEnde = mvEnde < jahresEnde ? mvEnde : jahresEnde;
       
+      // Tage im Abrechnungszeitraum
+      const tageImZeitraum = Math.max(0, 
+        Math.ceil((effektivEnde.getTime() - effektivStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      );
+      const tageImJahr = 365;
+      const zeitanteilFaktor = tageImZeitraum / tageImJahr;
+      
       const monate = Math.max(0, 
         (effektivEnde.getFullYear() - effektivStart.getFullYear()) * 12 +
         (effektivEnde.getMonth() - effektivStart.getMonth()) + 1
       );
       
       const vorauszahlungenGesamt = monatlicheVorauszahlung * monate;
+
+      // Verbrauchsdaten aus dem Mietvertrag
+      const verbrauchsdaten = {
+        strom: { 
+          einzug: (mv as any).strom_einzug, 
+          auszug: (mv as any).strom_auszug 
+        },
+        gas: { 
+          einzug: (mv as any).gas_einzug, 
+          auszug: (mv as any).gas_auszug 
+        },
+        wasser: { 
+          einzug: (mv as any).kaltwasser_einzug, 
+          auszug: (mv as any).kaltwasser_auszug 
+        },
+      };
       
       // Kostenanteile pro Nebenkostenart berechnen
       const kostenDetails: MieterKostenDetail[] = [];
       let kostenAnteilGesamt = 0;
 
+      // Anzahl der Mietverträge in dieser Einheit für dieses Jahr
+      const vertraegeInEinheit = vertraegeProEinheit.get(mv.einheit_id) || [mv];
+      const anzahlVertraegeInEinheit = vertraegeInEinheit.length;
+
       kostenProArt.forEach((kosten, artId) => {
-        if (artId === 'ohne_art') {
-          // Kosten ohne Art: nach qm verteilen
-          const anteil = berechneAnteil({ qm, anzahl_personen: anzahlPersonen }, 'qm');
-          const betrag = kosten * anteil;
-          kostenAnteilGesamt += betrag;
-          kostenDetails.push({
-            nebenkostenartName: 'Sonstige',
-            verteilerschluessel: 'qm',
-            gesamtKosten: kosten,
-            anteilProzent: anteil * 100,
-            anteilBetrag: betrag,
-          });
+        const art = artId !== 'ohne_art' ? nebenkostenarten.find(n => n.id === artId) : null;
+        const schluessel = art?.verteilerschluessel_art || 'qm';
+        
+        // Basisanteil nach Verteilerschlüssel
+        let basisAnteil = berechneAnteil({ qm, anzahl_personen: anzahlPersonen }, schluessel);
+        
+        // Modus-abhängige Anpassung
+        let effektiverAnteil = basisAnteil;
+        
+        if (verteilungsModus === 'zeitanteilig') {
+          // Immer zeitanteilig
+          effektiverAnteil = basisAnteil * zeitanteilFaktor;
+        } else if (verteilungsModus === 'zaehlerstaende') {
+          // Versuche Verbrauch zu nutzen
+          if (schluessel === 'verbrauch') {
+            // Hier könnte man Zählerstände verwenden
+            // Fallback auf zeitanteilig wenn keine Daten
+            effektiverAnteil = basisAnteil * zeitanteilFaktor;
+          } else {
+            effektiverAnteil = basisAnteil;
+          }
         } else {
-          const art = nebenkostenarten.find(n => n.id === artId);
-          if (art) {
-            const anteil = berechneAnteil(
-              { qm, anzahl_personen: anzahlPersonen },
-              art.verteilerschluessel_art
-            );
-            const betrag = kosten * anteil;
-            kostenAnteilGesamt += betrag;
-            kostenDetails.push({
-              nebenkostenartName: art.name,
-              verteilerschluessel: art.verteilerschluessel_art,
-              gesamtKosten: kosten,
-              anteilProzent: anteil * 100,
-              anteilBetrag: betrag,
-            });
+          // Kombiniert: Bei mehreren Verträgen pro Einheit zeitanteilig, sonst normal
+          if (anzahlVertraegeInEinheit > 1) {
+            effektiverAnteil = basisAnteil * zeitanteilFaktor;
+          } else {
+            effektiverAnteil = basisAnteil;
           }
         }
+        
+        const betrag = kosten * effektiverAnteil;
+        kostenAnteilGesamt += betrag;
+        kostenDetails.push({
+          nebenkostenartName: art?.name || 'Sonstige',
+          verteilerschluessel: schluessel,
+          gesamtKosten: kosten,
+          anteilProzent: effektiverAnteil * 100,
+          anteilBetrag: betrag,
+        });
       });
       
       // Saldo: positiv = Nachzahlung, negativ = Guthaben
@@ -371,9 +426,11 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         kostenDetails,
         kostenAnteilGesamt,
         saldo,
+        zeitanteilFaktor,
+        verbrauchsdaten,
       };
     });
-  }, [mietvertraege, einheiten, nebenkostenarten, kostenProArt, bezugsgroessen, abrechnungsStart, abrechnungsEnde]);
+  }, [mietvertraege, einheiten, nebenkostenarten, kostenProArt, bezugsgroessen, abrechnungsStart, abrechnungsEnde, verteilungsModus]);
 
   // Summen
   const gesamtVorauszahlungen = mieterMitAnteilen.reduce((sum, m) => sum + m.vorauszahlungenGesamt, 0);
@@ -436,23 +493,57 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              <Label className="text-sm">Jahr:</Label>
-              <Select 
-                value={abrechnungsjahr.toString()} 
-                onValueChange={(v) => setAbrechnungsjahr(parseInt(v))}
-              >
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(year => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm whitespace-nowrap">Jahr:</Label>
+                <Select 
+                  value={abrechnungsjahr.toString()} 
+                  onValueChange={(v) => setAbrechnungsjahr(parseInt(v))}
+                >
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(year => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Label className="text-sm whitespace-nowrap">Verteilung:</Label>
+                <Select 
+                  value={verteilungsModus} 
+                  onValueChange={(v) => setVerteilungsModus(v as VerteilungsModus)}
+                >
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kombiniert">
+                      <span className="flex items-center gap-2">
+                        <Activity className="h-4 w-4" />
+                        Kombiniert
+                      </span>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    <SelectItem value="zeitanteilig">
+                      <span className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        Zeitanteilig
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="zaehlerstaende">
+                      <span className="flex items-center gap-2">
+                        <Ruler className="h-4 w-4" />
+                        Zählerstände
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -576,13 +667,33 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="font-medium">{mieter.mieterName}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                            <Home className="h-3 w-3" />
-                            <span>{mieter.einheitName}</span>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Home className="h-3 w-3" />
+                              {mieter.einheitName}
+                            </span>
                             <span>•</span>
                             <span>{mieter.qm?.toFixed(0) || 0} m²</span>
                             <span>•</span>
                             <span>{mieter.anzahlPersonen} Pers.</span>
+                            {mieter.zeitanteilFaktor < 1 && (
+                              <>
+                                <span>•</span>
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {(mieter.zeitanteilFaktor * 100).toFixed(0)}% Jahr
+                                </Badge>
+                              </>
+                            )}
+                          </div>
+                          {/* Zeitraum anzeigen */}
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {mieter.startDatum && format(new Date(mieter.startDatum), 'dd.MM.yy', { locale: de })}
+                            {' - '}
+                            {mieter.endeDatum 
+                              ? format(new Date(mieter.endeDatum), 'dd.MM.yy', { locale: de })
+                              : 'laufend'
+                            }
                           </div>
                         </div>
                         <Badge 
@@ -591,6 +702,46 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                           {mieter.saldo > 0 ? 'Nachzahlung' : 'Guthaben'}
                         </Badge>
                       </div>
+
+                      {/* Verbrauchsdaten wenn vorhanden */}
+                      {mieter.verbrauchsdaten && (
+                        mieter.verbrauchsdaten.strom?.einzug !== null ||
+                        mieter.verbrauchsdaten.gas?.einzug !== null ||
+                        mieter.verbrauchsdaten.wasser?.einzug !== null
+                      ) && (
+                        <div className="mb-3 p-2 bg-muted/30 rounded text-xs">
+                          <p className="text-muted-foreground mb-1 font-medium">Zählerstände:</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {mieter.verbrauchsdaten?.strom?.einzug !== null && (
+                              <div>
+                                <span className="text-muted-foreground">Strom: </span>
+                                <span>{mieter.verbrauchsdaten?.strom?.einzug}</span>
+                                {mieter.verbrauchsdaten?.strom?.auszug !== null && (
+                                  <span> → {mieter.verbrauchsdaten?.strom?.auszug}</span>
+                                )}
+                              </div>
+                            )}
+                            {mieter.verbrauchsdaten?.gas?.einzug !== null && (
+                              <div>
+                                <span className="text-muted-foreground">Gas: </span>
+                                <span>{mieter.verbrauchsdaten?.gas?.einzug}</span>
+                                {mieter.verbrauchsdaten?.gas?.auszug !== null && (
+                                  <span> → {mieter.verbrauchsdaten?.gas?.auszug}</span>
+                                )}
+                              </div>
+                            )}
+                            {mieter.verbrauchsdaten?.wasser?.einzug !== null && (
+                              <div>
+                                <span className="text-muted-foreground">Wasser: </span>
+                                <span>{mieter.verbrauchsdaten?.wasser?.einzug}</span>
+                                {mieter.verbrauchsdaten?.wasser?.auszug !== null && (
+                                  <span> → {mieter.verbrauchsdaten?.wasser?.auszug}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Kostenaufschlüsselung */}
                       {mieter.kostenDetails.length > 0 && (
