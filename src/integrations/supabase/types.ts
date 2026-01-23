@@ -269,6 +269,136 @@ export type Database = {
         }
         Relationships: []
       }
+      kostenposition_anteile: {
+        Row: {
+          anteil_betrag: number
+          anteil_prozent: number
+          bezugsgroesse_einheit: number | null
+          bezugsgroesse_gesamt: number | null
+          einheit_id: string
+          erstellt_am: string | null
+          id: string
+          kostenposition_id: string
+          verteilerschluessel_art: string
+          zeitanteil_faktor: number | null
+          zeitraum_bis: string | null
+          zeitraum_von: string | null
+        }
+        Insert: {
+          anteil_betrag: number
+          anteil_prozent: number
+          bezugsgroesse_einheit?: number | null
+          bezugsgroesse_gesamt?: number | null
+          einheit_id: string
+          erstellt_am?: string | null
+          id?: string
+          kostenposition_id: string
+          verteilerschluessel_art: string
+          zeitanteil_faktor?: number | null
+          zeitraum_bis?: string | null
+          zeitraum_von?: string | null
+        }
+        Update: {
+          anteil_betrag?: number
+          anteil_prozent?: number
+          bezugsgroesse_einheit?: number | null
+          bezugsgroesse_gesamt?: number | null
+          einheit_id?: string
+          erstellt_am?: string | null
+          id?: string
+          kostenposition_id?: string
+          verteilerschluessel_art?: string
+          zeitanteil_faktor?: number | null
+          zeitraum_bis?: string | null
+          zeitraum_von?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kostenposition_anteile_einheit_id_fkey"
+            columns: ["einheit_id"]
+            isOneToOne: false
+            referencedRelation: "einheiten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kostenposition_anteile_kostenposition_id_fkey"
+            columns: ["kostenposition_id"]
+            isOneToOne: false
+            referencedRelation: "kostenpositionen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kostenpositionen: {
+        Row: {
+          aktualisiert_am: string | null
+          bezeichnung: string | null
+          erstellt_am: string | null
+          erstellt_von: string | null
+          gesamtbetrag: number
+          id: string
+          immobilie_id: string
+          ist_umlagefaehig: boolean
+          nebenkostenart_id: string | null
+          quelle: string
+          zahlung_id: string | null
+          zeitraum_bis: string
+          zeitraum_von: string
+        }
+        Insert: {
+          aktualisiert_am?: string | null
+          bezeichnung?: string | null
+          erstellt_am?: string | null
+          erstellt_von?: string | null
+          gesamtbetrag: number
+          id?: string
+          immobilie_id: string
+          ist_umlagefaehig?: boolean
+          nebenkostenart_id?: string | null
+          quelle?: string
+          zahlung_id?: string | null
+          zeitraum_bis: string
+          zeitraum_von: string
+        }
+        Update: {
+          aktualisiert_am?: string | null
+          bezeichnung?: string | null
+          erstellt_am?: string | null
+          erstellt_von?: string | null
+          gesamtbetrag?: number
+          id?: string
+          immobilie_id?: string
+          ist_umlagefaehig?: boolean
+          nebenkostenart_id?: string | null
+          quelle?: string
+          zahlung_id?: string | null
+          zeitraum_bis?: string
+          zeitraum_von?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kostenpositionen_immobilie_id_fkey"
+            columns: ["immobilie_id"]
+            isOneToOne: false
+            referencedRelation: "immobilien"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kostenpositionen_nebenkostenart_id_fkey"
+            columns: ["nebenkostenart_id"]
+            isOneToOne: false
+            referencedRelation: "nebenkostenarten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kostenpositionen_zahlung_id_fkey"
+            columns: ["zahlung_id"]
+            isOneToOne: false
+            referencedRelation: "zahlungen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mieter: {
         Row: {
           aktualisiert_am: string | null
@@ -668,25 +798,31 @@ export type Database = {
       nebenkostenarten: {
         Row: {
           aktualisiert_am: string | null
+          beschreibung: string | null
           erstellt_am: string | null
           id: string
           immobilie_id: string
+          ist_umlagefaehig: boolean
           name: string
           verteilerschluessel_art: string
         }
         Insert: {
           aktualisiert_am?: string | null
+          beschreibung?: string | null
           erstellt_am?: string | null
           id?: string
           immobilie_id: string
+          ist_umlagefaehig?: boolean
           name: string
           verteilerschluessel_art?: string
         }
         Update: {
           aktualisiert_am?: string | null
+          beschreibung?: string | null
           erstellt_am?: string | null
           id?: string
           immobilie_id?: string
+          ist_umlagefaehig?: boolean
           name?: string
           verteilerschluessel_art?: string
         }
@@ -936,6 +1072,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_zeitanteil: {
+        Args: {
+          abrechnungs_bis: string
+          abrechnungs_von: string
+          position_bis: string
+          position_von: string
+        }
+        Returns: number
+      }
       calculate_zugeordneter_monat: {
         Args: { buchungsdatum: string }
         Returns: string
