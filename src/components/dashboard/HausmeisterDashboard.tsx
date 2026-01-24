@@ -28,6 +28,7 @@ interface MeterReading {
   type: 'kaltwasser' | 'warmwasser' | 'strom' | 'gas';
   zaehlerNummer: string;
   stand: string;
+  datum: string;
 }
 
 interface PropertyMeterReading {
@@ -35,6 +36,7 @@ interface PropertyMeterReading {
   type: 'wasser' | 'strom' | 'gas';
   zaehlerNummer: string;
   stand: string;
+  datum: string;
 }
 
 export const HausmeisterDashboard = () => {
@@ -163,44 +165,50 @@ export const HausmeisterDashboard = () => {
     });
   };
 
-  const handleInputChange = (einheitId: string, type: string, field: 'zaehler' | 'stand', value: string) => {
+  const handleInputChange = (einheitId: string, type: string, field: 'zaehler' | 'stand' | 'datum', value: string) => {
     const key = `${einheitId}-${type}`;
+    const fieldMap = { zaehler: 'zaehlerNummer', stand: 'stand', datum: 'datum' };
     setEditedReadings(prev => ({
       ...prev,
       [key]: {
         ...prev[key],
         einheitId,
         type: type as MeterReading['type'],
-        [field === 'zaehler' ? 'zaehlerNummer' : 'stand']: value
+        [fieldMap[field]]: value
       }
     }));
   };
 
-  const getEditedValue = (einheitId: string, type: string, field: 'zaehler' | 'stand') => {
+  const getEditedValue = (einheitId: string, type: string, field: 'zaehler' | 'stand' | 'datum') => {
     const key = `${einheitId}-${type}`;
     const edited = editedReadings[key];
     if (!edited) return undefined;
-    return field === 'zaehler' ? edited.zaehlerNummer : edited.stand;
+    if (field === 'zaehler') return edited.zaehlerNummer;
+    if (field === 'stand') return edited.stand;
+    return edited.datum;
   };
 
-  const handlePropertyInputChange = (immobilieId: string, type: string, field: 'zaehler' | 'stand', value: string) => {
+  const handlePropertyInputChange = (immobilieId: string, type: string, field: 'zaehler' | 'stand' | 'datum', value: string) => {
     const key = `${immobilieId}-${type}`;
+    const fieldMap = { zaehler: 'zaehlerNummer', stand: 'stand', datum: 'datum' };
     setEditedPropertyReadings(prev => ({
       ...prev,
       [key]: {
         ...prev[key],
         immobilieId,
         type: type as PropertyMeterReading['type'],
-        [field === 'zaehler' ? 'zaehlerNummer' : 'stand']: value
+        [fieldMap[field]]: value
       }
     }));
   };
 
-  const getEditedPropertyValue = (immobilieId: string, type: string, field: 'zaehler' | 'stand') => {
+  const getEditedPropertyValue = (immobilieId: string, type: string, field: 'zaehler' | 'stand' | 'datum') => {
     const key = `${immobilieId}-${type}`;
     const edited = editedPropertyReadings[key];
     if (!edited) return undefined;
-    return field === 'zaehler' ? edited.zaehlerNummer : edited.stand;
+    if (field === 'zaehler') return edited.zaehlerNummer;
+    if (field === 'stand') return edited.stand;
+    return edited.datum;
   };
 
   const hasUnsavedPropertyChanges = (immobilieId: string) => {
@@ -227,9 +235,13 @@ export const HausmeisterDashboard = () => {
         if (change.stand !== undefined) {
           const standValue = change.stand ? parseFloat(change.stand) : null;
           updates[`allgemein_${change.type}_stand`] = standValue;
-          if (standValue !== null) {
+          // Only auto-set datum if no explicit datum was provided and stand was changed
+          if (standValue !== null && change.datum === undefined) {
             updates[`allgemein_${change.type}_datum`] = today;
           }
+        }
+        if (change.datum !== undefined) {
+          updates[`allgemein_${change.type}_datum`] = change.datum || null;
         }
       }
 
@@ -280,9 +292,13 @@ export const HausmeisterDashboard = () => {
         if (change.stand !== undefined) {
           const standValue = change.stand ? parseFloat(change.stand) : null;
           updates[`${change.type}_stand_aktuell`] = standValue;
-          if (standValue !== null) {
+          // Only auto-set datum if no explicit datum was provided and stand was changed
+          if (standValue !== null && change.datum === undefined) {
             updates[`${change.type}_stand_datum`] = today;
           }
+        }
+        if (change.datum !== undefined) {
+          updates[`${change.type}_stand_datum`] = change.datum || null;
         }
       }
 
@@ -455,19 +471,21 @@ export const HausmeisterDashboard = () => {
                                   onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'zaehler', e.target.value)}
                                   className="h-5 text-xs px-1.5"
                                 />
-                                <div className="flex items-center gap-0.5">
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="Stand"
-                                    value={editedStand ?? currentStand ?? ''}
-                                    onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'stand', e.target.value)}
-                                    className="h-5 text-xs px-1.5 flex-1"
-                                  />
-                                  <span className="text-[9px] text-muted-foreground">
-                                    {formatStandDatum(standDatum)}
-                                  </span>
-                                </div>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="Stand"
+                                  value={editedStand ?? currentStand ?? ''}
+                                  onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'stand', e.target.value)}
+                                  className="h-5 text-xs px-1.5"
+                                />
+                                <Input
+                                  type="date"
+                                  placeholder="Datum"
+                                  value={getEditedPropertyValue(immobilie.id, type, 'datum') ?? standDatum ?? ''}
+                                  onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'datum', e.target.value)}
+                                  className="h-5 text-xs px-1.5"
+                                />
                               </div>
                             </div>
                           );
@@ -533,19 +551,21 @@ export const HausmeisterDashboard = () => {
                                           onChange={(e) => handleInputChange(einheit.id, type, 'zaehler', e.target.value)}
                                           className="h-6 text-xs px-1.5"
                                         />
-                                        <div className="flex items-center gap-0.5">
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="Stand"
-                                            value={editedStand ?? currentStand ?? ''}
-                                            onChange={(e) => handleInputChange(einheit.id, type, 'stand', e.target.value)}
-                                            className="h-6 text-xs px-1.5 flex-1"
-                                          />
-                                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                            {formatStandDatum(standDatum)}
-                                          </span>
-                                        </div>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          placeholder="Stand"
+                                          value={editedStand ?? currentStand ?? ''}
+                                          onChange={(e) => handleInputChange(einheit.id, type, 'stand', e.target.value)}
+                                          className="h-6 text-xs px-1.5"
+                                        />
+                                        <Input
+                                          type="date"
+                                          placeholder="Datum"
+                                          value={getEditedValue(einheit.id, type, 'datum') ?? standDatum ?? ''}
+                                          onChange={(e) => handleInputChange(einheit.id, type, 'datum', e.target.value)}
+                                          className="h-6 text-xs px-1.5"
+                                        />
                                       </div>
                                     </TableCell>
                                   );
