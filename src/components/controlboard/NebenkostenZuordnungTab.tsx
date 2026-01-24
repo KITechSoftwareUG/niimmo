@@ -6,11 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { 
   Building2, Euro, Check, Calendar, Loader2, 
-  Search, X, Undo2, Sparkles, RefreshCw, ChevronDown, ChevronUp
+  Search, Undo2, Sparkles, ChevronDown, ChevronUp
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -48,18 +47,13 @@ interface ClassificationResult {
   zahlung?: Zahlung;
 }
 
-interface MultiAssignment {
-  immobilieId: string;
-  betrag: number;
-}
-
 export function NebenkostenZuordnungTab() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedZahlung, setSelectedZahlung] = useState<string | null>(null);
+  const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
-  const [multiAssignments, setMultiAssignments] = useState<MultiAssignment[]>([]);
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
 
   // Fetch alle Immobilien
@@ -109,12 +103,12 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // KI Klassifizierung aufrufen
-  const runClassification = async (force = false) => {
+  // KI Klassifizierung aufrufen - nur bei neuen Zahlungen nach Upload
+  const runClassification = async () => {
     setIsClassifying(true);
     try {
       const { data, error } = await supabase.functions.invoke('classify-nebenkosten', {
-        body: { force }
+        body: { force: false } // Immer Cache nutzen, nur neue analysieren
       });
       
       if (error) throw error;
@@ -127,10 +121,14 @@ export function NebenkostenZuordnungTab() {
       setClassifications(betriebskostenResults);
       
       const cacheInfo = data.from_cache ? ' (aus Cache)' : '';
+      const newAnalyzed = data.ai_classified || 0;
+      
       toast.success(
-        `${betriebskostenResults.length} potenzielle Nebenkosten gefunden${cacheInfo}`,
+        `${betriebskostenResults.length} potenzielle Nebenkosten${cacheInfo}`,
         {
-          description: `${data.auto_classified || 0} automatisch, ${data.ai_classified || 0} KI, ${data.excluded_count || 0} ausgeschlossen`
+          description: newAnalyzed > 0 
+            ? `${newAnalyzed} neue Zahlungen analysiert` 
+            : 'Ergebnisse aus vorheriger Analyse'
         }
       );
     } catch (error) {
@@ -150,74 +148,16 @@ export function NebenkostenZuordnungTab() {
         .eq('id', zahlungId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
       queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
       setSelectedZahlung(null);
-      setClassifications(prev => prev.filter(c => c.zahlung_id !== selectedZahlung));
+      setSelectedImmobilie(null);
+      setClassifications(prev => prev.filter(c => c.zahlung_id !== variables.zahlungId));
       toast.success("Zahlung zugeordnet");
     },
     onError: () => {
       toast.error("Fehler beim Zuordnen");
-    }
-  });
-
-  // Multi-Zuordnung: Zahlung aufteilen auf mehrere Immobilien
-  const multiAssignMutation = useMutation({
-    mutationFn: async ({ zahlungId, assignments, originalBetrag }: { 
-      zahlungId: string; 
-      assignments: MultiAssignment[];
-      originalBetrag: number;
-    }) => {
-      // Validiere Gesamtbetrag
-      const totalAssigned = assignments.reduce((sum, a) => sum + a.betrag, 0);
-      if (Math.abs(totalAssigned - originalBetrag) > 0.01) {
-        throw new Error(`Summe (${totalAssigned.toFixed(2)}€) entspricht nicht dem Originalbetrag (${originalBetrag.toFixed(2)}€)`);
-      }
-
-      // Erste Zuordnung: Originalzahlung updaten
-      const { error: updateError } = await supabase
-        .from('zahlungen')
-        .update({ 
-          immobilie_id: assignments[0].immobilieId,
-          betrag: assignments[0].betrag
-        })
-        .eq('id', zahlungId);
-      
-      if (updateError) throw updateError;
-
-      // Weitere Zuordnungen: Neue Zahlungen erstellen
-      if (assignments.length > 1) {
-        const originalZahlung = unzugeordneteZahlungen?.find(z => z.id === zahlungId);
-        if (!originalZahlung) throw new Error('Originalzahlung nicht gefunden');
-
-        for (let i = 1; i < assignments.length; i++) {
-          const { error: insertError } = await supabase
-            .from('zahlungen')
-            .insert({
-              betrag: assignments[i].betrag,
-              buchungsdatum: originalZahlung.buchungsdatum,
-              verwendungszweck: originalZahlung.verwendungszweck,
-              empfaengername: originalZahlung.empfaengername,
-              iban: originalZahlung.iban,
-              kategorie: 'Nichtmiete',
-              immobilie_id: assignments[i].immobilieId
-            });
-          
-          if (insertError) throw insertError;
-        }
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
-      queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
-      setSelectedZahlung(null);
-      setMultiAssignments([]);
-      setClassifications(prev => prev.filter(c => c.zahlung_id !== selectedZahlung));
-      toast.success("Zahlung aufgeteilt und zugeordnet");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Fehler beim Aufteilen");
     }
   });
 
@@ -239,27 +179,6 @@ export function NebenkostenZuordnungTab() {
       toast.error("Fehler beim Aufheben");
     }
   });
-
-  // Multi-Assignment Helpers
-  const toggleImmobilie = (immobilieId: string, zahlungBetrag: number) => {
-    setMultiAssignments(prev => {
-      const exists = prev.find(a => a.immobilieId === immobilieId);
-      if (exists) {
-        return prev.filter(a => a.immobilieId !== immobilieId);
-      } else {
-        // Wenn noch keine Zuordnung, nutze den vollen Betrag, sonst Restbetrag
-        const usedAmount = prev.reduce((sum, a) => sum + a.betrag, 0);
-        const remainingAmount = Math.max(0, zahlungBetrag - usedAmount);
-        return [...prev, { immobilieId, betrag: remainingAmount }];
-      }
-    });
-  };
-
-  const updateAssignmentBetrag = (immobilieId: string, betrag: number) => {
-    setMultiAssignments(prev => 
-      prev.map(a => a.immobilieId === immobilieId ? { ...a, betrag } : a)
-    );
-  };
 
   // Gefilterte und klassifizierte Zahlungen
   const displayedPayments = useMemo(() => {
@@ -349,7 +268,7 @@ export function NebenkostenZuordnungTab() {
       {/* KI-Analyse Button */}
       <div className="flex gap-3">
         <Button 
-          onClick={() => runClassification(false)}
+          onClick={runClassification}
           disabled={isClassifying}
           className="gap-2"
         >
@@ -358,19 +277,8 @@ export function NebenkostenZuordnungTab() {
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
-          Nebenkosten erkennen
+          {classifications.length > 0 ? 'Aktualisieren' : 'Nebenkosten erkennen'}
         </Button>
-        {classifications.length > 0 && (
-          <Button 
-            variant="outline"
-            onClick={() => runClassification(true)}
-            disabled={isClassifying}
-            className="gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Neu analysieren
-          </Button>
-        )}
       </div>
 
       {/* Suche */}
@@ -415,6 +323,8 @@ export function NebenkostenZuordnungTab() {
                     const isSelected = selectedZahlung === zahlung.id;
                     const classification = getClassification(zahlung.id);
                     const isExpanded = expandedPayments.has(zahlung.id);
+                    const suggestedImmobilie = classification?.suggested_immobilie_id;
+                    const suggestedName = classification?.suggested_immobilie_name;
                     
                     return (
                       <div 
@@ -496,7 +406,34 @@ export function NebenkostenZuordnungTab() {
                           </p>
                         )}
 
-                        {/* Zuordnungs-Button */}
+                        {/* KI-Vorschlag: Direkt bestätigen wenn vorhanden */}
+                        {suggestedImmobilie && !isSelected && (
+                          <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-xs text-muted-foreground">KI-Vorschlag:</p>
+                                  <p className="font-medium truncate">{suggestedName}</p>
+                                </div>
+                              </div>
+                              <Button 
+                                size="sm"
+                                className="flex-shrink-0 gap-1"
+                                disabled={assignMutation.isPending}
+                                onClick={() => assignMutation.mutate({ 
+                                  zahlungId: zahlung.id, 
+                                  immobilieId: suggestedImmobilie 
+                                })}
+                              >
+                                <Check className="h-4 w-4" />
+                                Bestätigen
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Anderer Immobilie zuordnen */}
                         {!isSelected ? (
                           <Button 
                             variant="outline" 
@@ -504,79 +441,56 @@ export function NebenkostenZuordnungTab() {
                             className="w-full"
                             onClick={() => {
                               setSelectedZahlung(zahlung.id);
-                              setMultiAssignments([]);
+                              setSelectedImmobilie(null);
                             }}
                           >
-                            Immobilie(n) zuordnen
+                            {suggestedImmobilie ? 'Andere Immobilie wählen' : 'Immobilie zuordnen'}
                           </Button>
                         ) : (
                           <div className="mt-4 pt-4 border-t space-y-4">
-                            <p className="text-sm font-medium">Immobilien auswählen:</p>
+                            <p className="text-sm font-medium">Immobilie auswählen:</p>
                             
-                            {/* Immobilien-Liste mit Checkboxen */}
+                            {/* Immobilien-Liste */}
                             <div className="space-y-2 max-h-60 overflow-y-auto">
                               {immobilien?.map(immo => {
-                                const assignment = multiAssignments.find(a => a.immobilieId === immo.id);
-                                const isChecked = !!assignment;
+                                const isChecked = selectedImmobilie === immo.id;
+                                const isSuggested = immo.id === suggestedImmobilie;
                                 
                                 return (
                                   <div 
                                     key={immo.id}
-                                    className={`p-3 border rounded-lg transition-colors ${
-                                      isChecked ? 'border-primary bg-primary/5' : 'hover:bg-accent/30'
+                                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                      isChecked 
+                                        ? 'border-primary bg-primary/10' 
+                                        : isSuggested 
+                                          ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
+                                          : 'hover:bg-accent/30'
                                     }`}
+                                    onClick={() => setSelectedImmobilie(immo.id)}
                                   >
-                                    <div className="flex items-start gap-3">
-                                      <Checkbox
-                                        checked={isChecked}
-                                        onCheckedChange={() => toggleImmobilie(immo.id, zahlung.betrag)}
-                                      />
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                        isChecked ? 'border-primary bg-primary' : 'border-muted-foreground'
+                                      }`}>
+                                        {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
+                                      </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm">{immo.name}</p>
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-medium text-sm">{immo.name}</p>
+                                          {isSuggested && (
+                                            <Badge variant="outline" className="text-xs gap-1">
+                                              <Sparkles className="h-3 w-3" />
+                                              KI-Vorschlag
+                                            </Badge>
+                                          )}
+                                        </div>
                                         <p className="text-xs text-muted-foreground truncate">{immo.adresse}</p>
                                       </div>
                                     </div>
-                                    
-                                    {/* Betrag-Eingabe wenn ausgewählt */}
-                                    {isChecked && (
-                                      <div className="mt-2 ml-6">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs text-muted-foreground">Betrag:</span>
-                                          <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={assignment?.betrag || 0}
-                                            onChange={(e) => updateAssignmentBetrag(immo.id, parseFloat(e.target.value) || 0)}
-                                            className="h-8 w-32"
-                                          />
-                                          <span className="text-xs text-muted-foreground">€</span>
-                                        </div>
-                                      </div>
-                                    )}
                                   </div>
                                 );
                               })}
                             </div>
-
-                            {/* Summen-Anzeige */}
-                            {multiAssignments.length > 0 && (
-                              <div className="bg-muted rounded-lg p-3">
-                                <div className="flex justify-between text-sm">
-                                  <span>Originalbetrag:</span>
-                                  <span className="font-medium">{formatBetrag(zahlung.betrag)}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                  <span>Zugeordnet:</span>
-                                  <span className={`font-medium ${
-                                    Math.abs(multiAssignments.reduce((s, a) => s + a.betrag, 0) - zahlung.betrag) < 0.01
-                                      ? 'text-green-600'
-                                      : 'text-destructive'
-                                  }`}>
-                                    {formatBetrag(multiAssignments.reduce((s, a) => s + a.betrag, 0))}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
 
                             {/* Aktions-Buttons */}
                             <div className="flex gap-2">
@@ -586,48 +500,28 @@ export function NebenkostenZuordnungTab() {
                                 className="flex-1"
                                 onClick={() => {
                                   setSelectedZahlung(null);
-                                  setMultiAssignments([]);
+                                  setSelectedImmobilie(null);
                                 }}
                               >
-                                <X className="h-4 w-4 mr-1" />
                                 Abbrechen
                               </Button>
                               
-                              {multiAssignments.length === 1 ? (
-                                <Button 
-                                  size="sm" 
-                                  className="flex-1"
-                                  disabled={assignMutation.isPending}
-                                  onClick={() => {
+                              <Button 
+                                size="sm" 
+                                className="flex-1"
+                                disabled={!selectedImmobilie || assignMutation.isPending}
+                                onClick={() => {
+                                  if (selectedImmobilie) {
                                     assignMutation.mutate({ 
                                       zahlungId: zahlung.id, 
-                                      immobilieId: multiAssignments[0].immobilieId 
+                                      immobilieId: selectedImmobilie 
                                     });
-                                  }}
-                                >
-                                  <Check className="h-4 w-4 mr-1" />
-                                  Zuordnen
-                                </Button>
-                              ) : multiAssignments.length > 1 ? (
-                                <Button 
-                                  size="sm" 
-                                  className="flex-1"
-                                  disabled={
-                                    multiAssignMutation.isPending ||
-                                    Math.abs(multiAssignments.reduce((s, a) => s + a.betrag, 0) - zahlung.betrag) >= 0.01
                                   }
-                                  onClick={() => {
-                                    multiAssignMutation.mutate({ 
-                                      zahlungId: zahlung.id, 
-                                      assignments: multiAssignments,
-                                      originalBetrag: zahlung.betrag
-                                    });
-                                  }}
-                                >
-                                  <Check className="h-4 w-4 mr-1" />
-                                  Aufteilen ({multiAssignments.length} Immobilien)
-                                </Button>
-                              ) : null}
+                                }}
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                Zuordnen
+                              </Button>
                             </div>
                           </div>
                         )}
