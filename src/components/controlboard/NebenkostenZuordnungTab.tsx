@@ -281,22 +281,13 @@ export function NebenkostenZuordnungTab() {
         </div>
       </div>
 
-      {/* Manuelle Aktualisierung - nur für Force-Refresh */}
-      <div className="flex gap-3">
-        <Button 
-          onClick={() => runClassification(false)}
-          disabled={isClassifying}
-          variant={classifications.length > 0 ? "outline" : "default"}
-          className="gap-2"
-        >
-          {isClassifying ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          {isClassifying ? 'Lädt...' : 'Neu analysieren'}
-        </Button>
-      </div>
+      {/* Ladeindikator während automatischer Analyse */}
+      {isClassifying && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Analysiere Zahlungen...</span>
+        </div>
+      )}
 
       {/* Suche */}
       <div className="relative">
