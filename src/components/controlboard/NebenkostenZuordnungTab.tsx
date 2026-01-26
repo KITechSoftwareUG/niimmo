@@ -269,7 +269,6 @@ export function NebenkostenZuordnungTab() {
         
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="gap-1">
-            <Euro className="h-3 w-3" />
             {unzugeordneteZahlungen?.length || 0} unzugeordnet
           </Badge>
           {classifications.length > 0 && (
