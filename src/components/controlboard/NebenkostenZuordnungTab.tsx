@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,8 @@ export function NebenkostenZuordnungTab() {
   const [isClassifying, setIsClassifying] = useState(false);
   const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
+  const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
+  const autoLoadRef = useRef(false);
 
   // Fetch alle Immobilien
   const { data: immobilien, isLoading: immobilienLoading } = useQuery({
@@ -103,8 +105,8 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // KI Klassifizierung aufrufen - nur bei neuen Zahlungen nach Upload
-  const runClassification = async () => {
+  // KI Klassifizierung aufrufen - lädt aus Cache, analysiert nur neue
+  const runClassification = async (silent = false) => {
     setIsClassifying(true);
     try {
       const { data, error } = await supabase.functions.invoke('classify-nebenkosten', {
@@ -120,24 +122,38 @@ export function NebenkostenZuordnungTab() {
       
       setClassifications(betriebskostenResults);
       
-      const cacheInfo = data.from_cache ? ' (aus Cache)' : '';
-      const newAnalyzed = data.ai_classified || 0;
-      
-      toast.success(
-        `${betriebskostenResults.length} potenzielle Nebenkosten${cacheInfo}`,
-        {
-          description: newAnalyzed > 0 
-            ? `${newAnalyzed} neue Zahlungen analysiert` 
-            : 'Ergebnisse aus vorheriger Analyse'
-        }
-      );
+      // Bei automatischem Laden nur Toast wenn neue analysiert wurden
+      if (!silent || data.ai_classified > 0) {
+        const cacheInfo = data.from_cache ? ' (aus Cache)' : '';
+        const newAnalyzed = data.ai_classified || 0;
+        
+        toast.success(
+          `${betriebskostenResults.length} potenzielle Nebenkosten${cacheInfo}`,
+          {
+            description: newAnalyzed > 0 
+              ? `${newAnalyzed} neue Zahlungen analysiert` 
+              : 'Ergebnisse aus vorheriger Analyse'
+          }
+        );
+      }
     } catch (error) {
       console.error('Classification error:', error);
-      toast.error('Fehler bei der Klassifizierung');
+      if (!silent) {
+        toast.error('Fehler bei der Klassifizierung');
+      }
     } finally {
       setIsClassifying(false);
     }
   };
+
+  // Automatisch beim ersten Laden die Klassifizierungen aus dem Cache holen
+  useEffect(() => {
+    if (!autoLoadRef.current && !hasAutoLoaded && unzugeordneteZahlungen && unzugeordneteZahlungen.length > 0) {
+      autoLoadRef.current = true;
+      setHasAutoLoaded(true);
+      runClassification(true); // silent = true für automatisches Laden
+    }
+  }, [unzugeordneteZahlungen, hasAutoLoaded]);
 
   // Einfache Zuordnung (eine Immobilie)
   const assignMutation = useMutation({
@@ -265,11 +281,12 @@ export function NebenkostenZuordnungTab() {
         </div>
       </div>
 
-      {/* KI-Analyse Button */}
+      {/* Manuelle Aktualisierung - nur für Force-Refresh */}
       <div className="flex gap-3">
         <Button 
-          onClick={runClassification}
+          onClick={() => runClassification(false)}
           disabled={isClassifying}
+          variant={classifications.length > 0 ? "outline" : "default"}
           className="gap-2"
         >
           {isClassifying ? (
@@ -277,7 +294,7 @@ export function NebenkostenZuordnungTab() {
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
-          {classifications.length > 0 ? 'Aktualisieren' : 'Nebenkosten erkennen'}
+          {isClassifying ? 'Lädt...' : 'Neu analysieren'}
         </Button>
       </div>
 
