@@ -74,11 +74,18 @@ export function PaymentAssignmentResultsModal({
   onApply,
 }: PaymentAssignmentResultsModalProps) {
   const [isApplying, setIsApplying] = useState(false);
+  
+  // Filter to only show "Miete" payments
+  const mietResults = useMemo(() => 
+    results.filter(r => r.kategorie === "Miete"), 
+    [results]
+  );
+  
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
-    // Default: select all results with mietvertrag_id
+    // Default: select all Miete results with mietvertrag_id
     const defaultSelected = new Set<string>();
-    results.forEach((r, idx) => {
-      if (r.mietvertrag_id || r.kategorie !== "Nichtmiete") {
+    mietResults.forEach((r, idx) => {
+      if (r.mietvertrag_id) {
         defaultSelected.add(`${idx}`);
       }
     });
@@ -88,16 +95,16 @@ export function PaymentAssignmentResultsModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Recalculate selected when results change
+  // Recalculate selected when mietResults change
   useMemo(() => {
     const newSelected = new Set<string>();
-    results.forEach((r, idx) => {
-      if (r.selected !== false && (r.mietvertrag_id || r.kategorie !== "Nichtmiete")) {
+    mietResults.forEach((r, idx) => {
+      if (r.selected !== false && r.mietvertrag_id) {
         newSelected.add(`${idx}`);
       }
     });
     setSelectedIds(newSelected);
-  }, [results]);
+  }, [mietResults]);
 
   const toggleSelection = (idx: number) => {
     const key = `${idx}`;
@@ -112,7 +119,7 @@ export function PaymentAssignmentResultsModal({
 
   const selectAll = () => {
     const newSet = new Set<string>();
-    results.forEach((_, idx) => newSet.add(`${idx}`));
+    mietResults.forEach((_, idx) => newSet.add(`${idx}`));
     setSelectedIds(newSet);
   };
 
@@ -120,7 +127,7 @@ export function PaymentAssignmentResultsModal({
     setSelectedIds(new Set());
   };
 
-  const selectedResults = results.filter((_, idx) => selectedIds.has(`${idx}`));
+  const selectedResults = mietResults.filter((_, idx) => selectedIds.has(`${idx}`));
   const selectedWithAssignment = selectedResults.filter(r => r.mietvertrag_id);
 
   const handleApply = async () => {
@@ -208,7 +215,7 @@ export function PaymentAssignmentResultsModal({
         <div className="flex items-center justify-between py-2 border-b flex-shrink-0">
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              {selectedIds.size} von {results.length} ausgewählt
+              {selectedIds.size} von {mietResults.length} ausgewählt
             </span>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={selectAll} className="h-7 text-xs">
@@ -246,7 +253,7 @@ export function PaymentAssignmentResultsModal({
                 <TableRow>
                   <TableHead className="w-[40px]">
                     <Checkbox 
-                      checked={selectedIds.size === results.length && results.length > 0}
+                      checked={selectedIds.size === mietResults.length && mietResults.length > 0}
                       onCheckedChange={(checked) => checked ? selectAll() : deselectAll()}
                     />
                   </TableHead>
@@ -260,7 +267,7 @@ export function PaymentAssignmentResultsModal({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {results.map((result, idx) => {
+                {mietResults.map((result, idx) => {
                   const isSelected = selectedIds.has(`${idx}`);
                   return (
                     <TableRow 
