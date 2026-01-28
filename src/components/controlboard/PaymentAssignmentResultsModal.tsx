@@ -81,6 +81,12 @@ export function PaymentAssignmentResultsModal({
     [results]
   );
   
+  // Count Nichtmiete payments that will be saved anyway
+  const nichtmieteCount = useMemo(() => 
+    results.filter(r => r.kategorie === "Nichtmiete").length,
+    [results]
+  );
+  
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
     // Default: select all Miete results with mietvertrag_id
     const defaultSelected = new Set<string>();
@@ -129,6 +135,9 @@ export function PaymentAssignmentResultsModal({
 
   const selectedResults = mietResults.filter((_, idx) => selectedIds.has(`${idx}`));
   const selectedWithAssignment = selectedResults.filter(r => r.mietvertrag_id);
+  
+  // Check if import is possible (either Miete selected OR Nichtmiete present)
+  const canImport = selectedIds.size > 0 || nichtmieteCount > 0;
 
   const handleApply = async () => {
     setIsApplying(true);
@@ -323,11 +332,20 @@ export function PaymentAssignmentResultsModal({
           </ScrollArea>
         </div>
 
+        {/* Info about Nichtmiete payments */}
+        {nichtmieteCount > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm flex-shrink-0">
+            <div className="text-blue-800">
+              <span className="font-medium">{nichtmieteCount} Nichtmiete-Zahlungen</span> werden automatisch für die Nebenkosten-Zuordnung gespeichert.
+            </div>
+          </div>
+        )}
+
         <DialogFooter className="pt-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Abbrechen
           </Button>
-          <Button onClick={handleApply} disabled={isApplying || selectedIds.size === 0}>
+          <Button onClick={handleApply} disabled={isApplying || !canImport}>
             {isApplying ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -336,7 +354,10 @@ export function PaymentAssignmentResultsModal({
             ) : (
               <>
                 <ArrowRight className="mr-2 h-4 w-4" />
-                {selectedIds.size} Zahlungen übernehmen
+                {selectedIds.size > 0 
+                  ? `${selectedIds.size} Miete + ${nichtmieteCount} Nichtmiete übernehmen`
+                  : `${nichtmieteCount} Nichtmiete übernehmen`
+                }
               </>
             )}
           </Button>
