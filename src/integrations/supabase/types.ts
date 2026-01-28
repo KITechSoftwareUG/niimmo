@@ -1159,6 +1159,7 @@ export type Database = {
         | "Mietkaution"
         | "Ignorieren"
         | "Rücklastschrift"
+        | "Nebenkosten"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1314,6 +1315,7 @@ export const Constants = {
         "Mietkaution",
         "Ignorieren",
         "Rücklastschrift",
+        "Nebenkosten",
       ],
     },
   },
