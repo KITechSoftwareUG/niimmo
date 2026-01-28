@@ -347,6 +347,34 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     });
   }, [filteredAllPayments, sortBy]);
 
+  // Group payments by month for better overview
+  const paymentsByMonth = useMemo(() => {
+    const groups: { [key: string]: { label: string; payments: ZahlungWithDetails[] } } = {};
+    
+    sortedAllPayments.forEach((zahlung) => {
+      const date = new Date(zahlung.buchungsdatum);
+      const monthKey = format(date, 'yyyy-MM');
+      const monthLabel = format(date, 'MMMM yyyy', { locale: de });
+      
+      if (!groups[monthKey]) {
+        groups[monthKey] = { label: monthLabel, payments: [] };
+      }
+      groups[monthKey].payments.push(zahlung);
+    });
+    
+    // Sort by month key (newest first for datum-desc, oldest first for datum-asc)
+    const sortedKeys = Object.keys(groups).sort((a, b) => 
+      sortBy === 'datum-asc' ? a.localeCompare(b) : b.localeCompare(a)
+    );
+    
+    return sortedKeys.map(key => ({
+      monthKey: key,
+      label: groups[key].label,
+      payments: groups[key].payments,
+      total: groups[key].payments.reduce((sum, z) => sum + z.betrag, 0)
+    }));
+  }, [sortedAllPayments, sortBy]);
+
   const selectedZahlung = sortedAllPayments?.find(z => z.id === selectedZahlungId);
 
   const formatBetrag = (betrag: number) => {
@@ -813,50 +841,80 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                 </CardHeader>
                 <CardContent className="p-0">
                   {allPaymentsLoading ? (
-                    <div className="text-center py-12"><p className="text-gray-600">Lade Zahlungen...</p></div>
-                  ) : sortedAllPayments && sortedAllPayments.length > 0 ? (
+                    <div className="text-center py-12"><p className="text-muted-foreground">Lade Zahlungen...</p></div>
+                  ) : paymentsByMonth && paymentsByMonth.length > 0 ? (
                     <ScrollArea className="h-[calc(100vh-520px)]">
-                      <div className="space-y-2 p-4">
-                        {sortedAllPayments.map((zahlung) => (
-                          <Card
-                            key={zahlung.id}
-                            className={`cursor-pointer transition-all hover:shadow-md ${
-                              selectedZahlungId === zahlung.id ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-gray-50'
-                            }`}
-                            onClick={() => setSelectedZahlungId(zahlung.id)}
-                          >
-                            <CardContent className="p-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xs text-muted-foreground">{formatDatum(zahlung.buchungsdatum)}</span>
-                                  </div>
-                                  {zahlung.empfaengername && (
-                                    <p className="text-sm font-medium text-gray-800 truncate">
-                                      {zahlung.betrag < 0 ? 'An: ' : 'Von: '}{zahlung.empfaengername}
-                                    </p>
-                                  )}
-                                  <p className={`text-lg font-bold ${zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'}`}>
-                                    {formatBetrag(zahlung.betrag)}
-                                  </p>
-                                  {zahlung.verwendungszweck && (
-                                    <p className="text-xs text-muted-foreground truncate mt-1">{zahlung.verwendungszweck}</p>
-                                  )}
-                                </div>
-                                <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
-                                  <PaymentKategorieEditor
-                                    paymentId={zahlung.id}
-                                    currentKategorie={zahlung.kategorie}
-                                    currentImmobilieId={zahlung.immobilie_id}
-                                    compact
-                                  />
-                                  {(zahlung.mietvertrag_id || zahlung.immobilie_id) && (
-                                    <Badge className="bg-green-600 text-xs">✓ Zugeordnet</Badge>
-                                  )}
-                                </div>
+                      <div className="p-4">
+                        {paymentsByMonth.map((monthGroup) => (
+                          <div key={monthGroup.monthKey} className="mb-6">
+                            {/* Month Header */}
+                            <div className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm rounded-lg px-3 py-2 mb-2 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold text-sm capitalize">{monthGroup.label}</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {monthGroup.payments.length} Zahlungen
+                                </Badge>
                               </div>
-                            </CardContent>
-                          </Card>
+                              <span className={cn(
+                                "text-sm font-bold",
+                                monthGroup.total < 0 ? "text-destructive" : "text-green-600"
+                              )}>
+                                {formatBetrag(monthGroup.total)}
+                              </span>
+                            </div>
+                            
+                            {/* Payments in this month */}
+                            <div className="space-y-2">
+                              {monthGroup.payments.map((zahlung) => (
+                                <Card
+                                  key={zahlung.id}
+                                  className={cn(
+                                    "cursor-pointer transition-all hover:shadow-md",
+                                    selectedZahlungId === zahlung.id 
+                                      ? 'ring-2 ring-primary bg-primary/5' 
+                                      : 'hover:bg-muted/50'
+                                  )}
+                                  onClick={() => setSelectedZahlungId(zahlung.id)}
+                                >
+                                  <CardContent className="p-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="text-xs text-muted-foreground">{formatDatum(zahlung.buchungsdatum)}</span>
+                                        </div>
+                                        {zahlung.empfaengername && (
+                                          <p className="text-sm font-medium truncate">
+                                            {zahlung.betrag < 0 ? 'An: ' : 'Von: '}{zahlung.empfaengername}
+                                          </p>
+                                        )}
+                                        <p className={cn(
+                                          "text-lg font-bold",
+                                          zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'
+                                        )}>
+                                          {formatBetrag(zahlung.betrag)}
+                                        </p>
+                                        {zahlung.verwendungszweck && (
+                                          <p className="text-xs text-muted-foreground truncate mt-1">{zahlung.verwendungszweck}</p>
+                                        )}
+                                      </div>
+                                      <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                        <PaymentKategorieEditor
+                                          paymentId={zahlung.id}
+                                          currentKategorie={zahlung.kategorie}
+                                          currentImmobilieId={zahlung.immobilie_id}
+                                          compact
+                                        />
+                                        {(zahlung.mietvertrag_id || zahlung.immobilie_id) && (
+                                          <Badge className="bg-green-600 text-xs">✓ Zugeordnet</Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </ScrollArea>
