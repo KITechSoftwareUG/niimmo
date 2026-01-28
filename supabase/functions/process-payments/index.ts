@@ -337,10 +337,15 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
   const empfaenger = payment.empfaengername?.toLowerCase() || "";
   
   // SPECIAL CASE: Noah Weich - payments say "Mietkaution" but are actually rent
+  // This needs to be checked FIRST, before any other matching!
   if (isNoahWeichPayment(payment.verwendungszweck || "")) {
+    // Find Noah Weich's actual contract ID from contracts list
+    const noahContract = contracts.find(c => 
+      c.mieterNamen.includes("noah") || c.mieterNamen.includes("weich")
+    );
     return {
       ...payment,
-      mietvertrag_id: NOAH_WEICH_CONTRACT_ID,
+      mietvertrag_id: noahContract?.id || NOAH_WEICH_CONTRACT_ID,
       kategorie: "Miete", // Always rent, not deposit!
       zuordnungsgrund: "Sonderfall Noah Weich: Verwendungszweck sagt Kaution, ist aber Miete",
       confidence: 100,
@@ -778,6 +783,23 @@ serve(async (req) => {
 
     // PHASE 1: Fast rule-based matching
     for (const payment of newPayments) {
+      // FIRST: Check Noah Weich special case BEFORE any other logic
+      // This ensures BG-Zahlungen for Noah Weich are correctly handled as Miete
+      if (isNoahWeichPayment(payment.verwendungszweck || "")) {
+        const noahContract = contracts.find(c => 
+          c.mieterNamen.includes("noah") || c.mieterNamen.includes("weich")
+        );
+        results.push({
+          ...payment,
+          mietvertrag_id: noahContract?.id || NOAH_WEICH_CONTRACT_ID,
+          kategorie: "Miete",
+          zuordnungsgrund: "Sonderfall Noah Weich: Verwendungszweck sagt Kaution, ist aber Miete",
+          confidence: 100,
+          selected: true
+        });
+        continue; // Skip all other processing for this payment
+      }
+      
       const paymentType = categorizePaymentType(payment, nichtmieteRegeln);
       
       if (paymentType === "nichtmiete") {
