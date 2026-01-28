@@ -402,13 +402,14 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     });
   };
 
-  // Initialize all months as collapsed on first render
+  // Initialize all months as collapsed on first render - use useEffect for proper initialization
+  const allMonthKeysString = paymentsByYearMonth.flatMap(y => y.months.map(m => m.monthKey)).join(',');
   useMemo(() => {
-    if (paymentsByYearMonth.length > 0 && collapsedMonths.size === 0) {
-      const allMonthKeys = paymentsByYearMonth.flatMap(y => y.months.map(m => m.monthKey));
+    if (allMonthKeysString && collapsedMonths.size === 0) {
+      const allMonthKeys = allMonthKeysString.split(',').filter(Boolean);
       setCollapsedMonths(new Set(allMonthKeys));
     }
-  }, [paymentsByYearMonth.length]);
+  }, [allMonthKeysString]);
 
   const selectedZahlung = sortedAllPayments?.find(z => z.id === selectedZahlungId);
 
