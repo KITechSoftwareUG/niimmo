@@ -79,6 +79,7 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
   const [expandedPayment, setExpandedPayment] = useState<string | null>(null);
   const [draggedPayment, setDraggedPayment] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
 
   // Fetch zahlungen für diese Immobilie
   const { data: zahlungen } = useQuery({
@@ -217,6 +218,44 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
     return yearPayments.filter((z) => !assignedIds.has(z.id));
   }, [zahlungen, selectedYear, kostenpositionen]);
 
+  // Gruppiere unzugeordnete Zahlungen nach Monat
+  const zahlungenByMonth = useMemo(() => {
+    const groups: { [key: string]: { label: string; payments: typeof unassignedZahlungen } } = {};
+    
+    unassignedZahlungen.forEach((zahlung) => {
+      const date = new Date(zahlung.buchungsdatum);
+      const monthKey = format(date, 'yyyy-MM');
+      const monthLabel = format(date, 'MMMM', { locale: de });
+      
+      if (!groups[monthKey]) {
+        groups[monthKey] = { label: monthLabel, payments: [] };
+      }
+      groups[monthKey].payments.push(zahlung);
+    });
+    
+    // Sort by month key (newest first)
+    const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+    
+    return sortedKeys.map(key => ({
+      monthKey: key,
+      label: groups[key].label,
+      payments: groups[key].payments,
+      total: groups[key].payments.reduce((sum, z) => sum + z.betrag, 0)
+    }));
+  }, [unassignedZahlungen]);
+
+  const toggleMonth = (monthKey: string) => {
+    setCollapsedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(monthKey)) {
+        next.delete(monthKey);
+      } else {
+        next.add(monthKey);
+      }
+      return next;
+    });
+  };
+
   // Kostenpositionen pro Kategorie
   const kostenProKategorie = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -327,112 +366,149 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                   </p>
                 </div>
               ) : (
-                unassignedZahlungen.map((zahlung) => {
-                  const isExpanded = expandedPayment === zahlung.id;
+                zahlungenByMonth.map((monthGroup) => {
+                  const isCollapsed = collapsedMonths.has(monthGroup.monthKey);
                   return (
-                    <div
-                      key={zahlung.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, zahlung.id)}
-                      onDragEnd={handleDragEnd}
-                      className={cn(
-                        "border-2 rounded-xl bg-card transition-all cursor-grab active:cursor-grabbing",
-                        draggedPayment === zahlung.id
-                          ? "opacity-50 ring-2 ring-primary scale-[0.98]"
-                          : "hover:border-primary/50 hover:shadow-md",
-                        isExpanded && "border-primary shadow-lg"
-                      )}
+                    <Collapsible 
+                      key={monthGroup.monthKey}
+                      open={!isCollapsed}
+                      onOpenChange={() => toggleMonth(monthGroup.monthKey)}
                     >
-                      {/* Header - immer sichtbar */}
-                      <div
-                        className="p-4 cursor-pointer"
-                        onClick={() => setExpandedPayment(isExpanded ? null : zahlung.id)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1">
-                            <GripVertical className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-4">
-                              <p className="font-semibold text-base truncate">
-                                {zahlung.empfaengername || "Unbekannter Empfänger"}
-                              </p>
-                              <span className={cn(
-                                "text-lg font-bold whitespace-nowrap",
-                                zahlung.betrag >= 0 ? "text-green-600" : "text-red-600"
-                              )}>
-                                {zahlung.betrag >= 0 ? "+" : ""}{zahlung.betrag.toFixed(2)} €
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3.5 w-3.5" />
-                                {format(new Date(zahlung.buchungsdatum), "dd. MMMM yyyy", { locale: de })}
-                              </span>
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 ml-auto" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 ml-auto" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expanded Details */}
-                      {isExpanded && (
-                        <div className="px-4 pb-4 border-t bg-muted/30">
-                          <div className="pt-4 space-y-3">
-                            {/* Verwendungszweck */}
-                            <div className="flex items-start gap-2">
-                              <FileText className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <p className="text-xs font-medium text-muted-foreground">Verwendungszweck</p>
-                                <p className="text-sm break-words">
-                                  {zahlung.verwendungszweck || "-"}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* IBAN */}
-                            {zahlung.iban && (
-                              <div className="flex items-start gap-2">
-                                <CreditCard className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                                <div className="flex-1">
-                                  <p className="text-xs font-medium text-muted-foreground">IBAN</p>
-                                  <p className="text-sm font-mono">{zahlung.iban}</p>
-                                </div>
-                              </div>
+                      <CollapsibleTrigger className="w-full">
+                        <div className="flex items-center justify-between bg-muted/60 hover:bg-muted rounded-lg px-3 py-2.5 cursor-pointer transition-colors mb-2">
+                          <div className="flex items-center gap-2">
+                            {isCollapsed ? (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
                             )}
-
-                            {/* Schnellzuordnung */}
-                            <div className="pt-3 border-t">
-                              <p className="text-xs font-medium text-muted-foreground mb-2">Schnellzuordnung:</p>
-                              <div className="flex flex-wrap gap-2">
-                                {BETRKV_KATEGORIEN.slice(0, 8).map((kat) => {
-                                  const Icon = kat.icon;
-                                  return (
-                                    <Button
-                                      key={kat.id}
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-8 text-xs gap-1.5"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleQuickAssign(zahlung.id, kat.id);
-                                      }}
-                                    >
-                                      <Icon className="h-3.5 w-3.5" />
-                                      {kat.name.split(" ")[0]}
-                                    </Button>
-                                  );
-                                })}
-                              </div>
-                            </div>
+                            <Calendar className="h-4 w-4 text-primary" />
+                            <span className="font-semibold text-sm capitalize">{monthGroup.label}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {monthGroup.payments.length} offen
+                            </Badge>
                           </div>
+                          <span className={cn(
+                            "text-sm font-bold",
+                            monthGroup.total >= 0 ? "text-green-600" : "text-destructive"
+                          )}>
+                            {monthGroup.total >= 0 ? "+" : ""}{monthGroup.total.toFixed(2)} €
+                          </span>
                         </div>
-                      )}
-                    </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="space-y-3 pl-2">
+                          {monthGroup.payments.map((zahlung) => {
+                            const isExpanded = expandedPayment === zahlung.id;
+                            return (
+                              <div
+                                key={zahlung.id}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, zahlung.id)}
+                                onDragEnd={handleDragEnd}
+                                className={cn(
+                                  "border-2 rounded-xl bg-card transition-all cursor-grab active:cursor-grabbing",
+                                  draggedPayment === zahlung.id
+                                    ? "opacity-50 ring-2 ring-primary scale-[0.98]"
+                                    : "hover:border-primary/50 hover:shadow-md",
+                                  isExpanded && "border-primary shadow-lg"
+                                )}
+                              >
+                                {/* Header - immer sichtbar */}
+                                <div
+                                  className="p-4 cursor-pointer"
+                                  onClick={() => setExpandedPayment(isExpanded ? null : zahlung.id)}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className="mt-1">
+                                      <GripVertical className="h-5 w-5 text-muted-foreground" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between gap-4">
+                                        <p className="font-semibold text-base truncate">
+                                          {zahlung.empfaengername || "Unbekannter Empfänger"}
+                                        </p>
+                                        <span className={cn(
+                                          "text-lg font-bold whitespace-nowrap",
+                                          zahlung.betrag >= 0 ? "text-green-600" : "text-red-600"
+                                        )}>
+                                          {zahlung.betrag >= 0 ? "+" : ""}{zahlung.betrag.toFixed(2)} €
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                                        <span className="flex items-center gap-1">
+                                          <Calendar className="h-3.5 w-3.5" />
+                                          {format(new Date(zahlung.buchungsdatum), "dd. MMMM yyyy", { locale: de })}
+                                        </span>
+                                        {isExpanded ? (
+                                          <ChevronDown className="h-4 w-4 ml-auto" />
+                                        ) : (
+                                          <ChevronRight className="h-4 w-4 ml-auto" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Expanded Details */}
+                                {isExpanded && (
+                                  <div className="px-4 pb-4 border-t bg-muted/30">
+                                    <div className="pt-4 space-y-3">
+                                      {/* Verwendungszweck */}
+                                      <div className="flex items-start gap-2">
+                                        <FileText className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                                        <div className="flex-1">
+                                          <p className="text-xs font-medium text-muted-foreground">Verwendungszweck</p>
+                                          <p className="text-sm break-words">
+                                            {zahlung.verwendungszweck || "-"}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* IBAN */}
+                                      {zahlung.iban && (
+                                        <div className="flex items-start gap-2">
+                                          <CreditCard className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <p className="text-xs font-medium text-muted-foreground">IBAN</p>
+                                            <p className="text-sm font-mono">{zahlung.iban}</p>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Schnellzuordnung */}
+                                      <div className="pt-3 border-t">
+                                        <p className="text-xs font-medium text-muted-foreground mb-2">Schnellzuordnung:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                          {BETRKV_KATEGORIEN.slice(0, 8).map((kat) => {
+                                            const Icon = kat.icon;
+                                            return (
+                                              <Button
+                                                key={kat.id}
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 text-xs gap-1.5"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleQuickAssign(zahlung.id, kat.id);
+                                                }}
+                                              >
+                                                <Icon className="h-3.5 w-3.5" />
+                                                {kat.name.split(" ")[0]}
+                                              </Button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                   );
                 })
               )}

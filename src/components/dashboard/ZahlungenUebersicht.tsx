@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Euro, Calendar, Building2, Home, User, Check, Edit2, X, CalendarIcon, Search } from "lucide-react";
+import { ArrowLeft, Euro, Calendar, Building2, Home, User, Check, Edit2, X, CalendarIcon, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AssignPaymentDialog } from "@/components/controlboard/AssignPaymentDialog";
 import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface ZahlungenUebersichtProps {
   onBack?: () => void;
@@ -49,6 +50,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [showOnlyZugeordnet, setShowOnlyZugeordnet] = useState(false);
   const [showOnlyNichtZugeordnet, setShowOnlyNichtZugeordnet] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
@@ -280,6 +282,67 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
     }
   }) : [];
 
+  // Group payments by year and month
+  const paymentsByYearMonth = useMemo(() => {
+    const yearGroups: { [year: string]: { months: { monthKey: string; label: string; payments: ZahlungWithDetails[]; total: number }[] } } = {};
+    
+    sortedZahlungen.forEach((zahlung) => {
+      const date = new Date(zahlung.buchungsdatum);
+      const year = format(date, 'yyyy');
+      const monthKey = format(date, 'yyyy-MM');
+      const monthLabel = format(date, 'MMMM', { locale: de });
+      
+      if (!yearGroups[year]) {
+        yearGroups[year] = { months: [] };
+      }
+      
+      let monthGroup = yearGroups[year].months.find(m => m.monthKey === monthKey);
+      if (!monthGroup) {
+        monthGroup = { monthKey, label: monthLabel, payments: [], total: 0 };
+        yearGroups[year].months.push(monthGroup);
+      }
+      monthGroup.payments.push(zahlung);
+      monthGroup.total += zahlung.betrag;
+    });
+    
+    // Sort years and months
+    const sortedYears = Object.keys(yearGroups).sort((a, b) => 
+      sortBy === 'datum-asc' ? a.localeCompare(b) : b.localeCompare(a)
+    );
+    
+    return sortedYears.map(year => {
+      const months = yearGroups[year].months.sort((a, b) => 
+        sortBy === 'datum-asc' ? a.monthKey.localeCompare(b.monthKey) : b.monthKey.localeCompare(a.monthKey)
+      );
+      return {
+        year,
+        months,
+        total: months.reduce((sum, m) => sum + m.total, 0),
+        count: months.reduce((sum, m) => sum + m.payments.length, 0)
+      };
+    });
+  }, [sortedZahlungen, sortBy]);
+
+  const toggleMonth = (monthKey: string) => {
+    setCollapsedMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(monthKey)) {
+        next.delete(monthKey);
+      } else {
+        next.add(monthKey);
+      }
+      return next;
+    });
+  };
+
+  // Initialize all months as collapsed on first render
+  useMemo(() => {
+    if (paymentsByYearMonth.length > 0 && collapsedMonths.size === 0) {
+      const allMonthKeys = paymentsByYearMonth.flatMap(y => y.months.map(m => m.monthKey));
+      setCollapsedMonths(new Set(allMonthKeys));
+    }
+  }, [paymentsByYearMonth.length]);
+
   const selectedZahlung = sortedZahlungen?.find(z => z.id === selectedZahlungId);
 
   const handleAssignClick = () => {
@@ -486,78 +549,141 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-600">Lade Zahlungen...</p>
+                  <p className="text-muted-foreground">Lade Zahlungen...</p>
                 </div>
-              ) : sortedZahlungen && sortedZahlungen.length > 0 ? (
+              ) : paymentsByYearMonth && paymentsByYearMonth.length > 0 ? (
                 <ScrollArea className="h-[calc(100vh-320px)]">
-                  <div className="space-y-2 p-4">
-                    {sortedZahlungen.map((zahlung) => (
-                      <Card
-                        key={zahlung.id}
-                        className={`cursor-pointer transition-all hover:shadow-md ${
-                          selectedZahlungId === zahlung.id
-                            ? 'ring-2 ring-blue-500 bg-blue-50'
-                            : 'hover:bg-gray-50'
-                        }`}
-                        onClick={() => setSelectedZahlungId(zahlung.id)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Calendar className="h-4 w-4 text-gray-400" />
-                                <span className="text-sm font-medium">
-                                  {formatDatum(zahlung.buchungsdatum)}
-                                </span>
-                                {zahlung.zugeordneter_monat && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {zahlung.zugeordneter_monat}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className={`text-lg font-bold ${
-                                zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'
-                              }`}>
-                                {formatBetrag(zahlung.betrag)}
-                              </p>
+                  <div className="p-4 space-y-4">
+                    {paymentsByYearMonth.map((yearGroup) => (
+                      <div key={yearGroup.year} className="space-y-2">
+                        {/* Year Header */}
+                        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b pb-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-5 w-5 text-primary" />
+                              <span className="font-bold text-lg">{yearGroup.year}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {yearGroup.count} Zahlungen
+                              </Badge>
                             </div>
-                            <div>
-                              {zahlung.mietvertrag_id || zahlung.immobilie_id ? (
-                                <Badge className="bg-green-600">Zugeordnet</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-orange-600 border-orange-600">
-                                  Nicht zugeordnet
-                                </Badge>
-                              )}
-                            </div>
+                            <span className={cn(
+                              "text-base font-bold",
+                              yearGroup.total < 0 ? "text-destructive" : "text-green-600"
+                            )}>
+                              {formatBetrag(yearGroup.total)}
+                            </span>
                           </div>
-                          
-                          {zahlung.verwendungszweck && (
-                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                              {zahlung.verwendungszweck}
-                            </p>
-                          )}
-                          
-                          {zahlung.empfaengername && (
-                            <p className="text-xs text-gray-500">
-                              Empfänger: {zahlung.empfaengername}
-                            </p>
-                          )}
-                          
-                          {zahlung.kategorie && (
-                            <Badge variant="secondary" className="mt-2 text-xs">
-                              {zahlung.kategorie}
-                            </Badge>
-                          )}
-                        </CardContent>
-                      </Card>
+                        </div>
+                        
+                        {/* Months in this year */}
+                        <div className="space-y-2 pl-2">
+                          {yearGroup.months.map((monthGroup) => {
+                            const isCollapsed = collapsedMonths.has(monthGroup.monthKey);
+                            return (
+                              <Collapsible 
+                                key={monthGroup.monthKey} 
+                                open={!isCollapsed}
+                                onOpenChange={() => toggleMonth(monthGroup.monthKey)}
+                              >
+                                <CollapsibleTrigger className="w-full">
+                                  <div className="flex items-center justify-between bg-muted/60 hover:bg-muted rounded-lg px-3 py-2 cursor-pointer transition-colors">
+                                    <div className="flex items-center gap-2">
+                                      {isCollapsed ? (
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                      ) : (
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                      )}
+                                      <span className="font-semibold text-sm capitalize">{monthGroup.label}</span>
+                                      <Badge variant="secondary" className="text-xs">
+                                        {monthGroup.payments.length}
+                                      </Badge>
+                                    </div>
+                                    <span className={cn(
+                                      "text-sm font-bold",
+                                      monthGroup.total < 0 ? "text-destructive" : "text-green-600"
+                                    )}>
+                                      {formatBetrag(monthGroup.total)}
+                                    </span>
+                                  </div>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="space-y-2 pt-2 pl-4">
+                                    {monthGroup.payments.map((zahlung) => (
+                                      <Card
+                                        key={zahlung.id}
+                                        className={cn(
+                                          "cursor-pointer transition-all hover:shadow-md",
+                                          selectedZahlungId === zahlung.id
+                                            ? 'ring-2 ring-primary bg-primary/5'
+                                            : 'hover:bg-muted/50'
+                                        )}
+                                        onClick={() => setSelectedZahlungId(zahlung.id)}
+                                      >
+                                        <CardContent className="p-4">
+                                          <div className="flex items-start justify-between mb-2">
+                                            <div className="flex-1">
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-sm font-medium text-muted-foreground">
+                                                  {formatDatum(zahlung.buchungsdatum)}
+                                                </span>
+                                                {zahlung.zugeordneter_monat && (
+                                                  <Badge variant="outline" className="text-xs">
+                                                    {zahlung.zugeordneter_monat}
+                                                  </Badge>
+                                                )}
+                                              </div>
+                                              <p className={cn(
+                                                "text-lg font-bold",
+                                                zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'
+                                              )}>
+                                                {formatBetrag(zahlung.betrag)}
+                                              </p>
+                                            </div>
+                                            <div>
+                                              {zahlung.mietvertrag_id || zahlung.immobilie_id ? (
+                                                <Badge className="bg-green-600">Zugeordnet</Badge>
+                                              ) : (
+                                                <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                                  Nicht zugeordnet
+                                                </Badge>
+                                              )}
+                                            </div>
+                                          </div>
+                                          
+                                          {zahlung.verwendungszweck && (
+                                            <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                                              {zahlung.verwendungszweck}
+                                            </p>
+                                          )}
+                                          
+                                          {zahlung.empfaengername && (
+                                            <p className="text-xs text-muted-foreground">
+                                              {zahlung.betrag < 0 ? 'An: ' : 'Von: '}{zahlung.empfaengername}
+                                            </p>
+                                          )}
+                                          
+                                          {zahlung.kategorie && (
+                                            <Badge variant="secondary" className="mt-2 text-xs">
+                                              {zahlung.kategorie}
+                                            </Badge>
+                                          )}
+                                        </CardContent>
+                                      </Card>
+                                    ))}
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            );
+                          })}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </ScrollArea>
               ) : (
                 <div className="text-center py-12">
-                  <Euro className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-600">Keine Zahlungen gefunden</p>
+                  <Euro className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground">Keine Zahlungen gefunden</p>
                 </div>
               )}
             </CardContent>
