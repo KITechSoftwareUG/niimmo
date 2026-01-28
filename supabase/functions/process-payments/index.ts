@@ -562,6 +562,90 @@ Analysiere die Rücklastschrift und finde den zugehörigen Mietvertrag.
   }
 }
 
+// ============= STANDARD PAYMENT AI PROCESSING =============
+
+async function processStandardPayment(
+  payment: Payment, 
+  contractContext: string
+): Promise<ProcessedPayment> {
+  const verwendungszweck = (payment.verwendungszweck || "").toLowerCase();
+  
+  // Check if payment looks like rent based on keywords
+  const looksLikeRent = verwendungszweck.includes("miete") || 
+                        verwendungszweck.includes("miet") ||
+                        verwendungszweck.includes("bv.") ||
+                        verwendungszweck.includes("habichtweg") ||
+                        verwendungszweck.includes("bennigsen") ||
+                        verwendungszweck.includes("sarstedt") ||
+                        verwendungszweck.includes("hauptstr") ||
+                        payment.betrag > 200; // Larger payments are likely rent
+  
+  if (!looksLikeRent) {
+    // Doesn't look like rent, skip AI
+    return {
+      ...payment,
+      mietvertrag_id: null,
+      kategorie: "Nichtmiete",
+      zuordnungsgrund: "Keine Miet-Keywords erkannt",
+      confidence: 50,
+      selected: false
+    };
+  }
+
+  const systemPrompt = `Du bist ein Experte für die Zuordnung von Mietzahlungen in einer Immobilienverwaltung.
+
+KONTEXT - Aktive Mietverträge:
+${contractContext}
+
+AUFGABE:
+Analysiere diese Zahlung und ordne sie dem richtigen Mieter zu.
+- Extrahiere Namen aus dem Verwendungszweck (z.B. "Miete Salo Razgeen" → Suche nach "Salo" oder "Razgeen")
+- Extrahiere Adressen/Objekte (z.B. "BV. Habichtweg 9" → Suche nach Immobilie mit Habichtweg)
+- Suche nach "Bennigsen", "Sarstedt" etc. für Ortsangaben
+- WICHTIG: Wenn "Miete" im Text steht, ist es IMMER eine Mietzahlung, NIEMALS Nichtmiete!
+- Bei Kaution im Text UND passendem Betrag → Mietkaution
+- Bei Mieternamen im Text → Miete für diesen Mieter`;
+
+  const userPrompt = `Zahlung analysieren:
+- Betrag: ${payment.betrag} €
+- IBAN: ${payment.iban}
+- Verwendungszweck: ${payment.verwendungszweck}
+- Empfänger: ${payment.empfaengername || "N/A"}
+- Datum: ${payment.buchungsdatum}
+
+Finde den passenden Mieter. Wenn "Miete" im Text steht, kategorisiere als "Miete"!`;
+
+  try {
+    const result = await callAI(systemPrompt, userPrompt);
+    
+    // Override: If "Miete" is in the text, force category to "Miete"
+    let kategorie = result.kategorie || "Miete";
+    if (verwendungszweck.includes("miete") && kategorie === "Nichtmiete") {
+      kategorie = "Miete";
+    }
+    
+    return {
+      ...payment,
+      mietvertrag_id: result.mietvertrag_id || null,
+      kategorie: kategorie,
+      zuordnungsgrund: result.zuordnungsgrund,
+      confidence: result.confidence,
+      selected: result.mietvertrag_id ? true : false
+    };
+  } catch (error) {
+    console.error("Standard Payment AI Error:", error);
+    // Fallback: If "Miete" in text, still categorize as Miete
+    return {
+      ...payment,
+      mietvertrag_id: null,
+      kategorie: verwendungszweck.includes("miete") ? "Miete" : "Nichtmiete",
+      zuordnungsgrund: "AI-Fehler - manuelle Prüfung empfohlen",
+      confidence: 0,
+      selected: false
+    };
+  }
+}
+
 // ============= MAIN HANDLER =============
 
 serve(async (req) => {
@@ -755,6 +839,9 @@ serve(async (req) => {
         processed = await processBGZahlung(payment, contractContextString);
       } else if (type === "retoure") {
         processed = await processRuecklastschrift(payment, contractContextString);
+      } else if (type === "standard") {
+        // STANDARD: Use AI to find contract match for unmatched rent payments
+        processed = await processStandardPayment(payment, contractContextString);
       } else {
         processed = {
           ...payment,
@@ -771,11 +858,17 @@ serve(async (req) => {
     }
 
     for (const { payment } of skippedAI) {
+      // For skipped payments, check if they look like rent based on keywords
+      const vzLower = (payment.verwendungszweck || "").toLowerCase();
+      const looksLikeRent = vzLower.includes("miete") || vzLower.includes("miet") || 
+                           vzLower.includes("bv.") || vzLower.includes("habichtweg") ||
+                           vzLower.includes("bennigsen") || vzLower.includes("sarstedt");
+      
       results.push({
         ...payment,
         mietvertrag_id: null,
-        kategorie: "Nichtmiete",
-        zuordnungsgrund: "Nicht verarbeitet (Batch-Limit)",
+        kategorie: looksLikeRent ? "Miete" : "Nichtmiete",
+        zuordnungsgrund: "Nicht verarbeitet (Batch-Limit) - manuelle Prüfung empfohlen",
         confidence: 0,
         selected: false
       });
