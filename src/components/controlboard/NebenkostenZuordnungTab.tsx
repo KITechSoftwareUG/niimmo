@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -53,10 +53,7 @@ export function NebenkostenZuordnungTab() {
   const [selectedZahlung, setSelectedZahlung] = useState<string | null>(null);
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
-  const [classifications, setClassifications] = useState<ClassificationResult[]>([]);
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
-  const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
-  const autoLoadRef = useRef(false);
 
   // Fetch alle Immobilien
   const { data: immobilien, isLoading: immobilienLoading } = useQuery({
@@ -105,71 +102,98 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // KI Klassifizierung aufrufen - lädt aus Cache, analysiert nur neue
-  const runClassification = async (silent = false) => {
+  // NEU: Lade gespeicherte Klassifizierungen direkt aus der DB (kein API-Call nötig!)
+  const { data: cachedClassifications, isLoading: classificationsLoading } = useQuery({
+    queryKey: ['nebenkosten-klassifizierungen-cached'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('nebenkosten_klassifizierungen')
+        .select(`
+          zahlung_id,
+          is_betriebskosten,
+          confidence,
+          category,
+          suggested_immobilie_id,
+          reasoning,
+          bestaetigt,
+          uebersprungen,
+          immobilie:suggested_immobilie_id(id, name)
+        `)
+        .eq('is_betriebskosten', true)
+        .eq('bestaetigt', false)
+        .eq('uebersprungen', false);
+      
+      if (error) throw error;
+      
+      // Transformiere zu ClassificationResult Format
+      return (data || []).map(c => ({
+        zahlung_id: c.zahlung_id,
+        is_betriebskosten: c.is_betriebskosten,
+        confidence: c.confidence as "high" | "medium" | "low",
+        category: c.category,
+        suggested_immobilie_id: c.suggested_immobilie_id,
+        suggested_immobilie_name: (c.immobilie as any)?.name || null,
+        reasoning: c.reasoning || '',
+      })) as ClassificationResult[];
+    },
+    staleTime: 30000, // 30 Sekunden Cache
+  });
+
+  // Klassifizierungen aus Cache oder API
+  const classifications = cachedClassifications || [];
+
+  // KI Klassifizierung aufrufen - nur für NEUE Zahlungen die noch nicht analysiert wurden
+  const runClassification = async () => {
     setIsClassifying(true);
     try {
       const { data, error } = await supabase.functions.invoke('classify-nebenkosten', {
-        body: { force: false } // Immer Cache nutzen, nur neue analysieren
+        body: { force: false } // Nur neue analysieren
       });
       
       if (error) throw error;
       
-      // Nur Betriebskosten anzeigen
-      const betriebskostenResults = (data.classifications || []).filter(
-        (c: ClassificationResult) => c.is_betriebskosten
-      );
+      // Cache invalidieren um neue Ergebnisse zu laden
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
       
-      setClassifications(betriebskostenResults);
+      const newAnalyzed = data.ai_classified || 0;
       
-      // Bei automatischem Laden nur Toast wenn neue analysiert wurden
-      if (!silent || data.ai_classified > 0) {
-        const cacheInfo = data.from_cache ? ' (aus Cache)' : '';
-        const newAnalyzed = data.ai_classified || 0;
-        
-        toast.success(
-          `${betriebskostenResults.length} potenzielle Nebenkosten${cacheInfo}`,
-          {
-            description: newAnalyzed > 0 
-              ? `${newAnalyzed} neue Zahlungen analysiert` 
-              : 'Ergebnisse aus vorheriger Analyse'
-          }
-        );
+      if (newAnalyzed > 0) {
+        toast.success(`${newAnalyzed} neue Zahlungen analysiert`);
+      } else {
+        toast.info('Keine neuen Zahlungen zu analysieren', {
+          description: 'Alle Zahlungen wurden bereits klassifiziert'
+        });
       }
     } catch (error) {
       console.error('Classification error:', error);
-      if (!silent) {
-        toast.error('Fehler bei der Klassifizierung');
-      }
+      toast.error('Fehler bei der Klassifizierung');
     } finally {
       setIsClassifying(false);
     }
   };
 
-  // Automatisch beim ersten Laden die Klassifizierungen aus dem Cache holen
-  useEffect(() => {
-    if (!autoLoadRef.current && !hasAutoLoaded && unzugeordneteZahlungen && unzugeordneteZahlungen.length > 0) {
-      autoLoadRef.current = true;
-      setHasAutoLoaded(true);
-      runClassification(true); // silent = true für automatisches Laden
-    }
-  }, [unzugeordneteZahlungen, hasAutoLoaded]);
-
   // Einfache Zuordnung (eine Immobilie)
   const assignMutation = useMutation({
     mutationFn: async ({ zahlungId, immobilieId }: { zahlungId: string; immobilieId: string }) => {
+      // 1. Zahlung zuordnen
       const { error } = await supabase
         .from('zahlungen')
         .update({ immobilie_id: immobilieId })
         .eq('id', zahlungId);
       if (error) throw error;
+      
+      // 2. Klassifizierung als bestätigt markieren
+      await supabase
+        .from('nebenkosten_klassifizierungen')
+        .update({ bestaetigt: true, bestaetigt_am: new Date().toISOString() })
+        .eq('zahlung_id', zahlungId);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
       queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
       setSelectedZahlung(null);
       setSelectedImmobilie(null);
-      setClassifications(prev => prev.filter(c => c.zahlung_id !== variables.zahlungId));
       toast.success("Zahlung zugeordnet");
     },
     onError: () => {
@@ -243,7 +267,7 @@ export function NebenkostenZuordnungTab() {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Math.abs(betrag));
   };
 
-  const isLoading = immobilienLoading || unzugeordneteLoading || zugeordneteLoading;
+  const isLoading = immobilienLoading || unzugeordneteLoading || zugeordneteLoading || classificationsLoading;
 
   if (isLoading) {
     return (
