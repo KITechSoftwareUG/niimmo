@@ -79,23 +79,32 @@ function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
-function fuzzyMatch(text: string, searchTerm: string, maxDistance: number = 2): boolean {
+function fuzzyMatch(text: string, searchTerm: string, maxDistance: number = 1): boolean {
   if (!text || !searchTerm) return false;
+  
+  // Require minimum 4 characters for matching to avoid false positives
+  if (searchTerm.length < 4) return false;
   
   const textLower = text.toLowerCase();
   const searchLower = searchTerm.toLowerCase();
   
-  // Exact match first
+  // Exact substring match - this is reliable
   if (textLower.includes(searchLower)) return true;
   
-  // Split into words and check each
+  // For fuzzy matching, be MUCH more strict to avoid false positives
+  // Only allow fuzzy match for longer names (6+ chars) with max 1 distance
+  if (searchLower.length < 6) return false;
+  
+  // Split into words and check each - require near-exact match
   const words = textLower.split(/\s+/);
   for (const word of words) {
-    if (word.length >= 3 && searchLower.length >= 3) {
+    // Word must be similar length to search term (±2 chars)
+    if (Math.abs(word.length - searchLower.length) > 2) continue;
+    
+    if (word.length >= 5 && searchLower.length >= 5) {
       const distance = levenshteinDistance(word, searchLower);
-      // Allow proportional distance based on word length
-      const allowedDistance = Math.min(maxDistance, Math.floor(searchLower.length / 3));
-      if (distance <= allowedDistance) return true;
+      // Much stricter: only allow 1 character difference for names 6+ chars
+      if (distance <= maxDistance) return true;
     }
   }
   
@@ -376,25 +385,43 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
     }
   }
   
-  // 3. Fuzzy Name-Match (tenant name in verwendungszweck or empfänger)
+  // 3. STRICT Name-Match (tenant name in verwendungszweck or empfänger)
+  // Only match if BOTH first and last name parts are found, or exact full name match
   for (const contract of contracts) {
-    for (const name of contract.mieterNamen) {
-      if (name.length >= 3) {
-        // Check with fuzzy matching
-        if (fuzzyMatch(verwendungszweck, name) || fuzzyMatch(empfaenger, name)) {
-          const isKaution = verwendungszweck.includes("kaution") && 
-                            contract.kaution && 
-                            Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
-          return {
-            ...payment,
-            mietvertrag_id: contract.id,
-            kategorie: isKaution ? "Mietkaution" : "Miete",
-            zuordnungsgrund: `Namen-Match: "${name}" für ${contract.mieter}`,
-            confidence: 75,
-            selected: true
-          };
-        }
+    const mieterNamen = contract.mieterNamen;
+    
+    // Skip if no names available
+    if (!mieterNamen || mieterNamen.length === 0) continue;
+    
+    // For each name, require EXACT substring match (no fuzzy for names)
+    let matchedParts = 0;
+    let matchedName = "";
+    
+    for (const name of mieterNamen) {
+      // Require minimum 4 characters for name matching
+      if (name.length < 4) continue;
+      
+      // EXACT substring match only - no fuzzy matching for names
+      if (verwendungszweck.includes(name) || empfaenger.includes(name)) {
+        matchedParts++;
+        matchedName = name;
       }
+    }
+    
+    // Require at least 2 name parts matched (e.g., first AND last name)
+    // OR one very distinctive name (7+ chars) that's unlikely to be coincidental
+    if (matchedParts >= 2 || (matchedParts === 1 && matchedName.length >= 7)) {
+      const isKaution = verwendungszweck.includes("kaution") && 
+                        contract.kaution && 
+                        Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
+      return {
+        ...payment,
+        mietvertrag_id: contract.id,
+        kategorie: isKaution ? "Mietkaution" : "Miete",
+        zuordnungsgrund: `Namen-Match: "${matchedName}" für ${contract.mieter}`,
+        confidence: matchedParts >= 2 ? 85 : 70,
+        selected: true
+      };
     }
   }
   
