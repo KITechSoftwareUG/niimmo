@@ -13,7 +13,6 @@ import { de } from "date-fns/locale";
 import { AssignPaymentDialog } from "./AssignPaymentDialog";
 import { PaymentAssignmentResultsModal } from "./PaymentAssignmentResultsModal";
 import { ScrollArea } from "@/components/ui/scroll-area";
-// Removed unused import: useCsvUploadProgress
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { NebenkostenZuordnungTab } from "./NebenkostenZuordnungTab";
+import { PaymentKategorieEditor } from "./PaymentKategorieEditor";
 
 interface PaymentManagementProps {
   onBack: () => void;
@@ -761,12 +761,17 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                     {/* Filters */}
                     <div className="flex flex-wrap items-center gap-2">
                       <Select value={selectedKategorie || 'alle'} onValueChange={(v) => setSelectedKategorie(v === 'alle' ? null : v)}>
-                        <SelectTrigger className="bg-white w-36">
+                        <SelectTrigger className="bg-white w-40">
                           <SelectValue placeholder="Kategorie" />
                         </SelectTrigger>
                         <SelectContent className="bg-white z-50">
-                          <SelectItem value="alle">Alle</SelectItem>
-                          {uniqueKategorien.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}
+                          <SelectItem value="alle">Alle Kategorien</SelectItem>
+                          <SelectItem value="Miete">Miete</SelectItem>
+                          <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
+                          <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                          <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                          <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
+                          <SelectItem value="Ignorieren">Ignorieren</SelectItem>
                         </SelectContent>
                       </Select>
 
@@ -821,11 +826,10 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                             onClick={() => setSelectedZahlungId(zahlung.id)}
                           >
                             <CardContent className="p-3">
-                              <div className="flex items-start justify-between">
+                              <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="text-xs text-muted-foreground">{formatDatum(zahlung.buchungsdatum)}</span>
-                                    {zahlung.kategorie && <Badge variant="secondary" className="text-xs">{zahlung.kategorie}</Badge>}
                                   </div>
                                   {zahlung.empfaengername && (
                                     <p className="text-sm font-medium text-gray-800 truncate">
@@ -839,11 +843,15 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                                     <p className="text-xs text-muted-foreground truncate mt-1">{zahlung.verwendungszweck}</p>
                                   )}
                                 </div>
-                                <div className="ml-2">
-                                  {zahlung.mietvertrag_id || zahlung.immobilie_id ? (
-                                    <Badge className="bg-green-600 text-xs">✓</Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-orange-600 border-orange-600 text-xs">!</Badge>
+                                <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <PaymentKategorieEditor
+                                    paymentId={zahlung.id}
+                                    currentKategorie={zahlung.kategorie}
+                                    currentImmobilieId={zahlung.immobilie_id}
+                                    compact
+                                  />
+                                  {(zahlung.mietvertrag_id || zahlung.immobilie_id) && (
+                                    <Badge className="bg-green-600 text-xs">✓ Zugeordnet</Badge>
                                   )}
                                 </div>
                               </div>
@@ -893,9 +901,16 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                               </div>
                             )}
                             {selectedZahlung.kategorie && (
-                              <div className="flex justify-between">
+                              <div className="flex justify-between items-start">
                                 <span className="text-sm text-gray-600">Kategorie:</span>
-                                <Badge variant="secondary" className="text-xs">{selectedZahlung.kategorie}</Badge>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <PaymentKategorieEditor
+                                    paymentId={selectedZahlung.id}
+                                    currentKategorie={selectedZahlung.kategorie}
+                                    currentImmobilieId={selectedZahlung.immobilie_id}
+                                    compact
+                                  />
+                                </div>
                               </div>
                             )}
                             {selectedZahlung.empfaengername && (
