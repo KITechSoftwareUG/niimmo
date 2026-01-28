@@ -244,6 +244,15 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
     }));
   }, [unassignedZahlungen]);
 
+  // Initialize all months as collapsed by default
+  const allMonthKeysString = zahlungenByMonth.map(m => m.monthKey).join(',');
+  useMemo(() => {
+    if (allMonthKeysString && collapsedMonths.size === 0) {
+      const allMonthKeys = allMonthKeysString.split(',').filter(Boolean);
+      setCollapsedMonths(new Set(allMonthKeys));
+    }
+  }, [allMonthKeysString]);
+
   const toggleMonth = (monthKey: string) => {
     setCollapsedMonths(prev => {
       const next = new Set(prev);
@@ -574,16 +583,11 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                                 <p className="text-xs text-muted-foreground">{kategorie.beschreibung}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {positionen.length > 0 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {positionen.length}
-                                </Badge>
-                              )}
-                              <span className="font-bold text-green-700 text-sm">
-                                {total.toFixed(2)} €
-                              </span>
-                            </div>
+                            {positionen.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {positionen.length}
+                              </Badge>
+                            )}
                           </div>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
@@ -668,16 +672,11 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                                 <p className="text-xs text-muted-foreground">{kategorie.beschreibung}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {positionen.length > 0 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {positionen.length}
-                                </Badge>
-                              )}
-                              <span className="font-bold text-amber-700 text-sm">
-                                {total.toFixed(2)} €
-                              </span>
-                            </div>
+                            {positionen.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {positionen.length}
+                              </Badge>
+                            )}
                           </div>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
