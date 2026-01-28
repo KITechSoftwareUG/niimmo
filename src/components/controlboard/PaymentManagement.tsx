@@ -13,7 +13,7 @@ import { de } from "date-fns/locale";
 import { AssignPaymentDialog } from "./AssignPaymentDialog";
 import { PaymentAssignmentResultsModal } from "./PaymentAssignmentResultsModal";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useCsvUploadProgress } from "@/hooks/useCsvUploadProgress";
+// Removed unused import: useCsvUploadProgress
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -109,7 +109,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isProcessing, setProcessing, reset: resetProgress } = useCsvUploadProgress();
+  // Removed progress bar - using simple toast instead
 
   // Fetch last CSV upload info
   const { data: lastUpload } = useQuery({
@@ -460,13 +460,12 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       return;
     }
 
-    if (isProcessing) {
+    if (isUploading) {
       toast({ title: "Verarbeitung läuft bereits", description: "Bitte warten Sie, bis die aktuelle Verarbeitung abgeschlossen ist.", variant: "destructive" });
       return;
     }
 
     setIsUploading(true);
-    setProcessing(true, csvFile.name);
     
     try {
       const payments = await parseCsvToPayments(csvFile);
@@ -475,7 +474,12 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         throw new Error("Keine gültigen Zahlungen in der CSV gefunden");
       }
       
-      toast({ title: "CSV geladen", description: `${payments.length} Zahlungen werden von der AI analysiert...` });
+      // Single toast for loading state
+      const loadingToastId = toast({ 
+        title: "CSV wird verarbeitet...", 
+        description: `${payments.length} Zahlungen werden analysiert.`,
+        duration: 60000 // Keep visible during processing
+      });
       
       const { data: result, error } = await supabase.functions.invoke('process-payments', {
         body: { payments, dryRun: true }
@@ -494,11 +498,15 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       setAiStats(result.stats);
       setResultsModalOpen(true);
       
-      resetProgress();
+      // Success toast replaces loading toast
+      toast({ 
+        title: "✓ CSV erfolgreich verarbeitet", 
+        description: `${result.stats.neue} neue Zahlungen, ${result.stats.zugeordnet} zugeordnet.`,
+        duration: 4000
+      });
       
     } catch (error: any) {
       console.error('CSV processing error:', error);
-      resetProgress();
       toast({ title: "Fehler bei der Verarbeitung", description: error.message || "Die CSV-Datei konnte nicht verarbeitet werden.", variant: "destructive" });
     } finally {
       setIsUploading(false);
@@ -642,7 +650,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                     type="file"
                     accept=".csv"
                     onChange={handleFileChange}
-                    disabled={isUploading || isProcessing}
+                    disabled={isUploading}
                     className="mt-2 cursor-pointer file:cursor-pointer"
                   />
                   {csvFile && (
@@ -652,8 +660,8 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                   )}
                 </div>
 
-                <Button onClick={handleProcessCsv} disabled={!csvFile || isUploading || isProcessing} className="w-full">
-                  {isUploading || isProcessing ? (
+                <Button onClick={handleProcessCsv} disabled={!csvFile || isUploading} className="w-full">
+                  {isUploading ? (
                     <>
                       <Bot className="mr-2 h-4 w-4 animate-pulse" />
                       AI analysiert Zahlungen...
