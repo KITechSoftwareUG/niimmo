@@ -514,10 +514,17 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   };
 
   const handleApplyAssignments = async (selectedResults?: any[]) => {
-    const resultsToApply = selectedResults || aiResults;
+    // Selected results are the Miete payments user chose to apply
+    const mietResultsToApply = selectedResults || aiResults.filter(r => r.kategorie === "Miete");
     
-    // Insert ALL new payments (not just assigned ones) and set their assignment
-    for (const result of resultsToApply) {
+    // Also save all Nichtmiete payments (they go to Nebenkosten workflow later)
+    const nichtmieteResults = aiResults.filter(r => r.kategorie === "Nichtmiete");
+    
+    // Combine both: selected Miete + all Nichtmiete
+    const allResultsToSave = [...mietResultsToApply, ...nichtmieteResults];
+    
+    // Insert/update all payments
+    for (const result of allResultsToSave) {
       // First, check if this payment already exists
       const { data: existing } = await supabase
         .from('zahlungen')
@@ -562,7 +569,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       await supabase.from('csv_uploads').insert({
         dateiname: csvFile.name,
         dateigroe_bytes: csvFile.size,
-        anzahl_datensaetze: resultsToApply.length,
+        anzahl_datensaetze: allResultsToSave.length,
         status: 'verarbeitet',
       });
     }
