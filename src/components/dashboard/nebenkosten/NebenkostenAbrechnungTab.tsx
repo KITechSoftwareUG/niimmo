@@ -14,6 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Euro,
   Loader2,
   Users,
@@ -32,12 +38,14 @@ import {
   Trash2,
   Edit2,
   Calendar,
+  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { KostenpositionModal } from "./KostenpositionModal";
 import { NebenkostenArtenManager } from "./NebenkostenArtenManager";
+import { NebenkostenZahlungenVerteiler } from "./NebenkostenZahlungenVerteiler";
 import {
   Collapsible,
   CollapsibleContent,
@@ -128,6 +136,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const currentYear = new Date().getFullYear();
+  const [activeTab, setActiveTab] = useState<string>('zahlungen');
   const [abrechnungsjahr, setAbrechnungsjahr] = useState<number>(currentYear);
   const [kostenpositionModalOpen, setKostenpositionModalOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Kostenposition | null>(null);
@@ -476,7 +485,25 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
   }
 
   return (
-    <div className="space-y-6">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsTrigger value="zahlungen" className="gap-2">
+          <Sparkles className="h-4 w-4" />
+          Zahlungen verteilen
+        </TabsTrigger>
+        <TabsTrigger value="abrechnung" className="gap-2">
+          <Calculator className="h-4 w-4" />
+          Abrechnung
+        </TabsTrigger>
+      </TabsList>
+
+      {/* Tab: Zahlungen verteilen */}
+      <TabsContent value="zahlungen" className="mt-6">
+        <NebenkostenZahlungenVerteiler immobilieId={immobilieId} />
+      </TabsContent>
+
+      {/* Tab: Abrechnung */}
+      <TabsContent value="abrechnung" className="mt-6 space-y-6">
       {/* Header mit Jahresauswahl */}
       <Card>
         <CardContent className="pt-6">
@@ -945,6 +972,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
