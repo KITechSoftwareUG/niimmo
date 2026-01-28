@@ -324,9 +324,29 @@ function categorizePaymentType(
 
 const BETRAG_TOLERANZ = 5; // ±5€ tolerance
 
+// Special case: Noah Weich's payments often say "Mietkaution" but are actually rent
+const NOAH_WEICH_CONTRACT_ID = "00000000-0000-0000-0000-000000307001";
+
+function isNoahWeichPayment(verwendungszweck: string): boolean {
+  const vzLower = verwendungszweck.toLowerCase();
+  return vzLower.includes("weich") && (vzLower.includes("noah") || vzLower.includes("mietkaution"));
+}
+
 function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): ProcessedPayment | null {
   const verwendungszweck = payment.verwendungszweck?.toLowerCase() || "";
   const empfaenger = payment.empfaengername?.toLowerCase() || "";
+  
+  // SPECIAL CASE: Noah Weich - payments say "Mietkaution" but are actually rent
+  if (isNoahWeichPayment(payment.verwendungszweck || "")) {
+    return {
+      ...payment,
+      mietvertrag_id: NOAH_WEICH_CONTRACT_ID,
+      kategorie: "Miete", // Always rent, not deposit!
+      zuordnungsgrund: "Sonderfall Noah Weich: Verwendungszweck sagt Kaution, ist aber Miete",
+      confidence: 100,
+      selected: true
+    };
+  }
   
   // 1. IBAN-Match (highest priority - includes weitere_bankkonten)
   for (const contract of contracts) {
