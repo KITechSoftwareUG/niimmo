@@ -288,8 +288,8 @@ export function PaymentAssignmentResultsModal({
                       }`}>
                         {result.betrag.toFixed(2)} €
                       </TableCell>
-                      <TableCell className="max-w-[180px] py-2">
-                        <div className="truncate text-xs" title={result.verwendungszweck}>
+                      <TableCell className="max-w-[250px] py-2">
+                        <div className="text-xs whitespace-pre-wrap break-words leading-relaxed">
                           {result.verwendungszweck || "-"}
                         </div>
                       </TableCell>
