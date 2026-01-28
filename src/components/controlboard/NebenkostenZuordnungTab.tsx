@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { 
   Building2, Euro, Check, Calendar, Loader2, 
-  Search, Undo2, Sparkles, ChevronDown, ChevronUp
+  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -18,6 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 interface Zahlung {
   id: string;
@@ -54,6 +55,8 @@ export function NebenkostenZuordnungTab() {
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
+  const [draggingZahlungId, setDraggingZahlungId] = useState<string | null>(null);
+  const [dragOverImmobilieId, setDragOverImmobilieId] = useState<string | null>(null);
 
   // Fetch alle Immobilien
   const { data: immobilien, isLoading: immobilienLoading } = useQuery({
@@ -85,7 +88,7 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // Fetch bereits zugeordnete Zahlungen
+  // Fetch bereits zugeordnete Zahlungen - alle für Gruppierung
   const { data: zugeordneteZahlungen, isLoading: zugeordneteLoading } = useQuery({
     queryKey: ['zugeordnete-nebenkosten'],
     queryFn: async () => {
@@ -94,8 +97,7 @@ export function NebenkostenZuordnungTab() {
         .select('*, immobilie:immobilie_id(id, name, adresse)')
         .eq('kategorie', 'Nichtmiete')
         .not('immobilie_id', 'is', null)
-        .order('buchungsdatum', { ascending: false })
-        .limit(50);
+        .order('buchungsdatum', { ascending: false });
       
       if (error) throw error;
       return data;
@@ -141,6 +143,28 @@ export function NebenkostenZuordnungTab() {
 
   // Klassifizierungen aus Cache oder API
   const classifications = cachedClassifications || [];
+
+  // Gruppiere zugeordnete Zahlungen nach Immobilie
+  const zahlungenByImmobilie = useMemo(() => {
+    const grouped: Record<string, { immobilie: Immobilie; zahlungen: any[]; total: number }> = {};
+    
+    (zugeordneteZahlungen || []).forEach((z: any) => {
+      const immoId = z.immobilie_id;
+      if (!immoId) return;
+      
+      if (!grouped[immoId]) {
+        grouped[immoId] = {
+          immobilie: z.immobilie || { id: immoId, name: 'Unbekannt', adresse: '' },
+          zahlungen: [],
+          total: 0
+        };
+      }
+      grouped[immoId].zahlungen.push(z);
+      grouped[immoId].total += z.betrag;
+    });
+    
+    return grouped;
+  }, [zugeordneteZahlungen]);
 
   // KI Klassifizierung aufrufen - nur für NEUE Zahlungen die noch nicht analysiert wurden
   const runClassification = async () => {
@@ -267,6 +291,48 @@ export function NebenkostenZuordnungTab() {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Math.abs(betrag));
   };
 
+  // Drag & Drop handlers
+  const handleDragStart = (e: React.DragEvent, zahlungId: string) => {
+    e.dataTransfer.setData('zahlungId', zahlungId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingZahlungId(zahlungId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingZahlungId(null);
+    setDragOverImmobilieId(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, immobilieId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverImmobilieId(immobilieId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverImmobilieId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, immobilieId: string) => {
+    e.preventDefault();
+    const zahlungId = e.dataTransfer.getData('zahlungId');
+    if (zahlungId && immobilieId) {
+      assignMutation.mutate({ zahlungId, immobilieId });
+    }
+    setDragOverImmobilieId(null);
+    setDraggingZahlungId(null);
+  };
+
+  const handleDropUnassign = (e: React.DragEvent) => {
+    e.preventDefault();
+    const zahlungId = e.dataTransfer.getData('zahlungId');
+    if (zahlungId) {
+      unassignMutation.mutate(zahlungId);
+    }
+    setDragOverImmobilieId(null);
+    setDraggingZahlungId(null);
+  };
+
   const isLoading = immobilienLoading || unzugeordneteLoading || zugeordneteLoading || classificationsLoading;
 
   if (isLoading) {
@@ -287,7 +353,7 @@ export function NebenkostenZuordnungTab() {
             Nebenkosten-Zuordnung
           </h3>
           <p className="text-sm text-muted-foreground">
-            KI-gestützte Erkennung und manuelle Zuordnung zu Immobilien
+            Ziehe Zahlungen auf Immobilien oder nutze KI-Vorschläge
           </p>
         </div>
         
@@ -325,7 +391,20 @@ export function NebenkostenZuordnungTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Linke Spalte: Zahlungen zur Zuordnung */}
-        <Card>
+        <Card 
+          className={cn(
+            "transition-all",
+            draggingZahlungId && !Object.keys(zahlungenByImmobilie).some(id => 
+              zahlungenByImmobilie[id].zahlungen.some(z => z.id === draggingZahlungId)
+            ) ? "" : draggingZahlungId ? "opacity-50" : ""
+          )}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOverImmobilieId('unassigned');
+          }}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDropUnassign}
+        >
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Euro className="h-5 w-5" />
@@ -343,7 +422,7 @@ export function NebenkostenZuordnungTab() {
                 ) : (
                   <>
                     <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>Klicke "Nebenkosten erkennen" um zu starten</p>
+                    <p>Keine unzugeordneten Zahlungen</p>
                   </>
                 )}
               </div>
@@ -356,19 +435,26 @@ export function NebenkostenZuordnungTab() {
                     const isExpanded = expandedPayments.has(zahlung.id);
                     const suggestedImmobilie = classification?.suggested_immobilie_id;
                     const suggestedName = classification?.suggested_immobilie_name;
+                    const isDragging = draggingZahlungId === zahlung.id;
                     
                     return (
                       <div 
                         key={zahlung.id}
-                        className={`p-4 border rounded-lg transition-all ${
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, zahlung.id)}
+                        onDragEnd={handleDragEnd}
+                        className={cn(
+                          "p-4 border rounded-lg transition-all cursor-grab active:cursor-grabbing",
                           isSelected 
                             ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
-                            : 'hover:bg-accent/50'
-                        }`}
+                            : 'hover:bg-accent/50',
+                          isDragging && 'opacity-50 scale-95'
+                        )}
                       >
-                        {/* Kopfzeile */}
+                        {/* Kopfzeile mit Drag Handle */}
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2">
+                            <GripVertical className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm text-muted-foreground flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
                               {format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy', { locale: de })}
@@ -423,23 +509,9 @@ export function NebenkostenZuordnungTab() {
                           </div>
                         </Collapsible>
 
-                        {/* IBAN */}
-                        {zahlung.iban && (
-                          <div className="text-xs text-muted-foreground font-mono mb-3">
-                            IBAN: {zahlung.iban}
-                          </div>
-                        )}
-
-                        {/* KI Begründung */}
-                        {classification?.reasoning && (
-                          <p className="text-xs text-muted-foreground italic mb-3">
-                            💡 {classification.reasoning}
-                          </p>
-                        )}
-
                         {/* KI-Vorschlag: Direkt bestätigen wenn vorhanden */}
-                        {suggestedImmobilie && !isSelected && (
-                          <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 mb-3">
+                        {suggestedImmobilie && (
+                          <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-2 min-w-0">
                                 <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
@@ -463,99 +535,6 @@ export function NebenkostenZuordnungTab() {
                             </div>
                           </div>
                         )}
-
-                        {/* Anderer Immobilie zuordnen */}
-                        {!isSelected ? (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full"
-                            onClick={() => {
-                              setSelectedZahlung(zahlung.id);
-                              setSelectedImmobilie(null);
-                            }}
-                          >
-                            {suggestedImmobilie ? 'Andere Immobilie wählen' : 'Immobilie zuordnen'}
-                          </Button>
-                        ) : (
-                          <div className="mt-4 pt-4 border-t space-y-4">
-                            <p className="text-sm font-medium">Immobilie auswählen:</p>
-                            
-                            {/* Immobilien-Liste */}
-                            <div className="space-y-2 max-h-60 overflow-y-auto">
-                              {immobilien?.map(immo => {
-                                const isChecked = selectedImmobilie === immo.id;
-                                const isSuggested = immo.id === suggestedImmobilie;
-                                
-                                return (
-                                  <div 
-                                    key={immo.id}
-                                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                                      isChecked 
-                                        ? 'border-primary bg-primary/10' 
-                                        : isSuggested 
-                                          ? 'border-primary/40 bg-primary/5 hover:bg-primary/10'
-                                          : 'hover:bg-accent/30'
-                                    }`}
-                                    onClick={() => setSelectedImmobilie(immo.id)}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                        isChecked ? 'border-primary bg-primary' : 'border-muted-foreground'
-                                      }`}>
-                                        {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                          <p className="font-medium text-sm">{immo.name}</p>
-                                          {isSuggested && (
-                                            <Badge variant="outline" className="text-xs gap-1">
-                                              <Sparkles className="h-3 w-3" />
-                                              KI-Vorschlag
-                                            </Badge>
-                                          )}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground truncate">{immo.adresse}</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-
-                            {/* Aktions-Buttons */}
-                            <div className="flex gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="flex-1"
-                                onClick={() => {
-                                  setSelectedZahlung(null);
-                                  setSelectedImmobilie(null);
-                                }}
-                              >
-                                Abbrechen
-                              </Button>
-                              
-                              <Button 
-                                size="sm" 
-                                className="flex-1"
-                                disabled={!selectedImmobilie || assignMutation.isPending}
-                                onClick={() => {
-                                  if (selectedImmobilie) {
-                                    assignMutation.mutate({ 
-                                      zahlungId: zahlung.id, 
-                                      immobilieId: selectedImmobilie 
-                                    });
-                                  }
-                                }}
-                              >
-                                <Check className="h-4 w-4 mr-1" />
-                                Zuordnen
-                              </Button>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -565,72 +544,130 @@ export function NebenkostenZuordnungTab() {
           </CardContent>
         </Card>
 
-        {/* Rechte Spalte: Bereits zugeordnete Zahlungen */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Check className="h-5 w-5" />
-              Bereits zugeordnet (letzte 50)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!zugeordneteZahlungen || zugeordneteZahlungen.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <Building2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p>Noch keine Zahlungen zugeordnet</p>
-              </div>
-            ) : (
-              <ScrollArea className="h-[600px]">
-                <div className="space-y-2">
-                  {zugeordneteZahlungen.map(zahlung => (
-                    <div 
-                      key={zahlung.id}
-                      className="p-3 border rounded-lg bg-card hover:bg-accent/30 transition-colors group"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy', { locale: de })}
-                        </div>
+        {/* Rechte Spalte: Immobilien mit Drop-Zones */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Immobilien
+          </h3>
+          
+          <ScrollArea className="h-[650px]">
+            <div className="space-y-3 pr-4">
+              {immobilien?.map(immo => {
+                const grouped = zahlungenByImmobilie[immo.id];
+                const zahlungen = grouped?.zahlungen || [];
+                const total = grouped?.total || 0;
+                const isDropTarget = dragOverImmobilieId === immo.id;
+                const hasPayments = zahlungen.length > 0;
+                
+                return (
+                  <Card
+                    key={immo.id}
+                    className={cn(
+                      "transition-all",
+                      isDropTarget && "ring-2 ring-primary bg-primary/5 scale-[1.02]",
+                      draggingZahlungId && !isDropTarget && "opacity-70"
+                    )}
+                    onDragOver={(e) => handleDragOver(e, immo.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, immo.id)}
+                  >
+                    <CardHeader className="py-3 px-4">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-destructive">
-                            -{formatBetrag(zahlung.betrag)}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => unassignMutation.mutate(zahlung.id)}
-                          >
-                            <Undo2 className="h-3 w-3" />
-                          </Button>
+                          <Building2 className="h-4 w-4 text-primary" />
+                          <div>
+                            <p className="font-medium text-sm">{immo.name}</p>
+                            <p className="text-xs text-muted-foreground">{immo.adresse}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {hasPayments && (
+                            <>
+                              <Badge variant="secondary" className="text-xs">
+                                {zahlungen.length} Zahlungen
+                              </Badge>
+                              <p className={cn(
+                                "text-sm font-bold mt-1",
+                                total < 0 ? "text-destructive" : "text-green-600"
+                              )}>
+                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(total)}
+                              </p>
+                            </>
+                          )}
                         </div>
                       </div>
-
-                      {/* Empfänger */}
-                      {zahlung.empfaengername && (
-                        <p className="text-sm font-medium truncate mb-1">
-                          {zahlung.empfaengername}
-                        </p>
-                      )}
-
-                      {/* Verwendungszweck gekürzt */}
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
-                        {zahlung.verwendungszweck || '(kein Verwendungszweck)'}
-                      </p>
-
-                      {/* Zugeordnete Immobilie */}
-                      <Badge variant="secondary" className="gap-1">
-                        <Building2 className="h-3 w-3" />
-                        {(zahlung.immobilie as any)?.name || 'Unbekannt'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
+                    </CardHeader>
+                    
+                    {/* Drop Zone Indikator */}
+                    {isDropTarget && (
+                      <div className="mx-4 mb-3 border-2 border-dashed border-primary rounded-lg p-4 text-center text-sm text-primary">
+                        Hier ablegen
+                      </div>
+                    )}
+                    
+                    {/* Zugeordnete Zahlungen */}
+                    {hasPayments && !isDropTarget && (
+                      <CardContent className="pt-0 px-4 pb-3">
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {zahlungen.slice(0, 5).map((z: any) => (
+                            <div
+                              key={z.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, z.id)}
+                              onDragEnd={handleDragEnd}
+                              className={cn(
+                                "p-2 rounded border bg-card text-xs flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing group",
+                                draggingZahlungId === z.id && "opacity-50"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="truncate font-medium">{z.empfaengername || 'Unbekannt'}</p>
+                                  <p className="text-muted-foreground">
+                                    {format(new Date(z.buchungsdatum), 'dd.MM.yy', { locale: de })}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-destructive whitespace-nowrap">
+                                  -{formatBetrag(z.betrag)}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
+                                  onClick={() => unassignMutation.mutate(z.id)}
+                                >
+                                  <Undo2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          {zahlungen.length > 5 && (
+                            <p className="text-xs text-muted-foreground text-center py-1">
+                              +{zahlungen.length - 5} weitere
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    )}
+                    
+                    {/* Leere Drop Zone */}
+                    {!hasPayments && !isDropTarget && (
+                      <CardContent className="pt-0 px-4 pb-3">
+                        <div className="border border-dashed rounded-lg p-3 text-center text-xs text-muted-foreground">
+                          Ziehe Zahlungen hierher
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </div>
       </div>
     </div>
   );
