@@ -515,24 +515,54 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
   const handleApplyAssignments = async (selectedResults?: any[]) => {
     const resultsToApply = selectedResults || aiResults;
-    const assignmentsToApply = resultsToApply.filter(r => r.mietvertrag_id);
     
-    for (const result of assignmentsToApply) {
-      const { error } = await supabase
+    // Insert ALL new payments (not just assigned ones) and set their assignment
+    for (const result of resultsToApply) {
+      // First, check if this payment already exists
+      const { data: existing } = await supabase
         .from('zahlungen')
-        .update({ mietvertrag_id: result.mietvertrag_id, kategorie: result.kategorie as any })
+        .select('id')
         .eq('buchungsdatum', result.buchungsdatum)
         .eq('betrag', result.betrag)
-        .eq('iban', result.iban);
+        .eq('iban', result.iban || '')
+        .maybeSingle();
       
-      if (error) console.error("Assignment update error:", error);
+      if (existing) {
+        // Payment exists - update it
+        const { error } = await supabase
+          .from('zahlungen')
+          .update({ 
+            mietvertrag_id: result.mietvertrag_id, 
+            kategorie: result.kategorie as any,
+            zugeordneter_monat: result.zugeordneter_monat || null
+          })
+          .eq('id', existing.id);
+        
+        if (error) console.error("Assignment update error:", error);
+      } else {
+        // Payment doesn't exist - insert it
+        const { error } = await supabase
+          .from('zahlungen')
+          .insert({
+            buchungsdatum: result.buchungsdatum,
+            betrag: result.betrag,
+            iban: result.iban || null,
+            verwendungszweck: result.verwendungszweck || null,
+            empfaengername: result.empfaengername || null,
+            mietvertrag_id: result.mietvertrag_id || null,
+            kategorie: result.kategorie as any || null,
+            zugeordneter_monat: result.zugeordneter_monat || null
+          });
+        
+        if (error) console.error("Payment insert error:", error);
+      }
     }
     
     if (csvFile) {
       await supabase.from('csv_uploads').insert({
         dateiname: csvFile.name,
         dateigroe_bytes: csvFile.size,
-        anzahl_datensaetze: aiResults.length,
+        anzahl_datensaetze: resultsToApply.length,
         status: 'verarbeitet',
       });
     }
@@ -545,6 +575,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     // Refresh queries
     queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
     queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+    queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
   };
 
   const handleAssignPayment = (payment: any) => {
