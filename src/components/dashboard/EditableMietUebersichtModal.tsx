@@ -160,13 +160,25 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
 
   // Save field
   const saveField = async (table: string, id: string, field: string, value: any) => {
+    // Validate that we have a valid ID (not empty string)
+    if (!id || id.trim() === '') {
+      toast({ title: "Fehler", description: "Kein gültiger Datensatz gefunden", variant: "destructive" });
+      setEditing(null);
+      return;
+    }
+
     try {
+      console.log('Saving field:', { table, id, field, value });
+      
       const { error } = await supabase
         .from(table as any)
         .update({ [field]: value })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       setEditing(null);
       // Invalidate all related queries so changes are visible everywhere
@@ -179,6 +191,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
       queryClient.invalidateQueries({ queryKey: ['mietvertrag-mit-details'] });
       toast({ title: "Gespeichert" });
     } catch (err: any) {
+      console.error('Save error:', err);
       toast({ title: "Fehler", description: err.message, variant: "destructive" });
     }
   };
