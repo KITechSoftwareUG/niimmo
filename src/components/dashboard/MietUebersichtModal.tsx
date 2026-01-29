@@ -153,6 +153,11 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
       editingCells.forEach(cell => {
         const { vertragId, field, value } = cell;
         
+        // Get the contract to find associated einheit_id
+        const vertrag = mietvertraegeData?.find(v => v.id === vertragId);
+        const einheitId = vertrag?.einheiten?.id;
+        
+        // Mietvertrag fields
         if (['kaltmiete', 'betriebskosten', 'startDatum', 'endeDatum', 'letzteMieterhoehung'].includes(field)) {
           if (!mietvertragUpdates.has(vertragId)) {
             mietvertragUpdates.set(vertragId, {});
@@ -164,6 +169,14 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
           if (field === 'letzteMieterhoehung') dbField = 'letzte_mieterhoehung_am';
           
           mietvertragUpdates.get(vertragId)[dbField] = value;
+        }
+        
+        // Einheiten fields - save to einheiten table using the correct einheit_id
+        if (['qm', 'etage', 'einheitentyp'].includes(field) && einheitId) {
+          if (!einheitenUpdates.has(einheitId)) {
+            einheitenUpdates.set(einheitId, {});
+          }
+          einheitenUpdates.get(einheitId)[field] = field === 'qm' ? parseFloat(value) || 0 : value;
         }
       });
 
@@ -207,10 +220,13 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
       setEditingCells([]);
       setIsEditing(false);
 
-      // Refresh data
+      // Refresh data - invalidate all related queries for consistency
       queryClient.invalidateQueries({ queryKey: ['miet-uebersicht'] });
       queryClient.invalidateQueries({ queryKey: ['zahlungen-uebersicht'] });
       queryClient.invalidateQueries({ queryKey: ['mieter-uebersicht'] });
+      queryClient.invalidateQueries({ queryKey: ['einheiten'] });
+      queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['miet-overview'] });
 
       toast({
         title: "Änderungen gespeichert",
