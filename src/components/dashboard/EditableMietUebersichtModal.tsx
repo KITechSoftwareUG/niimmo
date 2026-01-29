@@ -187,10 +187,10 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                 <SelectItem value="Garage">Garage</SelectItem>
               </SelectContent>
             </Select>
-          ) : type === "number" ? (
+          ) : (type === "number" || type === "qm") ? (
             <Input
               type="number"
-              step="0.01"
+              step={type === "qm" ? "0.01" : "0.01"}
               value={displayValue}
               onChange={(e) => setEditing({ ...editing, value: parseFloat(e.target.value) || 0 })}
               className="h-8 text-xs w-20"
@@ -215,6 +215,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
     }
 
     const formatted = type === "number" ? `${value.toFixed(2)} €` : 
+                      type === "qm" ? `${value.toFixed(2)} m²` :
                       type === "date" ? value?.slice(0, 10) || '-' : 
                       value || '-';
 
@@ -360,7 +361,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                         <Badge variant="outline" className="text-xs">{row.einheitId.slice(-4)}</Badge>
                       </TableCell>
                       <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="etage" value={row.etage} /></TableCell>
-                      <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="qm" value={row.qm} type="number" /></TableCell>
+                      <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="qm" value={row.qm} type="qm" /></TableCell>
                       <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="einheitentyp" value={row.typ} type="select-typ" /></TableCell>
                       <TableCell><EditCell rowId={row.contractId} table="mietvertrag" field="status" value={row.status} type="select-status" /></TableCell>
                       <TableCell><EditCell rowId={row.mieterId} table="mieter" field="vorname" value={row.vorname} /></TableCell>
