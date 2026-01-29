@@ -10,6 +10,10 @@ interface MietvertragEditableFieldProps {
   isEditing: boolean;
   onEdit: () => void;
   onSave: (value: string) => void;
+  /**
+   * Optional: called on every input change (useful for global edit mode)
+   */
+  onValueChange?: (value: string) => void;
   onCancel: () => void;
   type?: "text" | "number" | "textarea" | "date";
   step?: string;
@@ -26,6 +30,7 @@ export function MietvertragEditableField({
   isEditing,
   onEdit,
   onSave,
+  onValueChange,
   onCancel,
   type = "text",
   step,
@@ -63,7 +68,11 @@ export function MietvertragEditableField({
           {type === "textarea" ? (
             <Textarea
               value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setEditValue(next);
+                onValueChange?.(next);
+              }}
               className="min-h-[80px] resize-none text-sm"
               placeholder={placeholder || ""}
               rows={3}
@@ -73,7 +82,11 @@ export function MietvertragEditableField({
               type={type}
               step={step}
               value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setEditValue(next);
+                onValueChange?.(next);
+              }}
               className={`w-full h-8 text-sm ${type === 'date' ? 'sm:w-44' : 'sm:w-32'}`}
               placeholder={type === "number" ? "0.00" : placeholder || ""}
             />
