@@ -154,9 +154,18 @@ export function MietvertragContractInfo({
             value={anzahlPersonen !== null && anzahlPersonen !== undefined ? Number(anzahlPersonen) : ''}
             isEditing={isGlobalEditMode || editingMietvertrag === 'anzahl_personen'}
             onEdit={() => !isGlobalEditMode && onStartEdit('anzahl_personen')}
+            onValueChange={isGlobalEditMode ? (raw) => {
+              const trimmed = raw.trim();
+              if (trimmed === '') {
+                onUpdateEditedValue?.('anzahl_personen', null);
+                return;
+              }
+              const parsed = parseInt(trimmed, 10);
+              onUpdateEditedValue?.('anzahl_personen', Number.isNaN(parsed) ? null : parsed);
+            } : undefined}
             onSave={(value) => {
               if (isGlobalEditMode) {
-                onUpdateEditedValue?.('anzahl_personen', value ? parseInt(value) : null);
+                onUpdateEditedValue?.('anzahl_personen', value ? parseInt(value, 10) : null);
               } else {
                 onEditMietvertrag('anzahl_personen', value);
               }
