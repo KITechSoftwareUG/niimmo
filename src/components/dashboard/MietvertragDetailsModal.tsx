@@ -39,7 +39,7 @@ export default function MietvertragDetailsModal({
   
   // Simplified state management (legacy - kept for backwards compatibility)
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
-  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | null>(null);
+  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | null>(null);
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
   const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
@@ -292,8 +292,32 @@ export default function MietvertragDetailsModal({
     enabled: isOpen && !!vertragId
   });
 
-  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum', value: string) => {
+  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen', value: string) => {
     try {
+      // Handle anzahl_personen field
+      if (field === 'anzahl_personen') {
+        const numValue = value && value.trim() !== '' ? parseInt(value) : null;
+        
+        const { error } = await supabase
+          .from('mietvertrag')
+          .update({ anzahl_personen: numValue })
+          .eq('id', vertragId);
+
+        if (error) throw error;
+
+        toast({
+          title: "✅ Personenanzahl aktualisiert",
+          description: numValue !== null 
+            ? `Personenanzahl wurde auf ${numValue} gesetzt.`
+            : "Personenanzahl wurde entfernt.",
+        });
+
+        setEditingMietvertrag(null);
+        await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
+        await queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
+        return;
+      }
+      
       // Handle ende_datum field with validation
       if (field === 'ende_datum') {
         const newEndForDb = value && value.trim() !== '' ? value : null;

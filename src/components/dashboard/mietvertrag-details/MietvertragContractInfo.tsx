@@ -9,9 +9,9 @@ interface MietvertragContractInfoProps {
   isGlobalEditMode?: boolean;
   editedValues?: Record<string, any>;
   onUpdateEditedValue?: (key: string, value: any) => void;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum') => void;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | null;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen') => void;
   onCancelEdit: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
@@ -32,6 +32,7 @@ export function MietvertragContractInfo({
 }: MietvertragContractInfoProps) {
   const kaltmiete = isGlobalEditMode && editedValues.kaltmiete !== undefined ? editedValues.kaltmiete : vertrag.kaltmiete;
   const betriebskosten = isGlobalEditMode && editedValues.betriebskosten !== undefined ? editedValues.betriebskosten : vertrag.betriebskosten;
+  const anzahlPersonen = isGlobalEditMode && editedValues.anzahl_personen !== undefined ? editedValues.anzahl_personen : vertrag.anzahl_personen;
   
   // Kosten pro m² nur von Kaltmiete berechnen
   const kaltmieteProQm = einheit?.qm && Number(einheit.qm) > 0 
@@ -144,6 +145,28 @@ export function MietvertragContractInfo({
               </p>
             </div>
           )}
+        </div>
+        
+        <Separator />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+          <MietvertragEditableField
+            label="Anzahl Personen"
+            value={anzahlPersonen !== null && anzahlPersonen !== undefined ? Number(anzahlPersonen) : ''}
+            isEditing={isGlobalEditMode || editingMietvertrag === 'anzahl_personen'}
+            onEdit={() => !isGlobalEditMode && onStartEdit('anzahl_personen')}
+            onSave={(value) => {
+              if (isGlobalEditMode) {
+                onUpdateEditedValue?.('anzahl_personen', value ? parseInt(value) : null);
+              } else {
+                onEditMietvertrag('anzahl_personen', value);
+              }
+            }}
+            onCancel={onCancelEdit}
+            type="number"
+            step="1"
+            placeholder="Nicht angegeben"
+            hideEditButton={true}
+          />
         </div>
         
         {/* Show Rücklastschrift-Gebühr only for contracts with Lastschrift */}

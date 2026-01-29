@@ -486,6 +486,7 @@ export type Database = {
       mietvertrag: {
         Row: {
           aktualisiert_am: string | null
+          anzahl_personen: number | null
           bankkonto_mieter: string | null
           betriebskosten: number | null
           einheit_id: string
@@ -521,6 +522,7 @@ export type Database = {
         }
         Insert: {
           aktualisiert_am?: string | null
+          anzahl_personen?: number | null
           bankkonto_mieter?: string | null
           betriebskosten?: number | null
           einheit_id: string
@@ -556,6 +558,7 @@ export type Database = {
         }
         Update: {
           aktualisiert_am?: string | null
+          anzahl_personen?: number | null
           bankkonto_mieter?: string | null
           betriebskosten?: number | null
           einheit_id?: string
