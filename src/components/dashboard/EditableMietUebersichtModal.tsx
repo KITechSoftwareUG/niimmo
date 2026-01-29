@@ -169,7 +169,14 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
       if (error) throw error;
 
       setEditing(null);
+      // Invalidate all related queries so changes are visible everywhere
       queryClient.invalidateQueries({ queryKey: ['miet-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['einheiten'] });
+      queryClient.invalidateQueries({ queryKey: ['mietvertrag'] });
+      queryClient.invalidateQueries({ queryKey: ['mieter'] });
+      queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] });
+      queryClient.invalidateQueries({ queryKey: ['mietvertrag-mit-details'] });
       toast({ title: "Gespeichert" });
     } catch (err: any) {
       toast({ title: "Fehler", description: err.message, variant: "destructive" });
