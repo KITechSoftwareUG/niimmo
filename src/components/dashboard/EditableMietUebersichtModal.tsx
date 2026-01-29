@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { sortPropertiesByName } from "@/utils/contractUtils";
+import { sortPropertiesByName, getCurrentContract } from "@/utils/contractUtils";
 
 interface EditableMietUebersichtModalProps {
   open: boolean;
@@ -38,6 +38,7 @@ interface ContractRow {
   betriebskosten: number;
   mietbeginn: string;
   lastschrift: boolean;
+  anzahlPersonen: number | null;
 }
 
 export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMietUebersichtModalProps) => {
@@ -48,62 +49,80 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch data
+  // Fetch data - get all contracts for each unit, then filter to only show current one
   const { data: rows, isLoading } = useQuery({
     queryKey: ['miet-overview'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietvertrag')
+      // First get all units with their contracts
+      const { data: einheitenData, error: einheitenError } = await supabase
+        .from('einheiten')
         .select(`
           id,
-          status,
-          kaltmiete,
-          betriebskosten,
-          start_datum,
-          lastschrift,
-          einheiten!inner(
+          etage,
+          qm,
+          einheitentyp,
+          immobilien!inner(
             id,
-            etage,
-            qm,
-            einheitentyp,
-            immobilien!inner(
-              id,
-              name
-            )
+            name
           ),
-          mietvertrag_mieter!inner(
-            mieter!inner(
-              id,
-              vorname,
-              nachname,
-              hauptmail,
-              telnr
+          mietvertrag(
+            id,
+            status,
+            kaltmiete,
+            betriebskosten,
+            start_datum,
+            lastschrift,
+            anzahl_personen,
+            mietvertrag_mieter(
+              mieter(
+                id,
+                vorname,
+                nachname,
+                hauptmail,
+                telnr
+              )
             )
           )
-        `)
-        .neq('status', 'beendet');
+        `);
 
-      if (error) throw error;
+      if (einheitenError) throw einheitenError;
 
-      return data?.map(v => ({
-        contractId: v.id,
-        objektId: v.einheiten.immobilien.id,
-        objektName: v.einheiten.immobilien.name,
-        einheitId: v.einheiten.id,
-        mieterId: v.mietvertrag_mieter[0]?.mieter?.id || '',
-        etage: v.einheiten.etage || '',
-        qm: v.einheiten.qm || 0,
-        typ: v.einheiten.einheitentyp || 'Wohnung',
-        status: v.status || 'aktiv',
-        vorname: v.mietvertrag_mieter[0]?.mieter?.vorname || '',
-        nachname: v.mietvertrag_mieter[0]?.mieter?.nachname || '',
-        email: v.mietvertrag_mieter[0]?.mieter?.hauptmail || '',
-        telefon: v.mietvertrag_mieter[0]?.mieter?.telnr || '',
-        kaltmiete: v.kaltmiete || 0,
-        betriebskosten: v.betriebskosten || 0,
-        mietbeginn: v.start_datum || '',
-        lastschrift: v.lastschrift || false
-      })) || [];
+      // For each unit, get the most current contract
+      const results: ContractRow[] = [];
+      
+      einheitenData?.forEach(einheit => {
+        const contracts = einheit.mietvertrag || [];
+        if (contracts.length === 0) return; // Skip units without contracts
+        
+        // Use getCurrentContract to get the most relevant contract
+        const currentContract = getCurrentContract(contracts);
+        if (!currentContract) return;
+        
+        const mieter = currentContract.mietvertrag_mieter?.[0]?.mieter;
+        
+        results.push({
+          contractId: currentContract.id,
+          objektId: einheit.immobilien.id,
+          objektName: einheit.immobilien.name,
+          einheitId: einheit.id,
+          mieterId: mieter?.id || '',
+          etage: einheit.etage || '',
+          qm: einheit.qm || 0,
+          typ: einheit.einheitentyp || 'Wohnung',
+          status: currentContract.status || 'aktiv',
+          vorname: mieter?.vorname || '',
+          nachname: mieter?.nachname || '',
+          email: mieter?.hauptmail || '',
+          telefon: mieter?.telnr || '',
+          kaltmiete: currentContract.kaltmiete || 0,
+          betriebskosten: currentContract.betriebskosten || 0,
+          mietbeginn: currentContract.start_datum || '',
+          lastschrift: currentContract.lastschrift || false,
+          anzahlPersonen: currentContract.anzahl_personen
+        });
+      });
+
+      return results;
     },
     enabled: open
   });
@@ -187,6 +206,16 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                 <SelectItem value="Garage">Garage</SelectItem>
               </SelectContent>
             </Select>
+          ) : type === "personen" ? (
+            <Input
+              type="number"
+              step="1"
+              min="1"
+              value={displayValue ?? ''}
+              onChange={(e) => setEditing({ ...editing, value: e.target.value ? parseInt(e.target.value) : null })}
+              className="h-8 text-xs w-16"
+              autoFocus
+            />
           ) : (type === "number" || type === "qm") ? (
             <Input
               type="number"
@@ -216,6 +245,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
 
     const formatted = type === "number" ? `${value.toFixed(2)} €` : 
                       type === "qm" ? `${value.toFixed(2)} m²` :
+                      type === "personen" ? (value != null ? value.toString() : '-') :
                       type === "date" ? value?.slice(0, 10) || '-' : 
                       value || '-';
 
@@ -324,6 +354,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                 <TableHead>Telefon</TableHead>
                 <TableHead className="text-right">Kaltmiete</TableHead>
                 <TableHead className="text-right">NK</TableHead>
+                <TableHead className="text-center">Pers.</TableHead>
                 <TableHead>Mietbeginn</TableHead>
               </TableRow>
             </TableHeader>
@@ -331,7 +362,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               {grouped.map(group => (
                 <>
                   <TableRow key={group.objektId} className="bg-gray-100 hover:bg-gray-200">
-                    <TableCell colSpan={13} className="font-bold cursor-pointer" onClick={() => {
+                    <TableCell colSpan={14} className="font-bold cursor-pointer" onClick={() => {
                       const newExpanded = new Set(expanded);
                       if (newExpanded.has(group.objektId)) {
                         newExpanded.delete(group.objektId);
@@ -370,6 +401,7 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
                       <TableCell><EditCell rowId={row.mieterId} table="mieter" field="telnr" value={row.telefon} /></TableCell>
                       <TableCell className="text-right"><EditCell rowId={row.contractId} table="mietvertrag" field="kaltmiete" value={row.kaltmiete} type="number" /></TableCell>
                       <TableCell className="text-right"><EditCell rowId={row.contractId} table="mietvertrag" field="betriebskosten" value={row.betriebskosten} type="number" /></TableCell>
+                      <TableCell className="text-center"><EditCell rowId={row.contractId} table="mietvertrag" field="anzahl_personen" value={row.anzahlPersonen} type="personen" /></TableCell>
                       <TableCell><EditCell rowId={row.contractId} table="mietvertrag" field="start_datum" value={row.mietbeginn} type="date" /></TableCell>
                     </TableRow>
                   ))}
