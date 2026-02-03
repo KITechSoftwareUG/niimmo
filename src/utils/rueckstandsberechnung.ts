@@ -116,8 +116,17 @@ export const calculateMietvertragRueckstand = (
   // Wende Vorauszahlungs-Intelligenz an (jetzt basierend auf DB-Feld zugeordneter_monat)
   const verarbeiteteZahlungen = processVorauszahlungen(relevanteZahlungen, alleForderungenAbStart);
   
-  // ALLE Forderungen berücksichtigen (nicht nur fällige)
-  const relevanteForderungen = alleForderungenAbStart;
+  // NUR FÄLLIGE Forderungen berücksichtigen für Rückstandsberechnung
+  // Eine Forderung gilt als fällig wenn faelligkeitsdatum <= heute
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+  
+  const relevanteForderungen = alleForderungenAbStart.filter(f => {
+    if (!f.faelligkeitsdatum) return true; // Ohne Datum = fällig
+    const faellig = new Date(f.faelligkeitsdatum);
+    faellig.setHours(0, 0, 0, 0);
+    return faellig <= heute;
+  });
   
   // Berechne Gesamtforderungen
   const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
