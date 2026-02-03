@@ -787,8 +787,11 @@ export default function MietvertragDetailsModal({
 
       // Risk mitigation: prevent creating overlaps with other contracts of the same unit
       // NUR prüfen wenn sich Start- oder Enddatum tatsächlich geändert haben
-      const startDatumChanged = editedValues.start_datum !== undefined && editedValues.start_datum !== vertrag?.start_datum;
-      const endDatumChanged = editedValues.ende_datum !== undefined && editedValues.ende_datum !== vertrag?.ende_datum;
+      // Vergleiche die tatsächlichen DB-Werte, nicht die editedValues (die beim Start mit allen Werten initialisiert werden)
+      const originalStartDatum = vertrag?.start_datum || '';
+      const originalEndDatum = vertrag?.ende_datum || '';
+      const startDatumChanged = startForDb !== originalStartDatum;
+      const endDatumChanged = endForDb !== originalEndDatum;
       
       if (vertrag?.einheit_id && startForDb && (startDatumChanged || endDatumChanged)) {
         const { checkContractOverlap } = await import("@/utils/contractOverlapValidation");
