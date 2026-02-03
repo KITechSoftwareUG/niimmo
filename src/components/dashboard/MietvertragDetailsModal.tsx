@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Building2, Loader2, AlertCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, Loader2, AlertCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CreateForderungModal } from "./CreateForderungModal";
 import { MietvertragOverviewTab } from "./mietvertrag-details/MietvertragOverviewTab";
@@ -19,8 +19,6 @@ interface MietvertragDetailsModalProps {
   vertragId: string;
   einheit?: any;
   immobilie?: any;
-  highlightContract?: boolean;
-  onNavigateToContract?: (contractId: string) => void;
 }
 
 export default function MietvertragDetailsModal({ 
@@ -28,9 +26,7 @@ export default function MietvertragDetailsModal({
   onClose, 
   vertragId, 
   einheit, 
-  immobilie,
-  highlightContract = false,
-  onNavigateToContract
+  immobilie
 }: MietvertragDetailsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -263,71 +259,6 @@ export default function MietvertragDetailsModal({
     enabled: isOpen
   });
 
-  // Fetch all contracts for the same property (Immobilie) for navigation - including all statuses
-  const { data: samePropertyContracts } = useQuery({
-    queryKey: ['same-property-contracts', fetchedEinheit?.immobilie_id || einheit?.immobilie_id],
-    queryFn: async () => {
-      const immobilieId = fetchedEinheit?.immobilie_id || einheit?.immobilie_id;
-      if (!immobilieId) return [];
-
-      // Get all einheiten of this immobilie
-      const { data: einheiten, error: einheitenError } = await supabase
-        .from('einheiten')
-        .select('id')
-        .eq('immobilie_id', immobilieId);
-
-      if (einheitenError) throw einheitenError;
-      if (!einheiten || einheiten.length === 0) return [];
-
-      const einheitenIds = einheiten.map(e => e.id);
-
-      // Get ALL contracts for these einheiten (including beendet)
-      const { data: contracts, error: contractsError } = await supabase
-        .from('mietvertrag')
-        .select(`
-          id,
-          status,
-          start_datum,
-          einheit_id,
-          einheiten (
-            id,
-            zaehler,
-            immobilie_id
-          ),
-          mietvertrag_mieter (
-            mieter:mieter_id (
-              vorname,
-              nachname
-            )
-          )
-        `)
-        .in('einheit_id', einheitenIds)
-        .order('start_datum', { ascending: true });
-
-      if (contractsError) throw contractsError;
-      return contracts || [];
-    },
-    enabled: isOpen && !!(fetchedEinheit?.immobilie_id || einheit?.immobilie_id)
-  });
-
-  // Navigation logic - find prev/next contract in same property
-  const currentContractIndex = samePropertyContracts?.findIndex(c => c.id === vertragId) ?? -1;
-  const prevContract = currentContractIndex > 0 ? samePropertyContracts?.[currentContractIndex - 1] : null;
-  const nextContract = currentContractIndex >= 0 && currentContractIndex < (samePropertyContracts?.length || 0) - 1 
-    ? samePropertyContracts?.[currentContractIndex + 1] 
-    : null;
-
-  const handleNavigatePrev = () => {
-    if (prevContract && onNavigateToContract) {
-      onNavigateToContract(prevContract.id);
-    }
-  };
-
-  const handleNavigateNext = () => {
-    if (nextContract && onNavigateToContract) {
-      onNavigateToContract(nextContract.id);
-    }
-  };
 
   const { data: forderungen } = useQuery({
     queryKey: ['mietforderungen', vertragId],
@@ -1052,9 +983,6 @@ export default function MietvertragDetailsModal({
     );
   }
 
-  // Check if we should show navigation
-  const showNavigation = onNavigateToContract && samePropertyContracts && samePropertyContracts.length > 1 && currentContractIndex >= 0;
-
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -1062,75 +990,10 @@ export default function MietvertragDetailsModal({
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {/* Left navigation arrow */}
-              {showNavigation && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleNavigatePrev}
-                  disabled={!prevContract}
-                  className="h-8 w-8 p-0"
-                  title={prevContract 
-                    ? `← ${prevContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${prevContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
-                    : 'Kein vorheriger Vertrag'}
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-              )}
-              
               <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
                 <Building2 className="h-4 w-4 md:h-5 md:w-5" />
                 <span>Mietvertrag Details</span>
               </DialogTitle>
-              
-              {/* Right navigation arrow */}
-              {showNavigation && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleNavigateNext}
-                  disabled={!nextContract}
-                  className="h-8 w-8 p-0"
-                  title={nextContract 
-                    ? `→ ${nextContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${nextContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
-                    : 'Kein nächster Vertrag'}
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              )}
-              
-              {/* Contract indicator dots with status colors */}
-              {showNavigation && (
-                <div className="flex items-center gap-1.5 ml-2">
-                  {samePropertyContracts?.map((contract, index) => {
-                    const isActive = contract.id === vertragId;
-                    const isBeendet = contract.status === 'beendet';
-                    const isGekuendigt = contract.status === 'gekuendigt';
-                    const mieterName = contract.mietvertrag_mieter?.[0]?.mieter 
-                      ? `${contract.mietvertrag_mieter[0].mieter.vorname || ''} ${contract.mietvertrag_mieter[0].mieter.nachname || ''}`.trim()
-                      : `Einheit ${contract.einheiten?.zaehler || index + 1}`;
-                    
-                    return (
-                      <button
-                        key={contract.id}
-                        onClick={() => onNavigateToContract?.(contract.id)}
-                        className={`
-                          w-2 h-2 rounded-full transition-all duration-200
-                          ${isActive 
-                            ? 'ring-2 ring-offset-1 ring-offset-background scale-125' 
-                            : 'hover:scale-110 opacity-50 hover:opacity-100'}
-                          ${isBeendet 
-                            ? 'bg-destructive ring-destructive' 
-                            : isGekuendigt 
-                              ? 'bg-orange-500 ring-orange-500' 
-                              : 'bg-primary ring-primary'}
-                        `}
-                        title={`${mieterName}${isBeendet ? ' (beendet)' : isGekuendigt ? ' (gekündigt)' : ''}`}
-                      />
-                    );
-                  })}
-                </div>
-              )}
             </div>
             
             <div className="flex gap-2 mr-8">
