@@ -46,13 +46,16 @@ export function MietvertragEditableField({
   isGlobalEditMode = false
 }: MietvertragEditableFieldProps) {
   const [editValue, setEditValue] = useState(value?.toString() || "");
+  const [wasEditing, setWasEditing] = useState(false);
 
-  // Sync editValue when value prop changes or when entering edit mode
+  // Only sync editValue when ENTERING edit mode (not on every value change)
   useEffect(() => {
-    if (isEditing) {
+    if (isEditing && !wasEditing) {
+      // Just entered edit mode - initialize with current value
       setEditValue(value?.toString() || "");
     }
-  }, [isEditing, value]);
+    setWasEditing(isEditing);
+  }, [isEditing, value, wasEditing]);
 
   const handleEdit = () => {
     setEditValue(value?.toString() || "");
