@@ -183,6 +183,19 @@ export const ContractFormStep = ({ contractData, onChange, errors }: ContractFor
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="bankkonto_mieter">IBAN / Bankverbindung Mieter</Label>
+            <Input
+              id="bankkonto_mieter"
+              value={contractData.bankkonto_mieter}
+              onChange={(e) => updateField('bankkonto_mieter', e.target.value)}
+              placeholder="DE89 3704 0044 0532 0130 00"
+            />
+            <p className="text-xs text-muted-foreground">
+              Wird für Zahlungszuordnung und Lastschrifteinzug verwendet
+            </p>
+          </div>
+
           <div className="flex items-center justify-between p-3 border rounded-lg">
             <div className="space-y-1">
               <Label htmlFor="lastschrift" className="text-base font-medium">
@@ -198,22 +211,6 @@ export const ContractFormStep = ({ contractData, onChange, errors }: ContractFor
               onCheckedChange={(checked) => updateField('lastschrift', checked)}
             />
           </div>
-
-          {contractData.lastschrift && (
-            <div className="space-y-2">
-              <Label htmlFor="bankkonto_mieter">Bankverbindung Mieter</Label>
-              <Textarea
-                id="bankkonto_mieter"
-                value={contractData.bankkonto_mieter}
-                onChange={(e) => updateField('bankkonto_mieter', e.target.value)}
-                placeholder="IBAN oder vollständige Kontodaten..."
-                rows={3}
-              />
-              <p className="text-xs text-muted-foreground">
-                IBAN oder vollständige Bankverbindung des Mieters
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
