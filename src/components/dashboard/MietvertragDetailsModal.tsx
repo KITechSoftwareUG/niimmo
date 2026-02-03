@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Building2, Loader2, AlertCircle, XCircle } from "lucide-react";
+import { Building2, Loader2, AlertCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CreateForderungModal } from "./CreateForderungModal";
 import { MietvertragOverviewTab } from "./mietvertrag-details/MietvertragOverviewTab";
@@ -20,6 +20,7 @@ interface MietvertragDetailsModalProps {
   einheit?: any;
   immobilie?: any;
   highlightContract?: boolean;
+  onNavigateToContract?: (contractId: string) => void;
 }
 
 export default function MietvertragDetailsModal({ 
@@ -28,7 +29,8 @@ export default function MietvertragDetailsModal({
   vertragId, 
   einheit, 
   immobilie,
-  highlightContract = false
+  highlightContract = false,
+  onNavigateToContract
 }: MietvertragDetailsModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -260,6 +262,73 @@ export default function MietvertragDetailsModal({
     },
     enabled: isOpen
   });
+
+  // Fetch all contracts for the same property (Immobilie) for navigation
+  const { data: samePropertyContracts } = useQuery({
+    queryKey: ['same-property-contracts', fetchedEinheit?.immobilie_id || einheit?.immobilie_id],
+    queryFn: async () => {
+      const immobilieId = fetchedEinheit?.immobilie_id || einheit?.immobilie_id;
+      if (!immobilieId) return [];
+
+      // Get all einheiten of this immobilie
+      const { data: einheiten, error: einheitenError } = await supabase
+        .from('einheiten')
+        .select('id')
+        .eq('immobilie_id', immobilieId);
+
+      if (einheitenError) throw einheitenError;
+      if (!einheiten || einheiten.length === 0) return [];
+
+      const einheitenIds = einheiten.map(e => e.id);
+
+      // Get all active/terminated contracts for these einheiten
+      const { data: contracts, error: contractsError } = await supabase
+        .from('mietvertrag')
+        .select(`
+          id,
+          status,
+          start_datum,
+          einheit_id,
+          einheiten (
+            id,
+            zaehler,
+            immobilie_id
+          ),
+          mietvertrag_mieter (
+            mieter:mieter_id (
+              vorname,
+              nachname
+            )
+          )
+        `)
+        .in('einheit_id', einheitenIds)
+        .in('status', ['aktiv', 'gekuendigt'])
+        .order('start_datum', { ascending: true });
+
+      if (contractsError) throw contractsError;
+      return contracts || [];
+    },
+    enabled: isOpen && !!(fetchedEinheit?.immobilie_id || einheit?.immobilie_id)
+  });
+
+  // Navigation logic - find prev/next contract in same property
+  const currentContractIndex = samePropertyContracts?.findIndex(c => c.id === vertragId) ?? -1;
+  const prevContract = currentContractIndex > 0 ? samePropertyContracts?.[currentContractIndex - 1] : null;
+  const nextContract = currentContractIndex >= 0 && currentContractIndex < (samePropertyContracts?.length || 0) - 1 
+    ? samePropertyContracts?.[currentContractIndex + 1] 
+    : null;
+
+  const handleNavigatePrev = () => {
+    if (prevContract && onNavigateToContract) {
+      onNavigateToContract(prevContract.id);
+    }
+  };
+
+  const handleNavigateNext = () => {
+    if (nextContract && onNavigateToContract) {
+      onNavigateToContract(nextContract.id);
+    }
+  };
 
   const { data: forderungen } = useQuery({
     queryKey: ['mietforderungen', vertragId],
@@ -990,10 +1059,51 @@ export default function MietvertragDetailsModal({
       <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] h-[95vh] md:h-auto overflow-hidden flex flex-col p-4 md:p-6">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
-              <Building2 className="h-4 w-4 md:h-5 md:w-5" />
-              <span>Mietvertrag Details</span>
-            </DialogTitle>
+            <div className="flex items-center gap-2">
+              {/* Navigation Buttons - only show if there are other contracts in the same property and current contract is in the list */}
+              {onNavigateToContract && samePropertyContracts && samePropertyContracts.length > 1 && currentContractIndex >= 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNavigatePrev}
+                  disabled={!prevContract}
+                  className="h-8 w-8 p-0"
+                  title={prevContract 
+                    ? `Vorheriger Vertrag: ${prevContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${prevContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
+                    : 'Kein vorheriger Vertrag in dieser Immobilie'}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              )}
+              
+              <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
+                <Building2 className="h-4 w-4 md:h-5 md:w-5" />
+                <span>Mietvertrag Details</span>
+              </DialogTitle>
+              
+              {onNavigateToContract && samePropertyContracts && samePropertyContracts.length > 1 && currentContractIndex >= 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNavigateNext}
+                  disabled={!nextContract}
+                  className="h-8 w-8 p-0"
+                  title={nextContract 
+                    ? `Nächster Vertrag: ${nextContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${nextContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
+                    : 'Kein nächster Vertrag in dieser Immobilie'}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              )}
+              
+              {/* Contract counter */}
+              {samePropertyContracts && samePropertyContracts.length > 1 && currentContractIndex >= 0 && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  {currentContractIndex + 1} / {samePropertyContracts.length}
+                </span>
+              )}
+            </div>
+            
             <div className="flex gap-2 mr-8">
               {!isGlobalEditMode ? (
                 <Button onClick={handleStartGlobalEdit} variant="outline" size="sm">

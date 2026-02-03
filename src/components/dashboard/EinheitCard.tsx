@@ -57,6 +57,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
   const [showNewTenantDialog, setShowNewTenantDialog] = useState(false);
   const [autoOpenContract, setAutoOpenContract] = useState(false);
   const [showContractHighlight, setShowContractHighlight] = useState(false);
+  const [currentVertragId, setCurrentVertragId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Check for linked contracts (same tenants with multiple units)
@@ -420,18 +421,22 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
       </Card>
       
       {/* Contract Details Modal */}
-      {vertrag && (
+      {(vertrag || currentVertragId) && (
         <MietvertragDetailsModal
           isOpen={showMietvertragDetails}
           onClose={() => {
             setShowMietvertragDetails(false);
-            setShowContractHighlight(false); // Reset highlight when modal closes
+            setShowContractHighlight(false);
+            setCurrentVertragId(null);
             onContractModalClose?.();
           }}
-          vertragId={vertrag.id}
+          vertragId={currentVertragId || vertrag?.id || ''}
           einheit={einheit}
           immobilie={immobilie}
           highlightContract={showContractHighlight}
+          onNavigateToContract={(newVertragId) => {
+            setCurrentVertragId(newVertragId);
+          }}
         />
       )}
 

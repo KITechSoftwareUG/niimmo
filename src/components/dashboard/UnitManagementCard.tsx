@@ -48,6 +48,7 @@ export const UnitManagementCard = ({
   const [showNewTenantDialog, setShowNewTenantDialog] = useState(false);
   const [showContractDetails, setShowContractDetails] = useState(false);
   const [showTerminationDialog, setShowTerminationDialog] = useState(false);
+  const [currentVertragId, setCurrentVertragId] = useState<string | null>(null);
 
   const getStatusColor = () => {
     if (!vertrag) return "border-red-500 bg-red-50";
@@ -262,14 +263,20 @@ export const UnitManagementCard = ({
         immobilie={immobilie}
       />
 
-      {vertrag && (
+      {(vertrag || currentVertragId) && (
         <>
           <MietvertragDetailsModal
             isOpen={showContractDetails}
-            onClose={() => setShowContractDetails(false)}
-            vertragId={vertrag.id}
+            onClose={() => {
+              setShowContractDetails(false);
+              setCurrentVertragId(null);
+            }}
+            vertragId={currentVertragId || vertrag?.id || ''}
             einheit={einheit}
             immobilie={immobilie}
+            onNavigateToContract={(newVertragId) => {
+              setCurrentVertragId(newVertragId);
+            }}
           />
 
           <TerminationDialog
