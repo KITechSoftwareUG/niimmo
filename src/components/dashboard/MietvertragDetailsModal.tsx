@@ -1057,52 +1057,70 @@ export default function MietvertragDetailsModal({
 
   return (
     <>
-    {/* Outer wrapper for navigation buttons outside dialog */}
-    <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center" style={{ display: isOpen ? 'flex' : 'none' }}>
-      {/* Left Navigation Button - Outside Dialog */}
-      {showNavigation && (
-        <Button
-          variant="secondary"
-          onClick={handleNavigatePrev}
-          disabled={!prevContract}
-          className="pointer-events-auto fixed left-4 md:left-8 z-[60] h-14 w-14 rounded-full shadow-xl border-2 border-border bg-background hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
-          title={prevContract 
-            ? `Vorheriger: ${prevContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${prevContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
-            : 'Kein vorheriger Vertrag'}
-        >
-          <ChevronLeft className="h-8 w-8" />
-        </Button>
-      )}
-      
-      {/* Right Navigation Button - Outside Dialog */}
-      {showNavigation && (
-        <Button
-          variant="secondary"
-          onClick={handleNavigateNext}
-          disabled={!nextContract}
-          className="pointer-events-auto fixed right-4 md:right-8 z-[60] h-14 w-14 rounded-full shadow-xl border-2 border-border bg-background hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
-          title={nextContract 
-            ? `Nächster: ${nextContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${nextContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
-            : 'Kein nächster Vertrag'}
-        >
-          <ChevronRight className="h-8 w-8" />
-        </Button>
-      )}
-    </div>
-
     <Dialog open={isOpen} onOpenChange={onClose}>
+      {/* Navigation Arrows - positioned outside the dialog content */}
+      {showNavigation && (
+        <>
+          {/* Left Arrow */}
+          <button
+            onClick={handleNavigatePrev}
+            disabled={!prevContract}
+            className={`
+              fixed left-2 md:left-6 top-1/2 -translate-y-1/2 z-[60]
+              w-12 h-24 md:w-16 md:h-32
+              flex items-center justify-center
+              bg-background/95 backdrop-blur-sm
+              border-2 border-border rounded-lg
+              shadow-2xl
+              transition-all duration-200
+              ${prevContract 
+                ? 'hover:bg-accent hover:scale-105 hover:border-primary cursor-pointer' 
+                : 'opacity-30 cursor-not-allowed'}
+            `}
+            title={prevContract 
+              ? `← ${prevContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${prevContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
+              : 'Kein vorheriger Vertrag'}
+          >
+            <ChevronLeft className="h-10 w-10 md:h-12 md:w-12 text-foreground" />
+          </button>
+          
+          {/* Right Arrow */}
+          <button
+            onClick={handleNavigateNext}
+            disabled={!nextContract}
+            className={`
+              fixed right-2 md:right-6 top-1/2 -translate-y-1/2 z-[60]
+              w-12 h-24 md:w-16 md:h-32
+              flex items-center justify-center
+              bg-background/95 backdrop-blur-sm
+              border-2 border-border rounded-lg
+              shadow-2xl
+              transition-all duration-200
+              ${nextContract 
+                ? 'hover:bg-accent hover:scale-105 hover:border-primary cursor-pointer' 
+                : 'opacity-30 cursor-not-allowed'}
+            `}
+            title={nextContract 
+              ? `→ ${nextContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${nextContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
+              : 'Kein nächster Vertrag'}
+          >
+            <ChevronRight className="h-10 w-10 md:h-12 md:w-12 text-foreground" />
+          </button>
+        </>
+      )}
+
       <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] h-[95vh] md:h-auto overflow-hidden flex flex-col p-4 md:p-6">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
                 <Building2 className="h-4 w-4 md:h-5 md:w-5" />
                 <span>Mietvertrag Details</span>
               </DialogTitle>
               
-              {/* Contract indicator dots with status colors */}
+              {/* Contract indicator pills with status colors */}
               {showNavigation && (
-                <div className="flex items-center gap-1.5 ml-4">
+                <div className="flex items-center gap-1 ml-2">
                   {samePropertyContracts?.map((contract, index) => {
                     const isActive = contract.id === vertragId;
                     const isBeendet = contract.status === 'beendet';
@@ -1116,13 +1134,15 @@ export default function MietvertragDetailsModal({
                         key={contract.id}
                         onClick={() => onNavigateToContract?.(contract.id)}
                         className={`
-                          h-3 w-3 rounded-full transition-all duration-200 cursor-pointer
-                          ${isActive ? 'ring-2 ring-offset-2 ring-primary scale-125' : 'hover:scale-110'}
+                          w-2.5 h-2.5 rounded-full transition-all duration-200
+                          ${isActive 
+                            ? 'ring-2 ring-offset-1 ring-offset-background scale-150' 
+                            : 'hover:scale-125 opacity-60 hover:opacity-100'}
                           ${isBeendet 
-                            ? 'bg-destructive' 
+                            ? 'bg-destructive ring-destructive' 
                             : isGekuendigt 
-                              ? 'bg-orange-500' 
-                              : 'bg-primary'}
+                              ? 'bg-orange-500 ring-orange-500' 
+                              : 'bg-primary ring-primary'}
                         `}
                         title={`${mieterName}${isBeendet ? ' (beendet)' : isGekuendigt ? ' (gekündigt)' : ''}`}
                       />
