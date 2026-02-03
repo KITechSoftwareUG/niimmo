@@ -772,6 +772,17 @@ export default function MietvertragDetailsModal({
       const startForDb = rawStart && rawStart.trim() !== '' ? rawStart : null;
       const endForDb = rawEnd && rawEnd.trim() !== '' ? rawEnd : null;
 
+      console.log('handleSaveGlobalEdit - Debug:', {
+        editedValues,
+        rawStart,
+        rawEnd,
+        startForDb,
+        endForDb,
+        vertragId,
+        vertragStartDatum: vertrag?.start_datum,
+        vertragEndeDatum: vertrag?.ende_datum
+      });
+
       // Validation: end date must not be before start date
       if (startForDb && endForDb) {
         const startDate = new Date(startForDb);
@@ -853,14 +864,23 @@ export default function MietvertragDetailsModal({
         mietvertragUpdates.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
       }
 
+      console.log('handleSaveGlobalEdit - mietvertragUpdates:', mietvertragUpdates);
+
       // Update mietvertrag
       if (Object.keys(mietvertragUpdates).length > 0) {
+        console.log('handleSaveGlobalEdit - Updating mietvertrag with id:', vertragId);
         const { error: mietvertragError } = await supabase
           .from('mietvertrag')
           .update(mietvertragUpdates)
           .eq('id', vertragId);
 
-        if (mietvertragError) throw mietvertragError;
+        if (mietvertragError) {
+          console.error('handleSaveGlobalEdit - Mietvertrag update error:', mietvertragError);
+          throw mietvertragError;
+        }
+        console.log('handleSaveGlobalEdit - Mietvertrag update successful');
+      } else {
+        console.log('handleSaveGlobalEdit - No mietvertrag updates needed');
       }
 
       // Update einheit meter numbers if changed
