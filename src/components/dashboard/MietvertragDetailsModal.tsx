@@ -1058,69 +1058,50 @@ export default function MietvertragDetailsModal({
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
-      {/* Navigation Arrows - positioned outside the dialog content, only when modal is OPEN */}
-      {isOpen && showNavigation && (
-        <>
-          {/* Left Arrow */}
-          <button
-            onClick={handleNavigatePrev}
-            disabled={!prevContract}
-            className={`
-              fixed left-2 md:left-6 top-1/2 -translate-y-1/2 z-[60]
-              w-12 h-24 md:w-16 md:h-32
-              flex items-center justify-center
-              bg-background/95 backdrop-blur-sm
-              border-2 border-border rounded-lg
-              shadow-2xl
-              transition-all duration-200
-              ${prevContract 
-                ? 'hover:bg-accent hover:scale-105 hover:border-primary cursor-pointer' 
-                : 'opacity-30 cursor-not-allowed'}
-            `}
-            title={prevContract 
-              ? `← ${prevContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${prevContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
-              : 'Kein vorheriger Vertrag'}
-          >
-            <ChevronLeft className="h-10 w-10 md:h-12 md:w-12 text-foreground" />
-          </button>
-          
-          {/* Right Arrow */}
-          <button
-            onClick={handleNavigateNext}
-            disabled={!nextContract}
-            className={`
-              fixed right-2 md:right-6 top-1/2 -translate-y-1/2 z-[60]
-              w-12 h-24 md:w-16 md:h-32
-              flex items-center justify-center
-              bg-background/95 backdrop-blur-sm
-              border-2 border-border rounded-lg
-              shadow-2xl
-              transition-all duration-200
-              ${nextContract 
-                ? 'hover:bg-accent hover:scale-105 hover:border-primary cursor-pointer' 
-                : 'opacity-30 cursor-not-allowed'}
-            `}
-            title={nextContract 
-              ? `→ ${nextContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${nextContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
-              : 'Kein nächster Vertrag'}
-          >
-            <ChevronRight className="h-10 w-10 md:h-12 md:w-12 text-foreground" />
-          </button>
-        </>
-      )}
-
       <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] h-[95vh] md:h-auto overflow-hidden flex flex-col p-4 md:p-6">
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {/* Left navigation arrow */}
+              {showNavigation && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNavigatePrev}
+                  disabled={!prevContract}
+                  className="h-8 w-8 p-0"
+                  title={prevContract 
+                    ? `← ${prevContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${prevContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
+                    : 'Kein vorheriger Vertrag'}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              )}
+              
               <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
                 <Building2 className="h-4 w-4 md:h-5 md:w-5" />
                 <span>Mietvertrag Details</span>
               </DialogTitle>
               
-              {/* Contract indicator pills with status colors */}
+              {/* Right navigation arrow */}
               {showNavigation && (
-                <div className="flex items-center gap-1 ml-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleNavigateNext}
+                  disabled={!nextContract}
+                  className="h-8 w-8 p-0"
+                  title={nextContract 
+                    ? `→ ${nextContract.mietvertrag_mieter?.[0]?.mieter?.vorname || ''} ${nextContract.mietvertrag_mieter?.[0]?.mieter?.nachname || ''}` 
+                    : 'Kein nächster Vertrag'}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              )}
+              
+              {/* Contract indicator dots with status colors */}
+              {showNavigation && (
+                <div className="flex items-center gap-1.5 ml-2">
                   {samePropertyContracts?.map((contract, index) => {
                     const isActive = contract.id === vertragId;
                     const isBeendet = contract.status === 'beendet';
@@ -1134,10 +1115,10 @@ export default function MietvertragDetailsModal({
                         key={contract.id}
                         onClick={() => onNavigateToContract?.(contract.id)}
                         className={`
-                          w-2.5 h-2.5 rounded-full transition-all duration-200
+                          w-2 h-2 rounded-full transition-all duration-200
                           ${isActive 
-                            ? 'ring-2 ring-offset-1 ring-offset-background scale-150' 
-                            : 'hover:scale-125 opacity-60 hover:opacity-100'}
+                            ? 'ring-2 ring-offset-1 ring-offset-background scale-125' 
+                            : 'hover:scale-110 opacity-50 hover:opacity-100'}
                           ${isBeendet 
                             ? 'bg-destructive ring-destructive' 
                             : isGekuendigt 
