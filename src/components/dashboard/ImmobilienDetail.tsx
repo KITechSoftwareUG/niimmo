@@ -178,7 +178,11 @@ export const ImmobilienDetail = ({
   const gesamtKaltmiete = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.kaltmiete || 0), 0);
   const gesamtBetriebskosten = aktiveMietvertraege.reduce((sum, vertrag) => sum + (vertrag.betriebskosten || 0), 0);
   const gesamtWarmmiete = gesamtKaltmiete + gesamtBetriebskosten;
-  const gesamtQm = einheiten?.reduce((sum, einheit) => sum + (einheit.qm || 0), 0) || 0;
+  // Exclude non-residential unit types (Garage, Stellplatz, Lager, Sonstiges) from total QM calculation
+  const wohnflaechenEinheiten = einheiten?.filter(e => 
+    !['Garage', 'Stellplatz', 'Lager', 'Sonstiges'].includes(e.einheitentyp || '')
+  ) || [];
+  const gesamtQm = wohnflaechenEinheiten.reduce((sum, einheit) => sum + (einheit.qm || 0), 0);
 
   // Scroll to specific unit if scrollToEinheitId is provided with enhanced highlighting
   useEffect(() => {
