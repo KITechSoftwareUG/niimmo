@@ -433,10 +433,6 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
           vertragId={currentVertragId || vertrag?.id || ''}
           einheit={einheit}
           immobilie={immobilie}
-          highlightContract={showContractHighlight}
-          onNavigateToContract={(newVertragId) => {
-            setCurrentVertragId(newVertragId);
-          }}
         />
       )}
 

@@ -274,9 +274,6 @@ export const UnitManagementCard = ({
             vertragId={currentVertragId || vertrag?.id || ''}
             einheit={einheit}
             immobilie={immobilie}
-            onNavigateToContract={(newVertragId) => {
-              setCurrentVertragId(newVertragId);
-            }}
           />
 
           <TerminationDialog

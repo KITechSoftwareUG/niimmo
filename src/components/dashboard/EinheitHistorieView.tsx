@@ -195,9 +195,6 @@ export const EinheitHistorieView = ({ einheitId, onBack, einheit, immobilie }: E
         vertragId={selectedVertragId || ''}
         einheit={einheit}
         immobilie={immobilie}
-        onNavigateToContract={(newVertragId) => {
-          setSelectedVertragId(newVertragId);
-        }}
       />
       
       <div className="max-w-4xl mx-auto">
