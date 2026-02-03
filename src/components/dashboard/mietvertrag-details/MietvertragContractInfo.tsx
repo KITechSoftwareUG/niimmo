@@ -33,10 +33,11 @@ export function MietvertragContractInfo({
   const kaltmiete = isGlobalEditMode && editedValues.kaltmiete !== undefined ? editedValues.kaltmiete : vertrag.kaltmiete;
   const betriebskosten = isGlobalEditMode && editedValues.betriebskosten !== undefined ? editedValues.betriebskosten : vertrag.betriebskosten;
   const anzahlPersonen = isGlobalEditMode && editedValues.anzahl_personen !== undefined ? editedValues.anzahl_personen : vertrag.anzahl_personen;
+  const qm = isGlobalEditMode && editedValues.qm !== undefined ? editedValues.qm : einheit?.qm;
   
   // Kosten pro m² nur von Kaltmiete berechnen
-  const kaltmieteProQm = einheit?.qm && Number(einheit.qm) > 0 
-    ? Number(kaltmiete || 0) / Number(einheit.qm) 
+  const kaltmieteProQm = qm && Number(qm) > 0 
+    ? Number(kaltmiete || 0) / Number(qm) 
     : null;
   return (
     <Card>
@@ -152,6 +153,32 @@ export function MietvertragContractInfo({
         
         <Separator />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+          <MietvertragEditableField
+            label="Wohnfläche (m²)"
+            value={qm !== null && qm !== undefined ? Number(qm) : ''}
+            isEditing={isGlobalEditMode}
+            onEdit={() => {}}
+            onValueChange={isGlobalEditMode ? (raw) => {
+              const trimmed = raw.trim();
+              if (trimmed === '') {
+                onUpdateEditedValue?.('qm', null);
+                return;
+              }
+              const parsed = parseFloat(trimmed);
+              onUpdateEditedValue?.('qm', Number.isNaN(parsed) ? null : parsed);
+            } : undefined}
+            onSave={(value) => {
+              if (isGlobalEditMode) {
+                onUpdateEditedValue?.('qm', value ? parseFloat(value) : null);
+              }
+            }}
+            onCancel={onCancelEdit}
+            type="number"
+            step="0.01"
+            placeholder="Nicht angegeben"
+            hideEditButton={true}
+            isGlobalEditMode={isGlobalEditMode}
+          />
           <MietvertragEditableField
             label="Anzahl Personen"
             value={anzahlPersonen !== null && anzahlPersonen !== undefined ? Number(anzahlPersonen) : ''}
