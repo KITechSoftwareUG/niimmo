@@ -22,6 +22,10 @@ interface MietvertragEditableFieldProps {
   showLastUpdate?: string;
   placeholder?: string;
   hideEditButton?: boolean;
+  /**
+   * When true, hides the per-field ✅/✖ buttons (use global save/cancel instead)
+   */
+  isGlobalEditMode?: boolean;
 }
 
 export function MietvertragEditableField({
@@ -38,7 +42,8 @@ export function MietvertragEditableField({
   formatter,
   showLastUpdate,
   placeholder,
-  hideEditButton = false
+  hideEditButton = false,
+  isGlobalEditMode = false
 }: MietvertragEditableFieldProps) {
   const [editValue, setEditValue] = useState(value?.toString() || "");
 
@@ -91,25 +96,28 @@ export function MietvertragEditableField({
               placeholder={type === "number" ? "0.00" : placeholder || ""}
             />
           )}
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              onClick={handleSave}
-              size="sm"
-              className="h-8 w-8 p-0"
-            >
-              <Check className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              onClick={onCancel}
-              size="sm"
-              variant="outline"
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Only show per-field buttons when NOT in global edit mode */}
+          {!isGlobalEditMode && (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={handleSave}
+                size="sm"
+                className="h-8 w-8 p-0"
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                onClick={onCancel}
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-1">

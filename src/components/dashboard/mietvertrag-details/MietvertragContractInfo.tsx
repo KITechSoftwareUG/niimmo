@@ -61,6 +61,7 @@ export function MietvertragContractInfo({
             type="date"
             formatter={(val) => formatDatum(val as string)}
             hideEditButton={true}
+            isGlobalEditMode={isGlobalEditMode}
           />
           <MietvertragEditableField
             label="Mietende"
@@ -69,7 +70,6 @@ export function MietvertragContractInfo({
             onEdit={() => !isGlobalEditMode && onStartEdit('ende_datum')}
             onSave={(value) => {
               if (isGlobalEditMode) {
-                // In global edit mode, user expects the ✅ button to *actually* save.
                 onUpdateEditedValue?.('ende_datum', value);
                 onEditMietvertrag('ende_datum', value);
               } else {
@@ -81,6 +81,7 @@ export function MietvertragContractInfo({
             formatter={(val) => (val ? formatDatum(val as string) : 'Unbefristet')}
             placeholder="Unbefristet"
             hideEditButton={true}
+            isGlobalEditMode={isGlobalEditMode}
           />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
@@ -112,6 +113,7 @@ export function MietvertragContractInfo({
             formatter={formatBetrag}
             showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
             hideEditButton={true}
+            isGlobalEditMode={isGlobalEditMode}
           />
           <MietvertragEditableField
             label="Betriebskosten"
@@ -131,6 +133,7 @@ export function MietvertragContractInfo({
             formatter={formatBetrag}
             showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
             hideEditButton={true}
+            isGlobalEditMode={isGlobalEditMode}
           />
           <div>
             <p className="text-lg font-bold text-green-600">
@@ -175,6 +178,7 @@ export function MietvertragContractInfo({
             step="1"
             placeholder="Nicht angegeben"
             hideEditButton={true}
+            isGlobalEditMode={isGlobalEditMode}
           />
         </div>
         
@@ -221,6 +225,7 @@ export function MietvertragContractInfo({
                 className="text-muted-foreground"
                 placeholder="Straße und Hausnummer&#10;Postleitzahl Ort&#10;z.B. Musterstraße 123&#10;12345 Musterstadt"
                 hideEditButton={true}
+                isGlobalEditMode={isGlobalEditMode}
               />
             </div>
           </>
