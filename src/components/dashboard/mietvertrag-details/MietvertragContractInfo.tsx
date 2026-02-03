@@ -39,6 +39,15 @@ export function MietvertragContractInfo({
   const kaltmieteProQm = qm && Number(qm) > 0 
     ? Number(kaltmiete || 0) / Number(qm) 
     : null;
+
+  const mietbeginnValue = isGlobalEditMode
+    ? (editedValues.start_datum ?? (vertrag.start_datum || ''))
+    : (vertrag.start_datum || '');
+
+  const mietendeValue = isGlobalEditMode
+    ? (editedValues.ende_datum ?? (vertrag.ende_datum || ''))
+    : (vertrag.ende_datum || '');
+
   return (
     <Card>
       <CardHeader className="pb-3 md:pb-6">
@@ -48,9 +57,10 @@ export function MietvertragContractInfo({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
           <MietvertragEditableField
             label="Mietbeginn"
-            value={vertrag.start_datum || ''}
+            value={mietbeginnValue}
             isEditing={isGlobalEditMode || editingMietvertrag === 'start_datum'}
             onEdit={() => !isGlobalEditMode && onStartEdit('start_datum')}
+            onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('start_datum', raw) : undefined}
             onSave={(value) => {
               if (isGlobalEditMode) {
                 onUpdateEditedValue?.('start_datum', value);
@@ -66,13 +76,13 @@ export function MietvertragContractInfo({
           />
           <MietvertragEditableField
             label="Mietende"
-            value={isGlobalEditMode ? (editedValues.ende_datum ?? (vertrag.ende_datum || '')) : (vertrag.ende_datum || '')}
+            value={mietendeValue}
             isEditing={isGlobalEditMode || editingMietvertrag === 'ende_datum'}
             onEdit={() => !isGlobalEditMode && onStartEdit('ende_datum')}
+            onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('ende_datum', raw) : undefined}
             onSave={(value) => {
               if (isGlobalEditMode) {
                 onUpdateEditedValue?.('ende_datum', value);
-                onEditMietvertrag('ende_datum', value);
               } else {
                 onEditMietvertrag('ende_datum', value);
               }
