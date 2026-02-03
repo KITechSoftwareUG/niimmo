@@ -1058,8 +1058,8 @@ export default function MietvertragDetailsModal({
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
-      {/* Navigation Arrows - positioned outside the dialog content */}
-      {showNavigation && (
+      {/* Navigation Arrows - positioned outside the dialog content, only when modal is OPEN */}
+      {isOpen && showNavigation && (
         <>
           {/* Left Arrow */}
           <button
