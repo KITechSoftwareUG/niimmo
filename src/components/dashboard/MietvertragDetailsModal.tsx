@@ -733,12 +733,13 @@ export default function MietvertragDetailsModal({
       gas_auszug: vertrag?.gas_auszug || 0,
     };
     
-    // Add einheit meter numbers if available
+    // Add einheit data if available
     if (einheitData) {
       initialValues.kaltwasser_zaehler = einheitData.kaltwasser_zaehler || '';
       initialValues.warmwasser_zaehler = einheitData.warmwasser_zaehler || '';
       initialValues.strom_zaehler = einheitData.strom_zaehler || '';
       initialValues.gas_zaehler = einheitData.gas_zaehler || '';
+      initialValues.qm = einheitData.qm ?? null;
     }
     
     // Add mieter data
@@ -865,7 +866,7 @@ export default function MietvertragDetailsModal({
       // Update einheit meter numbers if changed
       if (einheitData) {
         const einheitUpdates: any = {};
-        const einheitFields = ['kaltwasser_zaehler', 'warmwasser_zaehler', 'strom_zaehler', 'gas_zaehler'];
+        const einheitFields = ['kaltwasser_zaehler', 'warmwasser_zaehler', 'strom_zaehler', 'gas_zaehler', 'qm'];
         
         einheitFields.forEach(field => {
           if (editedValues[field] !== undefined) {
