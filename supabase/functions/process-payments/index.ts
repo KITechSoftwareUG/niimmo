@@ -40,6 +40,8 @@ interface ContractInfo {
   immobilie: string;
   etage: string | null;
   status: string;
+  start_datum: string | null;
+  ende_datum: string | null;
 }
 
 interface NichtmieteRegel {
@@ -199,6 +201,7 @@ async function getNichtmieteRegeln(supabase: any): Promise<NichtmieteRegel[]> {
 }
 
 async function getContractContext(supabase: any): Promise<ContractInfo[]> {
+  // Also include beendet contracts for proper date-based matching
   const { data: contracts, error } = await supabase
     .from("mietvertrag")
     .select(`
@@ -210,6 +213,8 @@ async function getContractContext(supabase: any): Promise<ContractInfo[]> {
       weitere_bankkonten,
       verwendungszweck,
       status,
+      start_datum,
+      ende_datum,
       einheit_id,
       einheiten!inner (
         id,
@@ -229,7 +234,7 @@ async function getContractContext(supabase: any): Promise<ContractInfo[]> {
         )
       )
     `)
-    .in("status", ["aktiv", "gekuendigt"]);
+    .in("status", ["aktiv", "gekuendigt", "beendet"]);
 
   if (error) {
     console.error("Error fetching contracts:", error);
@@ -266,7 +271,9 @@ async function getContractContext(supabase: any): Promise<ContractInfo[]> {
       verwendungszweck: c.verwendungszweck,
       immobilie: immobilie ? `${immobilie.name}, ${immobilie.adresse}` : "Unbekannt",
       etage: c.einheiten?.etage,
-      status: c.status
+      status: c.status,
+      start_datum: c.start_datum,
+      ende_datum: c.ende_datum
     };
   });
 }
@@ -332,6 +339,67 @@ function isNoahWeichPayment(verwendungszweck: string): boolean {
   return vzLower.includes("weich") && (vzLower.includes("noah") || vzLower.includes("mietkaution"));
 }
 
+// Helper to check if a payment date falls within a contract's period
+function isPaymentInContractPeriod(paymentDate: string, contract: ContractInfo): boolean {
+  const buchungsDatum = new Date(paymentDate);
+  
+  // Contract must have start_datum
+  if (!contract.start_datum) return false;
+  
+  const startDate = new Date(contract.start_datum);
+  // Allow payments from 1 month before start (for first month rent)
+  const adjustedStart = new Date(startDate);
+  adjustedStart.setMonth(adjustedStart.getMonth() - 1);
+  
+  if (buchungsDatum < adjustedStart) return false;
+  
+  // If contract has end_datum, check if payment is before or at end (+1 month grace for final payments)
+  if (contract.ende_datum) {
+    const endDate = new Date(contract.ende_datum);
+    const adjustedEnd = new Date(endDate);
+    adjustedEnd.setMonth(adjustedEnd.getMonth() + 1);
+    if (buchungsDatum > adjustedEnd) return false;
+  }
+  
+  return true;
+}
+
+// Select best contract from multiple IBAN matches based on payment date
+function selectBestContractByDate(payment: Payment, matchingContracts: ContractInfo[]): ContractInfo | null {
+  if (matchingContracts.length === 0) return null;
+  if (matchingContracts.length === 1) return matchingContracts[0];
+  
+  const buchungsDatum = payment.buchungsdatum;
+  console.log(`Multiple IBAN matches (${matchingContracts.length}) for payment date ${buchungsDatum}, selecting best match...`);
+  
+  // Filter by date range
+  const validByDate = matchingContracts.filter(c => isPaymentInContractPeriod(buchungsDatum, c));
+  
+  if (validByDate.length === 1) {
+    console.log(`Selected contract ${validByDate[0].id} (${validByDate[0].mieter}) based on date range`);
+    return validByDate[0];
+  }
+  
+  if (validByDate.length > 1) {
+    // Multiple contracts valid for this date - prefer "aktiv" over "gekuendigt" over "beendet"
+    const statusPriority: Record<string, number> = { "aktiv": 0, "gekuendigt": 1, "beendet": 2 };
+    validByDate.sort((a, b) => (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99));
+    console.log(`Selected contract ${validByDate[0].id} (${validByDate[0].mieter}) - status: ${validByDate[0].status}`);
+    return validByDate[0];
+  }
+  
+  // No valid date match - fall back to aktiv status
+  const activeContract = matchingContracts.find(c => c.status === "aktiv");
+  if (activeContract) {
+    console.log(`No date match, falling back to active contract ${activeContract.id} (${activeContract.mieter})`);
+    return activeContract;
+  }
+  
+  // Last resort: first contract
+  console.log(`No clear match, using first contract ${matchingContracts[0].id} (${matchingContracts[0].mieter})`);
+  return matchingContracts[0];
+}
+
 function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): ProcessedPayment | null {
   const verwendungszweck = payment.verwendungszweck?.toLowerCase() || "";
   const empfaenger = payment.empfaengername?.toLowerCase() || "";
@@ -339,10 +407,11 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
   // SPECIAL CASE: Noah Weich - payments say "Mietkaution" but are actually rent
   // This needs to be checked FIRST, before any other matching!
   if (isNoahWeichPayment(payment.verwendungszweck || "")) {
-    // Find Noah Weich's actual contract ID from contracts list
-    const noahContract = contracts.find(c => 
+    // Find Noah Weich's active contract based on payment date
+    const noahContracts = contracts.filter(c => 
       c.mieterNamen.includes("noah") || c.mieterNamen.includes("weich")
     );
+    const noahContract = selectBestContractByDate(payment, noahContracts);
     return {
       ...payment,
       mietvertrag_id: noahContract?.id || NOAH_WEICH_CONTRACT_ID,
@@ -354,38 +423,44 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
   }
   
   // 1. IBAN-Match (highest priority - includes weitere_bankkonten)
+  // Collect ALL matching contracts first, then select best one by date
+  const ibanMatchedContracts: { contract: ContractInfo; matchType: 'primary' | 'weitere' }[] = [];
+  
   for (const contract of contracts) {
     // Primary IBAN
     if (contract.iban && payment.iban === contract.iban) {
-      const isKaution = verwendungszweck.includes("kaution") && 
-                        contract.kaution && 
-                        Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
-      return {
-        ...payment,
-        mietvertrag_id: contract.id,
-        kategorie: isKaution ? "Mietkaution" : "Miete",
-        zuordnungsgrund: `IBAN-Match: ${contract.mieter}`,
-        confidence: 95,
-        selected: true
-      };
+      ibanMatchedContracts.push({ contract, matchType: 'primary' });
     }
     
     // Weitere Bankkonten (comma-separated)
     if (contract.weitere_iban) {
       const weitereIbans = contract.weitere_iban.split(',').map(i => i.trim());
       if (weitereIbans.includes(payment.iban)) {
-        const isKaution = verwendungszweck.includes("kaution") && 
-                          contract.kaution && 
-                          Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
-        return {
-          ...payment,
-          mietvertrag_id: contract.id,
-          kategorie: isKaution ? "Mietkaution" : "Miete",
-          zuordnungsgrund: `Weitere IBAN-Match: ${contract.mieter}`,
-          confidence: 90,
-          selected: true
-        };
+        ibanMatchedContracts.push({ contract, matchType: 'weitere' });
       }
+    }
+  }
+  
+  if (ibanMatchedContracts.length > 0) {
+    // Select best contract considering payment date
+    const matchingContracts = ibanMatchedContracts.map(m => m.contract);
+    const bestContract = selectBestContractByDate(payment, matchingContracts);
+    
+    if (bestContract) {
+      const matchInfo = ibanMatchedContracts.find(m => m.contract.id === bestContract.id);
+      const isKaution = verwendungszweck.includes("kaution") && 
+                        bestContract.kaution && 
+                        Math.abs(payment.betrag - bestContract.kaution) <= BETRAG_TOLERANZ;
+      const matchType = matchInfo?.matchType === 'weitere' ? 'Weitere IBAN' : 'IBAN';
+      const multiInfo = ibanMatchedContracts.length > 1 ? ` (1 von ${ibanMatchedContracts.length} Verträgen, ausgewählt nach Datum)` : '';
+      return {
+        ...payment,
+        mietvertrag_id: bestContract.id,
+        kategorie: isKaution ? "Mietkaution" : "Miete",
+        zuordnungsgrund: `${matchType}-Match: ${bestContract.mieter}${multiInfo}`,
+        confidence: matchInfo?.matchType === 'weitere' ? 90 : 95,
+        selected: true
+      };
     }
   }
   
