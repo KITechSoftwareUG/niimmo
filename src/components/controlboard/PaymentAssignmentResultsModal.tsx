@@ -382,6 +382,7 @@ export function PaymentAssignmentResultsModal({
                   <TableHead className="w-[40px]">Status</TableHead>
                   <TableHead className="w-[90px]">Datum</TableHead>
                   <TableHead className="text-right w-[90px]">Betrag</TableHead>
+                  <TableHead className="w-[150px]">Absender</TableHead>
                   <TableHead className="w-[200px]">Verwendungszweck</TableHead>
                   <TableHead className="w-[80px]">Kategorie</TableHead>
                   <TableHead className="w-[250px]">Zuordnung (korrigierbar)</TableHead>
@@ -427,6 +428,11 @@ export function PaymentAssignmentResultsModal({
                         result.betrag < 0 ? "text-destructive" : "text-green-600"
                       }`}>
                         {result.betrag.toFixed(2)} €
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div className="text-xs font-medium text-foreground max-w-[150px] truncate" title={result.empfaengername || "-"}>
+                          {result.empfaengername || "-"}
+                        </div>
                       </TableCell>
                       <TableCell className="py-2">
                         <div className="text-xs whitespace-pre-wrap break-words leading-relaxed max-w-[200px]">
