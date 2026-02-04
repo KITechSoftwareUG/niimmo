@@ -486,7 +486,7 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
   }
   
   // 3. STRICT Name-Match (tenant name in verwendungszweck or empfänger)
-  // Only match if BOTH first and last name parts are found, or exact full name match
+  // Be more lenient - 4+ char names can match
   for (const contract of contracts) {
     const mieterNamen = contract.mieterNamen;
     
@@ -495,7 +495,7 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
     
     // For each name, require EXACT substring match (no fuzzy for names)
     let matchedParts = 0;
-    let matchedName = "";
+    const matchedNames: string[] = [];
     
     for (const name of mieterNamen) {
       // Require minimum 4 characters for name matching
@@ -504,13 +504,15 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
       // EXACT substring match only - no fuzzy matching for names
       if (verwendungszweck.includes(name) || empfaenger.includes(name)) {
         matchedParts++;
-        matchedName = name;
+        matchedNames.push(name);
+        console.log(`Name-Match found: "${name}" in payment for ${contract.mieter}`);
       }
     }
     
     // Require at least 2 name parts matched (e.g., first AND last name)
-    // OR one very distinctive name (7+ chars) that's unlikely to be coincidental
-    if (matchedParts >= 2 || (matchedParts === 1 && matchedName.length >= 7)) {
+    // OR one distinctive name (6+ chars) that's unlikely to be coincidental
+    // Lowered from 7 to 6 chars for names like "Razgeen"
+    if (matchedParts >= 2 || (matchedParts === 1 && matchedNames[0]?.length >= 6)) {
       const isKaution = verwendungszweck.includes("kaution") && 
                         contract.kaution && 
                         Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
@@ -518,14 +520,36 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
         ...payment,
         mietvertrag_id: contract.id,
         kategorie: isKaution ? "Mietkaution" : "Miete",
-        zuordnungsgrund: `Namen-Match: "${matchedName}" für ${contract.mieter}`,
-        confidence: matchedParts >= 2 ? 85 : 70,
+        zuordnungsgrund: `Namen-Match: "${matchedNames.join(', ')}" für ${contract.mieter}`,
+        confidence: matchedParts >= 2 ? 90 : 80,
         selected: true
       };
     }
   }
   
-  // 4. Amount-Match with tolerance (only if unique match)
+  // 4. Location/Street-Match (property address in verwendungszweck)
+  for (const contract of contracts) {
+    const immobilie = contract.immobilie.toLowerCase();
+    // Extract key location words (city names, street names)
+    const locationKeywords = ["bennigsen", "sarstedt", "habichtweg", "hauptstr", "hauptstraße"];
+    
+    for (const keyword of locationKeywords) {
+      if (verwendungszweck.includes(keyword) && immobilie.includes(keyword)) {
+        console.log(`Location-Match found: "${keyword}" for ${contract.mieter} at ${contract.immobilie}`);
+        return {
+          ...payment,
+          mietvertrag_id: contract.id,
+          kategorie: "Miete",
+          zuordnungsgrund: `Orts-Match: "${keyword}" für ${contract.mieter}`,
+          confidence: 75,
+          selected: true
+        };
+      }
+    }
+  }
+  
+  // 5. Amount-Match with tolerance (LAST RESORT - only if unique match and NO other indicators)
+  // This should be the weakest signal!
   const amountMatches = contracts.filter(c => 
     Math.abs(c.gesamtmiete - payment.betrag) <= BETRAG_TOLERANZ && payment.betrag > 0
   );
@@ -535,13 +559,14 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
     const isKaution = verwendungszweck.includes("kaution") && 
                       contract.kaution && 
                       Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
+    // LOW confidence - user should verify!
     return {
       ...payment,
       mietvertrag_id: contract.id,
       kategorie: isKaution ? "Mietkaution" : "Miete",
-      zuordnungsgrund: `Betrags-Match (eindeutig ±${BETRAG_TOLERANZ}€): ${contract.gesamtmiete}€ für ${contract.mieter}`,
-      confidence: 60,
-      selected: true
+      zuordnungsgrund: `⚠️ NUR Betrags-Match (±${BETRAG_TOLERANZ}€): ${contract.gesamtmiete}€ - BITTE PRÜFEN!`,
+      confidence: 40, // Lowered from 60 to 40!
+      selected: false, // NOT auto-selected!
     };
   }
   

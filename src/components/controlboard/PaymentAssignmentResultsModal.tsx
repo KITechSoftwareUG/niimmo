@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy, CheckCheck, Square } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy, CheckCheck, Square, Edit2 } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 interface ProcessedPayment {
@@ -56,6 +57,13 @@ interface Stats {
   durchschnittliche_konfidenz: number;
 }
 
+interface ContractOption {
+  id: string;
+  mieter: string;
+  immobilie: string;
+  gesamtmiete: number;
+}
+
 interface PaymentAssignmentResultsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -75,6 +83,54 @@ export function PaymentAssignmentResultsModal({
 }: PaymentAssignmentResultsModalProps) {
   const [isApplying, setIsApplying] = useState(false);
   
+  // Fetch all contracts for manual correction dropdown
+  const { data: contracts = [] } = useQuery({
+    queryKey: ['contracts-for-assignment'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mietvertrag')
+        .select(`
+          id,
+          kaltmiete,
+          betriebskosten,
+          status,
+          einheiten!inner (
+            etage,
+            immobilien!inner (
+              name,
+              adresse
+            )
+          ),
+          mietvertrag_mieter (
+            mieter (
+              vorname,
+              nachname
+            )
+          )
+        `)
+        .in('status', ['aktiv', 'gekuendigt']);
+      
+      if (error) throw error;
+      
+      return (data || []).map((c: any) => {
+        const mieterNames = c.mietvertrag_mieter?.map((mm: any) => 
+          `${mm.mieter?.vorname || ''} ${mm.mieter?.nachname || ''}`.trim()
+        ).filter(Boolean).join(', ') || 'Unbekannt';
+        
+        const immobilie = c.einheiten?.immobilien;
+        const gesamtmiete = (c.kaltmiete || 0) + (c.betriebskosten || 0);
+        
+        return {
+          id: c.id,
+          mieter: mieterNames,
+          immobilie: immobilie ? `${immobilie.name} - ${c.einheiten?.etage || ''}` : 'Unbekannt',
+          gesamtmiete
+        } as ContractOption;
+      });
+    },
+    enabled: open
+  });
+  
   // Filter to only show "Miete" payments
   const mietResults = useMemo(() => 
     results.filter(r => r.kategorie === "Miete"), 
@@ -87,11 +143,14 @@ export function PaymentAssignmentResultsModal({
     [results]
   );
   
+  // Track manual corrections
+  const [manualCorrections, setManualCorrections] = useState<Record<number, string | null>>({});
+  
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
     // Default: select all Miete results with mietvertrag_id
     const defaultSelected = new Set<string>();
     mietResults.forEach((r, idx) => {
-      if (r.mietvertrag_id) {
+      if (r.mietvertrag_id && r.selected !== false) {
         defaultSelected.add(`${idx}`);
       }
     });
@@ -102,7 +161,7 @@ export function PaymentAssignmentResultsModal({
   const queryClient = useQueryClient();
 
   // Recalculate selected when mietResults change
-  useMemo(() => {
+  useEffect(() => {
     const newSelected = new Set<string>();
     mietResults.forEach((r, idx) => {
       if (r.selected !== false && r.mietvertrag_id) {
@@ -110,6 +169,7 @@ export function PaymentAssignmentResultsModal({
       }
     });
     setSelectedIds(newSelected);
+    setManualCorrections({});
   }, [mietResults]);
 
   const toggleSelection = (idx: number) => {
@@ -133,7 +193,29 @@ export function PaymentAssignmentResultsModal({
     setSelectedIds(new Set());
   };
 
-  const selectedResults = mietResults.filter((_, idx) => selectedIds.has(`${idx}`));
+  // Apply manual corrections to get final results
+  const getFinalResults = () => {
+    return mietResults
+      .filter((_, idx) => selectedIds.has(`${idx}`))
+      .map((result, idx) => {
+        const correctedContractId = manualCorrections[idx];
+        if (correctedContractId !== undefined) {
+          const correctedContract = contracts.find(c => c.id === correctedContractId);
+          return {
+            ...result,
+            mietvertrag_id: correctedContractId,
+            mieter_name: correctedContract?.mieter || result.mieter_name,
+            immobilie_name: correctedContract?.immobilie || result.immobilie_name,
+            zuordnungsgrund: correctedContractId 
+              ? `Manuell korrigiert: ${correctedContract?.mieter}`
+              : 'Manuell entfernt'
+          };
+        }
+        return result;
+      });
+  };
+
+  const selectedResults = getFinalResults();
   const selectedWithAssignment = selectedResults.filter(r => r.mietvertrag_id);
   
   // Check if import is possible (either Miete selected OR Nichtmiete present)
@@ -162,6 +244,17 @@ export function PaymentAssignmentResultsModal({
     }
   };
 
+  const handleContractChange = (idx: number, value: string) => {
+    setManualCorrections(prev => ({
+      ...prev,
+      [idx]: value === 'none' ? null : value
+    }));
+    // Auto-select when user makes a correction
+    if (value !== 'none') {
+      setSelectedIds(prev => new Set([...prev, `${idx}`]));
+    }
+  };
+
   const getConfidenceBadge = (confidence: number) => {
     if (confidence >= 80) {
       return <Badge className="bg-green-100 text-green-800 border-green-200">{confidence}%</Badge>;
@@ -182,13 +275,23 @@ export function PaymentAssignmentResultsModal({
     return <Badge className={colors[kategorie] || "bg-gray-100"}>{kategorie}</Badge>;
   };
 
+  const getCurrentContractId = (idx: number, result: ProcessedPayment) => {
+    return manualCorrections[idx] !== undefined 
+      ? manualCorrections[idx] 
+      : result.mietvertrag_id;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-7xl h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <TrendingUp className="h-5 w-5 text-primary" />
             AI-Zuordnungsergebnisse
+            <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700">
+              <Edit2 className="h-3 w-3 mr-1" />
+              Korrektur möglich
+            </Badge>
           </DialogTitle>
         </DialogHeader>
 
@@ -254,6 +357,16 @@ export function PaymentAssignmentResultsModal({
           </div>
         )}
 
+        {/* Low confidence warning */}
+        {mietResults.some(r => r.confidence < 50) && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-sm flex-shrink-0">
+            <div className="flex items-center gap-2 text-red-800">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="font-medium">Achtung:</span> Einige Zuordnungen haben niedrige Konfidenz. Bitte prüfen und ggf. korrigieren!
+            </div>
+          </div>
+        )}
+
         {/* Results Table - Scrollable */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
@@ -268,20 +381,29 @@ export function PaymentAssignmentResultsModal({
                   </TableHead>
                   <TableHead className="w-[40px]">Status</TableHead>
                   <TableHead className="w-[90px]">Datum</TableHead>
-                  <TableHead className="text-right w-[100px]">Betrag</TableHead>
-                  <TableHead>Verwendungszweck</TableHead>
-                  <TableHead className="w-[100px]">Kategorie</TableHead>
-                  <TableHead>Zuordnung</TableHead>
-                  <TableHead className="w-[80px]">Konfidenz</TableHead>
+                  <TableHead className="text-right w-[90px]">Betrag</TableHead>
+                  <TableHead className="w-[200px]">Verwendungszweck</TableHead>
+                  <TableHead className="w-[80px]">Kategorie</TableHead>
+                  <TableHead className="w-[250px]">Zuordnung (korrigierbar)</TableHead>
+                  <TableHead className="w-[150px]">AI-Grund</TableHead>
+                  <TableHead className="w-[70px]">Konfidenz</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {mietResults.map((result, idx) => {
                   const isSelected = selectedIds.has(`${idx}`);
+                  const currentContractId = getCurrentContractId(idx, result);
+                  const isManuallyChanged = manualCorrections[idx] !== undefined;
+                  const needsAttention = result.confidence < 50;
+                  
                   return (
                     <TableRow 
                       key={idx} 
-                      className={`${result.mietvertrag_id ? "" : "bg-amber-50/50"} ${!isSelected ? "opacity-50" : ""}`}
+                      className={`
+                        ${needsAttention ? "bg-red-50/50" : result.mietvertrag_id ? "" : "bg-amber-50/50"} 
+                        ${!isSelected ? "opacity-50" : ""}
+                        ${isManuallyChanged ? "bg-blue-50/50" : ""}
+                      `}
                     >
                       <TableCell className="py-2">
                         <Checkbox 
@@ -290,7 +412,9 @@ export function PaymentAssignmentResultsModal({
                         />
                       </TableCell>
                       <TableCell className="py-2">
-                        {result.mietvertrag_id ? (
+                        {isManuallyChanged ? (
+                          <Edit2 className="h-4 w-4 text-blue-600" />
+                        ) : currentContractId ? (
                           <CheckCircle2 className="h-4 w-4 text-green-600" />
                         ) : (
                           <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -304,23 +428,40 @@ export function PaymentAssignmentResultsModal({
                       }`}>
                         {result.betrag.toFixed(2)} €
                       </TableCell>
-                      <TableCell className="max-w-[250px] py-2">
-                        <div className="text-xs whitespace-pre-wrap break-words leading-relaxed">
+                      <TableCell className="py-2">
+                        <div className="text-xs whitespace-pre-wrap break-words leading-relaxed max-w-[200px]">
                           {result.verwendungszweck || "-"}
                         </div>
                       </TableCell>
                       <TableCell className="py-2">{getKategorieBadge(result.kategorie)}</TableCell>
                       <TableCell className="py-2">
-                        <div className="text-xs">
-                          {result.mieter_name && (
-                            <div className="font-medium">{result.mieter_name}</div>
-                          )}
-                          {result.immobilie_name && (
-                            <div className="text-muted-foreground">{result.immobilie_name}</div>
-                          )}
-                          <div className="text-muted-foreground mt-0.5">
-                            {result.zuordnungsgrund}
-                          </div>
+                        <Select 
+                          value={currentContractId || 'none'}
+                          onValueChange={(value) => handleContractChange(idx, value)}
+                        >
+                          <SelectTrigger className={`h-8 text-xs ${needsAttention ? 'border-red-300' : ''}`}>
+                            <SelectValue placeholder="Vertrag wählen..." />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[300px]">
+                            <SelectItem value="none">
+                              <span className="text-muted-foreground">Keine Zuordnung</span>
+                            </SelectItem>
+                            {contracts.map((contract) => (
+                              <SelectItem key={contract.id} value={contract.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{contract.mieter}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {contract.immobilie} • {contract.gesamtmiete.toFixed(2)}€
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <div className="text-xs text-muted-foreground max-w-[150px] truncate" title={result.zuordnungsgrund}>
+                          {result.zuordnungsgrund}
                         </div>
                       </TableCell>
                       <TableCell className="py-2">{getConfidenceBadge(result.confidence)}</TableCell>
