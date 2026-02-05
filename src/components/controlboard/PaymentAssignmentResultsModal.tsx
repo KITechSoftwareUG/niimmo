@@ -142,10 +142,11 @@ export function PaymentAssignmentResultsModal({
   });
   
   // Filter to only show "Miete" payments
-  const mietResults = useMemo(() => 
-    results.filter(r => r.kategorie === "Miete"), 
-    [results]
-  );
+ // Only show positive payments (Miete) - negative payments should not be rent
+ const mietResults = useMemo(() => 
+   results.filter(r => r.kategorie === "Miete" && r.betrag > 0), 
+   [results]
+ );
   
   // Count Nichtmiete payments that will be saved anyway
   const nichtmieteCount = useMemo(() => 
