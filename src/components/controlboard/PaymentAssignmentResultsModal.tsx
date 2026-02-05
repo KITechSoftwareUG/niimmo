@@ -313,7 +313,7 @@ export function PaymentAssignmentResultsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <TrendingUp className="h-5 w-5 text-primary" />
@@ -410,15 +410,15 @@ export function PaymentAssignmentResultsModal({
                     />
                   </TableHead>
                   <TableHead className="w-[40px]">Status</TableHead>
-                  <TableHead className="w-[90px]">Datum</TableHead>
-                  <TableHead className="text-right w-[90px]">Betrag</TableHead>
-                  <TableHead className="w-[150px]">Absender</TableHead>
-                  <TableHead className="w-[200px]">Verwendungszweck</TableHead>
-                  <TableHead className="w-[80px]">Kategorie</TableHead>
-                  <TableHead className="w-[220px]">Zuordnung</TableHead>
-                  <TableHead className="w-[150px]">AI-Grund</TableHead>
-                  <TableHead className="w-[70px]">Konf.</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
+                  <TableHead className="w-[80px]">Datum</TableHead>
+                  <TableHead className="text-right w-[80px]">Betrag</TableHead>
+                  <TableHead className="w-[130px]">Absender</TableHead>
+                  <TableHead className="min-w-[180px]">Verwendungszweck</TableHead>
+                  <TableHead className="w-[70px]">Kat.</TableHead>
+                  <TableHead className="w-[180px]">Zuordnung</TableHead>
+                  <TableHead className="w-[120px]">AI-Grund</TableHead>
+                  <TableHead className="w-[50px]">%</TableHead>
+                  <TableHead className="w-[70px] text-right">Aktion</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
