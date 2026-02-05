@@ -11,12 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy, CheckCheck, Square, Edit2 } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy, CheckCheck, Square, Edit2, Pencil } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { PaymentCorrectionDialog } from "./PaymentCorrectionDialog";
 
 interface ProcessedPayment {
   buchungsdatum: string;
@@ -61,7 +61,11 @@ interface ContractOption {
   id: string;
   mieter: string;
   immobilie: string;
+  adresse?: string;
   gesamtmiete: number;
+  start_datum?: string;
+  ende_datum?: string;
+  status?: string;
 }
 
 interface PaymentAssignmentResultsModalProps {
@@ -94,6 +98,8 @@ export function PaymentAssignmentResultsModal({
           kaltmiete,
           betriebskosten,
           status,
+          start_datum,
+          ende_datum,
           einheiten!inner (
             etage,
             immobilien!inner (
@@ -124,7 +130,11 @@ export function PaymentAssignmentResultsModal({
           id: c.id,
           mieter: mieterNames,
           immobilie: immobilie ? `${immobilie.name} - ${c.einheiten?.etage || ''}` : 'Unbekannt',
-          gesamtmiete
+          adresse: immobilie?.adresse || '',
+          gesamtmiete,
+          start_datum: c.start_datum,
+          ende_datum: c.ende_datum,
+          status: c.status
         } as ContractOption;
       });
     },
@@ -159,6 +169,10 @@ export function PaymentAssignmentResultsModal({
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // State for correction dialog
+  const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
+  const [selectedPaymentIdx, setSelectedPaymentIdx] = useState<number | null>(null);
 
   // Recalculate selected when mietResults change
   useEffect(() => {
@@ -253,6 +267,22 @@ export function PaymentAssignmentResultsModal({
     if (value !== 'none') {
       setSelectedIds(prev => new Set([...prev, `${idx}`]));
     }
+  };
+
+  const openCorrectionDialog = (idx: number) => {
+    setSelectedPaymentIdx(idx);
+    setCorrectionDialogOpen(true);
+  };
+
+  const handleCorrectionSelect = (contractId: string | null) => {
+    if (selectedPaymentIdx !== null) {
+      handleContractChange(selectedPaymentIdx, contractId || 'none');
+    }
+  };
+
+  const getSelectedPayment = () => {
+    if (selectedPaymentIdx === null) return null;
+    return mietResults[selectedPaymentIdx];
   };
 
   const getConfidenceBadge = (confidence: number) => {
@@ -385,9 +415,10 @@ export function PaymentAssignmentResultsModal({
                   <TableHead className="w-[150px]">Absender</TableHead>
                   <TableHead className="w-[200px]">Verwendungszweck</TableHead>
                   <TableHead className="w-[80px]">Kategorie</TableHead>
-                  <TableHead className="w-[250px]">Zuordnung (korrigierbar)</TableHead>
+                  <TableHead className="w-[220px]">Zuordnung</TableHead>
                   <TableHead className="w-[150px]">AI-Grund</TableHead>
-                  <TableHead className="w-[70px]">Konfidenz</TableHead>
+                  <TableHead className="w-[70px]">Konf.</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -443,29 +474,22 @@ export function PaymentAssignmentResultsModal({
                       </TableCell>
                       <TableCell className="py-2">{getKategorieBadge(result.kategorie)}</TableCell>
                       <TableCell className="py-2">
-                        <Select 
-                          value={currentContractId || 'none'}
-                          onValueChange={(value) => handleContractChange(idx, value)}
-                        >
-                          <SelectTrigger className={`h-8 text-xs ${needsAttention ? 'border-red-300' : ''}`}>
-                            <SelectValue placeholder="Vertrag wählen..." />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[300px]">
-                            <SelectItem value="none">
-                              <span className="text-muted-foreground">Keine Zuordnung</span>
-                            </SelectItem>
-                            {contracts.map((contract) => (
-                              <SelectItem key={contract.id} value={contract.id}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{contract.mieter}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {contract.immobilie} • {contract.gesamtmiete.toFixed(2)}€
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {currentContractId ? (
+                          <div className="text-xs">
+                            <div className="font-medium truncate max-w-[200px]" title={
+                              contracts.find(c => c.id === currentContractId)?.mieter || result.mieter_name
+                            }>
+                              {contracts.find(c => c.id === currentContractId)?.mieter || result.mieter_name || "Zugeordnet"}
+                            </div>
+                            <div className="text-muted-foreground truncate max-w-[200px]" title={
+                              contracts.find(c => c.id === currentContractId)?.immobilie || result.immobilie_name
+                            }>
+                              {contracts.find(c => c.id === currentContractId)?.immobilie || result.immobilie_name}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-amber-600">Nicht zugeordnet</span>
+                        )}
                       </TableCell>
                       <TableCell className="py-2">
                         <div className="text-xs text-muted-foreground max-w-[150px] truncate" title={result.zuordnungsgrund}>
@@ -473,6 +497,17 @@ export function PaymentAssignmentResultsModal({
                         </div>
                       </TableCell>
                       <TableCell className="py-2">{getConfidenceBadge(result.confidence)}</TableCell>
+                      <TableCell className="py-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => openCorrectionDialog(idx)}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Ändern
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -511,6 +546,16 @@ export function PaymentAssignmentResultsModal({
             )}
           </Button>
         </DialogFooter>
+
+        {/* Correction Dialog */}
+        <PaymentCorrectionDialog
+          open={correctionDialogOpen}
+          onOpenChange={setCorrectionDialogOpen}
+          payment={getSelectedPayment()}
+          contracts={contracts}
+          currentContractId={selectedPaymentIdx !== null ? getCurrentContractId(selectedPaymentIdx, mietResults[selectedPaymentIdx]) : null}
+          onSelectContract={handleCorrectionSelect}
+        />
       </DialogContent>
     </Dialog>
   );
