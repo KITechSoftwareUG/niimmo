@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy, CheckCheck, Square, Edit2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -422,7 +422,9 @@ export function PaymentAssignmentResultsModal({
                         )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap py-2 text-sm">
-                        {format(new Date(result.buchungsdatum), "dd.MM.yy")}
+                        {result.buchungsdatum && isValid(parseISO(result.buchungsdatum)) 
+                          ? format(parseISO(result.buchungsdatum), "dd.MM.yy")
+                          : "-"}
                       </TableCell>
                       <TableCell className={`text-right font-medium whitespace-nowrap py-2 text-sm ${
                         result.betrag < 0 ? "text-destructive" : "text-green-600"
