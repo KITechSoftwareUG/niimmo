@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,12 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check, RotateCcw, Camera } from "lucide-react";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check, RotateCcw, Camera, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SignatureCanvas } from "./SignatureCanvas";
 import { MeterPhotoUpload } from "./MeterPhotoUpload";
+import { NotizenPhotoUpload } from "./NotizenPhotoUpload";
+import { UebergabeEmailDialog } from "./UebergabeEmailDialog";
 
 interface ContractInfo {
   id: string;
@@ -29,6 +31,13 @@ interface ContractInfo {
     };
   };
   kuendigungsdatum?: string;
+}
+
+interface MieterData {
+  id: string;
+  vorname: string;
+  nachname: string | null;
+  hauptmail: string | null;
 }
 
 interface UebergabeDialogProps {
@@ -98,6 +107,47 @@ export const UebergabeDialog = ({
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
+  // State for notes photos
+  const [notizenPhotos, setNotizenPhotos] = useState<string[]>([]);
+  
+  // State for email dialog
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  
+  // State for tenant data with emails
+  const [mieterData, setMieterData] = useState<MieterData[]>([]);
+  const [mieterEmails, setMieterEmails] = useState<{ [mieterId: string]: string }>({});
+
+  // Fetch tenant data including emails
+  useEffect(() => {
+    const fetchMieterData = async () => {
+      if (vertragIds.length === 0) return;
+
+      const { data: mieterLinks } = await supabase
+        .from("mietvertrag_mieter")
+        .select("mieter_id")
+        .in("mietvertrag_id", vertragIds);
+
+      if (mieterLinks && mieterLinks.length > 0) {
+        const mieterIds = mieterLinks.map((l) => l.mieter_id);
+        const { data: mieter } = await supabase
+          .from("mieter")
+          .select("id, vorname, nachname, hauptmail")
+          .in("id", mieterIds);
+
+        if (mieter) {
+          setMieterData(mieter);
+          const emails: { [key: string]: string } = {};
+          mieter.forEach((m) => {
+            emails[m.id] = m.hauptmail || "";
+          });
+          setMieterEmails(emails);
+        }
+      }
+    };
+
+    fetchMieterData();
+  }, [vertragIds]);
+
   const updateZaehlerstand = (contractId: string, field: string, value: string) => {
     setZaehlerstaendePerContract(prev => ({
       ...prev,
@@ -133,6 +183,7 @@ export const UebergabeDialog = ({
     setZaehlerstaendePerContract(initialZaehler);
     setMeterPhotosPerContract(initialPhotos);
     setProtokollNotizen("");
+    setNotizenPhotos([]);
     setVermieterSignature(null);
     setMieterSignature(null);
     setPdfGenerated(false);
@@ -184,6 +235,12 @@ export const UebergabeDialog = ({
         }
       }
 
+      // For Auszug: Show email dialog after successful save
+      if (!isEinzug && mieterData.length > 0) {
+        setShowEmailDialog(true);
+        return;
+      }
+
       onSuccess?.();
       onClose();
     } catch (error) {
@@ -196,6 +253,19 @@ export const UebergabeDialog = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEmailDialogClose = () => {
+    setShowEmailDialog(false);
+    onSuccess?.();
+    onClose();
+  };
+
+  const updateMieterEmail = (mieterId: string, email: string) => {
+    setMieterEmails((prev) => ({
+      ...prev,
+      [mieterId]: email,
+    }));
   };
 
   const handleGeneratePdf = async () => {
@@ -224,6 +294,7 @@ export const UebergabeDialog = ({
           },
           zaehlerstaendePerContract,
           protokollNotizen,
+          notizenPhotos,
           vermieterSignature,
           mieterSignature,
           meterPhotosPerContract
@@ -481,6 +552,20 @@ export const UebergabeDialog = ({
           <ClipboardList className="h-4 w-4" />
           Übergabeprotokoll Notizen
         </Label>
+        
+        {/* Photo upload for notes - only for Auszug */}
+        {!isEinzug && contracts.length > 0 && (
+          <div className="mb-3">
+            <Label className="text-xs text-muted-foreground mb-2 block">Fotos (z.B. Mängel, Zustand)</Label>
+            <NotizenPhotoUpload
+              contractId={contracts[0].id}
+              isEinzug={isEinzug}
+              onPhotosChange={setNotizenPhotos}
+              existingPhotos={notizenPhotos}
+            />
+          </div>
+        )}
+
         <Textarea
           placeholder="Zustand der Wohnung, Mängel, Besonderheiten..."
           value={protokollNotizen}
@@ -488,6 +573,37 @@ export const UebergabeDialog = ({
           className="min-h-[100px] resize-none"
         />
       </div>
+
+      {/* Tenant Emails - only for Auszug */}
+      {!isEinzug && mieterData.length > 0 && (
+        <div className="space-y-3 border-t pt-4">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            <Mail className="h-4 w-4" />
+            E-Mail-Adressen der Mieter
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Diese werden für die Bestätigungsmail nach der Übergabe verwendet.
+          </p>
+          <div className="space-y-2">
+            {mieterData.map((m) => (
+              <div key={m.id} className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Label className="text-xs text-muted-foreground">
+                    {m.vorname} {m.nachname || ""}
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="E-Mail-Adresse eingeben..."
+                    value={mieterEmails[m.id] || ""}
+                    onChange={(e) => updateMieterEmail(m.id, e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Digital Signatures */}
       <div className="space-y-4 border-t pt-4">
@@ -575,9 +691,25 @@ export const UebergabeDialog = ({
   const dialogTitle = isEinzug ? "Übergabe (Einzug)" : "Übergabe (Auszug)";
   const DialogIcon = KeyRound;
 
+  // Email dialog for post-handover
+  const emailDialogComponent = showEmailDialog && uebergabeDatum && (
+    <UebergabeEmailDialog
+      isOpen={showEmailDialog}
+      onClose={handleEmailDialogClose}
+      mieter={mieterData.map((m) => ({
+        ...m,
+        hauptmail: mieterEmails[m.id] || m.hauptmail,
+      }))}
+      contracts={contracts}
+      uebergabeDatum={uebergabeDatum}
+      mieterName={mieterName || ""}
+    />
+  );
+
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        {emailDialogComponent}
         <DrawerContent className="max-h-[95vh]">
           <DrawerHeader className="pb-2">
             <DrawerTitle className="flex items-center gap-2 text-lg">
@@ -593,6 +725,7 @@ export const UebergabeDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      {emailDialogComponent}
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
