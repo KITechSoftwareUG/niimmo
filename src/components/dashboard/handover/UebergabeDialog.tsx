@@ -71,7 +71,10 @@ export const UebergabeDialog = ({
   const [uebergabeDatum, setUebergabeDatum] = useState<Date | undefined>(
     contracts[0]?.kuendigungsdatum ? new Date(contracts[0].kuendigungsdatum) : new Date()
   );
-  const [schluesselAnzahl, setSchluesselAnzahl] = useState<string>("");
+  const [schluesselHaustuer, setSchluesselHaustuer] = useState<string>("");
+  const [schluesselWohnung, setSchluesselWohnung] = useState<string>("");
+  const [schluesselBriefkasten, setSchluesselBriefkasten] = useState<string>("");
+  const [schluesselKeller, setSchluesselKeller] = useState<string>("");
   const [zaehlerstaendePerContract, setZaehlerstaendePerContract] = useState<ZaehlerstaendePerContract>(() => {
     const initial: ZaehlerstaendePerContract = {};
     contracts.forEach(c => {
@@ -117,7 +120,10 @@ export const UebergabeDialog = ({
 
   const resetForm = () => {
     setUebergabeDatum(contracts[0]?.kuendigungsdatum ? new Date(contracts[0].kuendigungsdatum) : new Date());
-    setSchluesselAnzahl("");
+    setSchluesselHaustuer("");
+    setSchluesselWohnung("");
+    setSchluesselBriefkasten("");
+    setSchluesselKeller("");
     const initialZaehler: ZaehlerstaendePerContract = {};
     const initialPhotos: MeterPhotosPerContract = {};
     contracts.forEach(c => {
@@ -210,7 +216,12 @@ export const UebergabeDialog = ({
           mietvertragIds: vertragIds,
           isEinzug,
           uebergabeDatum: format(uebergabeDatum, "yyyy-MM-dd"),
-          schluesselAnzahl,
+          schluessel: {
+            haustuer: schluesselHaustuer,
+            wohnung: schluesselWohnung,
+            briefkasten: schluesselBriefkasten,
+            keller: schluesselKeller
+          },
           zaehlerstaendePerContract,
           protokollNotizen,
           vermieterSignature,
@@ -318,15 +329,54 @@ export const UebergabeDialog = ({
       <div className="space-y-2">
         <Label className="text-sm font-medium flex items-center gap-2">
           <KeyRound className="h-4 w-4" />
-          Anzahl übergebener Schlüssel
+          Übergebene Schlüssel
         </Label>
-        <Input
-          type="number"
-          placeholder="z.B. 3"
-          value={schluesselAnzahl}
-          onChange={(e) => setSchluesselAnzahl(e.target.value)}
-          className="h-12 sm:h-10"
-        />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Haustür</Label>
+            <Input
+              type="number"
+              placeholder="0"
+              min="0"
+              value={schluesselHaustuer}
+              onChange={(e) => setSchluesselHaustuer(e.target.value)}
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Wohnung</Label>
+            <Input
+              type="number"
+              placeholder="0"
+              min="0"
+              value={schluesselWohnung}
+              onChange={(e) => setSchluesselWohnung(e.target.value)}
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Briefkasten</Label>
+            <Input
+              type="number"
+              placeholder="0"
+              min="0"
+              value={schluesselBriefkasten}
+              onChange={(e) => setSchluesselBriefkasten(e.target.value)}
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Keller</Label>
+            <Input
+              type="number"
+              placeholder="0"
+              min="0"
+              value={schluesselKeller}
+              onChange={(e) => setSchluesselKeller(e.target.value)}
+              className="h-10"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Zählerstände per Contract with Photo Upload */}
