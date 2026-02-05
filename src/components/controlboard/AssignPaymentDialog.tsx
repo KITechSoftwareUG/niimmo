@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 
 interface AssignPaymentDialogProps {
   open: boolean;
@@ -274,7 +274,7 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
           {payment && (
             <div className="text-sm text-muted-foreground space-y-1 mt-2">
               <p><strong>Betrag:</strong> {payment.betrag.toFixed(2)} €</p>
-              <p><strong>Datum:</strong> {format(new Date(payment.buchungsdatum), 'dd.MM.yyyy')}</p>
+              <p><strong>Datum:</strong> {payment.buchungsdatum && isValid(parseISO(payment.buchungsdatum)) ? format(parseISO(payment.buchungsdatum), 'dd.MM.yyyy') : '-'}</p>
               {payment.empfaengername && <p><strong>Empfänger:</strong> {payment.empfaengername}</p>}
               {payment.verwendungszweck && <p><strong>Verwendungszweck:</strong> {payment.verwendungszweck}</p>}
             </div>
@@ -403,8 +403,8 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-4 w-4" />
                                 <span>
-                                  {format(new Date(contract.start_datum), 'dd.MM.yyyy')}
-                                  {contract.ende_datum && ` - ${format(new Date(contract.ende_datum), 'dd.MM.yyyy')}`}
+                                  {contract.start_datum && isValid(parseISO(contract.start_datum)) ? format(parseISO(contract.start_datum), 'dd.MM.yyyy') : '-'}
+                                  {contract.ende_datum && isValid(parseISO(contract.ende_datum)) && ` - ${format(parseISO(contract.ende_datum), 'dd.MM.yyyy')}`}
                                 </span>
                               </div>
                               <div>
