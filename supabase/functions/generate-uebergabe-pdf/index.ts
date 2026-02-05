@@ -22,7 +22,7 @@ serve(async (req) => {
       mietvertragIds,
       isEinzug,
       uebergabeDatum,
-      schluesselAnzahl,
+      schluessel,
       zaehlerstaendePerContract,
       protokollNotizen
     } = await req.json();
@@ -142,7 +142,6 @@ serve(async (req) => {
       ['Übergabedatum:', datum],
       ['Erstellt am:', erstelltAm],
       ['Mieter:', mieterNames],
-      ['Anzahl Schlüssel:', schluesselAnzahl ? `${schluesselAnzahl} Stück` : 'Nicht angegeben'],
     ];
     
     infoData.forEach(([label, value]) => {
@@ -152,6 +151,31 @@ serve(async (req) => {
       doc.text(value, 70, yPos);
       yPos += 6;
     });
+    
+    // Schlüsselübergabe Section
+    yPos += 5;
+    doc.setFont(undefined, 'bold');
+    doc.text('Übergebene Schlüssel:', 20, yPos);
+    yPos += 6;
+    doc.setFont(undefined, 'normal');
+    
+    const schluesselData = [
+      ['Haustür:', schluessel?.haustuer || '0'],
+      ['Wohnung:', schluessel?.wohnung || '0'],
+      ['Briefkasten:', schluessel?.briefkasten || '0'],
+      ['Keller:', schluessel?.keller || '0'],
+    ];
+    
+    schluesselData.forEach(([label, value], index) => {
+      const xOffset = index % 2 === 0 ? 25 : 100;
+      if (index === 2) yPos += 6;
+      doc.setFont(undefined, 'bold');
+      doc.text(label, xOffset, yPos);
+      doc.setFont(undefined, 'normal');
+      doc.text(`${value} Stück`, xOffset + 25, yPos);
+    });
+    yPos += 6;
+    
     yPos += 10;
 
     // Units Section
