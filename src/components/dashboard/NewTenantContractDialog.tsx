@@ -236,7 +236,7 @@ export const NewTenantContractDialog = ({
   };
 
   const validateContractStep = () => {
-    return contractData.kaltmiete && contractData.betriebskosten && contractData.start_datum;
+    return contractData.kaltmiete && contractData.betriebskosten && contractData.start_datum && contractData.bankkonto_mieter?.trim();
   };
 
   const handleFileUpload = async (files: FileList | File[] | null) => {
@@ -396,6 +396,10 @@ export const NewTenantContractDialog = ({
       
       if (!contractData.kaltmiete || !contractData.betriebskosten || !contractData.start_datum) {
         throw new Error('Bitte füllen Sie alle Pflichtfelder aus (Kaltmiete, Betriebskosten, Mietbeginn).');
+      }
+      
+      if (!contractData.bankkonto_mieter?.trim()) {
+        throw new Error('Bitte geben Sie die IBAN / das Bankkonto des Mieters ein.');
       }
       
       // Step 2: Create new tenants if needed
@@ -1051,17 +1055,19 @@ export const NewTenantContractDialog = ({
         <Label htmlFor="lastschrift">SEPA-Lastschrift aktivieren</Label>
       </div>
       
-      {contractData.lastschrift && (
-        <div>
-          <Label htmlFor="bankkonto">Bankkonto Mieter</Label>
-          <Input
-            id="bankkonto"
-            value={contractData.bankkonto_mieter}
-            onChange={(e) => setContractData(prev => ({ ...prev, bankkonto_mieter: e.target.value }))}
-            placeholder="IBAN oder Kontodaten"
-          />
-        </div>
-      )}
+      <div>
+        <Label htmlFor="bankkonto">Bankkonto / IBAN Mieter *</Label>
+        <Input
+          id="bankkonto"
+          value={contractData.bankkonto_mieter}
+          onChange={(e) => setContractData(prev => ({ ...prev, bankkonto_mieter: e.target.value }))}
+          placeholder="DE89 3704 0044 0532 0130 00"
+          className={!contractData.bankkonto_mieter?.trim() ? 'border-amber-300' : ''}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Wird für die automatische Zahlungszuordnung benötigt
+        </p>
+      </div>
     </div>
   );
 
