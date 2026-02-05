@@ -184,41 +184,27 @@ export const UebergabeContractList = ({
       if (processedIds.has(contract.id)) continue;
 
       const mieterIds = contract.mieter.map(m => m.id);
-      const linkedContracts = meetsCriteriaContracts.filter(c => {
+      
+      // Check if there are other contracts with the same tenant (for display purposes only)
+      const hasLinkedContracts = meetsCriteriaContracts.some(c => {
         if (c.id === contract.id) return false;
         const cMieterIds = c.mieter.map(m => m.id);
         return mieterIds.some(id => cMieterIds.includes(id));
       });
 
-      const allContractsInGroup = [contract, ...linkedContracts];
-      const endDates = allContractsInGroup.map(c => c.kuendigungsdatum || c.ende_datum).filter(Boolean);
-      const hasDifferentEndDates = new Set(endDates).size > 1;
-
       const { priority, label } = getPriority(contract);
 
-      if (linkedContracts.length > 0 && !hasDifferentEndDates) {
-        groups.push({
-          contracts: allContractsInGroup,
-          isLinked: true,
-          hasDifferentEndDates: false,
-          mieterIds,
-          priority,
-          priorityLabel: label,
-          meetsCriteria: true,
-        });
-        allContractsInGroup.forEach(c => processedIds.add(c.id));
-      } else {
-        groups.push({
-          contracts: [contract],
-          isLinked: linkedContracts.length > 0,
-          hasDifferentEndDates,
-          mieterIds,
-          priority,
-          priorityLabel: label,
-          meetsCriteria: true,
-        });
-        processedIds.add(contract.id);
-      }
+      // Always show contracts individually (not grouped)
+      groups.push({
+        contracts: [contract],
+        isLinked: hasLinkedContracts,
+        hasDifferentEndDates: false,
+        mieterIds,
+        priority,
+        priorityLabel: label,
+        meetsCriteria: true,
+      });
+      processedIds.add(contract.id);
     }
 
     // Process completed contracts
