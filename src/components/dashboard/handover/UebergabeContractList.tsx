@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Building2, User, Calendar, MapPin, Clock, AlertTriangle, Link2 } from "lucide-react";
+import { Building2, User, Calendar, MapPin, Clock, AlertTriangle, Link2, CheckCircle2 } from "lucide-react";
 import { format, addDays, isAfter, differenceInDays } from "date-fns";
 import { de } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ interface ContractGroup {
   priorityLabel?: string;
   meetsCriteria?: boolean;
   warningMessage?: string;
+  isCompleted?: boolean;
 }
 
 interface UebergabeContractListProps {
@@ -61,6 +62,21 @@ export const UebergabeContractList = ({
   const today = new Date();
   const oneWeekAgo = addDays(today, -7);
   const oneMonthAgo = addDays(today, -30);
+
+  const checkContractIsCompleted = (contract: ContractWithDetails): boolean => {
+    if (uebergabeType === "einzug") {
+      // Einzug is completed if meter readings are documented
+      return !!(contract.strom_einzug || contract.gas_einzug || 
+        contract.kaltwasser_einzug || contract.warmwasser_einzug);
+    } else {
+      // Auszug is completed if status is "beendet" and end date is in the past
+      if (contract.status === "beendet" && contract.ende_datum) {
+        const endDate = new Date(contract.ende_datum);
+        return endDate < today;
+      }
+      return false;
+    }
+  };
 
   const checkContractMeetsCriteria = (contract: ContractWithDetails): boolean => {
     if (uebergabeType === "einzug") {
@@ -155,8 +171,13 @@ export const UebergabeContractList = ({
     }
 
     // Separate by criteria match
-    const meetsCriteriaContracts = filteredContracts.filter(c => checkContractMeetsCriteria(c));
-    const otherContracts = filteredContracts.filter(c => !checkContractMeetsCriteria(c));
+    const completedContracts = filteredContracts.filter(c => checkContractIsCompleted(c));
+    const meetsCriteriaContracts = filteredContracts.filter(c => 
+      checkContractMeetsCriteria(c) && !checkContractIsCompleted(c)
+    );
+    const otherContracts = filteredContracts.filter(c => 
+      !checkContractMeetsCriteria(c) && !checkContractIsCompleted(c)
+    );
 
     // Process contracts that meet criteria
     for (const contract of meetsCriteriaContracts) {
@@ -200,6 +221,21 @@ export const UebergabeContractList = ({
       }
     }
 
+    // Process completed contracts
+    for (const contract of completedContracts) {
+      if (processedIds.has(contract.id)) continue;
+      groups.push({
+        contracts: [contract],
+        isLinked: false,
+        hasDifferentEndDates: false,
+        mieterIds: contract.mieter.map(m => m.id),
+        priority: 200,
+        meetsCriteria: true,
+        isCompleted: true,
+      });
+      processedIds.add(contract.id);
+    }
+
     // Process other contracts (only shown when searching)
     if (searchQuery.trim()) {
       for (const contract of otherContracts) {
@@ -223,10 +259,11 @@ export const UebergabeContractList = ({
 
   // Separate high-priority and other groups
   const highPriorityGroups = groupedContracts.filter(g => g.priority <= 2 && g.meetsCriteria);
-  const standardGroups = groupedContracts.filter(g => g.priority > 2 && g.priority < 100 && g.meetsCriteria);
-  const otherGroups = groupedContracts.filter(g => g.priority >= 100 || !g.meetsCriteria);
+  const standardGroups = groupedContracts.filter(g => g.priority > 2 && g.priority < 100 && g.meetsCriteria && !g.isCompleted);
+  const completedGroups = groupedContracts.filter(g => g.isCompleted);
+  const otherGroups = groupedContracts.filter(g => (g.priority >= 100 && g.priority < 200) || !g.meetsCriteria);
 
-  const renderContractRow = (group: ContractGroup, dimmed: boolean = false) => {
+  const renderContractRow = (group: ContractGroup, dimmed: boolean = false, showCompletedBadge: boolean = false) => {
     const mainContract = group.contracts[0];
     const mieterName = mainContract.mieter.map(m => `${m.vorname} ${m.nachname}`).join(", ");
     const totalMiete = (mainContract.kaltmiete || 0) + (mainContract.betriebskosten || 0);
@@ -245,6 +282,14 @@ export const UebergabeContractList = ({
               : "bg-white border-gray-200"
         )}
       >
+        {/* Completed badge */}
+        {showCompletedBadge && (
+          <div className="flex items-center gap-2 mb-2 text-green-600 text-xs bg-green-100 rounded-lg px-2 py-1">
+            <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
+            <span>Übergabe bereits dokumentiert</span>
+          </div>
+        )}
+
         {/* Warning for non-matching */}
         {group.meetsCriteria === false && (
           <div className="flex items-center gap-2 mb-2 text-amber-600 text-xs bg-amber-100 rounded-lg px-2 py-1">
@@ -381,6 +426,22 @@ export const UebergabeContractList = ({
           </div>
           <div className="space-y-2">
             {standardGroups.map(group => renderContractRow(group))}
+          </div>
+        </div>
+      )}
+
+      {/* Completed Section */}
+      {completedGroups.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-1.5 rounded-lg bg-green-100">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-700">Erledigt</h3>
+            <span className="text-xs text-gray-500">({completedGroups.length})</span>
+          </div>
+          <div className="space-y-2">
+            {completedGroups.map(group => renderContractRow(group, true, true))}
           </div>
         </div>
       )}
