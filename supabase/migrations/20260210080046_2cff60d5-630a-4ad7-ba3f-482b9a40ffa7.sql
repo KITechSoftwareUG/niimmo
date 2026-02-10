@@ -1,0 +1,1 @@
+ALTER TABLE public.mietvertrag ADD COLUMN IF NOT EXISTS bankkonto_mieter_geprueft boolean NOT NULL DEFAULT false;

@@ -610,6 +610,22 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           .eq('id', existing.id);
         
         if (error) console.error("Assignment update error:", error);
+        
+        // Auto-fill IBAN on contract if empty
+        if (result.mietvertrag_id && result.iban) {
+          const { data: contract } = await supabase
+            .from('mietvertrag')
+            .select('bankkonto_mieter')
+            .eq('id', result.mietvertrag_id)
+            .maybeSingle();
+
+          if (contract && !contract.bankkonto_mieter) {
+            await supabase
+              .from('mietvertrag')
+              .update({ bankkonto_mieter: result.iban })
+              .eq('id', result.mietvertrag_id);
+          }
+        }
       } else {
         // Payment doesn't exist - insert it
         const { error } = await supabase
@@ -626,6 +642,22 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           });
         
         if (error) console.error("Payment insert error:", error);
+        
+        // Auto-fill IBAN on contract if empty
+        if (result.mietvertrag_id && result.iban) {
+          const { data: contract } = await supabase
+            .from('mietvertrag')
+            .select('bankkonto_mieter')
+            .eq('id', result.mietvertrag_id)
+            .maybeSingle();
+
+          if (contract && !contract.bankkonto_mieter) {
+            await supabase
+              .from('mietvertrag')
+              .update({ bankkonto_mieter: result.iban })
+              .eq('id', result.mietvertrag_id);
+          }
+        }
       }
     }
     
