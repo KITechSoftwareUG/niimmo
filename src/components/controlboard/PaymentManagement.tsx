@@ -533,7 +533,13 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
       const buchungsdatum = toIsoDate(buchungsdatumRaw);
       const wertstellungsdatum = wertstellungsdatumRaw ? toIsoDate(wertstellungsdatumRaw) : undefined;
-      const betragNum = parseFloat(betrag.replace(/\s/g, '').replace('.', '').replace(',', '.'));
+      // Handle formats: "5000,00", "5.000,00", "5000 00" (space as decimal separator), "-280 00"
+      let cleanBetrag = betrag.trim();
+      // If format is "5000 00" or "-280 00" (space before last 2 digits = decimal separator)
+      if (/^-?\d+\s\d{2}$/.test(cleanBetrag)) {
+        cleanBetrag = cleanBetrag.replace(/\s/, ',');
+      }
+      const betragNum = parseFloat(cleanBetrag.replace(/\s/g, '').replace('.', '').replace(',', '.'));
 
       console.log(`CSV row ${i}: empfaengername="${empfaengername}", verwendungszweck="${verwendungszweck}", betrag=${betragNum}, iban="${iban}"`);
       payments.push({ buchungsdatum, wertstellungsdatum, betrag: betragNum, iban, verwendungszweck, empfaengername });
