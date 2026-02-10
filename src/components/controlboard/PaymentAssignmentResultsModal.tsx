@@ -141,12 +141,12 @@ export function PaymentAssignmentResultsModal({
     enabled: open
   });
   
-  // Filter to only show "Miete" payments
- // Only show positive payments (Miete) - negative payments should not be rent
- const mietResults = useMemo(() => 
-   results.filter(r => r.kategorie === "Miete" && r.betrag > 0), 
-   [results]
- );
+  // Show all payment results (Miete, Mietkaution, Rücklastschrift, etc.)
+  // Only exclude "Nichtmiete" which is handled separately
+  const mietResults = useMemo(() => 
+    results.filter(r => r.kategorie !== "Nichtmiete"), 
+    [results]
+  );
   
   // Count Nichtmiete payments that will be saved anyway
   const nichtmieteCount = useMemo(() => 
@@ -540,9 +540,9 @@ export function PaymentAssignmentResultsModal({
             ) : (
               <>
                 <ArrowRight className="mr-2 h-4 w-4" />
-                {selectedIds.size > 0 
-                  ? `${selectedIds.size} Miete + ${nichtmieteCount} Nichtmiete übernehmen`
-                  : `${nichtmieteCount} Nichtmiete übernehmen`
+                 {selectedIds.size > 0 
+                   ? `${selectedIds.size} Zahlungen${nichtmieteCount > 0 ? ` + ${nichtmieteCount} Nichtmiete` : ''} übernehmen`
+                   : `${nichtmieteCount} Nichtmiete übernehmen`
                 }
               </>
             )}

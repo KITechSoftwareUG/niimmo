@@ -727,20 +727,20 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   };
 
   const handleApplyAssignments = async (selectedResults?: any[]) => {
-    // Selected results are the Miete payments user chose to apply (with assignment)
-    const mietResultsToApply = selectedResults || aiResults.filter(r => r.kategorie === "Miete");
-    const selectedIds = new Set(mietResultsToApply.map((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`));
+    // Selected results now include all categories the user chose (Miete, Mietkaution, Rücklastschrift, etc.)
+    const selectedToApply = selectedResults || aiResults.filter(r => r.kategorie !== "Nichtmiete");
+    const selectedIds = new Set(selectedToApply.map((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`));
     
-    // All OTHER payments (Nichtmiete, Mietkaution, Rücklastschrift, Ignorieren, etc.)
-    const otherResults = aiResults.filter(r => r.kategorie !== "Miete");
+    // Nichtmiete payments are always saved (not shown in modal selection)
+    const nichtmieteResults = aiResults.filter(r => r.kategorie === "Nichtmiete");
     
-    // Unselected Miete payments should ALSO be saved, but without mietvertrag_id
-    const unselectedMiete = aiResults
-      .filter(r => r.kategorie === "Miete" && !selectedIds.has(`${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`))
+    // Unselected non-Nichtmiete payments should ALSO be saved, but without mietvertrag_id
+    const unselected = aiResults
+      .filter(r => r.kategorie !== "Nichtmiete" && !selectedIds.has(`${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`))
       .map(r => ({ ...r, mietvertrag_id: null }));
     
-    // Combine ALL: selected Miete (with assignment) + unselected Miete (without) + ALL other categories
-    const allResultsToSave = [...mietResultsToApply, ...unselectedMiete, ...otherResults];
+    // Combine ALL: selected (with assignment) + unselected (without) + Nichtmiete
+    const allResultsToSave = [...selectedToApply, ...unselected, ...nichtmieteResults];
     
     // Insert/update all payments
     for (const result of allResultsToSave) {
