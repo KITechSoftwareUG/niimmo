@@ -1424,7 +1424,16 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                           <TableCell>{payment.empfaengername || '-'}</TableCell>
                           <TableCell className="max-w-xs truncate">{payment.verwendungszweck || '-'}</TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="text-xs">{payment.kategorie}</Badge>
+                            <PaymentKategorieEditor
+                              paymentId={payment.id}
+                              currentKategorie={payment.kategorie}
+                              currentImmobilieId={payment.immobilie_id}
+                              onUpdate={() => {
+                                queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
+                                queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+                              }}
+                              compact
+                            />
                           </TableCell>
                           <TableCell className="text-right">
                             <Button size="sm" variant="outline" onClick={() => handleAssignPayment(payment)}>
