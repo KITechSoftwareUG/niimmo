@@ -17,12 +17,16 @@ interface PaymentKategorieEditorProps {
 
 const KATEGORIEN = [
   { value: "Miete", label: "Miete", color: "bg-green-100 text-green-800 border-green-200" },
-  { value: "Nebenkosten", label: "Nebenkosten", color: "bg-blue-100 text-blue-800 border-blue-200" },
   { value: "Nichtmiete", label: "Nichtmiete", color: "bg-gray-100 text-gray-800 border-gray-200" },
   { value: "Mietkaution", label: "Mietkaution", color: "bg-purple-100 text-purple-800 border-purple-200" },
   { value: "Rücklastschrift", label: "Rücklastschrift", color: "bg-red-100 text-red-800 border-red-200" },
   { value: "Ignorieren", label: "Ignorieren", color: "bg-orange-100 text-orange-800 border-orange-200" },
 ];
+
+// For display purposes only (when a payment is already categorized as Nebenkosten)
+const ALL_KATEGORIEN_COLORS: Record<string, string> = {
+  Nebenkosten: "bg-blue-100 text-blue-800 border-blue-200",
+};
 
 export function PaymentKategorieEditor({ 
   paymentId, 
@@ -99,7 +103,7 @@ export function PaymentKategorieEditor({
   };
 
   const getKategorieColor = (kat: string) => {
-    return KATEGORIEN.find(k => k.value === kat)?.color || "bg-gray-100 text-gray-800";
+    return KATEGORIEN.find(k => k.value === kat)?.color || ALL_KATEGORIEN_COLORS[kat] || "bg-gray-100 text-gray-800";
   };
 
   if (compact) {
