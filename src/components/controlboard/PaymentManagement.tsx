@@ -730,26 +730,20 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   };
 
   const handleApplyAssignments = async (selectedResults?: any[]) => {
-    // selectedResults = user-reviewed/corrected items from the modal display
-    // We need to save ALL aiResults, applying user corrections where applicable
-    const selectedToApply = selectedResults || [];
-    const selectedKeys = new Set(selectedToApply.map((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`));
+    // Selected results now include all categories the user chose (Miete, Mietkaution, Rücklastschrift, etc.)
+    const selectedToApply = selectedResults || aiResults.filter(r => r.kategorie !== "Nichtmiete");
+    const selectedIds = new Set(selectedToApply.map((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`));
     
-    // Build final list: start with ALL aiResults
-    const allResultsToSave = aiResults.map(result => {
-      const key = `${result.buchungsdatum}_${result.betrag}_${result.iban || ''}`;
-      // If this result was in the user's selection (possibly corrected), use that version
-      const userVersion = selectedToApply.find((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}` === key);
-      if (userVersion) return userVersion;
-      // If it was DISPLAYED but NOT selected by user → save without assignment
-      // Check if it was a displayed item (positive or Rücklastschrift, not Nichtmiete)
-      const wasDisplayed = result.kategorie !== "Nichtmiete" && (result.betrag > 0 || result.kategorie === "Rücklastschrift");
-      if (wasDisplayed && !selectedKeys.has(key)) {
-        return { ...result, mietvertrag_id: null };
-      }
-      // Hidden items (Nichtmiete, negative non-Rücklastschrift) → keep original assignment
-      return result;
-    });
+    // Nichtmiete payments are always saved (not shown in modal selection)
+    const nichtmieteResults = aiResults.filter(r => r.kategorie === "Nichtmiete");
+    
+    // Unselected non-Nichtmiete payments should ALSO be saved, but without mietvertrag_id
+    const unselected = aiResults
+      .filter(r => r.kategorie !== "Nichtmiete" && !selectedIds.has(`${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`))
+      .map(r => ({ ...r, mietvertrag_id: null }));
+    
+    // Combine ALL: selected (with assignment) + unselected (without) + Nichtmiete
+    const allResultsToSave = [...selectedToApply, ...unselected, ...nichtmieteResults];
     
     // Insert/update all payments
     for (const result of allResultsToSave) {
