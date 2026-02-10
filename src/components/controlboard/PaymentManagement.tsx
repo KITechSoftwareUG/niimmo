@@ -578,25 +578,39 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   };
 
   const handleApplyAssignments = async (selectedResults?: any[]) => {
-    // Selected results are the Miete payments user chose to apply
+    // Selected results are the Miete payments user chose to apply (with assignment)
     const mietResultsToApply = selectedResults || aiResults.filter(r => r.kategorie === "Miete");
+    const selectedIds = new Set(mietResultsToApply.map((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`));
     
     // Also save all Nichtmiete payments (they go to Nebenkosten workflow later)
     const nichtmieteResults = aiResults.filter(r => r.kategorie === "Nichtmiete");
     
-    // Combine both: selected Miete + all Nichtmiete
-    const allResultsToSave = [...mietResultsToApply, ...nichtmieteResults];
+    // Unselected Miete payments should ALSO be saved, but without mietvertrag_id
+    const unselectedMiete = aiResults
+      .filter(r => r.kategorie === "Miete" && !selectedIds.has(`${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`))
+      .map(r => ({ ...r, mietvertrag_id: null }));
+    
+    // Combine ALL: selected Miete (with assignment) + unselected Miete (without) + Nichtmiete
+    const allResultsToSave = [...mietResultsToApply, ...unselectedMiete, ...nichtmieteResults];
     
     // Insert/update all payments
     for (const result of allResultsToSave) {
       // First, check if this payment already exists
-      const { data: existing } = await supabase
+      // Handle null/empty IBAN correctly
+      const ibanValue = result.iban?.trim() || null;
+      let query = supabase
         .from('zahlungen')
         .select('id')
         .eq('buchungsdatum', result.buchungsdatum)
-        .eq('betrag', result.betrag)
-        .eq('iban', result.iban || '')
-        .maybeSingle();
+        .eq('betrag', result.betrag);
+      
+      if (ibanValue) {
+        query = query.eq('iban', ibanValue);
+      } else {
+        query = query.or('iban.is.null,iban.eq.');
+      }
+      
+      const { data: existing } = await query.maybeSingle();
       
       if (existing) {
         // Payment exists - update it
