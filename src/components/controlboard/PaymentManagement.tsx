@@ -451,6 +451,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     if (lines.length < 2) return [];
     
     const headers = lines[0].split(';').map(h => h.trim().replace(/"/g, ''));
+    console.log('CSV Headers:', headers);
     const payments: any[] = [];
     
     for (let i = 1; i < lines.length; i++) {
@@ -465,9 +466,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       const buchungsdatumRaw = row["Buchungstag"] || row["Buchungsdatum"] || row["Datum"];
       const wertstellungsdatumRaw = row["Wertstellung"] || row["Wertstellungstag"] || row["Valuta"] || row["Valutadatum"];
       const betrag = row["Betrag"] || row["Umsatz"];
-      const iban = row["Kontonummer/IBAN"] || row["IBAN des Absenders"] || row["IBAN"] || row["Auftraggeber-Konto"];
+      const iban = row["Kontonummer/IBAN"] || row["IBAN des Absenders"] || row["IBAN"] || row["Auftraggeber-Konto"] || row["Auftragskonto"];
       const verwendungszweck = row["Verwendungszweck"] || row["Buchungstext"];
-      const empfaengername = row["Beguenstigter/Zahlungspflichtiger"] || row["Name"] || row["Empfänger"];
+      const empfaengername = row["Beguenstigter/Zahlungspflichtiger"] || row["Name"] || row["Empfänger"] || row["Begünstigter/Zahlungspflichtiger"] || row["Auftraggeber/Begünstigter"] || row["Beguenstigter"] || row["Begünstigter"];
 
       if (!buchungsdatumRaw || !betrag) continue;
 
@@ -484,9 +485,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       const wertstellungsdatum = wertstellungsdatumRaw ? toIsoDate(wertstellungsdatumRaw) : undefined;
       const betragNum = parseFloat(betrag.replace('.', '').replace(',', '.'));
 
+      console.log(`CSV row ${i}: empfaengername="${empfaengername}", verwendungszweck="${verwendungszweck}", betrag=${betragNum}, iban="${iban}"`);
       payments.push({ buchungsdatum, wertstellungsdatum, betrag: betragNum, iban, verwendungszweck, empfaengername });
     }
-    
     return payments;
   };
 

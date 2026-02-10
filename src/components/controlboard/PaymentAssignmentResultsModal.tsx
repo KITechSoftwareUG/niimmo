@@ -414,7 +414,7 @@ export function PaymentAssignmentResultsModal({
                   <TableHead className="w-[40px]">Status</TableHead>
                   <TableHead className="w-[80px]">Datum</TableHead>
                   <TableHead className="text-right w-[80px]">Betrag</TableHead>
-                  <TableHead className="w-[130px]">Absender</TableHead>
+                  <TableHead className="w-[130px]">Empfänger/Absender</TableHead>
                   <TableHead className="min-w-[180px]">Verwendungszweck</TableHead>
                   <TableHead className="w-[70px]">Kat.</TableHead>
                   <TableHead className="w-[180px]">Zuordnung</TableHead>
