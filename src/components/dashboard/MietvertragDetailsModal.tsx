@@ -721,6 +721,7 @@ export default function MietvertragDetailsModal({
       anzahl_personen: vertrag?.anzahl_personen ?? null,
       ruecklastschrift_gebuehr: vertrag?.ruecklastschrift_gebuehr || 7.50,
       neue_anschrift: vertrag?.neue_anschrift || '',
+      bankkonto_mieter: vertrag?.bankkonto_mieter || '',
       kaution_betrag: vertrag?.kaution_betrag || 0,
       kaution_ist: vertrag?.kaution_ist || 0,
       kaltwasser_einzug: vertrag?.kaltwasser_einzug || 0,
@@ -829,6 +830,7 @@ export default function MietvertragDetailsModal({
       const mietvertragFields = [
         'start_datum', 'ende_datum',
         'kaltmiete', 'betriebskosten', 'anzahl_personen', 'ruecklastschrift_gebuehr', 'neue_anschrift',
+        'bankkonto_mieter',
         'kaution_betrag', 'kaution_ist',
         'kaltwasser_einzug', 'warmwasser_einzug', 'strom_einzug', 'gas_einzug',
         'kaltwasser_auszug', 'warmwasser_auszug', 'strom_auszug', 'gas_auszug'

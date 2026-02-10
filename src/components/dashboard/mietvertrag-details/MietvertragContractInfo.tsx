@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { AlertCircle } from "lucide-react";
 import { MietvertragEditableField } from "./MietvertragEditableField";
 
 interface MietvertragContractInfoProps {
@@ -240,6 +241,36 @@ export function MietvertragContractInfo({
           </>
         )}
         
+        {/* IBAN / Bankkonto */}
+        <Separator />
+        <div className="grid grid-cols-1 gap-3 md:gap-4">
+          <div>
+            <MietvertragEditableField
+              label="IBAN / Bankkonto Mieter"
+              value={isGlobalEditMode && editedValues.bankkonto_mieter !== undefined ? editedValues.bankkonto_mieter : (vertrag.bankkonto_mieter || '')}
+              isEditing={isGlobalEditMode}
+              onEdit={() => {}}
+              onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('bankkonto_mieter', raw) : undefined}
+              onSave={(value) => {
+                if (isGlobalEditMode) {
+                  onUpdateEditedValue?.('bankkonto_mieter', value);
+                }
+              }}
+              onCancel={onCancelEdit}
+              type="text"
+              placeholder="DE89 3704 0044 0532 0130 00"
+              hideEditButton={true}
+              isGlobalEditMode={isGlobalEditMode}
+            />
+            {vertrag.bankkonto_mieter && !vertrag.bankkonto_mieter_geprueft && (
+              <div className="flex items-center gap-1.5 mt-1.5 text-amber-600 dark:text-amber-400">
+                <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="text-xs">Automatisch übernommen – bitte prüfen</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Show neue_anschrift field only for terminated or ended contracts */}
         {(vertrag.status === 'beendet' || vertrag.status === 'gekuendigt') && (
           <>

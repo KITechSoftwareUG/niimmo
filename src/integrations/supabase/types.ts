@@ -488,6 +488,7 @@ export type Database = {
           aktualisiert_am: string | null
           anzahl_personen: number | null
           bankkonto_mieter: string | null
+          bankkonto_mieter_geprueft: boolean
           betriebskosten: number | null
           einheit_id: string
           ende_datum: string | null
@@ -524,6 +525,7 @@ export type Database = {
           aktualisiert_am?: string | null
           anzahl_personen?: number | null
           bankkonto_mieter?: string | null
+          bankkonto_mieter_geprueft?: boolean
           betriebskosten?: number | null
           einheit_id: string
           ende_datum?: string | null
@@ -560,6 +562,7 @@ export type Database = {
           aktualisiert_am?: string | null
           anzahl_personen?: number | null
           bankkonto_mieter?: string | null
+          bankkonto_mieter_geprueft?: boolean
           betriebskosten?: number | null
           einheit_id?: string
           ende_datum?: string | null

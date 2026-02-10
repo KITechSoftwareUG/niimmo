@@ -133,6 +133,22 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
 
       if (error) throw error;
 
+      // Auto-fill IBAN on contract if empty and payment has an IBAN
+      if (payment.iban) {
+        const { data: contract } = await supabase
+          .from('mietvertrag')
+          .select('bankkonto_mieter')
+          .eq('id', contractId)
+          .maybeSingle();
+
+        if (contract && !contract.bankkonto_mieter) {
+          await supabase
+            .from('mietvertrag')
+            .update({ bankkonto_mieter: payment.iban })
+            .eq('id', contractId);
+        }
+      }
+
       toast({
         title: "Zahlung zugeordnet",
         description: "Die Zahlung wurde erfolgreich dem Mietvertrag zugeordnet.",
