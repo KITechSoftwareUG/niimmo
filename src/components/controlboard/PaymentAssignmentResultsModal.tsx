@@ -346,7 +346,7 @@ export function PaymentAssignmentResultsModal({
           </div>
           <div className="bg-amber-50 rounded-lg p-2 text-center">
             <div className="text-xl font-bold text-amber-700">{stats.nicht_zugeordnet}</div>
-            <div className="text-xs text-amber-600">Offen</div>
+            <div className="text-xs text-amber-600">Nicht zugeordnet</div>
           </div>
           <div className="bg-purple-50 rounded-lg p-2 text-center">
             <div className="text-xl font-bold text-purple-700">{stats.durchschnittliche_konfidenz}%</div>
