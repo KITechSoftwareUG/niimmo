@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Building2, Check, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -17,16 +16,12 @@ interface PaymentKategorieEditorProps {
 
 const KATEGORIEN = [
   { value: "Miete", label: "Miete", color: "bg-green-100 text-green-800 border-green-200" },
+  { value: "Nebenkosten", label: "Nebenkosten", color: "bg-blue-100 text-blue-800 border-blue-200" },
   { value: "Nichtmiete", label: "Nichtmiete", color: "bg-gray-100 text-gray-800 border-gray-200" },
   { value: "Mietkaution", label: "Mietkaution", color: "bg-purple-100 text-purple-800 border-purple-200" },
   { value: "Rücklastschrift", label: "Rücklastschrift", color: "bg-red-100 text-red-800 border-red-200" },
   { value: "Ignorieren", label: "Ignorieren", color: "bg-orange-100 text-orange-800 border-orange-200" },
 ];
-
-// For display purposes only (when a payment is already categorized as Nebenkosten)
-const ALL_KATEGORIEN_COLORS: Record<string, string> = {
-  Nebenkosten: "bg-blue-100 text-blue-800 border-blue-200",
-};
 
 export function PaymentKategorieEditor({ 
   paymentId, 
@@ -36,34 +31,22 @@ export function PaymentKategorieEditor({
   compact = false 
 }: PaymentKategorieEditorProps) {
   const [selectedKategorie, setSelectedKategorie] = useState(currentKategorie || "");
-  const [selectedImmobilie, setSelectedImmobilie] = useState(currentImmobilieId || "");
-  const [showImmobilienSelect, setShowImmobilienSelect] = useState(currentKategorie === "Nebenkosten");
   const queryClient = useQueryClient();
 
-  // Fetch all properties
-  const { data: immobilien } = useQuery({
-    queryKey: ['immobilien-list'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('immobilien')
-        .select('id, name, adresse')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ kategorie, immobilieId }: { kategorie: string; immobilieId: string | null }) => {
+    mutationFn: async (kategorie: string) => {
+      const updateData: Record<string, any> = {
+        kategorie: kategorie as any,
+      };
+      // Clear mietvertrag_id for non-rent categories
+      if (["Nebenkosten", "Nichtmiete", "Ignorieren"].includes(kategorie)) {
+        updateData.mietvertrag_id = null;
+      }
       const { error } = await supabase
         .from('zahlungen')
-        .update({ 
-          kategorie: kategorie as any,
-          immobilie_id: immobilieId,
-          // Clear mietvertrag_id if switching to Nebenkosten or Nichtmiete
-          mietvertrag_id: ["Nebenkosten", "Nichtmiete", "Ignorieren"].includes(kategorie) ? null : undefined
-        })
+        .update(updateData)
         .eq('id', paymentId);
       
       if (error) throw error;
@@ -81,29 +64,12 @@ export function PaymentKategorieEditor({
 
   const handleKategorieChange = (value: string) => {
     setSelectedKategorie(value);
-    
-    if (value === "Nebenkosten") {
-      setShowImmobilienSelect(true);
-      // Don't save yet - wait for property selection
-    } else {
-      setShowImmobilienSelect(false);
-      setSelectedImmobilie("");
-      // Save immediately for other categories
-      updateMutation.mutate({ kategorie: value, immobilieId: null });
-      toast.success(`Kategorie auf "${value}" geändert`);
-    }
-  };
-
-  const handleImmobilieChange = (immobilieId: string) => {
-    setSelectedImmobilie(immobilieId);
-    // Save with property assignment
-    updateMutation.mutate({ kategorie: "Nebenkosten", immobilieId });
-    const immobilie = immobilien?.find(i => i.id === immobilieId);
-    toast.success(`Als Nebenkosten zu "${immobilie?.name}" zugeordnet`);
+    updateMutation.mutate(value);
+    toast.success(`Kategorie auf "${value}" geändert`);
   };
 
   const getKategorieColor = (kat: string) => {
-    return KATEGORIEN.find(k => k.value === kat)?.color || ALL_KATEGORIEN_COLORS[kat] || "bg-gray-100 text-gray-800";
+    return KATEGORIEN.find(k => k.value === kat)?.color || "bg-gray-100 text-gray-800";
   };
 
   if (compact) {
@@ -128,31 +94,8 @@ export function PaymentKategorieEditor({
           </SelectContent>
         </Select>
 
-        {showImmobilienSelect && (
-          <Select value={selectedImmobilie} onValueChange={handleImmobilieChange}>
-            <SelectTrigger className="h-7 text-xs min-w-[120px] bg-blue-50 border-blue-200">
-              <Building2 className="h-3 w-3 mr-1 text-blue-600" />
-              <SelectValue placeholder="Immobilie..." />
-            </SelectTrigger>
-            <SelectContent className="bg-white z-50">
-              {immobilien?.map((immo) => (
-                <SelectItem key={immo.id} value={immo.id}>
-                  <div className="flex flex-col">
-                    <span className="font-medium text-xs">{immo.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{immo.adresse}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
         {updateMutation.isPending && (
           <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-        )}
-
-        {currentImmobilieId && selectedKategorie === "Nebenkosten" && !updateMutation.isPending && (
-          <Check className="h-3 w-3 text-green-600" />
         )}
       </div>
     );
@@ -186,31 +129,6 @@ export function PaymentKategorieEditor({
         )}
       </div>
 
-      {showImmobilienSelect && (
-        <Select value={selectedImmobilie} onValueChange={handleImmobilieChange}>
-          <SelectTrigger className="w-full bg-blue-50 border-blue-200">
-            <Building2 className="h-4 w-4 mr-2 text-blue-600" />
-            <SelectValue placeholder="Immobilie auswählen..." />
-          </SelectTrigger>
-          <SelectContent className="bg-white z-50">
-            {immobilien?.map((immo) => (
-              <SelectItem key={immo.id} value={immo.id}>
-                <div className="flex flex-col">
-                  <span className="font-medium">{immo.name}</span>
-                  <span className="text-xs text-muted-foreground">{immo.adresse}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
-
-      {currentImmobilieId && selectedKategorie === "Nebenkosten" && (
-        <div className="flex items-center gap-2 text-sm text-green-600">
-          <Check className="h-4 w-4" />
-          <span>Zugeordnet zu: {immobilien?.find(i => i.id === currentImmobilieId)?.name}</span>
-        </div>
-      )}
     </div>
   );
 }
