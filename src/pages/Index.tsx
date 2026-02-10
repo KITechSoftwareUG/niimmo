@@ -16,25 +16,38 @@ import { HausmeisterDashboard } from "@/components/dashboard/HausmeisterDashboar
 import { useUserRole } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
+import { useNavigationState } from "@/hooks/useNavigationState";
 const Index = () => {
   const { isAdmin, isHausmeister, isLoading: roleLoading } = useUserRole();
-  const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
-  const [selectedEinheit, setSelectedEinheit] = useState<string | null>(null);
-  const [selectedMietvertrag, setSelectedMietvertrag] = useState<string | null>(null);
-  const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
-  
+  const { navState, updateNav } = useNavigationState();
+
+  // Derive persisted values
+  const selectedImmobilie = navState.selectedImmobilie;
+  const selectedEinheit = navState.selectedEinheit;
+  const selectedMietvertrag = navState.selectedMietvertrag;
+  const showAnalytics = navState.showAnalytics;
+  const showControlboard = navState.showControlboard;
+  const showUebergabe = navState.showUebergabe;
+  const navigationSource = navState.navigationSource;
+
+  // Setter wrappers
+  const setSelectedImmobilie = useCallback((v: string | null) => updateNav({ selectedImmobilie: v }), [updateNav]);
+  const setSelectedEinheit = useCallback((v: string | null) => updateNav({ selectedEinheit: v }), [updateNav]);
+  const setSelectedMietvertrag = useCallback((v: string | null) => updateNav({ selectedMietvertrag: v }), [updateNav]);
+  const setShowAnalytics = useCallback((v: boolean) => updateNav({ showAnalytics: v }), [updateNav]);
+  const setShowControlboard = useCallback((v: boolean) => updateNav({ showControlboard: v }), [updateNav]);
+  const setShowUebergabe = useCallback((v: boolean) => updateNav({ showUebergabe: v }), [updateNav]);
+  const setNavigationSource = useCallback((v: 'dashboard' | 'immobilie' | 'search') => updateNav({ navigationSource: v }), [updateNav]);
+
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
-  const [navigationSource, setNavigationSource] = useState<'dashboard' | 'immobilie' | 'search'>('dashboard');
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
   const [scrollToContractId, setScrollToContractId] = useState<string | null>(null);
-  const [showControlboard, setShowControlboard] = useState<boolean>(false);
-  const [showUebergabe, setShowUebergabe] = useState<boolean>(false);
   const {
     data: immobilien,
     isLoading,
