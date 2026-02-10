@@ -141,16 +141,21 @@ export function PaymentAssignmentResultsModal({
     enabled: open
   });
   
-  // Show all payment results (Miete, Mietkaution, Rücklastschrift, etc.)
-  // Only exclude "Nichtmiete" which is handled separately
-  const mietResults = useMemo(() => 
-    results.filter(r => r.kategorie !== "Nichtmiete"), 
+  // Display: positive payments + Rücklastschriften (for user review/correction)
+  // Hide negative non-Rücklastschrift payments from view (but they still get saved!)
+  const displayResults = useMemo(() => 
+    results.filter(r => r.kategorie !== "Nichtmiete" && (r.betrag > 0 || r.kategorie === "Rücklastschrift")), 
     [results]
   );
   
-  // Count Nichtmiete payments that will be saved anyway
+  // Count hidden payments that will be saved automatically
   const nichtmieteCount = useMemo(() => 
     results.filter(r => r.kategorie === "Nichtmiete").length,
+    [results]
+  );
+  
+  const hiddenNegativeCount = useMemo(() =>
+    results.filter(r => r.kategorie !== "Nichtmiete" && r.betrag <= 0 && r.kategorie !== "Rücklastschrift").length,
     [results]
   );
   
@@ -158,9 +163,8 @@ export function PaymentAssignmentResultsModal({
   const [manualCorrections, setManualCorrections] = useState<Record<number, string | null>>({});
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
-    // Default: select all Miete results with mietvertrag_id
     const defaultSelected = new Set<string>();
-    mietResults.forEach((r, idx) => {
+    displayResults.forEach((r, idx) => {
       if (r.mietvertrag_id && r.selected !== false) {
         defaultSelected.add(`${idx}`);
       }
@@ -175,17 +179,17 @@ export function PaymentAssignmentResultsModal({
   const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
   const [selectedPaymentIdx, setSelectedPaymentIdx] = useState<number | null>(null);
 
-  // Recalculate selected when mietResults change
+  // Recalculate selected when displayResults change
   useEffect(() => {
     const newSelected = new Set<string>();
-    mietResults.forEach((r, idx) => {
+    displayResults.forEach((r, idx) => {
       if (r.selected !== false && r.mietvertrag_id) {
         newSelected.add(`${idx}`);
       }
     });
     setSelectedIds(newSelected);
     setManualCorrections({});
-  }, [mietResults]);
+  }, [displayResults]);
 
   const toggleSelection = (idx: number) => {
     const key = `${idx}`;
@@ -200,7 +204,7 @@ export function PaymentAssignmentResultsModal({
 
   const selectAll = () => {
     const newSet = new Set<string>();
-    mietResults.forEach((_, idx) => newSet.add(`${idx}`));
+    displayResults.forEach((_, idx) => newSet.add(`${idx}`));
     setSelectedIds(newSet);
   };
 
@@ -208,11 +212,10 @@ export function PaymentAssignmentResultsModal({
     setSelectedIds(new Set());
   };
 
-  // Apply manual corrections to get final results
-  const getFinalResults = () => {
-    return mietResults
+  // Apply manual corrections to get final results for DISPLAYED items
+  const getSelectedDisplayResults = () => {
+    return displayResults
       .map((result, originalIdx) => {
-        // Apply manual corrections using the original mietResults index
         const correctedContractId = manualCorrections[originalIdx];
         if (correctedContractId !== undefined) {
           const correctedContract = contracts.find(c => c.id === correctedContractId);
@@ -231,11 +234,11 @@ export function PaymentAssignmentResultsModal({
       .filter((_, originalIdx) => selectedIds.has(`${originalIdx}`));
   };
 
-  const selectedResults = getFinalResults();
+  const selectedResults = getSelectedDisplayResults();
   const selectedWithAssignment = selectedResults.filter(r => r.mietvertrag_id);
   
-  // Check if import is possible (either Miete selected OR Nichtmiete present)
-  const canImport = selectedIds.size > 0 || nichtmieteCount > 0;
+  // Import is ALWAYS possible - all payments get saved
+  const canImport = true;
 
   const handleApply = async () => {
     setIsApplying(true);
@@ -284,7 +287,7 @@ export function PaymentAssignmentResultsModal({
 
   const getSelectedPayment = () => {
     if (selectedPaymentIdx === null) return null;
-    return mietResults[selectedPaymentIdx];
+    return displayResults[selectedPaymentIdx];
   };
 
   const getConfidenceBadge = (confidence: number) => {
@@ -359,7 +362,7 @@ export function PaymentAssignmentResultsModal({
         <div className="flex items-center justify-between py-2 border-b flex-shrink-0">
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">
-              {selectedIds.size} von {mietResults.length} ausgewählt
+              {selectedIds.size} von {displayResults.length} ausgewählt
             </span>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={selectAll} className="h-7 text-xs">
@@ -390,7 +393,7 @@ export function PaymentAssignmentResultsModal({
         )}
 
         {/* Low confidence warning */}
-        {mietResults.some(r => r.confidence < 50) && (
+        {displayResults.some(r => r.confidence < 50) && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-sm flex-shrink-0">
             <div className="flex items-center gap-2 text-red-800">
               <AlertTriangle className="h-4 w-4" />
@@ -407,7 +410,7 @@ export function PaymentAssignmentResultsModal({
                 <TableRow>
                   <TableHead className="w-[40px]">
                     <Checkbox 
-                      checked={selectedIds.size === mietResults.length && mietResults.length > 0}
+                      checked={selectedIds.size === displayResults.length && displayResults.length > 0}
                       onCheckedChange={(checked) => checked ? selectAll() : deselectAll()}
                     />
                   </TableHead>
@@ -424,7 +427,7 @@ export function PaymentAssignmentResultsModal({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mietResults.map((result, idx) => {
+                {displayResults.map((result, idx) => {
                   const isSelected = selectedIds.has(`${idx}`);
                   const currentContractId = getCurrentContractId(idx, result);
                   const isManuallyChanged = manualCorrections[idx] !== undefined;
@@ -518,11 +521,16 @@ export function PaymentAssignmentResultsModal({
           </ScrollArea>
         </div>
 
-        {/* Info about Nichtmiete payments */}
-        {nichtmieteCount > 0 && (
+        {/* Info about automatically saved payments */}
+        {(nichtmieteCount > 0 || hiddenNegativeCount > 0) && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm flex-shrink-0">
             <div className="text-blue-800">
-              <span className="font-medium">{nichtmieteCount} Nichtmiete-Zahlungen</span> werden automatisch für die Nebenkosten-Zuordnung gespeichert.
+              {nichtmieteCount > 0 && (
+                <div><span className="font-medium">{nichtmieteCount} Nichtmiete-Zahlungen</span> werden automatisch gespeichert.</div>
+              )}
+              {hiddenNegativeCount > 0 && (
+                <div><span className="font-medium">{hiddenNegativeCount} Abbuchungen</span> werden automatisch gespeichert.</div>
+              )}
             </div>
           </div>
         )}
@@ -540,10 +548,7 @@ export function PaymentAssignmentResultsModal({
             ) : (
               <>
                 <ArrowRight className="mr-2 h-4 w-4" />
-                 {selectedIds.size > 0 
-                   ? `${selectedIds.size} Zahlungen${nichtmieteCount > 0 ? ` + ${nichtmieteCount} Nichtmiete` : ''} übernehmen`
-                   : `${nichtmieteCount} Nichtmiete übernehmen`
-                }
+                 {`Alle ${results.length} Zahlungen importieren`}
               </>
             )}
           </Button>
@@ -555,7 +560,7 @@ export function PaymentAssignmentResultsModal({
           onOpenChange={setCorrectionDialogOpen}
           payment={getSelectedPayment()}
           contracts={contracts}
-          currentContractId={selectedPaymentIdx !== null ? getCurrentContractId(selectedPaymentIdx, mietResults[selectedPaymentIdx]) : null}
+          currentContractId={selectedPaymentIdx !== null ? getCurrentContractId(selectedPaymentIdx, displayResults[selectedPaymentIdx]) : null}
           onSelectContract={handleCorrectionSelect}
         />
       </DialogContent>
