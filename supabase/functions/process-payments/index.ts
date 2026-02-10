@@ -513,9 +513,10 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): Proce
     // OR one distinctive name (6+ chars) that's unlikely to be coincidental
     // Lowered from 7 to 6 chars for names like "Razgeen"
     if (matchedParts >= 2 || (matchedParts === 1 && matchedNames[0]?.length >= 6)) {
-      const isKaution = verwendungszweck.includes("kaution") && 
-                        contract.kaution && 
-                        Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
+      const kautionInText = verwendungszweck.includes("kaution");
+      const kautionBetragMatch = contract.kaution ? Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ : false;
+      const isKaution = kautionInText && contract.kaution && kautionBetragMatch;
+      console.log(`Name-Match result for ${contract.mieter}: betrag=${payment.betrag}, kaution=${contract.kaution}, kautionInText=${kautionInText}, kautionBetragMatch=${kautionBetragMatch}, isKaution=${isKaution}`);
       return {
         ...payment,
         mietvertrag_id: contract.id,
