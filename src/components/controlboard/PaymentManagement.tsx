@@ -149,15 +149,28 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const { data: allPayments, isLoading: allPaymentsLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
     queryFn: async () => {
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('zahlungen')
-        .select('*')
-        .order('buchungsdatum', { ascending: false });
-
-      if (paymentsError) throw paymentsError;
+      // Fetch ALL payments - Supabase defaults to 1000 rows, so we paginate
+      let allData: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data: paymentsData, error: paymentsError } = await supabase
+          .from('zahlungen')
+          .select('*')
+          .order('buchungsdatum', { ascending: false })
+          .range(from, from + pageSize - 1);
+        
+        if (paymentsError) throw paymentsError;
+        if (!paymentsData || paymentsData.length === 0) break;
+        
+        allData = [...allData, ...paymentsData];
+        if (paymentsData.length < pageSize) break;
+        from += pageSize;
+      }
 
       const transformed: ZahlungWithDetails[] = await Promise.all(
-        (paymentsData || []).map(async (zahlung: any) => {
+        allData.map(async (zahlung: any) => {
           let immobilie_name = null;
           let immobilie_adresse = null;
           let einheit_id = null;
