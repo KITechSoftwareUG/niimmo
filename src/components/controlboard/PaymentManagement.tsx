@@ -582,16 +582,16 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     const mietResultsToApply = selectedResults || aiResults.filter(r => r.kategorie === "Miete");
     const selectedIds = new Set(mietResultsToApply.map((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`));
     
-    // Also save all Nichtmiete payments (they go to Nebenkosten workflow later)
-    const nichtmieteResults = aiResults.filter(r => r.kategorie === "Nichtmiete");
+    // All OTHER payments (Nichtmiete, Mietkaution, Rücklastschrift, Ignorieren, etc.)
+    const otherResults = aiResults.filter(r => r.kategorie !== "Miete");
     
     // Unselected Miete payments should ALSO be saved, but without mietvertrag_id
     const unselectedMiete = aiResults
       .filter(r => r.kategorie === "Miete" && !selectedIds.has(`${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`))
       .map(r => ({ ...r, mietvertrag_id: null }));
     
-    // Combine ALL: selected Miete (with assignment) + unselected Miete (without) + Nichtmiete
-    const allResultsToSave = [...mietResultsToApply, ...unselectedMiete, ...nichtmieteResults];
+    // Combine ALL: selected Miete (with assignment) + unselected Miete (without) + ALL other categories
+    const allResultsToSave = [...mietResultsToApply, ...unselectedMiete, ...otherResults];
     
     // Insert/update all payments
     for (const result of allResultsToSave) {
