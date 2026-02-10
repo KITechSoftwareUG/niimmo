@@ -647,31 +647,50 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     // Insert/update all payments
     for (const result of allResultsToSave) {
       // First, check if this payment already exists
-      // Handle null/empty IBAN correctly
+      // Use buchungsdatum + betrag + iban + verwendungszweck for reliable matching
       const ibanValue = result.iban?.trim() || null;
+      const vzValue = result.verwendungszweck?.trim() || null;
+      
       let query = supabase
         .from('zahlungen')
-        .select('id')
+        .select('id, kategorie, mietvertrag_id')
         .eq('buchungsdatum', result.buchungsdatum)
         .eq('betrag', result.betrag);
       
       if (ibanValue) {
         query = query.eq('iban', ibanValue);
       } else {
-        query = query.or('iban.is.null,iban.eq.');
+        query = query.is('iban', null);
+      }
+      
+      if (vzValue) {
+        query = query.eq('verwendungszweck', vzValue);
+      } else {
+        query = query.is('verwendungszweck', null);
       }
       
       const { data: existing } = await query.maybeSingle();
       
       if (existing) {
-        // Payment exists - update it
+        // Payment exists - only update if not already manually categorized
+        // Don't overwrite manually set categories like "Nebenkosten" unless user explicitly corrected
+        const isManuallySet = existing.kategorie === 'Nebenkosten' && result.kategorie !== 'Nebenkosten';
+        const hasExistingAssignment = existing.mietvertrag_id && !result.mietvertrag_id;
+        
+        if (isManuallySet || hasExistingAssignment) {
+          console.log(`Skipping update for existing payment ${existing.id} - already manually categorized as ${existing.kategorie}`);
+          continue;
+        }
+        
+        // Build update payload - NEVER overwrite zugeordneter_monat (let DB trigger handle it)
+        const updatePayload: Record<string, any> = {
+          mietvertrag_id: result.mietvertrag_id,
+          kategorie: result.kategorie as any,
+        };
+        
         const { error } = await supabase
           .from('zahlungen')
-          .update({ 
-            mietvertrag_id: result.mietvertrag_id, 
-            kategorie: result.kategorie as any,
-            zugeordneter_monat: result.zugeordneter_monat || null
-          })
+          .update(updatePayload)
           .eq('id', existing.id);
         
         if (error) console.error("Assignment update error:", error);
@@ -693,17 +712,17 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         }
       } else {
         // Payment doesn't exist - insert it
+        // zugeordneter_monat is NOT set here - the DB trigger set_zugeordneter_monat_trigger handles it automatically
         const { error } = await supabase
           .from('zahlungen')
           .insert({
             buchungsdatum: result.buchungsdatum,
             betrag: result.betrag,
-            iban: result.iban || null,
-            verwendungszweck: result.verwendungszweck || null,
-            empfaengername: result.empfaengername || null,
+            iban: ibanValue,
+            verwendungszweck: vzValue,
+            empfaengername: result.empfaengername?.trim() || null,
             mietvertrag_id: result.mietvertrag_id || null,
             kategorie: result.kategorie as any || null,
-            zugeordneter_monat: result.zugeordneter_monat || null
           });
         
         if (error) console.error("Payment insert error:", error);
