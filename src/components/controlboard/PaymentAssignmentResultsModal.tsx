@@ -211,9 +211,9 @@ export function PaymentAssignmentResultsModal({
   // Apply manual corrections to get final results
   const getFinalResults = () => {
     return mietResults
-      .filter((_, idx) => selectedIds.has(`${idx}`))
-      .map((result, idx) => {
-        const correctedContractId = manualCorrections[idx];
+      .map((result, originalIdx) => {
+        // Apply manual corrections using the original mietResults index
+        const correctedContractId = manualCorrections[originalIdx];
         if (correctedContractId !== undefined) {
           const correctedContract = contracts.find(c => c.id === correctedContractId);
           return {
@@ -227,7 +227,8 @@ export function PaymentAssignmentResultsModal({
           };
         }
         return result;
-      });
+      })
+      .filter((_, originalIdx) => selectedIds.has(`${originalIdx}`));
   };
 
   const selectedResults = getFinalResults();

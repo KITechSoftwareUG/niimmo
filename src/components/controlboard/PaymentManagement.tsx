@@ -752,7 +752,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             <TabsTrigger value="unzugeordnet" className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               <span className="hidden sm:inline">Nicht zugeordnet</span>
-              <span className="sm:hidden">Offen</span>
+              <span className="sm:hidden">N. zugeordnet</span>
               {unassignedPayments && unassignedPayments.length > 0 && (
                 <Badge variant="destructive" className="ml-1">{unassignedPayments.length}</Badge>
               )}
@@ -891,7 +891,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                       </div>
                       <div className="flex items-center gap-2">
                         <Checkbox id="nicht-zugeordnet" checked={showOnlyNichtZugeordnet} onCheckedChange={(c) => { setShowOnlyNichtZugeordnet(!!c); if (c) setShowOnlyZugeordnet(false); }} />
-                        <label htmlFor="nicht-zugeordnet" className="text-xs cursor-pointer">Offen</label>
+                        <label htmlFor="nicht-zugeordnet" className="text-xs cursor-pointer">Nicht zugeordnet</label>
                       </div>
 
                       <Popover>
