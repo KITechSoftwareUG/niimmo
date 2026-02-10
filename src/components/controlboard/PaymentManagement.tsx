@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { ArrowLeft, Upload, Search, FileText, Calendar, Bot, Euro, Building2, Home, User, Edit2, X, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,6 +188,76 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     },
   });
 
+  // Server-side search for tenant/property names (not available in lazy-loaded local data)
+  const [serverSearchIds, setServerSearchIds] = useState<Set<string> | null>(null);
+  const [isServerSearching, setIsServerSearching] = useState(false);
+
+  const performServerSearch = useCallback(async (term: string) => {
+    if (!term || term.length < 2) {
+      setServerSearchIds(null);
+      return;
+    }
+    setIsServerSearching(true);
+    try {
+      // Search by tenant name via mietvertrag_mieter join
+      const { data: mieterMatches } = await supabase
+        .from('mieter')
+        .select('id, vorname, nachname')
+        .or(`vorname.ilike.%${term}%,nachname.ilike.%${term}%`);
+
+      let contractPaymentIds = new Set<string>();
+      if (mieterMatches && mieterMatches.length > 0) {
+        const mieterIds = mieterMatches.map(m => m.id);
+        const { data: mmLinks } = await supabase
+          .from('mietvertrag_mieter')
+          .select('mietvertrag_id')
+          .in('mieter_id', mieterIds);
+        
+        if (mmLinks && mmLinks.length > 0) {
+          const contractIds = mmLinks.map(l => l.mietvertrag_id);
+          const { data: zahlungen } = await supabase
+            .from('zahlungen')
+            .select('id')
+            .in('mietvertrag_id', contractIds);
+          zahlungen?.forEach(z => contractPaymentIds.add(z.id));
+        }
+      }
+
+      // Search by property name/address
+      const { data: immobilienMatches } = await supabase
+        .from('immobilien')
+        .select('id')
+        .or(`name.ilike.%${term}%,adresse.ilike.%${term}%`);
+
+      if (immobilienMatches && immobilienMatches.length > 0) {
+        const immIds = immobilienMatches.map(i => i.id);
+        const { data: zahlungen } = await supabase
+          .from('zahlungen')
+          .select('id')
+          .in('immobilie_id', immIds);
+        zahlungen?.forEach(z => contractPaymentIds.add(z.id));
+      }
+
+      setServerSearchIds(contractPaymentIds);
+    } catch (err) {
+      console.error('Server search error:', err);
+      setServerSearchIds(null);
+    } finally {
+      setIsServerSearching(false);
+    }
+  }, []);
+
+  // Debounced server search
+  useEffect(() => {
+    const term = allPaymentsSearchTerm.trim().toLowerCase();
+    if (!term || term.length < 2) {
+      setServerSearchIds(null);
+      return;
+    }
+    const timer = setTimeout(() => performServerSearch(term), 300);
+    return () => clearTimeout(timer);
+  }, [allPaymentsSearchTerm, performServerSearch]);
+
   // Lazy-load details for expanded months only
   const [enrichedPayments, setEnrichedPayments] = useState<Record<string, Record<string, ZahlungWithDetails>>>({});
   const [enrichingMonths, setEnrichingMonths] = useState<Set<string>>(new Set());
@@ -307,20 +377,26 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       // Search filter
       if (allPaymentsSearchTerm) {
         const search = allPaymentsSearchTerm.toLowerCase().trim();
+        // Check enriched data if available
+        const enrichedZ = Object.values(enrichedPayments).reduce((acc, month) => ({ ...acc, ...month }), {} as Record<string, ZahlungWithDetails>);
+        const enriched = enrichedZ[zahlung.id];
+        
         const textMatch = (
           zahlung.verwendungszweck?.toLowerCase().includes(search) ||
           zahlung.empfaengername?.toLowerCase().includes(search) ||
           zahlung.iban?.toLowerCase().includes(search) ||
-          zahlung.mieter_name?.toLowerCase().includes(search) ||
-          zahlung.immobilie_name?.toLowerCase().includes(search) ||
-          zahlung.immobilie_adresse?.toLowerCase().includes(search) ||
+          (enriched?.mieter_name || zahlung.mieter_name)?.toLowerCase().includes(search) ||
+          (enriched?.immobilie_name || zahlung.immobilie_name)?.toLowerCase().includes(search) ||
+          (enriched?.immobilie_adresse || zahlung.immobilie_adresse)?.toLowerCase().includes(search) ||
           zahlung.kategorie?.toLowerCase().includes(search) ||
           zahlung.zugeordneter_monat?.toLowerCase().includes(search)
         );
         const betragMatch = zahlung.betrag?.toString().includes(search);
         const dateMatch = format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy').includes(search);
+        // Also include if server-side search found this payment (by tenant/property name)
+        const serverMatch = serverSearchIds?.has(zahlung.id) || false;
         
-        if (!textMatch && !betragMatch && !dateMatch) return false;
+        if (!textMatch && !betragMatch && !dateMatch && !serverMatch) return false;
       }
       
       if (selectedKategorie) {
@@ -358,7 +434,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       
       return true;
     });
-  }, [allPayments, allPaymentsSearchTerm, selectedKategorie, showOnlyZugeordnet, showOnlyNichtZugeordnet, dateRange]);
+  }, [allPayments, allPaymentsSearchTerm, selectedKategorie, showOnlyZugeordnet, showOnlyNichtZugeordnet, dateRange, serverSearchIds, enrichedPayments]);
 
   const sortedAllPayments = useMemo(() => {
     return [...filteredAllPayments].sort((a, b) => {
@@ -938,11 +1014,16 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Suchen..."
+                        placeholder="Suchen (Name, IBAN, Verwendungszweck, Betrag...)"
                         value={allPaymentsSearchTerm}
                         onChange={(e) => setAllPaymentsSearchTerm(e.target.value)}
-                        className="pl-9 bg-white"
+                        className="pl-9 bg-white min-w-[300px]"
                       />
+                      {isServerSearching && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="h-4 w-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                        </div>
+                      )}
                     </div>
 
                     {/* Filters */}
