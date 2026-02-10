@@ -468,7 +468,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       const betrag = row["Betrag"] || row["Umsatz"];
       const iban = row["Kontonummer/IBAN"] || row["IBAN des Absenders"] || row["IBAN"] || row["Auftraggeber-Konto"] || row["Auftragskonto"];
       const verwendungszweck = row["Verwendungszweck"] || row["Buchungstext"];
-      const empfaengername = row["Beguenstigter/Zahlungspflichtiger"] || row["Name"] || row["Empfänger"] || row["Begünstigter/Zahlungspflichtiger"] || row["Auftraggeber/Begünstigter"] || row["Beguenstigter"] || row["Begünstigter"];
+      const empfaengername = row["Empfaenger"] || row["Beguenstigter/Zahlungspflichtiger"] || row["Name"] || row["Empfänger"] || row["Begünstigter/Zahlungspflichtiger"] || row["Auftraggeber/Begünstigter"] || row["Beguenstigter"] || row["Begünstigter"] || row["AbweichenderEmpfaenger"];
 
       if (!buchungsdatumRaw || !betrag) continue;
 
@@ -483,7 +483,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
       const buchungsdatum = toIsoDate(buchungsdatumRaw);
       const wertstellungsdatum = wertstellungsdatumRaw ? toIsoDate(wertstellungsdatumRaw) : undefined;
-      const betragNum = parseFloat(betrag.replace('.', '').replace(',', '.'));
+      const betragNum = parseFloat(betrag.replace(/\s/g, '').replace('.', '').replace(',', '.'));
 
       console.log(`CSV row ${i}: empfaengername="${empfaengername}", verwendungszweck="${verwendungszweck}", betrag=${betragNum}, iban="${iban}"`);
       payments.push({ buchungsdatum, wertstellungsdatum, betrag: betragNum, iban, verwendungszweck, empfaengername });
