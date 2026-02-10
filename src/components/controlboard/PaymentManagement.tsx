@@ -377,26 +377,42 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       // Search filter
       if (allPaymentsSearchTerm) {
         const search = allPaymentsSearchTerm.toLowerCase().trim();
-        // Check enriched data if available
-        const enrichedZ = Object.values(enrichedPayments).reduce((acc, month) => ({ ...acc, ...month }), {} as Record<string, ZahlungWithDetails>);
-        const enriched = enrichedZ[zahlung.id];
         
-        const textMatch = (
-          zahlung.verwendungszweck?.toLowerCase().includes(search) ||
-          zahlung.empfaengername?.toLowerCase().includes(search) ||
-          zahlung.iban?.toLowerCase().includes(search) ||
-          (enriched?.mieter_name || zahlung.mieter_name)?.toLowerCase().includes(search) ||
-          (enriched?.immobilie_name || zahlung.immobilie_name)?.toLowerCase().includes(search) ||
-          (enriched?.immobilie_adresse || zahlung.immobilie_adresse)?.toLowerCase().includes(search) ||
-          zahlung.kategorie?.toLowerCase().includes(search) ||
-          zahlung.zugeordneter_monat?.toLowerCase().includes(search)
-        );
-        const betragMatch = zahlung.betrag?.toString().includes(search);
-        const dateMatch = format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy').includes(search);
-        // Also include if server-side search found this payment (by tenant/property name)
-        const serverMatch = serverSearchIds?.has(zahlung.id) || false;
-        
-        if (!textMatch && !betragMatch && !dateMatch && !serverMatch) return false;
+        // If server search has completed, use ONLY server results for tenant/property matching
+        // This prevents partial string matches on unrelated fields from polluting results
+        if (serverSearchIds !== null) {
+          // Server search done: match if server found this payment OR if direct payment fields match exactly
+          const serverMatch = serverSearchIds.has(zahlung.id);
+          const directFieldMatch = (
+            zahlung.verwendungszweck?.toLowerCase().includes(search) ||
+            zahlung.empfaengername?.toLowerCase().includes(search) ||
+            zahlung.iban?.toLowerCase().includes(search) ||
+            zahlung.kategorie?.toLowerCase().includes(search)
+          );
+          const betragMatch = zahlung.betrag?.toString().includes(search);
+          const dateMatch = format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy').includes(search);
+          
+          if (!serverMatch && !directFieldMatch && !betragMatch && !dateMatch) return false;
+        } else {
+          // Server search not yet done or term too short: use local fields only
+          const enrichedZ = Object.values(enrichedPayments).reduce((acc, month) => ({ ...acc, ...month }), {} as Record<string, ZahlungWithDetails>);
+          const enriched = enrichedZ[zahlung.id];
+          
+          const textMatch = (
+            zahlung.verwendungszweck?.toLowerCase().includes(search) ||
+            zahlung.empfaengername?.toLowerCase().includes(search) ||
+            zahlung.iban?.toLowerCase().includes(search) ||
+            (enriched?.mieter_name || zahlung.mieter_name)?.toLowerCase().includes(search) ||
+            (enriched?.immobilie_name || zahlung.immobilie_name)?.toLowerCase().includes(search) ||
+            (enriched?.immobilie_adresse || zahlung.immobilie_adresse)?.toLowerCase().includes(search) ||
+            zahlung.kategorie?.toLowerCase().includes(search) ||
+            zahlung.zugeordneter_monat?.toLowerCase().includes(search)
+          );
+          const betragMatch = zahlung.betrag?.toString().includes(search);
+          const dateMatch = format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy').includes(search);
+          
+          if (!textMatch && !betragMatch && !dateMatch) return false;
+        }
       }
       
       if (selectedKategorie) {
