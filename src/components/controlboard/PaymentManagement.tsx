@@ -704,6 +704,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         throw new Error(result.error || "AI-Verarbeitung fehlgeschlagen");
       }
       
+      console.log('Edge function response:', JSON.stringify(result.stats), 'results count:', result.results?.length, 'duplicates count:', result.duplicates?.length);
+      console.log('Result categories:', result.results?.map((r: any) => r.kategorie));
+      
       const enrichedResults = await enrichResults(result.results);
       
       setAiResults(enrichedResults);
