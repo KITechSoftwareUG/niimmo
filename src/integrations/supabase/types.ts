@@ -872,6 +872,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sonderfall_regeln: {
+        Row: {
+          aktiv: boolean
+          aktualisiert_am: string
+          beschreibung: string | null
+          confidence: number
+          erstellt_am: string
+          id: string
+          match_typ: string
+          match_wert: string
+          name: string
+          ziel_kategorie: string
+          ziel_mieter_name: string | null
+        }
+        Insert: {
+          aktiv?: boolean
+          aktualisiert_am?: string
+          beschreibung?: string | null
+          confidence?: number
+          erstellt_am?: string
+          id?: string
+          match_typ: string
+          match_wert: string
+          name: string
+          ziel_kategorie?: string
+          ziel_mieter_name?: string | null
+        }
+        Update: {
+          aktiv?: boolean
+          aktualisiert_am?: string
+          beschreibung?: string | null
+          confidence?: number
+          erstellt_am?: string
+          id?: string
+          match_typ?: string
+          match_wert?: string
+          name?: string
+          ziel_kategorie?: string
+          ziel_mieter_name?: string | null
+        }
+        Relationships: []
+      }
       system_logs: {
         Row: {
           created_at: string | null

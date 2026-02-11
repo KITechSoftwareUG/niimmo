@@ -9,6 +9,77 @@ const corsHeaders = {
 // BG-Zahlung IBAN (Jobcenter/Sozialamt - immer gleiche IBAN vom Staat)
 const BG_ZAHLUNG_IBAN = "DE94760000000076001601";
 
+// ============= ROBUSTER BETRAGSPARSER =============
+
+/**
+ * Parst Beträge aus deutschen und englischen Formaten:
+ * "1.250,00" → 1250.00  (DE mit Tausender)
+ * "1,250.00" → 1250.00  (EN mit Tausender)
+ * "1250,50"  → 1250.50  (DE ohne Tausender)
+ * "1250.50"  → 1250.50  (EN ohne Tausender)
+ * "5000 00"  → 5000.00  (Leerzeichen als Dezimal)
+ * "-1.250,00"→ -1250.00 (Negativ)
+ * "1.250,00-"→ -1250.00 (Negativ hinten)
+ */
+function parseAmount(raw: string | number): number {
+  if (typeof raw === "number") return raw;
+  if (!raw || typeof raw !== "string") return 0;
+
+  let s = raw.trim();
+
+  // Vorzeichen erkennen (vorne oder hinten)
+  let negative = false;
+  if (s.startsWith("-")) { negative = true; s = s.substring(1).trim(); }
+  else if (s.endsWith("-")) { negative = true; s = s.slice(0, -1).trim(); }
+
+  // Leerzeichen als Dezimaltrenner erkennen: "5000 00" → "5000.00"
+  const spaceDecimalMatch = s.match(/^(\d+)\s(\d{2})$/);
+  if (spaceDecimalMatch) {
+    const val = parseFloat(`${spaceDecimalMatch[1]}.${spaceDecimalMatch[2]}`);
+    return negative ? -val : val;
+  }
+
+  // Alle Leerzeichen entfernen
+  s = s.replace(/\s/g, "");
+
+  // Bestimme ob Komma oder Punkt der Dezimaltrenner ist
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+
+  if (lastComma > lastDot) {
+    // Komma ist Dezimaltrenner (DE-Format): "1.250,00" oder "250,50"
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (lastDot > lastComma) {
+    // Punkt ist Dezimaltrenner (EN-Format): "1,250.00" oder "250.50"
+    s = s.replace(/,/g, "");
+  } else {
+    // Nur eines oder keines vorhanden
+    s = s.replace(",", ".");
+  }
+
+  const val = parseFloat(s);
+  if (isNaN(val)) return 0;
+  return negative ? -val : val;
+}
+
+// ============= HASH-BASIERTE DUPLIKATERKENNUNG =============
+
+async function computePaymentHash(payment: Payment): Promise<string> {
+  const raw = [
+    payment.buchungsdatum || "",
+    String(payment.betrag),
+    (payment.iban || "").trim(),
+    (payment.verwendungszweck || "").trim(),
+    (payment.empfaengername || "").trim()
+  ].join("|");
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(raw);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 // ============= INTERFACES =============
 
 interface Payment {
@@ -49,6 +120,18 @@ interface NichtmieteRegel {
   regel_typ: "empfaenger_contains" | "empfaenger_equals" | "iban_equals" | "verwendungszweck_contains";
   wert: string;
   beschreibung: string | null;
+  aktiv: boolean;
+}
+
+interface SonderfallRegel {
+  id: string;
+  name: string;
+  beschreibung: string | null;
+  match_typ: "name_in_verwendungszweck" | "iban_equals" | "verwendungszweck_contains";
+  match_wert: string;
+  ziel_kategorie: string;
+  ziel_mieter_name: string | null;
+  confidence: number;
   aktiv: boolean;
 }
 
@@ -200,6 +283,20 @@ async function getNichtmieteRegeln(supabase: any): Promise<NichtmieteRegel[]> {
   return data || [];
 }
 
+async function getSonderfallRegeln(supabase: any): Promise<SonderfallRegel[]> {
+  const { data, error } = await supabase
+    .from("sonderfall_regeln")
+    .select("*")
+    .eq("aktiv", true);
+  
+  if (error) {
+    console.error("Error fetching sonderfall_regeln:", error);
+    return [];
+  }
+  
+  return data || [];
+}
+
 async function getContractContext(supabase: any): Promise<ContractInfo[]> {
   // Also include beendet contracts for proper date-based matching
   const { data: contracts, error } = await supabase
@@ -331,12 +428,56 @@ function categorizePaymentType(
 
 const BETRAG_TOLERANZ = 5; // ±5€ tolerance
 
-// Special case: Noah Weich's payments often say "Mietkaution" but are actually rent
-const NOAH_WEICH_CONTRACT_ID = "00000000-0000-0000-0000-000000307001";
+// ============= SONDERFALL-PRÜFUNG (DB-basiert) =============
 
-function isNoahWeichPayment(verwendungszweck: string): boolean {
-  const vzLower = verwendungszweck.toLowerCase();
-  return vzLower.includes("weich") && (vzLower.includes("noah") || vzLower.includes("mietkaution"));
+function checkSonderfallRegeln(
+  payment: Payment, 
+  sonderfallRegeln: SonderfallRegel[], 
+  contracts: ContractInfo[]
+): ProcessedPayment | null {
+  const verwendungszweck = (payment.verwendungszweck || "").toLowerCase();
+  
+  for (const regel of sonderfallRegeln) {
+    let matched = false;
+    const wertLower = regel.match_wert.toLowerCase();
+    
+    switch (regel.match_typ) {
+      case "name_in_verwendungszweck":
+        matched = verwendungszweck.includes(wertLower);
+        break;
+      case "iban_equals":
+        matched = (payment.iban || "").trim() === regel.match_wert.trim();
+        break;
+      case "verwendungszweck_contains":
+        matched = verwendungszweck.includes(wertLower);
+        break;
+    }
+    
+    if (!matched) continue;
+    
+    // Finde passenden Vertrag wenn ziel_mieter_name gesetzt
+    let targetContract: ContractInfo | null = null;
+    if (regel.ziel_mieter_name) {
+      const nameLower = regel.ziel_mieter_name.toLowerCase();
+      const matchingContracts = contracts.filter(c =>
+        c.mieterNamen.some(n => n.includes(nameLower) || nameLower.includes(n))
+      );
+      targetContract = selectBestContractByDate(payment, matchingContracts);
+    }
+    
+    console.log(`Sonderfall-Regel "${regel.name}" greift für Zahlung: ${payment.verwendungszweck}`);
+    
+    return {
+      ...payment,
+      mietvertrag_id: targetContract?.id || null,
+      kategorie: regel.ziel_kategorie,
+      zuordnungsgrund: `Sonderfall-Regel: ${regel.name}`,
+      confidence: regel.confidence,
+      selected: true
+    };
+  }
+  
+  return null;
 }
 
 // Helper to check if a payment date falls within a contract's period
@@ -400,26 +541,14 @@ function selectBestContractByDate(payment: Payment, matchingContracts: ContractI
   return matchingContracts[0];
 }
 
-function matchPaymentByRules(payment: Payment, contracts: ContractInfo[]): ProcessedPayment | null {
+function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonderfallRegeln?: SonderfallRegel[]): ProcessedPayment | null {
   const verwendungszweck = payment.verwendungszweck?.toLowerCase() || "";
   const empfaenger = payment.empfaengername?.toLowerCase() || "";
   
-  // SPECIAL CASE: Noah Weich - payments say "Mietkaution" but are actually rent
-  // This needs to be checked FIRST, before any other matching!
-  if (isNoahWeichPayment(payment.verwendungszweck || "")) {
-    // Find Noah Weich's active contract based on payment date
-    const noahContracts = contracts.filter(c => 
-      c.mieterNamen.includes("noah") || c.mieterNamen.includes("weich")
-    );
-    const noahContract = selectBestContractByDate(payment, noahContracts);
-    return {
-      ...payment,
-      mietvertrag_id: noahContract?.id || NOAH_WEICH_CONTRACT_ID,
-      kategorie: "Miete", // Always rent, not deposit!
-      zuordnungsgrund: "Sonderfall Noah Weich: Verwendungszweck sagt Kaution, ist aber Miete",
-      confidence: 100,
-      selected: true
-    };
+  // SONDERFALL-REGELN aus DB (ersetzt hardcoded Sonderfälle)
+  if (sonderfallRegeln && sonderfallRegeln.length > 0) {
+    const sonderfallResult = checkSonderfallRegeln(payment, sonderfallRegeln, contracts);
+    if (sonderfallResult) return sonderfallResult;
   }
   
   // 1. IBAN-Match (highest priority - includes weitere_bankkonten)
@@ -775,18 +904,47 @@ serve(async (req) => {
 
     console.log(`Received ${payments.length} payments (dryRun: ${dryRun})`);
 
-    // Load DB rules and contracts in parallel
-    const [nichtmieteRegeln, contracts] = await Promise.all([
+    // Load DB rules, contracts, and sonderfall rules in parallel
+    const [nichtmieteRegeln, contracts, sonderfallRegeln] = await Promise.all([
       getNichtmieteRegeln(supabase),
-      getContractContext(supabase)
+      getContractContext(supabase),
+      getSonderfallRegeln(supabase)
     ]);
     
-    console.log(`Loaded ${nichtmieteRegeln.length} Nichtmiete-Regeln, ${contracts.length} contracts`);
+    console.log(`Loaded ${nichtmieteRegeln.length} Nichtmiete-Regeln, ${sonderfallRegeln.length} Sonderfall-Regeln, ${contracts.length} contracts`);
     const contractContextString = JSON.stringify(contracts, null, 2);
 
-    // ============= DUPLIKATSPRÜFUNG =============
+    // ============= DUPLIKATSPRÜFUNG (Hash + Fallback) =============
+    
+    // Schritt 1: Hashes für alle eingehenden Zahlungen berechnen
+    const paymentHashes = await Promise.all(
+      payments.map(async (payment: Payment) => ({
+        payment,
+        hash: await computePaymentHash(payment)
+      }))
+    );
+    
+    // Schritt 2: Intra-Batch Duplikate erkennen (gleicher Hash im selben Upload)
+    const seenHashes = new Set<string>();
+    const intraBatchDuplicates: typeof paymentHashes = [];
+    const uniqueInBatch: typeof paymentHashes = [];
+    
+    for (const item of paymentHashes) {
+      if (seenHashes.has(item.hash)) {
+        intraBatchDuplicates.push(item);
+      } else {
+        seenHashes.add(item.hash);
+        uniqueInBatch.push(item);
+      }
+    }
+    
+    if (intraBatchDuplicates.length > 0) {
+      console.log(`${intraBatchDuplicates.length} Intra-Batch-Duplikate entfernt`);
+    }
+    
+    // Schritt 3: DB-Duplikatsprüfung (bestehend + Hash-Vergleich)
     const duplicateChecks = await Promise.all(
-      payments.map(async (payment: Payment) => {
+      uniqueInBatch.map(async ({ payment, hash }) => {
         const betrag = payment.betrag;
         const iban = payment.iban?.trim() || "";
         const verwendungszweck = payment.verwendungszweck?.trim() || "";
@@ -795,22 +953,43 @@ serve(async (req) => {
           new Set([payment.buchungsdatum, payment.wertstellungsdatum].filter(Boolean) as string[])
         );
 
-        let match: { id: string; iban: string | null; verwendungszweck: string | null; buchungsdatum: string } | undefined;
+        let match: { id: string } | undefined;
 
+        // Primäre Prüfung: Exakter Match auf Datum + Betrag + IBAN + Verwendungszweck
         if (candidateDates.length > 0) {
           const { data } = await supabase
             .from("zahlungen")
-            .select("id, iban, verwendungszweck, buchungsdatum")
+            .select("id, iban, verwendungszweck, buchungsdatum, empfaengername")
             .eq("betrag", betrag)
             .in("buchungsdatum", candidateDates)
             .limit(50);
 
           const rows = (data as any[]) ?? [];
-          match = rows.find((row) => {
-            const dbIban = (row.iban ?? "").toString().trim();
-            const dbVz = (row.verwendungszweck ?? "").toString().trim();
-            return dbIban === iban && dbVz === verwendungszweck;
-          });
+          
+          // Hash-basierter Vergleich: Berechne Hash für jeden DB-Eintrag
+          for (const row of rows) {
+            const dbPayment: Payment = {
+              buchungsdatum: row.buchungsdatum,
+              betrag: row.betrag ?? betrag,
+              iban: (row.iban ?? "").toString().trim(),
+              verwendungszweck: (row.verwendungszweck ?? "").toString().trim(),
+              empfaengername: (row.empfaengername ?? "").toString().trim()
+            };
+            const dbHash = await computePaymentHash(dbPayment);
+            if (dbHash === hash) {
+              match = { id: row.id };
+              break;
+            }
+          }
+          
+          // Fallback: Klassischer Vergleich (IBAN + Verwendungszweck)
+          if (!match) {
+            match = rows.find((row) => {
+              const dbIban = (row.iban ?? "").toString().trim();
+              const dbVz = (row.verwendungszweck ?? "").toString().trim();
+              return dbIban === iban && dbVz === verwendungszweck;
+            });
+          }
         }
 
         // Fallback: date drift ±5 days
@@ -851,12 +1030,19 @@ serve(async (req) => {
     );
 
     const newPayments = duplicateChecks.filter(c => !c.isDuplicate).map(c => c.payment);
-    const duplicates = duplicateChecks.filter(c => c.isDuplicate).map(c => ({
-      ...c.payment,
-      existingId: c.existingId
-    }));
+    const duplicates = [
+      ...duplicateChecks.filter(c => c.isDuplicate).map(c => ({
+        ...c.payment,
+        existingId: c.existingId
+      })),
+      ...intraBatchDuplicates.map(({ payment }) => ({
+        ...payment,
+        existingId: null,
+        zuordnungsgrund: "Intra-Batch-Duplikat"
+      }))
+    ];
 
-    console.log(`Duplikatsprüfung: ${newPayments.length} neue, ${duplicates.length} bereits vorhanden`);
+    console.log(`Duplikatsprüfung: ${newPayments.length} neue, ${duplicates.length} bereits vorhanden (davon ${intraBatchDuplicates.length} Intra-Batch)`);
 
     if (newPayments.length === 0) {
       return new Response(
@@ -884,21 +1070,11 @@ serve(async (req) => {
 
     // PHASE 1: Fast rule-based matching
     for (const payment of newPayments) {
-      // FIRST: Check Noah Weich special case BEFORE any other logic
-      // This ensures BG-Zahlungen for Noah Weich are correctly handled as Miete
-      if (isNoahWeichPayment(payment.verwendungszweck || "")) {
-        const noahContract = contracts.find(c => 
-          c.mieterNamen.includes("noah") || c.mieterNamen.includes("weich")
-        );
-        results.push({
-          ...payment,
-          mietvertrag_id: noahContract?.id || NOAH_WEICH_CONTRACT_ID,
-          kategorie: "Miete",
-          zuordnungsgrund: "Sonderfall Noah Weich: Verwendungszweck sagt Kaution, ist aber Miete",
-          confidence: 100,
-          selected: true
-        });
-        continue; // Skip all other processing for this payment
+      // FIRST: Check DB-basierte Sonderfall-Regeln BEFORE any other logic
+      const sonderfallResult = checkSonderfallRegeln(payment, sonderfallRegeln, contracts);
+      if (sonderfallResult) {
+        results.push(sonderfallResult);
+        continue;
       }
       
       const paymentType = categorizePaymentType(payment, nichtmieteRegeln);
@@ -913,7 +1089,7 @@ serve(async (req) => {
           selected: true
         });
       } else if (paymentType === "retoure") {
-        const ruleMatch = matchPaymentByRules(payment, contracts);
+        const ruleMatch = matchPaymentByRules(payment, contracts, sonderfallRegeln);
         if (ruleMatch) {
           results.push({
             ...ruleMatch,
@@ -926,7 +1102,7 @@ serve(async (req) => {
       } else if (paymentType === "bg_zahlung") {
         needsAI.push({ payment, type: "bg_zahlung" });
       } else {
-        const ruleMatch = matchPaymentByRules(payment, contracts);
+        const ruleMatch = matchPaymentByRules(payment, contracts, sonderfallRegeln);
         if (ruleMatch) {
           results.push(ruleMatch);
         } else {
