@@ -22,6 +22,56 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { NebenkostenZuordnungTab } from "./NebenkostenZuordnungTab";
+
+/**
+ * Robuster Betragsparser für deutsche und englische Formate:
+ * "1.250,00" → 1250.00  (DE mit Tausender)
+ * "1,250.00" → 1250.00  (EN mit Tausender)
+ * "1250,50"  → 1250.50  (DE ohne Tausender)
+ * "5000 00"  → 5000.00  (Leerzeichen als Dezimal)
+ * "-1.250,00"→ -1250.00 (Negativ vorne)
+ * "1.250,00-"→ -1250.00 (Negativ hinten)
+ */
+function parseAmountRobust(raw: string | number): number {
+  if (typeof raw === "number") return raw;
+  if (!raw || typeof raw !== "string") return 0;
+
+  let s = raw.trim();
+
+  // Vorzeichen erkennen (vorne oder hinten)
+  let negative = false;
+  if (s.startsWith("-")) { negative = true; s = s.substring(1).trim(); }
+  else if (s.endsWith("-")) { negative = true; s = s.slice(0, -1).trim(); }
+
+  // Leerzeichen als Dezimaltrenner: "5000 00" → "5000.00"
+  const spaceDecimalMatch = s.match(/^(\d+)\s(\d{2})$/);
+  if (spaceDecimalMatch) {
+    const val = parseFloat(`${spaceDecimalMatch[1]}.${spaceDecimalMatch[2]}`);
+    return negative ? -val : val;
+  }
+
+  // Alle Leerzeichen entfernen
+  s = s.replace(/\s/g, "");
+
+  // Bestimme ob Komma oder Punkt der Dezimaltrenner ist
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+
+  if (lastComma > lastDot) {
+    // Komma ist Dezimaltrenner (DE): "1.250,00"
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (lastDot > lastComma) {
+    // Punkt ist Dezimaltrenner (EN): "1,250.00"
+    s = s.replace(/,/g, "");
+  } else {
+    // Nur eines vorhanden
+    s = s.replace(",", ".");
+  }
+
+  const val = parseFloat(s);
+  if (isNaN(val)) return 0;
+  return negative ? -val : val;
+}
 import { PaymentKategorieEditor } from "./PaymentKategorieEditor";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -625,13 +675,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
       const buchungsdatum = toIsoDate(buchungsdatumRaw);
       const wertstellungsdatum = wertstellungsdatumRaw ? toIsoDate(wertstellungsdatumRaw) : undefined;
-      // Handle formats: "5000,00", "5.000,00", "5000 00" (space as decimal separator), "-280 00"
-      let cleanBetrag = betrag.trim();
-      // If format is "5000 00" or "-280 00" (space before last 2 digits = decimal separator)
-      if (/^-?\d+\s\d{2}$/.test(cleanBetrag)) {
-        cleanBetrag = cleanBetrag.replace(/\s/, ',');
-      }
-      const betragNum = parseFloat(cleanBetrag.replace(/\s/g, '').replace('.', '').replace(',', '.'));
+      const betragNum = parseAmountRobust(betrag);
 
       console.log(`CSV row ${i}: empfaengername="${empfaengername}", verwendungszweck="${verwendungszweck}", betrag=${betragNum}, iban="${iban}"`);
       payments.push({ buchungsdatum, wertstellungsdatum, betrag: betragNum, iban, verwendungszweck, empfaengername });
@@ -732,14 +776,14 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const handleApplyAssignments = async (selectedResults?: any[]) => {
     // Selected results now include all categories the user chose (Miete, Mietkaution, Rücklastschrift, etc.)
     const selectedToApply = selectedResults || aiResults.filter(r => r.kategorie !== "Nichtmiete");
-    const selectedIds = new Set(selectedToApply.map((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`));
+    const selectedIds = new Set(selectedToApply.map((r: any) => `${r.buchungsdatum}_${r.betrag}_${r.iban || ''}_${(r.verwendungszweck || '').slice(0, 50)}`));
     
     // Nichtmiete payments are always saved (not shown in modal selection)
     const nichtmieteResults = aiResults.filter(r => r.kategorie === "Nichtmiete");
     
     // Unselected non-Nichtmiete payments should ALSO be saved, but without mietvertrag_id
     const unselected = aiResults
-      .filter(r => r.kategorie !== "Nichtmiete" && !selectedIds.has(`${r.buchungsdatum}_${r.betrag}_${r.iban || ''}`))
+      .filter(r => r.kategorie !== "Nichtmiete" && !selectedIds.has(`${r.buchungsdatum}_${r.betrag}_${r.iban || ''}_${(r.verwendungszweck || '').slice(0, 50)}`))
       .map(r => ({ ...r, mietvertrag_id: null }));
     
     // Combine ALL: selected (with assignment) + unselected (without) + Nichtmiete
@@ -770,7 +814,8 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         query = query.is('verwendungszweck', null);
       }
       
-      const { data: existing } = await query.maybeSingle();
+      const { data: existingRows } = await query.limit(1);
+      const existing = existingRows?.[0] || null;
       
       if (existing) {
         // Payment exists - only update if not already manually categorized
