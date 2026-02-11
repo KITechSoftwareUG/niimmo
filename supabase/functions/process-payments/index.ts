@@ -657,14 +657,19 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonder
     }
   }
   
-  // 4. Location/Street-Match (property address in verwendungszweck)
+  // 4. Location/Street-Match (property address keywords in verwendungszweck)
+  // Dynamisch aus Immobilien-Daten extrahiert statt hardcoded
   for (const contract of contracts) {
     const immobilie = contract.immobilie.toLowerCase();
-    // Extract key location words (city names, street names)
-    const locationKeywords = ["bennigsen", "sarstedt", "habichtweg", "hauptstr", "hauptstraße"];
+    // Extrahiere relevante Wörter aus Immobilien-Name und Adresse (mind. 4 Zeichen, keine Zahlen)
+    const locationWords = immobilie
+      .split(/[\s,.\-\/]+/)
+      .filter(w => w.length >= 4 && !/^\d+$/.test(w))
+      // Filtere generische Wörter raus die zu False-Positives führen
+      .filter(w => !["straße", "strasse", "gasse", "platz", "ring"].includes(w));
     
-    for (const keyword of locationKeywords) {
-      if (verwendungszweck.includes(keyword) && immobilie.includes(keyword)) {
+    for (const keyword of locationWords) {
+      if (verwendungszweck.includes(keyword)) {
         console.log(`Location-Match found: "${keyword}" for ${contract.mieter} at ${contract.immobilie}`);
         return {
           ...payment,
