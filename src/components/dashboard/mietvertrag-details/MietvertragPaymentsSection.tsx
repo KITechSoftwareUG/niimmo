@@ -12,7 +12,7 @@ import { LinkedContractsTimeline } from "./LinkedContractsTimeline";
 import { useLinkedContracts } from "@/hooks/useLinkedContracts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, TrendingDown, TrendingUp, AlertCircle, CheckCircle, Link2, Building2, Settings, Clock } from "lucide-react";
+import { Plus, TrendingDown, TrendingUp, AlertCircle, CheckCircle, Link2, Building2, Settings } from "lucide-react";
 
 interface MietvertragPaymentsSectionProps {
   vertrag: any;
@@ -47,7 +47,6 @@ export function MietvertragPaymentsSection({
   const [selectedLinkedContract, setSelectedLinkedContract] = useState<any>(null);
   const [lastschriftPopoverOpen, setLastschriftPopoverOpen] = useState(false);
   const [lastschriftEnabled, setLastschriftEnabled] = useState(vertrag?.lastschrift || false);
-  const [wartetage, setWartetage] = useState(vertrag?.lastschrift_wartetage || 4);
   const [isSaving, setIsSaving] = useState(false);
 
   // Check for linked contracts (same tenant, different units)
@@ -60,7 +59,6 @@ export function MietvertragPaymentsSection({
         .from('mietvertrag')
         .update({
           lastschrift: lastschriftEnabled,
-          lastschrift_wartetage: wartetage
         })
         .eq('id', vertragId);
 
@@ -83,7 +81,7 @@ export function MietvertragPaymentsSection({
     zahlungen || []
   );
   
-  const { gesamtForderungen, gesamtZahlungen, rueckstand, unbestaetigteLastschriften } = rueckstandsBerechnung;
+  const { gesamtForderungen, gesamtZahlungen, rueckstand } = rueckstandsBerechnung;
   
   // Alle Forderungen zählen sofort als Rückstand - keine Fälligkeitsprüfung
   const alleForderungenAbStart = (forderungen || []).filter(f => f.sollmonat);
@@ -164,13 +162,6 @@ export function MietvertragPaymentsSection({
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   )}
                 </div>
-                {unbestaetigteLastschriften > 0 && (
-                  <div className="text-right">
-                    <p className="text-xs text-orange-600">
-                      {formatBetrag(unbestaetigteLastschriften)} unbestätigt
-                    </p>
-                  </div>
-                )}
               </div>
               <div className="space-y-2">
                 <p className={`text-sm font-medium ${rueckstand > 0 ? 'text-yellow-700' : 'text-green-700'}`}>
@@ -179,11 +170,6 @@ export function MietvertragPaymentsSection({
                 <p className={`text-2xl font-bold ${rueckstand > 0 ? 'text-yellow-800' : 'text-green-800'}`}>
                   {formatBetrag(Math.abs(rueckstand))}
                 </p>
-                {unbestaetigteLastschriften > 0 && (
-                  <p className="text-xs text-orange-600 mt-1">
-                    Lastschrift unbestätigt - noch in Wartefrist
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -272,12 +258,6 @@ export function MietvertragPaymentsSection({
                     <Badge variant={vertrag?.lastschrift ? "default" : "secondary"} className="text-xs">
                       {vertrag?.lastschrift ? 'Aktiv' : 'Inaktiv'}
                     </Badge>
-                    {vertrag?.lastschrift && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {vertrag?.lastschrift_wartetage || 4} Tage
-                      </span>
-                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80" align="end">
@@ -285,7 +265,7 @@ export function MietvertragPaymentsSection({
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm">Lastschrift-Einstellungen</h4>
                       <p className="text-xs text-muted-foreground">
-                        Bei aktivierter Lastschrift wird eine Wartefrist vor der Bestätigung eingehalten.
+                        Markiert den Vertrag als Lastschrift-Vertrag. Rücklastschriften erzeugen automatisch Rückstände.
                       </p>
                     </div>
                     
@@ -300,36 +280,12 @@ export function MietvertragPaymentsSection({
                       />
                     </div>
                     
-                    {lastschriftEnabled && (
-                      <div className="space-y-2">
-                        <Label htmlFor="wartetage" className="text-sm">
-                          Wartetage bis Bestätigung
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            id="wartetage"
-                            type="number"
-                            min={1}
-                            max={14}
-                            value={wartetage}
-                            onChange={(e) => setWartetage(parseInt(e.target.value) || 4)}
-                            className="w-20"
-                          />
-                          <span className="text-sm text-muted-foreground">Tage</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Zahlungen werden erst nach dieser Frist als bestätigt gewertet (Schutz vor Rücklastschriften).
-                        </p>
-                      </div>
-                    )}
-                    
                     <div className="flex justify-end gap-2 pt-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
                         onClick={() => {
                           setLastschriftEnabled(vertrag?.lastschrift || false);
-                          setWartetage(vertrag?.lastschrift_wartetage || 4);
                           setLastschriftPopoverOpen(false);
                         }}
                       >

@@ -3,37 +3,7 @@ export interface RueckstandsBerechnung {
   gesamtForderungen: number;
   gesamtZahlungen: number;
   rueckstand: number;
-  unbestaetigteLastschriften: number; // Betrag der Zahlungen ohne lastschrift_bestaetigt_am
 }
-
-// Helper function to check if a Lastschrift payment is confirmed
-export const isLastschriftConfirmed = (zahlung: any, mietvertrag?: any): boolean => {
-  // If lastschrift_bestaetigt_am is set, the payment is confirmed
-  if (zahlung.lastschrift_bestaetigt_am) {
-    return true;
-  }
-  
-  // If the contract doesn't use Lastschrift, the payment is automatically confirmed
-  if (!mietvertrag?.lastschrift) {
-    return true;
-  }
-  
-  // Payment is not confirmed (within waiting period)
-  return false;
-};
-
-// Calculate remaining waiting days for unconfirmed Lastschrift payment
-export const getRemainingWaitDays = (zahlung: any, mietvertrag?: any): number => {
-  if (!mietvertrag?.lastschrift) return 0;
-  if (zahlung.lastschrift_bestaetigt_am) return 0;
-  
-  const wartetage = mietvertrag.lastschrift_wartetage || 4;
-  const buchungsdatum = new Date(zahlung.buchungsdatum);
-  const heute = new Date();
-  const daysSincePayment = Math.floor((heute.getTime() - buchungsdatum.getTime()) / (1000 * 60 * 60 * 24));
-  
-  return Math.max(0, wartetage - daysSincePayment);
-};
 
 export const calculateMietvertragRueckstand = (
   mietvertrag: any,
@@ -41,10 +11,8 @@ export const calculateMietvertragRueckstand = (
   zahlungen: any[]
 ): RueckstandsBerechnung => {
   if (!mietvertrag || !forderungen || !zahlungen) {
-    return { gesamtForderungen: 0, gesamtZahlungen: 0, rueckstand: 0, unbestaetigteLastschriften: 0 };
+    return { gesamtForderungen: 0, gesamtZahlungen: 0, rueckstand: 0 };
   }
-  
-  const istLastschrift = mietvertrag.lastschrift || false;
   
   // Bestimme Startdatum: Mietvertragsbeginn (ohne künstliche Begrenzung auf 2025)
   // Alle Forderungen verwenden - ohne Filterung nach Startdatum
@@ -123,24 +91,12 @@ export const calculateMietvertragRueckstand = (
   // Berechne Gesamtforderungen
   const gesamtForderungen = relevanteForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
   
-  // Berechne Gesamtzahlungen - NUR bestätigte Zahlungen werden einberechnet
-  // Unbestätigte Lastschriften werden separat getrackt
+  // Berechne Gesamtzahlungen - ALLE Zahlungen werden direkt eingerechnet (keine Bestätigungslogik)
   let gesamtZahlungen = 0;
-  let unbestaetigteLastschriften = 0;
   
   for (const zahlung of verarbeiteteZahlungen) {
     const zahlungsBetrag = Number(zahlung.betrag) || 0;
-    
-    // Prüfe ob die Zahlung bestätigt ist
-    const istBestaetigt = isLastschriftConfirmed(zahlung, mietvertrag);
-    
-    if (istBestaetigt) {
-      // Nur bestätigte Zahlungen werden in die Bilanz eingerechnet
-      gesamtZahlungen += zahlungsBetrag;
-    } else {
-      // Unbestätigte Lastschriften werden separat getrackt
-      unbestaetigteLastschriften += zahlungsBetrag;
-    }
+    gesamtZahlungen += zahlungsBetrag;
   }
   
   // Berechne Rücklastschrift-Gebühren (diese werden immer abgezogen)
@@ -150,7 +106,7 @@ export const calculateMietvertragRueckstand = (
   
   const rueckstand = gesamtForderungen - gesamtZahlungen - ruecklastschriftGebuehren;
   
-  return { gesamtForderungen, gesamtZahlungen, rueckstand, unbestaetigteLastschriften };
+  return { gesamtForderungen, gesamtZahlungen, rueckstand };
 };
 
 // Einfache Berechnung für Miete-Zahlungen (alle mit Kategorie "Miete")

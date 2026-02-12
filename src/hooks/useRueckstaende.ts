@@ -31,8 +31,6 @@ export interface FehlendeMietzahlung {
   naechste_faelligkeit?: string;
   // Guthaben-Information
   ist_guthaben: boolean;
-  // Lastschrift-Information
-  unbestaetigte_lastschriften: number;
 }
 
 // Hilfsfunktion: Berechnet den 4. Werktag eines Monats
@@ -198,7 +196,7 @@ export const useRueckstaende = () => {
           f.sollmonat && is4thBusinessDayPassed(f.sollmonat)
         );
         
-        const { gesamtForderungen, gesamtZahlungen, rueckstand, unbestaetigteLastschriften } = calculateMietvertragRueckstand(
+        const { gesamtForderungen, gesamtZahlungen, rueckstand } = calculateMietvertragRueckstand(
           mietvertrag,
           forderungenNach4temWerktag,
           mietvertragZahlungen || []
@@ -262,8 +260,6 @@ export const useRueckstaende = () => {
             noch_nicht_faellige_forderungen_betrag: nichtFaelligeForderungenBetrag,
             // Guthaben-Information
             ist_guthaben: rueckstand < 0,
-            // Lastschrift-Information
-            unbestaetigte_lastschriften: unbestaetigteLastschriften
           });
         }
       }
