@@ -1020,9 +1020,14 @@ export default function MietvertragDetailsModal({
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <DialogTitle className="flex items-center space-x-2 text-lg md:text-xl">
-                <Building2 className="h-4 w-4 md:h-5 md:w-5" />
+              <DialogTitle className="flex items-center gap-2 text-base md:text-lg">
+                <Building2 className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0" />
                 <span>Mietvertrag Details</span>
+                {(immobilie || einheit) && (
+                  <span className="text-xs md:text-sm font-normal text-muted-foreground truncate">
+                    – {immobilie?.name}{immobilie?.adresse ? ` · ${immobilie.adresse}` : ''}{einheit ? ` · ${einheit.einheitentyp || 'Einheit'}${einheit.etage ? ` ${einheit.etage}` : ''}` : ''}
+                  </span>
+                )}
               </DialogTitle>
             </div>
             
