@@ -12,13 +12,14 @@ import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMiet
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
 import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
 import { Uebergabe } from "@/pages/Uebergabe";
+import { DarlehenVerwaltung } from "@/components/dashboard/DarlehenVerwaltung";
 import { HausmeisterDashboard } from "@/components/dashboard/HausmeisterDashboard";
 import { ZaehlerVerwaltung } from "@/components/dashboard/ZaehlerVerwaltung";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
 
 import { useState, useMemo, useCallback } from "react";
-import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties, Gauge } from "lucide-react";
+import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties, Gauge, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 import { useNavigationState } from "@/hooks/useNavigationState";
@@ -33,6 +34,7 @@ const Index = () => {
   const showAnalytics = navState.showAnalytics;
   const showControlboard = navState.showControlboard;
   const showUebergabe = navState.showUebergabe;
+  const showDarlehen = navState.showDarlehen;
   const navigationSource = navState.navigationSource;
 
   // Setter wrappers
@@ -42,6 +44,7 @@ const Index = () => {
   const setShowAnalytics = useCallback((v: boolean) => updateNav({ showAnalytics: v }), [updateNav]);
   const setShowControlboard = useCallback((v: boolean) => updateNav({ showControlboard: v }), [updateNav]);
   const setShowUebergabe = useCallback((v: boolean) => updateNav({ showUebergabe: v }), [updateNav]);
+  const setShowDarlehen = useCallback((v: boolean) => updateNav({ showDarlehen: v }), [updateNav]);
   const setNavigationSource = useCallback((v: 'dashboard' | 'immobilie' | 'search') => updateNav({ navigationSource: v }), [updateNav]);
 
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
@@ -269,6 +272,11 @@ const Index = () => {
     return <Uebergabe onBack={() => setShowUebergabe(false)} />;
   }
 
+  // Darlehen-Ansicht anzeigen
+  if (showDarlehen) {
+    return <DarlehenVerwaltung onBack={() => setShowDarlehen(false)} />;
+  }
+
   // Zählerverwaltung anzeigen
   if (showZaehlerVerwaltung) {
     return <ZaehlerVerwaltung onBack={() => setShowZaehlerVerwaltung(false)} />;
@@ -373,6 +381,15 @@ const Index = () => {
                   >
                     <Gauge className="h-4 w-4 mr-1.5 shrink-0" />
                     <span className="truncate">Zählerverwaltung</span>
+                  </Button>
+                  <Button 
+                    onClick={() => setShowDarlehen(true)} 
+                    variant="ghost"
+                    size="sm"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
+                  >
+                    <Landmark className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="truncate">Darlehen</span>
                   </Button>
                 </div>
               )}
