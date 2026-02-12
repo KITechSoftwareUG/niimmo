@@ -13,11 +13,12 @@ import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncre
 import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
 import { Uebergabe } from "@/pages/Uebergabe";
 import { HausmeisterDashboard } from "@/components/dashboard/HausmeisterDashboard";
+import { ZaehlerVerwaltung } from "@/components/dashboard/ZaehlerVerwaltung";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
 
 import { useState, useMemo, useCallback } from "react";
-import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties } from "lucide-react";
+import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 import { useNavigationState } from "@/hooks/useNavigationState";
@@ -44,6 +45,7 @@ const Index = () => {
   const setNavigationSource = useCallback((v: 'dashboard' | 'immobilie' | 'search') => updateNav({ navigationSource: v }), [updateNav]);
 
   const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
+  const [showZaehlerVerwaltung, setShowZaehlerVerwaltung] = useState<boolean>(false);
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
@@ -267,6 +269,10 @@ const Index = () => {
     return <Uebergabe onBack={() => setShowUebergabe(false)} />;
   }
 
+  // Zählerverwaltung anzeigen
+  if (showZaehlerVerwaltung) {
+    return <ZaehlerVerwaltung onBack={() => setShowZaehlerVerwaltung(false)} />;
+  }
 
   if (selectedImmobilie) {
     return <ImmobilienDetail 
@@ -358,6 +364,15 @@ const Index = () => {
                   >
                     <TableProperties className="h-4 w-4 mr-1.5 shrink-0" />
                     <span className="truncate">Stammdaten</span>
+                  </Button>
+                  <Button 
+                    onClick={() => setShowZaehlerVerwaltung(true)} 
+                    variant="ghost"
+                    size="sm"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
+                  >
+                    <Gauge className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="truncate">Zählerverwaltung</span>
                   </Button>
                 </div>
               )}
