@@ -35,6 +35,37 @@ export interface FehlendeMietzahlung {
   unbestaetigte_lastschriften: number;
 }
 
+// Hilfsfunktion: Berechnet den 4. Werktag eines Monats
+const get4thBusinessDay = (year: number, month: number): Date => {
+  let businessDays = 0;
+  let day = 1;
+  while (businessDays < 4) {
+    const date = new Date(year, month - 1, day);
+    const dayOfWeek = date.getDay();
+    // Montag=1 bis Freitag=5 sind Werktage
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      businessDays++;
+    }
+    if (businessDays < 4) day++;
+  }
+  return new Date(year, month - 1, day);
+};
+
+// Prüft ob der 4. Werktag des Monats schon vorbei ist
+const is4thBusinessDayPassed = (sollmonat: string): boolean => {
+  if (!sollmonat) return false;
+  const [yearStr, monthStr] = sollmonat.split('-');
+  const year = parseInt(yearStr);
+  const month = parseInt(monthStr);
+  const fourthBusinessDay = get4thBusinessDay(year, month);
+  
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+  fourthBusinessDay.setHours(0, 0, 0, 0);
+  
+  return heute > fourthBusinessDay;
+};
+
 export const useRueckstaende = () => {
   const queryClient = useQueryClient();
 
@@ -161,10 +192,15 @@ export const useRueckstaende = () => {
         
         if (forderungenError || zahlungenError) continue;
         
-        // VERWENDE EXAKT DIE GLEICHE LOGIK WIE IM MODAL
+        // RÜCKSTANDSTABELLE: Nur Forderungen berücksichtigen, deren 4. Werktag im sollmonat bereits vorbei ist
+        // Dies unterscheidet sich von den Mietvertrag-Details, wo ALLE Forderungen sofort zählen
+        const forderungenNach4temWerktag = (mietvertragForderungen || []).filter(f => 
+          f.sollmonat && is4thBusinessDayPassed(f.sollmonat)
+        );
+        
         const { gesamtForderungen, gesamtZahlungen, rueckstand, unbestaetigteLastschriften } = calculateMietvertragRueckstand(
           mietvertrag,
-          mietvertragForderungen || [],
+          forderungenNach4temWerktag,
           mietvertragZahlungen || []
         );
         
