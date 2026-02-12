@@ -44,6 +44,147 @@ export type Database = {
         }
         Relationships: []
       }
+      darlehen: {
+        Row: {
+          aktualisiert_am: string | null
+          bank: string | null
+          bezeichnung: string
+          darlehensbetrag: number
+          ende_datum: string | null
+          erstellt_am: string | null
+          id: string
+          kontonummer: string | null
+          monatliche_rate: number | null
+          notizen: string | null
+          restschuld: number | null
+          start_datum: string | null
+          tilgungssatz_prozent: number | null
+          zinssatz_prozent: number | null
+        }
+        Insert: {
+          aktualisiert_am?: string | null
+          bank?: string | null
+          bezeichnung: string
+          darlehensbetrag?: number
+          ende_datum?: string | null
+          erstellt_am?: string | null
+          id?: string
+          kontonummer?: string | null
+          monatliche_rate?: number | null
+          notizen?: string | null
+          restschuld?: number | null
+          start_datum?: string | null
+          tilgungssatz_prozent?: number | null
+          zinssatz_prozent?: number | null
+        }
+        Update: {
+          aktualisiert_am?: string | null
+          bank?: string | null
+          bezeichnung?: string
+          darlehensbetrag?: number
+          ende_datum?: string | null
+          erstellt_am?: string | null
+          id?: string
+          kontonummer?: string | null
+          monatliche_rate?: number | null
+          notizen?: string | null
+          restschuld?: number | null
+          start_datum?: string | null
+          tilgungssatz_prozent?: number | null
+          zinssatz_prozent?: number | null
+        }
+        Relationships: []
+      }
+      darlehen_immobilien: {
+        Row: {
+          darlehen_id: string
+          erstellt_am: string | null
+          id: string
+          immobilie_id: string
+        }
+        Insert: {
+          darlehen_id: string
+          erstellt_am?: string | null
+          id?: string
+          immobilie_id: string
+        }
+        Update: {
+          darlehen_id?: string
+          erstellt_am?: string | null
+          id?: string
+          immobilie_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "darlehen_immobilien_darlehen_id_fkey"
+            columns: ["darlehen_id"]
+            isOneToOne: false
+            referencedRelation: "darlehen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "darlehen_immobilien_immobilie_id_fkey"
+            columns: ["immobilie_id"]
+            isOneToOne: false
+            referencedRelation: "immobilien"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      darlehen_zahlungen: {
+        Row: {
+          betrag: number
+          buchungsdatum: string
+          darlehen_id: string
+          erstellt_am: string | null
+          id: string
+          notizen: string | null
+          restschuld_danach: number | null
+          tilgungsanteil: number | null
+          zahlung_id: string | null
+          zinsanteil: number | null
+        }
+        Insert: {
+          betrag?: number
+          buchungsdatum: string
+          darlehen_id: string
+          erstellt_am?: string | null
+          id?: string
+          notizen?: string | null
+          restschuld_danach?: number | null
+          tilgungsanteil?: number | null
+          zahlung_id?: string | null
+          zinsanteil?: number | null
+        }
+        Update: {
+          betrag?: number
+          buchungsdatum?: string
+          darlehen_id?: string
+          erstellt_am?: string | null
+          id?: string
+          notizen?: string | null
+          restschuld_danach?: number | null
+          tilgungsanteil?: number | null
+          zahlung_id?: string | null
+          zinsanteil?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "darlehen_zahlungen_darlehen_id_fkey"
+            columns: ["darlehen_id"]
+            isOneToOne: false
+            referencedRelation: "darlehen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "darlehen_zahlungen_zahlung_id_fkey"
+            columns: ["zahlung_id"]
+            isOneToOne: false
+            referencedRelation: "zahlungen"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dokumente: {
         Row: {
           dateityp: string | null
