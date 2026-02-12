@@ -343,15 +343,6 @@ const Index = () => {
               {isAdmin && (
                 <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-2 sm:flex-wrap">
                   <Button 
-                    onClick={() => setShowAnalytics(true)} 
-                    variant="ghost"
-                    size="sm"
-                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
-                  >
-                    <BarChart3 className="h-4 w-4 mr-1.5 shrink-0" />
-                    <span className="truncate">Analytics</span>
-                  </Button>
-                  <Button 
                     onClick={() => setShowControlboard(true)} 
                     variant="ghost"
                     size="sm"
