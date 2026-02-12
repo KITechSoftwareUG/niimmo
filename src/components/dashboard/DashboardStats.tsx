@@ -116,62 +116,61 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
 
   return (
     <div className="space-y-3 sm:space-y-4">
-      {/* Row 1: Drei kompakte Karten */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
+      {/* Row 1: Verschmolzene kompakte Leiste */}
+      <div className="metric-card px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-gray-200 bg-white/80 flex items-center justify-between gap-3 sm:gap-6" style={{ animationDelay: '0s' }}>
         {/* Immobilien */}
-        <div className="metric-card p-3 sm:p-4 rounded-xl border border-blue-100 bg-blue-50" style={{ animationDelay: '0s' }}>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-blue-100 border border-blue-200 flex-shrink-0">
-              <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600" />
-            </div>
-            <p className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Immobilien</p>
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-blue-100 border border-blue-200 flex-shrink-0">
+            <Building2 className="h-3.5 w-3.5 text-blue-600" />
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">{immobilien?.length || 0}</p>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg sm:text-xl font-bold text-gray-900">{immobilien?.length || 0}</span>
+            <span className="text-[10px] sm:text-xs text-gray-500 hidden sm:inline">Immobilien</span>
+          </div>
         </div>
 
-        {/* Gesamte Einheiten */}
-        <div className="metric-card p-3 sm:p-4 rounded-xl border border-green-100 bg-green-50" style={{ animationDelay: '0.1s' }}>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-green-100 border border-green-200 flex-shrink-0">
-              <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600" />
-            </div>
-            <p className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Einheiten</p>
+        <div className="w-px h-6 bg-gray-200" />
+
+        {/* Einheiten */}
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-green-100 border border-green-200 flex-shrink-0">
+            <Home className="h-3.5 w-3.5 text-green-600" />
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">{gesamtEinheiten || 0}</p>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg sm:text-xl font-bold text-gray-900">{gesamtEinheiten || 0}</span>
+            <span className="text-[10px] sm:text-xs text-gray-500 hidden sm:inline">Einheiten</span>
+          </div>
         </div>
 
-        {/* Status & Termine */}
-        <div className="metric-card p-3 sm:p-4 rounded-xl border border-red-100 bg-red-50" style={{ animationDelay: '0.2s' }}>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 sm:p-2 rounded-lg bg-red-100 border border-red-200 flex-shrink-0">
-              <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-600" />
-            </div>
-            <p className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">Status</p>
+        <div className="w-px h-6 bg-gray-200" />
+
+        {/* Status */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="text-[10px] sm:text-xs text-gray-500">Leer</span>
+            <span className="text-sm sm:text-base font-bold text-gray-900">{leerstände}</span>
           </div>
-          <div className="space-y-0.5">
-            <div className="flex items-baseline justify-between">
-              <span className="text-[10px] sm:text-xs text-gray-500">Leer</span>
-              <span className="text-sm sm:text-lg font-bold text-gray-900">{leerstände}</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-[10px] sm:text-xs text-gray-500">Gekündigt</span>
-              <span className="text-sm sm:text-lg font-bold text-red-600">{gekuendigteMietvertraege.length}</span>
-            </div>
-            <div 
-              className="hidden sm:flex items-baseline justify-between cursor-pointer hover:bg-white/50 rounded px-1 -mx-1 transition-colors"
-              onClick={() => {
-                if (naechsterVertrag && onNavigateToContract) {
-                  onNavigateToContract(
-                    naechsterVertrag.einheiten?.immobilie_id,
-                    naechsterVertrag.einheit_id,
-                    naechsterVertrag.id
-                  );
-                }
-              }}
-            >
-              <span className="text-[10px] sm:text-xs text-gray-500">Nächstes Ende</span>
-              <span className="text-[10px] sm:text-xs font-medium text-gray-700 hover:text-blue-600">{formatDatum(naechstesDatum)}</span>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+            <span className="text-[10px] sm:text-xs text-gray-500">Gekündigt</span>
+            <span className="text-sm sm:text-base font-bold text-red-600">{gekuendigteMietvertraege.length}</span>
+          </div>
+          <div 
+            className="hidden sm:flex items-center gap-1.5 cursor-pointer hover:bg-gray-100 rounded px-1.5 py-0.5 -mx-1.5 transition-colors"
+            onClick={() => {
+              if (naechsterVertrag && onNavigateToContract) {
+                onNavigateToContract(
+                  naechsterVertrag.einheiten?.immobilie_id,
+                  naechsterVertrag.einheit_id,
+                  naechsterVertrag.id
+                );
+              }
+            }}
+          >
+            <TrendingDown className="h-3 w-3 text-gray-400" />
+            <span className="text-[10px] sm:text-xs text-gray-500">Nächstes Ende</span>
+            <span className="text-[10px] sm:text-xs font-medium text-gray-700">{formatDatum(naechstesDatum)}</span>
           </div>
         </div>
       </div>
