@@ -117,10 +117,14 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
   const allRueckstaende = [...rueckstaende.aktiv, ...rueckstaende.gekuendigt, ...rueckstaende.beendet];
   const allGuthaben = [...guthaben.aktiv, ...guthaben.gekuendigt, ...guthaben.beendet];
 
-  const gesamtRueckstandBetrag = allRueckstaende.reduce((sum, item) => sum + item.fehlend_betrag, 0);
-  const gesamtGuthabenBetrag = allGuthaben.reduce((sum, item) => sum + item.fehlend_betrag, 0);
+  // Beendete Verträge NICHT in Gesamtsummen einrechnen
+  const activeRueckstaende = [...rueckstaende.aktiv, ...rueckstaende.gekuendigt];
+  const activeGuthaben = [...guthaben.aktiv, ...guthaben.gekuendigt];
 
-  const gesamtRueckstand = fehlendeMietzahlungen?.reduce((sum, item) => {
+  const gesamtRueckstandBetrag = activeRueckstaende.reduce((sum, item) => sum + item.fehlend_betrag, 0);
+  const gesamtGuthabenBetrag = activeGuthaben.reduce((sum, item) => sum + item.fehlend_betrag, 0);
+
+  const gesamtRueckstand = fehlendeMietzahlungen?.filter(item => item.mietvertrag_status !== 'Beendet').reduce((sum, item) => {
     return sum + (item.ist_guthaben ? -item.fehlend_betrag : item.fehlend_betrag);
   }, 0) || 0;
 

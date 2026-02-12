@@ -52,7 +52,7 @@ export function FehlendeMietzahlungenStatusGroup({
   const totalAmount = items.reduce((sum, item) => sum + item.fehlend_betrag, 0);
 
   return (
-    <div className="space-y-2">
+    <div className={`space-y-2 ${status === 'beendet' ? 'opacity-50' : ''}`}>
       {/* Status Header */}
       <div className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${config.bgColor} ${config.borderColor} border rounded-md`}>
         <div className="flex items-center gap-2">
@@ -61,6 +61,9 @@ export function FehlendeMietzahlungenStatusGroup({
           <Badge variant="outline" className={`text-[10px] ${config.textColor} ${config.borderColor}`}>
             {items.length}
           </Badge>
+          {status === 'beendet' && (
+            <span className="text-[10px] text-gray-400 italic">nicht in Summe</span>
+          )}
         </div>
         <span className={`text-sm font-semibold ${isGuthaben ? 'text-green-600' : 'text-red-600'}`}>
           {formatBetrag(totalAmount)}
