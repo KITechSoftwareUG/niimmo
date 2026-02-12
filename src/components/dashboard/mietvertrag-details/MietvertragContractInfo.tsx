@@ -126,28 +126,9 @@ export function MietvertragContractInfo({
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-semibold text-foreground">Vertragsdaten</h3>
-              <div className="flex items-center gap-1.5">
-                <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-[10px] h-5">
-                  {vertrag.status}
-                </Badge>
-                {/* Action Buttons inline */}
-                {vertrag.status === 'aktiv' && !isGlobalEditMode && (
-                  <>
-                    {onShowMahnung && (
-                      <Button variant="outline" size="sm" onClick={onShowMahnung} className="h-6 text-[10px] px-2 gap-1">
-                        <AlertTriangle className="h-3 w-3" />
-                        Mahnung
-                      </Button>
-                    )}
-                    {onShowKuendigung && (
-                      <Button variant="destructive" size="sm" onClick={onShowKuendigung} className="h-6 text-[10px] px-2 gap-1">
-                        <XCircle className="h-3 w-3" />
-                        Kündigung
-                      </Button>
-                    )}
-                  </>
-                )}
-              </div>
+              <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                {vertrag.status}
+              </Badge>
             </div>
 
             {/* Objekt & Einheit compact */}
@@ -344,7 +325,25 @@ export function MietvertragContractInfo({
 
           {/* RIGHT: Tenant Info - compact & copyable */}
           <div className="space-y-3 md:border-l md:pl-4 border-border/50">
-            <h3 className="text-sm font-semibold text-foreground mb-1">Mieter</h3>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-semibold text-foreground">Mieter</h3>
+              {vertrag.status === 'aktiv' && !isGlobalEditMode && (
+                <div className="flex items-center gap-2">
+                  {onShowMahnung && (
+                    <Button variant="outline" size="sm" onClick={onShowMahnung} className="h-7 text-xs px-3 gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Mahnung
+                    </Button>
+                  )}
+                  {onShowKuendigung && (
+                    <Button variant="destructive" size="sm" onClick={onShowKuendigung} className="h-7 text-xs px-3 gap-1.5">
+                      <XCircle className="h-3.5 w-3.5" />
+                      Kündigung
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
             
             {mieter && mieter.length > 0 ? (
               <div className="space-y-2">
