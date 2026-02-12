@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -59,7 +60,7 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
       const { data: props, error: propsError } = await supabase
         .from('immobilien')
         .select(`
-          id, name, adresse,
+          id, name, adresse, hat_strom, hat_gas, hat_wasser,
           allgemein_wasser_zaehler, allgemein_wasser_stand, allgemein_wasser_datum,
           allgemein_strom_zaehler, allgemein_strom_stand, allgemein_strom_datum,
           allgemein_gas_zaehler, allgemein_gas_stand, allgemein_gas_datum,
@@ -374,6 +375,37 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
     );
   });
 
+  const getPropertyMeterTypes = (immobilie: any) => {
+    const types: Array<'wasser' | 'strom' | 'gas'> = [];
+    if (immobilie.hat_strom !== false) types.push('strom');
+    if (immobilie.hat_gas !== false) types.push('gas');
+    if (immobilie.hat_wasser !== false) types.push('wasser');
+    return types;
+  };
+
+  const getUnitMeterTypes = (immobilie: any) => {
+    const types: Array<'kaltwasser' | 'warmwasser' | 'strom' | 'gas'> = [];
+    if (immobilie.hat_wasser !== false) { types.push('kaltwasser'); types.push('warmwasser'); }
+    if (immobilie.hat_strom !== false) types.push('strom');
+    if (immobilie.hat_gas !== false) types.push('gas');
+    return types;
+  };
+
+  const toggleUtilityConfig = async (immobilieId: string, field: 'hat_strom' | 'hat_gas' | 'hat_wasser', value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('immobilien')
+        .update({ [field]: value })
+        .eq('id', immobilieId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['zaehler-verwaltung-immobilien'] });
+      toast.success('Versorgungskonfiguration gespeichert');
+    } catch (error) {
+      console.error('Error updating utility config:', error);
+      toast.error('Fehler beim Speichern');
+    }
+  };
+
   const meterTypes = ['kaltwasser', 'warmwasser', 'strom', 'gas'] as const;
 
   if (isLoading) {
@@ -477,26 +509,55 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Hausanschlusszähler
                         </span>
-                        {hasUnsavedPropertyChanges(immobilie.id) && (
-                          <Button
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); savePropertyChanges(immobilie.id); }}
-                            disabled={savingProperties.has(immobilie.id)}
-                            className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700"
-                          >
-                            {savingProperties.has(immobilie.id) ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <>
-                                <Save className="h-3 w-3 mr-1" />
-                                Speichern
-                              </>
-                            )}
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {/* Utility config checkboxes */}
+                          <div className="flex items-center gap-3 mr-2">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <Checkbox
+                                checked={immobilie.hat_strom !== false}
+                                onCheckedChange={(checked) => toggleUtilityConfig(immobilie.id, 'hat_strom', !!checked)}
+                              />
+                              <Zap className="h-3 w-3 text-yellow-600" />
+                              <span className="text-xs">Strom</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <Checkbox
+                                checked={immobilie.hat_gas !== false}
+                                onCheckedChange={(checked) => toggleUtilityConfig(immobilie.id, 'hat_gas', !!checked)}
+                              />
+                              <Flame className="h-3 w-3 text-red-500" />
+                              <span className="text-xs">Gas</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <Checkbox
+                                checked={immobilie.hat_wasser !== false}
+                                onCheckedChange={(checked) => toggleUtilityConfig(immobilie.id, 'hat_wasser', !!checked)}
+                              />
+                              <Droplets className="h-3 w-3 text-blue-500" />
+                              <span className="text-xs">Wasser</span>
+                            </label>
+                          </div>
+                          {hasUnsavedPropertyChanges(immobilie.id) && (
+                            <Button
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); savePropertyChanges(immobilie.id); }}
+                              disabled={savingProperties.has(immobilie.id)}
+                              className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700"
+                            >
+                              {savingProperties.has(immobilie.id) ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <>
+                                  <Save className="h-3 w-3 mr-1" />
+                                  Speichern
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {(['wasser', 'strom', 'gas'] as const).map((type) => {
+                      <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${getPropertyMeterTypes(immobilie).length || 1}, 1fr)` }}>
+                        {getPropertyMeterTypes(immobilie).map((type) => {
                           const zaehlerKey = `allgemein_${type}_zaehler` as keyof typeof immobilie;
                           const standKey = `allgemein_${type}_stand` as keyof typeof immobilie;
                           const datumKey = `allgemein_${type}_datum` as keyof typeof immobilie;
@@ -555,25 +616,25 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                           <div className="mt-2 mb-1">
                             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Hausanschlusszähler 2</span>
                           </div>
-                          <div className="grid grid-cols-3 gap-2">
-                            {(['wasser_2', 'strom_2', 'gas_2'] as const).map((type) => {
-                              const baseType = type.replace('_2', '');
-                              const zaehlerKey = `allgemein_${baseType}_zaehler_2` as keyof typeof immobilie;
-                              const standKey = `allgemein_${baseType}_stand_2` as keyof typeof immobilie;
-                              const datumKey = `allgemein_${baseType}_datum_2` as keyof typeof immobilie;
+                          <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${getPropertyMeterTypes(immobilie).length || 1}, 1fr)` }}>
+                            {getPropertyMeterTypes(immobilie).map((type) => {
+                              const type2 = `${type}_2` as const;
+                              const zaehlerKey = `allgemein_${type}_zaehler_2` as keyof typeof immobilie;
+                              const standKey = `allgemein_${type}_stand_2` as keyof typeof immobilie;
+                              const datumKey = `allgemein_${type}_datum_2` as keyof typeof immobilie;
 
                               const currentZaehler = immobilie[zaehlerKey] as string | null;
                               const currentStand = immobilie[standKey] as number | null;
                               const standDatum = immobilie[datumKey] as string | null;
 
-                              const editedZaehler = getEditedPropertyValue(immobilie.id, type, 'zaehler');
-                              const editedStand = getEditedPropertyValue(immobilie.id, type, 'stand');
+                              const editedZaehler = getEditedPropertyValue(immobilie.id, type2, 'zaehler');
+                              const editedStand = getEditedPropertyValue(immobilie.id, type2, 'stand');
 
                               return (
-                                <div key={type} className="bg-background rounded p-1.5 sm:p-2">
+                                <div key={type2} className="bg-background rounded p-1.5 sm:p-2">
                                   <div className="flex items-center gap-1 mb-1">
-                                    {getPropertyMeterIcon(baseType, "h-3 w-3")}
-                                    <span className="text-xs font-medium">{getMeterLabel(baseType)} (2)</span>
+                                    {getPropertyMeterIcon(type, "h-3 w-3")}
+                                    <span className="text-xs font-medium">{getMeterLabel(type)} (2)</span>
                                     {standDatum && (
                                       <span className="text-[10px] text-muted-foreground ml-auto">
                                         {formatStandDatum(standDatum)}
@@ -584,7 +645,7 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                                     <Input
                                       placeholder="Zähler-Nr."
                                       value={editedZaehler ?? currentZaehler ?? ''}
-                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'zaehler', e.target.value)}
+                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type2, 'zaehler', e.target.value)}
                                       className="h-6 text-xs px-1.5"
                                     />
                                     <Input
@@ -592,14 +653,14 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                                       step="0.01"
                                       placeholder="Stand"
                                       value={editedStand ?? currentStand ?? ''}
-                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'stand', e.target.value)}
+                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type2, 'stand', e.target.value)}
                                       className="h-6 text-xs px-1.5"
                                     />
                                     <Input
                                       type="date"
                                       placeholder="Datum"
-                                      value={getEditedPropertyValue(immobilie.id, type, 'datum') ?? standDatum ?? ''}
-                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'datum', e.target.value)}
+                                      value={getEditedPropertyValue(immobilie.id, type2, 'datum') ?? standDatum ?? ''}
+                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type2, 'datum', e.target.value)}
                                       className="h-6 text-xs px-1.5"
                                     />
                                   </div>
@@ -616,7 +677,7 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                           <TableRow className="text-xs">
                             <TableHead className="w-[80px] py-2">Einheit</TableHead>
                             <TableHead className="w-[120px] py-2 hidden sm:table-cell">Mieter</TableHead>
-                            {meterTypes.map(type => (
+                            {getUnitMeterTypes(immobilie).map(type => (
                               <TableHead key={type} className="py-2 text-center min-w-[100px]">
                                 <div className="flex items-center justify-center gap-1">
                                   {getMeterIcon(type)}
@@ -646,7 +707,7 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                                 <TableCell className="py-1.5 text-muted-foreground hidden sm:table-cell truncate max-w-[120px]">
                                   {tenantName}
                                 </TableCell>
-                                {meterTypes.map((type) => {
+                                {getUnitMeterTypes(immobilie).map((type) => {
                                   const zaehlerKey = `${type}_zaehler` as keyof typeof einheit;
                                   const standKey = `${type}_stand_aktuell` as keyof typeof einheit;
                                   const datumKey = `${type}_stand_datum` as keyof typeof einheit;
