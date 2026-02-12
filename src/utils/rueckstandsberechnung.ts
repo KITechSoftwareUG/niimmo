@@ -69,16 +69,13 @@ export const calculateMietvertragRueckstand = (
   };
 
   // Filtere Zahlungen nach Kategorie (ohne Zeitraum-Filter)
+  // Bug-Fix: kategorie === null (unkategorisierte Zahlungen) werden NICHT mehr als Miete gezählt
   const relevanteZahlungen = zahlungen.filter(z => {
     if (!z.buchungsdatum) return false;
     
-    // Nur Kategorie-Filter (exakt wie im Modal) - Mietkaution ausschließen
+    // Nur explizit kategorisierte Zahlungen einbeziehen
     return z.kategorie === 'Miete' || 
-           z.kategorie === 'Rücklastschrift' ||
-           z.kategorie === null || 
-           (z.betrag > 0 && z.kategorie !== 'Nichtmiete' && 
-            String(z.kategorie) !== 'Ignorieren' && 
-            String(z.kategorie) !== 'Mietkaution');
+           z.kategorie === 'Rücklastschrift';
   });
 
   // Wende Vorauszahlungs-Intelligenz an (jetzt basierend auf DB-Feld zugeordneter_monat)
@@ -99,12 +96,9 @@ export const calculateMietvertragRueckstand = (
     gesamtZahlungen += zahlungsBetrag;
   }
   
-  // Berechne Rücklastschrift-Gebühren (diese werden immer abgezogen)
-  const ruecklastschriftGebuehren = zahlungen
-    .filter(z => z.kategorie === 'Rücklastschrift')
-    .reduce((sum, z) => sum + (Number(z.ruecklastschrift_gebuehr) || 0), 0);
-  
-  const rueckstand = gesamtForderungen - gesamtZahlungen - ruecklastschriftGebuehren;
+  // Bug-Fix: Rücklastschrift-Gebühren werden NICHT mehr manuell abgezogen,
+  // da der DB-Trigger bereits eine Mietforderung dafür erstellt (sonst doppelte Belastung)
+  const rueckstand = gesamtForderungen - gesamtZahlungen;
   
   return { gesamtForderungen, gesamtZahlungen, rueckstand };
 };
