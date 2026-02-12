@@ -182,7 +182,7 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
         {searchResults && searchTerm.length >= 2 && (
           <div className="mt-4 space-y-4 max-h-80 overflow-y-auto animate-fade-in border-t pt-4">
             {/* Mietverträge (gruppiert nach Vertrag mit allen Mietern) */}
-            {searchResults.mietvertraege.length > 0 && (
+            {(searchResults.mietvertraege?.length ?? 0) > 0 && (
               <div>
                 <h4 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
@@ -302,7 +302,7 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
               </div>
             )}
 
-            {searchResults.mietvertraege.length === 0 && searchResults.immobilien.length === 0 && searchResults.einheiten.length === 0 && (
+            {(searchResults.mietvertraege?.length ?? 0) === 0 && (searchResults.immobilien?.length ?? 0) === 0 && (searchResults.einheiten?.length ?? 0) === 0 && (
               <div className="text-center py-4 text-muted-foreground">
                 Keine Ergebnisse gefunden
               </div>
