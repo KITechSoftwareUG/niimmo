@@ -57,7 +57,10 @@ export const HausmeisterDashboard = () => {
           id, name, adresse,
           allgemein_wasser_zaehler, allgemein_wasser_stand, allgemein_wasser_datum,
           allgemein_strom_zaehler, allgemein_strom_stand, allgemein_strom_datum,
-          allgemein_gas_zaehler, allgemein_gas_stand, allgemein_gas_datum
+          allgemein_gas_zaehler, allgemein_gas_stand, allgemein_gas_datum,
+          allgemein_strom_zaehler_2, allgemein_strom_stand_2, allgemein_strom_datum_2,
+          allgemein_gas_zaehler_2, allgemein_gas_stand_2, allgemein_gas_datum_2,
+          allgemein_wasser_zaehler_2, allgemein_wasser_stand_2, allgemein_wasser_datum_2
         `);
       
       if (propsError) throw propsError;
@@ -229,19 +232,20 @@ export const HausmeisterDashboard = () => {
       const today = format(new Date(), 'yyyy-MM-dd');
 
       for (const change of propChanges) {
+        const baseType = change.type.replace('_2', '');
+        const suffix = change.type.endsWith('_2') ? '_2' : '';
         if (change.zaehlerNummer !== undefined) {
-          updates[`allgemein_${change.type}_zaehler`] = change.zaehlerNummer || null;
+          updates[`allgemein_${baseType}_zaehler${suffix}`] = change.zaehlerNummer || null;
         }
         if (change.stand !== undefined) {
           const standValue = change.stand ? parseFloat(change.stand) : null;
-          updates[`allgemein_${change.type}_stand`] = standValue;
-          // Only auto-set datum if no explicit datum was provided and stand was changed
+          updates[`allgemein_${baseType}_stand${suffix}`] = standValue;
           if (standValue !== null && change.datum === undefined) {
-            updates[`allgemein_${change.type}_datum`] = today;
+            updates[`allgemein_${baseType}_datum${suffix}`] = today;
           }
         }
         if (change.datum !== undefined) {
-          updates[`allgemein_${change.type}_datum`] = change.datum || null;
+          updates[`allgemein_${baseType}_datum${suffix}`] = change.datum || null;
         }
       }
 
@@ -491,6 +495,64 @@ export const HausmeisterDashboard = () => {
                           );
                         })}
                       </div>
+
+                      {/* Zweiter Satz Hausanschlusszähler (Sonderfall z.B. Gehrden) */}
+                      {(immobilie.allgemein_strom_zaehler_2 || immobilie.allgemein_gas_zaehler_2 || immobilie.allgemein_wasser_zaehler_2 ||
+                        immobilie.allgemein_strom_stand_2 || immobilie.allgemein_gas_stand_2 || immobilie.allgemein_wasser_stand_2 ||
+                        immobilie.name?.includes('Gehrden')) && (
+                        <>
+                          <div className="mt-2 mb-1">
+                            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Hausanschlusszähler 2</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {(['wasser_2', 'strom_2', 'gas_2'] as const).map((type) => {
+                              const baseType = type.replace('_2', '');
+                              const zaehlerKey = `allgemein_${baseType}_zaehler_2` as keyof typeof immobilie;
+                              const standKey = `allgemein_${baseType}_stand_2` as keyof typeof immobilie;
+                              const datumKey = `allgemein_${baseType}_datum_2` as keyof typeof immobilie;
+
+                              const currentZaehler = immobilie[zaehlerKey] as string | null;
+                              const currentStand = immobilie[standKey] as number | null;
+                              const standDatum = immobilie[datumKey] as string | null;
+
+                              const editedZaehler = getEditedPropertyValue(immobilie.id, type, 'zaehler');
+                              const editedStand = getEditedPropertyValue(immobilie.id, type, 'stand');
+
+                              return (
+                                <div key={type} className="bg-background rounded p-1.5">
+                                  <div className="flex items-center gap-1 mb-1">
+                                    {getPropertyMeterIcon(baseType, "h-3 w-3")}
+                                    <span className="text-xs font-medium">{getMeterLabel(baseType)} (2)</span>
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    <Input
+                                      placeholder="Zähler-Nr."
+                                      value={editedZaehler ?? currentZaehler ?? ''}
+                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'zaehler', e.target.value)}
+                                      className="h-5 text-xs px-1.5"
+                                    />
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="Stand"
+                                      value={editedStand ?? currentStand ?? ''}
+                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'stand', e.target.value)}
+                                      className="h-5 text-xs px-1.5"
+                                    />
+                                    <Input
+                                      type="date"
+                                      placeholder="Datum"
+                                      value={getEditedPropertyValue(immobilie.id, type, 'datum') ?? standDatum ?? ''}
+                                      onChange={(e) => handlePropertyInputChange(immobilie.id, type, 'datum', e.target.value)}
+                                      className="h-5 text-xs px-1.5"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Einheiten Table */}
