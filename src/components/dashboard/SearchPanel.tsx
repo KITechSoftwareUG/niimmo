@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, User, Building, ArrowRight } from "lucide-react";
+import { Search, User, Building, ArrowRight, Home } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface SearchPanelProps {
@@ -18,7 +18,7 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
   const { data: searchResults } = useQuery({
     queryKey: ['search', searchTerm],
     queryFn: async () => {
-      if (!searchTerm || searchTerm.length < 2) return { mieter: [], immobilien: [] };
+      if (!searchTerm || searchTerm.length < 2) return { mieter: [], immobilien: [], einheiten: [] };
 
       // Suche Mieter (inklusive beendete Mietverträge)
       const { data: mieter, error: mieterError } = await supabase
@@ -57,7 +57,27 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
 
       if (immobilienError) throw immobilienError;
 
-      return { mieter: mieter || [], immobilien: immobilien || [] };
+      // Suche Einheiten (Zählernummern, Etage, etc.)
+      const { data: einheiten, error: einheitenError } = await supabase
+        .from('einheiten')
+        .select(`
+          id,
+          zaehler,
+          qm,
+          etage,
+          einheitentyp,
+          strom_zaehler,
+          gas_zaehler,
+          kaltwasser_zaehler,
+          warmwasser_zaehler,
+          immobilie_id,
+          immobilien!inner(id, name, adresse)
+        `)
+        .or(`strom_zaehler.ilike.%${searchTerm}%,gas_zaehler.ilike.%${searchTerm}%,kaltwasser_zaehler.ilike.%${searchTerm}%,warmwasser_zaehler.ilike.%${searchTerm}%,etage.ilike.%${searchTerm}%`);
+
+      if (einheitenError) throw einheitenError;
+
+      return { mieter: mieter || [], immobilien: immobilien || [], einheiten: einheiten || [] };
     },
     enabled: searchTerm.length >= 2
   });
@@ -96,11 +116,15 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
       const mieter = searchResults.mieter[0];
       const mietvertragId = mieter.mietvertrag_mieter[0]?.mietvertrag?.id;
       if (mietvertragId) {
-        return { type: 'mieter', mietvertragId };
+        return { type: 'mieter' as const, mietvertragId };
       }
     }
+    if (searchResults.einheiten.length > 0) {
+      const einheit = searchResults.einheiten[0];
+      return { type: 'einheit' as const, immobilieId: einheit.immobilie_id, einheitId: einheit.id };
+    }
     if (searchResults.immobilien.length > 0) {
-      return { type: 'immobilie', id: searchResults.immobilien[0].id };
+      return { type: 'immobilie' as const, id: searchResults.immobilien[0].id };
     }
     return null;
   };
@@ -112,6 +136,8 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
         if (firstResult.type === 'mieter' && firstResult.mietvertragId) {
           onMietvertragClick(firstResult.mietvertragId);
           setSearchTerm("");
+        } else if (firstResult.type === 'einheit') {
+          handleImmobilieClick(firstResult.immobilieId, firstResult.einheitId);
         } else if (firstResult.type === 'immobilie') {
           handleImmobilieClick(firstResult.id);
         }
@@ -131,7 +157,7 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
         <div className="relative">
           <Input
             type="text"
-            placeholder="Mieter oder Immobilie suchen... (Enter für erstes Ergebnis)"
+            placeholder="Mieter, Immobilie oder Zählernummer suchen... (Enter für erstes Ergebnis)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -225,8 +251,58 @@ export const SearchPanel = ({ onImmobilieSelect, onMietvertragClick }: SearchPan
               </div>
             )}
 
-            {searchResults.mieter.length === 0 && searchResults.immobilien.length === 0 && (
-              <div className="text-center py-4 text-gray-500">
+            {/* Einheiten Ergebnisse */}
+            {searchResults.einheiten.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2">
+                  <Home className="h-4 w-4" />
+                  Einheiten ({searchResults.einheiten.length})
+                </h4>
+                <div className="space-y-2">
+                  {searchResults.einheiten.map((einheit: any) => {
+                    const matchedZaehler = [
+                      einheit.strom_zaehler && einheit.strom_zaehler.toLowerCase().includes(searchTerm.toLowerCase()) ? `Strom: ${einheit.strom_zaehler}` : null,
+                      einheit.gas_zaehler && einheit.gas_zaehler.toLowerCase().includes(searchTerm.toLowerCase()) ? `Gas: ${einheit.gas_zaehler}` : null,
+                      einheit.kaltwasser_zaehler && einheit.kaltwasser_zaehler.toLowerCase().includes(searchTerm.toLowerCase()) ? `Kaltwasser: ${einheit.kaltwasser_zaehler}` : null,
+                      einheit.warmwasser_zaehler && einheit.warmwasser_zaehler.toLowerCase().includes(searchTerm.toLowerCase()) ? `Warmwasser: ${einheit.warmwasser_zaehler}` : null,
+                    ].filter(Boolean);
+
+                    const einheitLabel = einheit.zaehler 
+                      ? `Einheit ${String(einheit.zaehler).padStart(2, '0')}` 
+                      : `Einheit ${einheit.id.slice(-2)}`;
+
+                    return (
+                      <div
+                        key={einheit.id}
+                        className="p-3 bg-background border border-border rounded-lg hover:shadow-md hover:border-primary/30 transition-all cursor-pointer transform hover:scale-[1.02]"
+                        onClick={() => handleImmobilieClick(einheit.immobilie_id, einheit.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {einheitLabel} – {(einheit as any).immobilien?.name || 'Unbekannt'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {matchedZaehler.length > 0 ? matchedZaehler.join(' · ') : einheit.etage ? `Etage: ${einheit.etage}` : ''}
+                              {einheit.qm ? ` · ${einheit.qm} m²` : ''}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {einheit.einheitentyp || 'Einheit'}
+                            </Badge>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {searchResults.mieter.length === 0 && searchResults.immobilien.length === 0 && searchResults.einheiten.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground">
                 Keine Ergebnisse gefunden
               </div>
             )}
