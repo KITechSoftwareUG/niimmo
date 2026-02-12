@@ -1,5 +1,5 @@
 
-import { Calendar, Building2, Settings, User, LayoutDashboard, BarChart3 } from "lucide-react";
+import { Calendar, Building2, Settings, User, LayoutDashboard } from "lucide-react";
 
 export const DashboardSidebar = () => {
   
