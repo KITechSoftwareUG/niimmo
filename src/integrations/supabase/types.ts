@@ -340,14 +340,23 @@ export type Database = {
           adresse: string
           aktualisiert_am: string | null
           allgemein_gas_datum: string | null
+          allgemein_gas_datum_2: string | null
           allgemein_gas_stand: number | null
+          allgemein_gas_stand_2: number | null
           allgemein_gas_zaehler: string | null
+          allgemein_gas_zaehler_2: string | null
           allgemein_strom_datum: string | null
+          allgemein_strom_datum_2: string | null
           allgemein_strom_stand: number | null
+          allgemein_strom_stand_2: number | null
           allgemein_strom_zaehler: string | null
+          allgemein_strom_zaehler_2: string | null
           allgemein_wasser_datum: string | null
+          allgemein_wasser_datum_2: string | null
           allgemein_wasser_stand: number | null
+          allgemein_wasser_stand_2: number | null
           allgemein_wasser_zaehler: string | null
+          allgemein_wasser_zaehler_2: string | null
           Annuität: number | null
           baujahr: number | null
           beschreibung: string | null
@@ -367,14 +376,23 @@ export type Database = {
           adresse: string
           aktualisiert_am?: string | null
           allgemein_gas_datum?: string | null
+          allgemein_gas_datum_2?: string | null
           allgemein_gas_stand?: number | null
+          allgemein_gas_stand_2?: number | null
           allgemein_gas_zaehler?: string | null
+          allgemein_gas_zaehler_2?: string | null
           allgemein_strom_datum?: string | null
+          allgemein_strom_datum_2?: string | null
           allgemein_strom_stand?: number | null
+          allgemein_strom_stand_2?: number | null
           allgemein_strom_zaehler?: string | null
+          allgemein_strom_zaehler_2?: string | null
           allgemein_wasser_datum?: string | null
+          allgemein_wasser_datum_2?: string | null
           allgemein_wasser_stand?: number | null
+          allgemein_wasser_stand_2?: number | null
           allgemein_wasser_zaehler?: string | null
+          allgemein_wasser_zaehler_2?: string | null
           Annuität?: number | null
           baujahr?: number | null
           beschreibung?: string | null
@@ -394,14 +412,23 @@ export type Database = {
           adresse?: string
           aktualisiert_am?: string | null
           allgemein_gas_datum?: string | null
+          allgemein_gas_datum_2?: string | null
           allgemein_gas_stand?: number | null
+          allgemein_gas_stand_2?: number | null
           allgemein_gas_zaehler?: string | null
+          allgemein_gas_zaehler_2?: string | null
           allgemein_strom_datum?: string | null
+          allgemein_strom_datum_2?: string | null
           allgemein_strom_stand?: number | null
+          allgemein_strom_stand_2?: number | null
           allgemein_strom_zaehler?: string | null
+          allgemein_strom_zaehler_2?: string | null
           allgemein_wasser_datum?: string | null
+          allgemein_wasser_datum_2?: string | null
           allgemein_wasser_stand?: number | null
+          allgemein_wasser_stand_2?: number | null
           allgemein_wasser_zaehler?: string | null
+          allgemein_wasser_zaehler_2?: string | null
           Annuität?: number | null
           baujahr?: number | null
           beschreibung?: string | null
