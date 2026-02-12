@@ -1,10 +1,8 @@
 import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Search, ChevronDown, ChevronRight, Save, X } from "lucide-react";
+import { Loader2, Search, ChevronDown, ChevronRight, Save, X, ArrowLeft, TableProperties } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +11,10 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { sortPropertiesByName, getCurrentContract } from "@/utils/contractUtils";
 
-interface EditableMietUebersichtModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+// --- Shared types & logic (kept identical) ---
+
+interface EditableMietUebersichtProps {
+  onBack: () => void;
 }
 
 interface ContractRow {
@@ -24,8 +23,6 @@ interface ContractRow {
   objektName: string;
   einheitId: string;
   mieterId: string;
-  
-  // Editable fields
   etage: string;
   qm: number;
   typ: string;
@@ -41,7 +38,7 @@ interface ContractRow {
   anzahlPersonen: number | null;
 }
 
-export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMietUebersichtModalProps) => {
+export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -49,57 +46,28 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch data - get all contracts for each unit, then filter to only show current one
   const { data: rows, isLoading } = useQuery({
     queryKey: ['miet-overview'],
     queryFn: async () => {
-      // First get all units with their contracts
       const { data: einheitenData, error: einheitenError } = await supabase
         .from('einheiten')
         .select(`
-          id,
-          etage,
-          qm,
-          einheitentyp,
-          immobilien!inner(
-            id,
-            name
-          ),
+          id, etage, qm, einheitentyp,
+          immobilien!inner( id, name ),
           mietvertrag(
-            id,
-            status,
-            kaltmiete,
-            betriebskosten,
-            start_datum,
-            lastschrift,
-            anzahl_personen,
-            mietvertrag_mieter(
-              mieter(
-                id,
-                vorname,
-                nachname,
-                hauptmail,
-                telnr
-              )
-            )
+            id, status, kaltmiete, betriebskosten, start_datum, lastschrift, anzahl_personen,
+            mietvertrag_mieter( mieter( id, vorname, nachname, hauptmail, telnr ) )
           )
         `);
-
       if (einheitenError) throw einheitenError;
 
-      // For each unit, get the most current contract
       const results: ContractRow[] = [];
-      
       einheitenData?.forEach(einheit => {
         const contracts = einheit.mietvertrag || [];
-        if (contracts.length === 0) return; // Skip units without contracts
-        
-        // Use getCurrentContract to get the most relevant contract
+        if (contracts.length === 0) return;
         const currentContract = getCurrentContract(contracts);
         if (!currentContract) return;
-        
         const mieter = currentContract.mietvertrag_mieter?.[0]?.mieter;
-        
         results.push({
           contractId: currentContract.id,
           objektId: einheit.immobilien.id,
@@ -121,16 +89,13 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
           anzahlPersonen: currentContract.anzahl_personen
         });
       });
-
       return results;
     },
-    enabled: open
   });
 
   // Group by property
   const grouped = useMemo(() => {
     if (!rows) return [];
-    
     const filtered = rows.filter(r => {
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
       if (search) {
@@ -160,28 +125,15 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
 
   // Save field
   const saveField = async (table: string, id: string, field: string, value: any) => {
-    // Validate that we have a valid ID (not empty string)
     if (!id || id.trim() === '') {
       toast({ title: "Fehler", description: "Kein gültiger Datensatz gefunden", variant: "destructive" });
       setEditing(null);
       return;
     }
-
     try {
-      console.log('Saving field:', { table, id, field, value });
-      
-      const { error } = await supabase
-        .from(table as any)
-        .update({ [field]: value })
-        .eq('id', id);
-
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
-
+      const { error } = await supabase.from(table as any).update({ [field]: value }).eq('id', id);
+      if (error) throw error;
       setEditing(null);
-      // Invalidate all related queries so changes are visible everywhere
       queryClient.invalidateQueries({ queryKey: ['miet-overview'] });
       queryClient.invalidateQueries({ queryKey: ['einheiten'] });
       queryClient.invalidateQueries({ queryKey: ['mietvertrag'] });
@@ -191,7 +143,6 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
       queryClient.invalidateQueries({ queryKey: ['mietvertrag-mit-details'] });
       toast({ title: "Gespeichert" });
     } catch (err: any) {
-      console.error('Save error:', err);
       toast({ title: "Fehler", description: err.message, variant: "destructive" });
     }
   };
@@ -205,10 +156,8 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
       return (
         <div className="flex gap-1 items-center">
           {type === "select-status" ? (
-            <Select value={displayValue} onValueChange={(v) => setEditing({ ...editing, value: v })}>
-              <SelectTrigger className="h-8 text-xs w-24">
-                <SelectValue />
-              </SelectTrigger>
+            <Select value={displayValue} onValueChange={(v) => setEditing({ ...editing!, value: v })}>
+              <SelectTrigger className="h-8 text-xs w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="aktiv">Aktiv</SelectItem>
                 <SelectItem value="gekuendigt">Gekündigt</SelectItem>
@@ -216,10 +165,8 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               </SelectContent>
             </Select>
           ) : type === "select-typ" ? (
-            <Select value={displayValue} onValueChange={(v) => setEditing({ ...editing, value: v })}>
-              <SelectTrigger className="h-8 text-xs w-24">
-                <SelectValue />
-              </SelectTrigger>
+            <Select value={displayValue} onValueChange={(v) => setEditing({ ...editing!, value: v })}>
+              <SelectTrigger className="h-8 text-xs w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Wohnung">Wohnung</SelectItem>
                 <SelectItem value="Gewerbe">Gewerbe</SelectItem>
@@ -227,53 +174,30 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
               </SelectContent>
             </Select>
           ) : type === "personen" ? (
-            <Input
-              type="number"
-              step="1"
-              min="1"
-              value={displayValue ?? ''}
-              onChange={(e) => setEditing({ ...editing, value: e.target.value ? parseInt(e.target.value) : null })}
-              className="h-8 text-xs w-16"
-              autoFocus
-            />
+            <Input type="number" step="1" min="1" value={displayValue ?? ''} onChange={(e) => setEditing({ ...editing!, value: e.target.value ? parseInt(e.target.value) : null })} className="h-8 text-xs w-16" autoFocus />
           ) : (type === "number" || type === "qm") ? (
-            <Input
-              type="number"
-              step={type === "qm" ? "0.01" : "0.01"}
-              value={displayValue}
-              onChange={(e) => setEditing({ ...editing, value: parseFloat(e.target.value) || 0 })}
-              className="h-8 text-xs w-20"
-              autoFocus
-            />
+            <Input type="number" step="0.01" value={displayValue} onChange={(e) => setEditing({ ...editing!, value: parseFloat(e.target.value) || 0 })} className="h-8 text-xs w-20" autoFocus />
           ) : (
-            <Input
-              value={displayValue}
-              onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-              className="h-8 text-xs w-32"
-              autoFocus
-            />
+            <Input value={displayValue} onChange={(e) => setEditing({ ...editing!, value: e.target.value })} className="h-8 text-xs w-32" autoFocus />
           )}
-          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => saveField(table, rowId, field, editing.value)}>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => saveField(table, rowId, field, editing!.value)}>
             <Save className="h-3 w-3 text-green-600" />
           </Button>
           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditing(null)}>
-            <X className="h-3 w-3 text-red-600" />
+            <X className="h-3 w-3 text-destructive" />
           </Button>
         </div>
       );
     }
 
-    const formatted = type === "number" ? `${value.toFixed(2)} €` : 
+    const formatted = type === "number" ? `${value.toFixed(2)} €` :
                       type === "qm" ? `${value.toFixed(2)} m²` :
                       type === "personen" ? (value != null ? value.toString() : '-') :
-                      type === "date" ? value?.slice(0, 10) || '-' : 
+                      type === "date" ? value?.slice(0, 10) || '-' :
                       value || '-';
 
     return (
-      <div 
-        className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded"
-        onClick={() => setEditing({ id: `${rowId}-${field}`, field, value })}
-      >
+      <div className="cursor-pointer hover:bg-muted/50 px-2 py-1 rounded transition-colors" onClick={() => setEditing({ id: `${rowId}-${field}`, field, value })}>
         {formatted}
       </div>
     );
@@ -292,64 +216,65 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
 
   if (isLoading) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-7xl">
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin mr-2" />
-            Lade Daten...
-          </div>
-        </DialogContent>
-      </Dialog>
+      <div className="min-h-screen modern-dashboard-bg flex items-center justify-center">
+        <div className="glass-card p-12 rounded-3xl">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-6" />
+          <p className="text-muted-foreground font-medium text-lg text-center">Stammdaten werden geladen...</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] max-h-[98vh] p-0">
-        <DialogHeader className="px-6 py-4 border-b sticky top-0 bg-white z-20">
-          <DialogTitle className="text-2xl font-bold">Monatliche Mieter - Bearbeitbare Übersicht</DialogTitle>
-        </DialogHeader>
-
-        {/* Stats */}
-        <div className="px-6 py-4 bg-gray-50 border-b">
-          <div className="grid grid-cols-4 gap-4">
-            <Card className="p-3">
-              <div className="text-sm text-gray-600">Einheiten</div>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-sm text-green-600">Aktiv</div>
-              <div className="text-2xl font-bold text-green-700">{stats.aktiv}</div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-sm text-blue-600">Kaltmiete</div>
-              <div className="text-2xl font-bold text-blue-700">{stats.kaltmiete.toFixed(2)} €</div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-sm text-red-600">Warmmiete</div>
-              <div className="text-2xl font-bold text-red-700">{stats.warmmiete.toFixed(2)} €</div>
-            </Card>
+    <div className="min-h-screen modern-dashboard-bg">
+      <div className="container mx-auto px-4 py-4 sm:p-6 lg:p-8">
+        {/* Header */}
+        <div className="glass-card p-4 sm:p-6 rounded-xl sm:rounded-2xl mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={onBack} className="h-9 w-9 p-0">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <TableProperties className="h-6 w-6 text-primary" />
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Stammdaten</h1>
+                <p className="text-xs text-muted-foreground">Bearbeitbare Übersicht aller Einheiten & Mietverträge</p>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <Card className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Einheiten</p>
+            <p className="text-2xl font-bold">{stats.total}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Aktiv</p>
+            <p className="text-2xl font-bold text-green-600">{stats.aktiv}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Kaltmiete gesamt</p>
+            <p className="text-2xl font-bold">{stats.kaltmiete.toFixed(2)} €</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-muted-foreground mb-1">Warmmiete gesamt</p>
+            <p className="text-2xl font-bold">{stats.warmmiete.toFixed(2)} €</p>
+          </Card>
+        </div>
+
         {/* Filters */}
-        <div className="px-6 py-3 border-b bg-white">
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Suchen..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-64"
-              />
+        <div className="glass-card p-4 rounded-xl mb-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input placeholder="Suchen nach Name, E-Mail, Objekt..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle</SelectItem>
+                <SelectItem value="all">Alle Status</SelectItem>
                 <SelectItem value="aktiv">Aktiv</SelectItem>
                 <SelectItem value="gekuendigt">Gekündigt</SelectItem>
               </SelectContent>
@@ -358,79 +283,75 @@ export const EditableMietUebersichtModal = ({ open, onOpenChange }: EditableMiet
         </div>
 
         {/* Table */}
-        <ScrollArea className="h-[60vh] px-6">
-          <Table>
-            <TableHeader className="sticky top-0 bg-white z-10">
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Einheit</TableHead>
-                <TableHead>Etage</TableHead>
-                <TableHead>Qm</TableHead>
-                <TableHead>Typ</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Vorname</TableHead>
-                <TableHead>Nachname</TableHead>
-                <TableHead>E-Mail</TableHead>
-                <TableHead>Telefon</TableHead>
-                <TableHead className="text-right">Kaltmiete</TableHead>
-                <TableHead className="text-right">NK</TableHead>
-                <TableHead className="text-center">Pers.</TableHead>
-                <TableHead>Mietbeginn</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {grouped.map(group => (
-                <>
-                  <TableRow key={group.objektId} className="bg-gray-100 hover:bg-gray-200">
-                    <TableCell colSpan={14} className="font-bold cursor-pointer" onClick={() => {
-                      const newExpanded = new Set(expanded);
-                      if (newExpanded.has(group.objektId)) {
-                        newExpanded.delete(group.objektId);
-                      } else {
-                        newExpanded.add(group.objektId);
-                      }
-                      setExpanded(newExpanded);
-                    }}>
-                      <div className="flex items-center gap-2">
-                        {expanded.has(group.objektId) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                        {group.objektName}
-                        <Badge variant="outline">{group.contracts.length}</Badge>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  {expanded.has(group.objektId) && group.contracts
-                    .sort((a, b) => {
-                      // Extract last 2 digits and sort numerically
-                      const aNum = parseInt(a.einheitId.slice(-2));
-                      const bNum = parseInt(b.einheitId.slice(-2));
-                      return aNum - bNum;
-                    })
-                    .map((row, idx) => (
-                    <TableRow key={row.contractId} className="hover:bg-gray-50">
-                      <TableCell className="text-center">{idx + 1}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">{row.einheitId.slice(-4)}</Badge>
+        <div className="glass-card rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead className="w-10 text-xs">#</TableHead>
+                  <TableHead className="text-xs">Einheit</TableHead>
+                  <TableHead className="text-xs">Etage</TableHead>
+                  <TableHead className="text-xs">Qm</TableHead>
+                  <TableHead className="text-xs">Typ</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="text-xs">Vorname</TableHead>
+                  <TableHead className="text-xs">Nachname</TableHead>
+                  <TableHead className="text-xs">E-Mail</TableHead>
+                  <TableHead className="text-xs">Telefon</TableHead>
+                  <TableHead className="text-xs text-right">Kaltmiete</TableHead>
+                  <TableHead className="text-xs text-right">NK</TableHead>
+                  <TableHead className="text-xs text-center">Pers.</TableHead>
+                  <TableHead className="text-xs">Mietbeginn</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {grouped.map(group => (
+                  <>
+                    <TableRow key={group.objektId} className="bg-muted/50 hover:bg-muted/70">
+                      <TableCell colSpan={14} className="font-bold cursor-pointer py-3" onClick={() => {
+                        const newExpanded = new Set(expanded);
+                        if (newExpanded.has(group.objektId)) newExpanded.delete(group.objektId);
+                        else newExpanded.add(group.objektId);
+                        setExpanded(newExpanded);
+                      }}>
+                        <div className="flex items-center gap-2">
+                          {expanded.has(group.objektId) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          {group.objektName}
+                          <Badge variant="outline" className="text-xs">{group.contracts.length}</Badge>
+                        </div>
                       </TableCell>
-                      <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="etage" value={row.etage} /></TableCell>
-                      <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="qm" value={row.qm} type="qm" /></TableCell>
-                      <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="einheitentyp" value={row.typ} type="select-typ" /></TableCell>
-                      <TableCell><EditCell rowId={row.contractId} table="mietvertrag" field="status" value={row.status} type="select-status" /></TableCell>
-                      <TableCell><EditCell rowId={row.mieterId} table="mieter" field="vorname" value={row.vorname} /></TableCell>
-                      <TableCell><EditCell rowId={row.mieterId} table="mieter" field="nachname" value={row.nachname} /></TableCell>
-                      <TableCell><EditCell rowId={row.mieterId} table="mieter" field="hauptmail" value={row.email} /></TableCell>
-                      <TableCell><EditCell rowId={row.mieterId} table="mieter" field="telnr" value={row.telefon} /></TableCell>
-                      <TableCell className="text-right"><EditCell rowId={row.contractId} table="mietvertrag" field="kaltmiete" value={row.kaltmiete} type="number" /></TableCell>
-                      <TableCell className="text-right"><EditCell rowId={row.contractId} table="mietvertrag" field="betriebskosten" value={row.betriebskosten} type="number" /></TableCell>
-                      <TableCell className="text-center"><EditCell rowId={row.contractId} table="mietvertrag" field="anzahl_personen" value={row.anzahlPersonen} type="personen" /></TableCell>
-                      <TableCell><EditCell rowId={row.contractId} table="mietvertrag" field="start_datum" value={row.mietbeginn} type="date" /></TableCell>
                     </TableRow>
-                  ))}
-                </>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+                    {expanded.has(group.objektId) && group.contracts
+                      .sort((a, b) => {
+                        const aNum = parseInt(a.einheitId.slice(-2));
+                        const bNum = parseInt(b.einheitId.slice(-2));
+                        return aNum - bNum;
+                      })
+                      .map((row, idx) => (
+                      <TableRow key={row.contractId} className="hover:bg-muted/20">
+                        <TableCell className="text-center text-xs">{idx + 1}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-xs">{row.einheitId.slice(-4)}</Badge></TableCell>
+                        <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="etage" value={row.etage} /></TableCell>
+                        <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="qm" value={row.qm} type="qm" /></TableCell>
+                        <TableCell><EditCell rowId={row.einheitId} table="einheiten" field="einheitentyp" value={row.typ} type="select-typ" /></TableCell>
+                        <TableCell><EditCell rowId={row.contractId} table="mietvertrag" field="status" value={row.status} type="select-status" /></TableCell>
+                        <TableCell><EditCell rowId={row.mieterId} table="mieter" field="vorname" value={row.vorname} /></TableCell>
+                        <TableCell><EditCell rowId={row.mieterId} table="mieter" field="nachname" value={row.nachname} /></TableCell>
+                        <TableCell><EditCell rowId={row.mieterId} table="mieter" field="hauptmail" value={row.email} /></TableCell>
+                        <TableCell><EditCell rowId={row.mieterId} table="mieter" field="telnr" value={row.telefon} /></TableCell>
+                        <TableCell className="text-right"><EditCell rowId={row.contractId} table="mietvertrag" field="kaltmiete" value={row.kaltmiete} type="number" /></TableCell>
+                        <TableCell className="text-right"><EditCell rowId={row.contractId} table="mietvertrag" field="betriebskosten" value={row.betriebskosten} type="number" /></TableCell>
+                        <TableCell className="text-center"><EditCell rowId={row.contractId} table="mietvertrag" field="anzahl_personen" value={row.anzahlPersonen} type="personen" /></TableCell>
+                        <TableCell><EditCell rowId={row.contractId} table="mietvertrag" field="start_datum" value={row.mietbeginn} type="date" /></TableCell>
+                      </TableRow>
+                    ))}
+                  </>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
