@@ -85,29 +85,15 @@ export function MietvertragPaymentsSection({
   
   const { gesamtForderungen, gesamtZahlungen, rueckstand, unbestaetigteLastschriften } = rueckstandsBerechnung;
   
-  // Alle Forderungen verwenden - ohne Filterung nach Startdatum
-  const alleForderungenAbStart = (forderungen || []).filter(f => {
-    return f.sollmonat; // Nur Forderungen mit sollmonat
-  });
+  // Alle Forderungen zählen sofort als Rückstand - keine Fälligkeitsprüfung
+  const alleForderungenAbStart = (forderungen || []).filter(f => f.sollmonat);
   
-  const heute = new Date();
-  
-  // Berechne Fälligkeit basierend auf tatsächlichem Datum (10. des Monats)
-  const faelligeForderungen = alleForderungenAbStart.filter(f => {
-    if (!f.sollmonat) return false;
-    const [year, month] = f.sollmonat.split('-');
-    const faelligkeitsdatum = new Date(parseInt(year), parseInt(month) - 1, 10);
-    return faelligkeitsdatum <= heute;
-  });
-  const nichtFaelligeForderungen = alleForderungenAbStart.filter(f => {
-    if (!f.sollmonat) return false;
-    const [year, month] = f.sollmonat.split('-');
-    const faelligkeitsdatum = new Date(parseInt(year), parseInt(month) - 1, 10);
-    return faelligkeitsdatum > heute;
-  });
+  // Alle Forderungen gelten sofort - "fällig" = alle, "nicht fällig" = keine
+  const faelligeForderungen = alleForderungenAbStart;
+  const nichtFaelligeForderungen: any[] = [];
   
   const faelligeForderungenBetrag = faelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
-  const nichtFaelligeForderungenBetrag = nichtFaelligeForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+  const nichtFaelligeForderungenBetrag = 0;
 
   return (
     <>

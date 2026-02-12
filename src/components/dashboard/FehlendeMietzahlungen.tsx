@@ -1,5 +1,6 @@
 
 import { useState, useMemo } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Euro, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Filter } from "lucide-react";
 import { useRueckstaende } from "@/hooks/useRueckstaende";
@@ -164,9 +165,21 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
               </div>
               <div className="text-left min-w-0">
                 <h2 className="text-sm sm:text-lg font-semibold text-gray-800">Rückstände & Guthaben</h2>
-                <p className="text-xs sm:text-sm text-gray-600 truncate">
-                  {fehlendeMietzahlungen?.length || 0} Vertrag{(fehlendeMietzahlungen?.length || 0) !== 1 ? 'e' : ''}
-                </p>
+                <div className="flex items-center gap-1">
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">
+                    {fehlendeMietzahlungen?.length || 0} Vertrag{(fehlendeMietzahlungen?.length || 0) !== 1 ? 'e' : ''}
+                  </p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-xs text-amber-600 cursor-help ml-1">ⓘ</span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs text-xs">
+                        <p>Rückstände werden hier erst angezeigt, wenn der <strong>4. Werktag</strong> des jeweiligen Forderungsmonats überschritten ist.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </div>
             </div>
             
