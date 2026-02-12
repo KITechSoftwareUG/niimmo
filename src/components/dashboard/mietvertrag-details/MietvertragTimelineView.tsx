@@ -23,13 +23,12 @@ import {
   Wallet,
   GripVertical,
   Clock,
-  Timer,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
 import { PaymentSplitModal } from "../PaymentSplitModal";
 import { PaymentUndoSplitModal } from "../PaymentUndoSplitModal";
-import { isLastschriftConfirmed, getRemainingWaitDays } from "@/utils/rueckstandsberechnung";
+
 
 interface MietvertragTimelineViewProps {
   forderungen: any[];
@@ -288,16 +287,7 @@ export function MietvertragTimelineView({
       return zVerwendungszweck.includes(`SPLIT_GROUP_${splitTimestamp}_`);
     });
   };
-
-  // Helper function to check if lastschrift payment should be shown as "pending"
-  const isLastschriftPendingPayment = (zahlung: any) => {
-    return !isLastschriftConfirmed(zahlung, vertrag);
-  };
-
-  // Get remaining days for pending Lastschrift payment
-  const getPaymentRemainingDays = (zahlung: any) => {
-    return getRemainingWaitDays(zahlung, vertrag);
-  };
+  // Lastschrift pending is no longer used - all payments count immediately
 
   // Group data by months for timeline display
   const monthlyData = new Map();
@@ -413,7 +403,6 @@ export function MietvertragTimelineView({
   // Render a Zahlung Card
   const renderZahlungCard = (zahlung: any) => {
     const isIgnored = zahlung.kategorie === 'Ignorieren';
-    const isLastschriftPending = isLastschriftPendingPayment(zahlung);
     const isKaution = zahlung.kategorie === 'Mietkaution';
     
     const bgColor = isIgnored 
@@ -426,10 +415,7 @@ export function MietvertragTimelineView({
       ? 'border-gray-200 dark:border-gray-800/50 border-dashed'
       : isKaution
         ? 'border-blue-200 dark:border-blue-800/50'
-        : isLastschriftPending 
-          ? 'border-amber-300 dark:border-amber-700/50'
-          : 'border-emerald-200 dark:border-emerald-800/50';
-    
+        : 'border-emerald-200 dark:border-emerald-800/50';
     const iconBg = isIgnored 
       ? 'bg-gray-100 dark:bg-gray-900/50'
       : isKaution
@@ -464,32 +450,6 @@ export function MietvertragTimelineView({
         </div>
 
         {/* Lastschrift Pending Badge with remaining days */}
-        {isLastschriftPending && (
-          <div className="mb-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700 flex items-center gap-1 w-fit">
-                    <Timer className="h-3 w-3" />
-                    <span>
-                      {getPaymentRemainingDays(zahlung) > 0 
-                        ? `Wartezeit: noch ${getPaymentRemainingDays(zahlung)} Tag${getPaymentRemainingDays(zahlung) !== 1 ? 'e' : ''}`
-                        : 'Wartet auf Bestätigung'
-                      }
-                    </span>
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">
-                    Lastschrift-Zahlung wird nach {vertrag?.lastschrift_wartetage || 4} Tagen automatisch bestätigt.
-                    <br />
-                    Bis dahin wird sie nicht in den Rückstand eingerechnet.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
 
         {/* Header */}
         <div className="flex items-center gap-2 mb-2">
