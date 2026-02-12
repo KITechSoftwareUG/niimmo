@@ -28,10 +28,6 @@ export const DashboardSidebar = () => {
             <span>Dashboard</span>
           </a>
           <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-sans">
-            <BarChart3 className="h-5 w-5" />
-            <span>Analytics</span>
-          </a>
-          <a href="#" className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors font-sans">
             <Calendar className="h-5 w-5" />
             <span>Kalender</span>
           </a>
