@@ -362,6 +362,9 @@ export type Database = {
           beschreibung: string | null
           einheiten_anzahl: number
           erstellt_am: string | null
+          hat_gas: boolean
+          hat_strom: boolean
+          hat_wasser: boolean
           id: string
           kaufpreis: number | null
           "Kontonr.": string | null
@@ -398,6 +401,9 @@ export type Database = {
           beschreibung?: string | null
           einheiten_anzahl: number
           erstellt_am?: string | null
+          hat_gas?: boolean
+          hat_strom?: boolean
+          hat_wasser?: boolean
           id?: string
           kaufpreis?: number | null
           "Kontonr."?: string | null
@@ -434,6 +440,9 @@ export type Database = {
           beschreibung?: string | null
           einheiten_anzahl?: number
           erstellt_am?: string | null
+          hat_gas?: boolean
+          hat_strom?: boolean
+          hat_wasser?: boolean
           id?: string
           kaufpreis?: number | null
           "Kontonr."?: string | null
