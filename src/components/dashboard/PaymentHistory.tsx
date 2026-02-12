@@ -70,27 +70,37 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
   const getPaymentStatus = (forderung: any) => {
     if (!zahlungen) return { paid: false, paymentDate: null, isLate: false };
     
-    const sollDatum = new Date(forderung.sollmonat + '-01');
-    const fälligkeitsDatum = new Date(sollDatum);
-    fälligkeitsDatum.setMonth(fälligkeitsDatum.getMonth() + 1);
-    fälligkeitsDatum.setDate(7); // 7. des Folgemonats
+    const sollMonat = forderung.sollmonat; // z.B. "2025-10"
+    const fälligkeitsDatum = new Date(sollMonat + '-08'); // 8. des Monats
     
+    // Primär: Match über zugeordneter_monat (zuverlässigste Methode)
     const matchingZahlung = zahlungen.find(z => {
+      if (z.zugeordneter_monat === sollMonat && z.kategorie === 'Miete') {
+        return true;
+      }
+      return false;
+    });
+
+    // Fallback: Betrag + Datumstoleranz wenn kein zugeordneter_monat passt
+    const fallbackZahlung = !matchingZahlung ? zahlungen.find(z => {
+      if (z.kategorie !== 'Miete') return false;
+      if (z.zugeordneter_monat) return false; // bereits geprüft
       const zahlungsDatum = new Date(z.buchungsdatum);
       const toleranzStart = new Date(fälligkeitsDatum);
-      toleranzStart.setDate(toleranzStart.getDate() - 7);
+      toleranzStart.setDate(toleranzStart.getDate() - 14);
       const toleranzEnde = new Date(fälligkeitsDatum);
-      toleranzEnde.setDate(toleranzEnde.getDate() + 7);
-      
+      toleranzEnde.setDate(toleranzEnde.getDate() + 14);
       return zahlungsDatum >= toleranzStart && 
              zahlungsDatum <= toleranzEnde &&
              Math.abs(z.betrag - forderung.sollbetrag) <= 50;
-    });
+    }) : null;
 
-    if (matchingZahlung) {
-      const zahlungsDatum = new Date(matchingZahlung.buchungsdatum);
+    const gefundeneZahlung = matchingZahlung || fallbackZahlung;
+
+    if (gefundeneZahlung) {
+      const zahlungsDatum = new Date(gefundeneZahlung.buchungsdatum);
       const isLate = zahlungsDatum > fälligkeitsDatum;
-      return { paid: true, paymentDate: matchingZahlung.buchungsdatum, isLate };
+      return { paid: true, paymentDate: gefundeneZahlung.buchungsdatum, isLate };
     }
 
     return { paid: false, paymentDate: null, isLate: fälligkeitsDatum < new Date() };
