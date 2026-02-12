@@ -8,7 +8,7 @@ import { Analytics } from "@/components/dashboard/Analytics";
 
 import { SearchPanel } from "@/components/dashboard/SearchPanel";
 import { UserMenu } from "@/components/dashboard/UserMenu";
-import { EditableMietUebersichtModal } from "@/components/dashboard/EditableMietUebersichtModal";
+import { EditableMietUebersicht } from "@/components/dashboard/EditableMietUebersichtModal";
 import { RentIncreaseList } from "@/components/dashboard/rent-increase/RentIncreaseList";
 import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
 import { Uebergabe } from "@/pages/Uebergabe";
@@ -47,7 +47,7 @@ const Index = () => {
   const setShowDarlehen = useCallback((v: boolean) => updateNav({ showDarlehen: v }), [updateNav]);
   const setNavigationSource = useCallback((v: 'dashboard' | 'immobilie' | 'search') => updateNav({ navigationSource: v }), [updateNav]);
 
-  const [showMietUebersicht, setShowMietUebersicht] = useState<boolean>(false);
+  const [showStammdaten, setShowStammdaten] = useState<boolean>(false);
   const [showZaehlerVerwaltung, setShowZaehlerVerwaltung] = useState<boolean>(false);
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
@@ -282,6 +282,11 @@ const Index = () => {
     return <ZaehlerVerwaltung onBack={() => setShowZaehlerVerwaltung(false)} />;
   }
 
+  // Stammdaten-Ansicht anzeigen
+  if (showStammdaten) {
+    return <EditableMietUebersicht onBack={() => setShowStammdaten(false)} />;
+  }
+
   if (selectedImmobilie) {
     return <ImmobilienDetail 
       immobilieId={selectedImmobilie} 
@@ -365,7 +370,7 @@ const Index = () => {
                     <span className="truncate">Übergabe</span>
                   </Button>
                   <Button 
-                    onClick={() => setShowMietUebersicht(true)} 
+                    onClick={() => setShowStammdaten(true)} 
                     variant="ghost"
                     size="sm"
                     className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
@@ -470,13 +475,6 @@ const Index = () => {
           </div>}
       </div>
       
-      {/* Mietübersicht Modal - Only for Admin */}
-      {isAdmin && (
-        <EditableMietUebersichtModal 
-          open={showMietUebersicht} 
-          onOpenChange={setShowMietUebersicht} 
-        />
-      )}
     </div>;
 };
 export default Index;
