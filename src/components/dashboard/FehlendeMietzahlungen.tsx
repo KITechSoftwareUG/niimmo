@@ -2,8 +2,9 @@
 import { useState, useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Euro, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Filter } from "lucide-react";
+import { AlertTriangle, Euro, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Filter, Search, X } from "lucide-react";
 import { useRueckstaende } from "@/hooks/useRueckstaende";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,6 +32,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
   const [amountFilter, setAmountFilter] = useState<AmountFilter>('all');
   const [minAmountFilter, setMinAmountFilter] = useState<MinAmountFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [searchTerm, setSearchTerm] = useState("");
   const { data: fehlendeMietzahlungen, isLoading, error } = useRueckstaende();
 
   const { rueckstaende, guthaben, sortedFehlendeMietzahlungen, statusCounts } = useMemo(() => {
@@ -38,6 +40,19 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
     
     // 1. Filter out zero amounts and very small amounts (< 0.01 EUR) first
     let filtered = fehlendeMietzahlungen.filter(item => Math.abs(item.fehlend_betrag) >= 0.01);
+
+    // 1b. Apply search filter
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(item => 
+        item.immobilie_name.toLowerCase().includes(search) ||
+        item.immobilie_adresse.toLowerCase().includes(search) ||
+        item.mieter_name.toLowerCase().includes(search) ||
+        item.einheit_etage.toLowerCase().includes(search) ||
+        item.einheit_typ.toLowerCase().includes(search) ||
+        (item.einheit_nummer && item.einheit_nummer.includes(search))
+      );
+    }
     
     // Count status before other filters
     const statusCounts = {
@@ -112,7 +127,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
       sortedFehlendeMietzahlungen: sorted,
       statusCounts
     };
-  }, [fehlendeMietzahlungen, sortBy, sortDirection, amountFilter, minAmountFilter, statusFilter]);
+  }, [fehlendeMietzahlungen, sortBy, sortDirection, amountFilter, minAmountFilter, statusFilter, searchTerm]);
 
   const allRueckstaende = [...rueckstaende.aktiv, ...rueckstaende.gekuendigt, ...rueckstaende.beendet];
   const allGuthaben = [...guthaben.aktiv, ...guthaben.gekuendigt, ...guthaben.beendet];
@@ -236,6 +251,26 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
             </div>
           )}
           
+          {/* Search */}
+          <div className="relative mb-3">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Mieter, Objekt oder Einheit suchen..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-8 h-9 text-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
           {/* Sorting Controls */}
           {fehlendeMietzahlungen && fehlendeMietzahlungen.length > 0 && (
             <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between border-b border-red-200 pb-3 sm:pb-4">
@@ -317,7 +352,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
               
               <div className="flex justify-between items-center mt-2">
                 <div className="text-xs text-gray-500">
-                  {sortedFehlendeMietzahlungen.length} Einträge {amountFilter !== 'all' || minAmountFilter !== 'all' || statusFilter !== 'all' ? '(gefiltert) ' : ''}sortiert nach{' '}
+                  {sortedFehlendeMietzahlungen.length} Einträge {amountFilter !== 'all' || minAmountFilter !== 'all' || statusFilter !== 'all' || searchTerm ? '(gefiltert) ' : ''}sortiert nach{' '}
                   {sortBy === 'object' && 'Objekt'}
                   {sortBy === 'amount' && 'Betrag'}
                   {sortBy === 'mahnstufe' && 'Mahnstufe'}
@@ -326,7 +361,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                 </div>
                 
                 {/* Reset Filter Button */}
-                {(amountFilter !== 'all' || minAmountFilter !== 'all' || statusFilter !== 'all') && (
+                {(amountFilter !== 'all' || minAmountFilter !== 'all' || statusFilter !== 'all' || searchTerm) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -334,6 +369,7 @@ export const FehlendeMietzahlungen = ({ onMietvertragClick, open, defaultOpen, o
                       setAmountFilter('all');
                       setMinAmountFilter('all');
                       setStatusFilter('all');
+                      setSearchTerm("");
                     }}
                     className="text-xs"
                   >

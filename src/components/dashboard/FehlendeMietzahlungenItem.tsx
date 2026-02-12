@@ -37,7 +37,7 @@ export function FehlendeMietzahlungenItem({
                 {item.immobilie_name}
               </h3>
               <Badge variant="outline" className="text-[10px] sm:text-xs">
-                {item.einheit_typ} - {item.einheit_etage}
+                {item.einheit_nummer ? `Einheit ${item.einheit_nummer} · ` : ''}{item.einheit_typ} - {item.einheit_etage}
               </Badge>
               {/* Mahnstufe - Show inline on mobile */}
               {!isGuthaben && item.mahnstufe > 0 && (

@@ -1023,9 +1023,9 @@ export default function MietvertragDetailsModal({
               <DialogTitle className="flex items-center gap-2 text-base md:text-lg">
                 <Building2 className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0" />
                 <span>Mietvertrag Details</span>
-                {(immobilie || einheit) && (
+                {(immobilie || einheitData) && (
                   <span className="text-xs md:text-sm font-normal text-muted-foreground truncate">
-                    – {immobilie?.name}{immobilie?.adresse ? ` · ${immobilie.adresse}` : ''}{einheit ? ` · ${einheit.einheitentyp || 'Einheit'}${einheit.etage ? ` ${einheit.etage}` : ''}` : ''}
+                    – {immobilie?.name}{immobilie?.adresse ? ` · ${immobilie.adresse}` : ''}{einheitData ? ` · ${einheitData.zaehler ? `Einheit ${String(einheitData.zaehler).padStart(2, '0')} · ` : ''}${einheitData.einheitentyp || 'Einheit'}${einheitData.etage ? ` ${einheitData.etage}` : ''}` : ''}
                   </span>
                 )}
               </DialogTitle>
