@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { 
   ArrowLeft, Plus, Pencil, Trash2, Building2, Landmark, 
-  TrendingDown, Calendar, Euro, Percent, ChevronDown, ChevronUp 
+  TrendingDown, Calendar, Euro, Percent, ChevronDown, ChevronUp,
+  PieChart, TrendingUp, Wallet, Home, Shield
 } from "lucide-react";
 
 interface DarlehenVerwaltungProps {
@@ -75,7 +76,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const { data: immobilien } = useQuery({
     queryKey: ["immobilien"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("immobilien").select("id, name, adresse").order("name");
+      const { data, error } = await supabase.from("immobilien").select("id, name, adresse, kaufpreis").order("name");
       if (error) throw error;
       return data;
     },
@@ -203,6 +204,28 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     ? darlehen.reduce((s, d) => s + (d.zinssatz_prozent || 0), 0) / darlehen.length 
     : 0;
 
+  // Portfolio metrics
+  const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
+  const totalGetilgt = totalDarlehensbetrag - totalRestschuld;
+  const eigenkapitalQuote = totalKaufpreis > 0 ? ((totalKaufpreis - totalRestschuld) / totalKaufpreis) * 100 : 0;
+  const tilgungsQuote = totalDarlehensbetrag > 0 ? (totalGetilgt / totalDarlehensbetrag) * 100 : 0;
+  const anzahlKredite = darlehen?.length || 0;
+
+  // Circular progress helper
+  const CircularProgress = ({ percent, size = 120, strokeWidth = 10, color = "hsl(var(--primary))" }: { percent: number; size?: number; strokeWidth?: number; color?: string }) => {
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (Math.min(percent, 100) / 100) * circumference;
+    return (
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth}
+          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+          className="transition-all duration-1000 ease-out" />
+      </svg>
+    );
+  };
+
   return (
     <div className="min-h-screen modern-dashboard-bg">
       <div className="container mx-auto px-4 py-4 sm:p-6 lg:p-8">
@@ -213,10 +236,12 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
               <Button variant="ghost" size="sm" onClick={onBack} className="h-9 w-9 p-0">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <Landmark className="h-6 w-6 text-blue-600" />
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Landmark className="h-5 w-5 text-primary" />
+              </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Darlehen & Kredite</h1>
-                <p className="text-xs text-gray-500">Finanzierungsübersicht</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Finanzierung & Portfolio</h1>
+                <p className="text-xs text-muted-foreground">{anzahlKredite} {anzahlKredite === 1 ? 'Kredit' : 'Kredite'} · {immobilien?.length || 0} Immobilien</p>
               </div>
             </div>
             <Button onClick={() => { resetForm(); setShowForm(true); }} size="sm" className="gap-1.5">
@@ -225,29 +250,104 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Gesamtvolumen</p>
-            <p className="text-lg font-bold">{formatCurrency(totalDarlehensbetrag)}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Restschuld gesamt</p>
-            <p className="text-lg font-bold text-orange-600">{formatCurrency(totalRestschuld)}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Monatl. Belastung</p>
-            <p className="text-lg font-bold text-red-600">{formatCurrency(totalMonatlicheRate)}</p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Ø Zinssatz</p>
-            <p className="text-lg font-bold text-blue-600">{formatPercent(avgZinssatz)}</p>
-          </Card>
-        </div>
+        {/* Hero Portfolio Card */}
+        <Card className="p-0 overflow-hidden mb-6">
+          <div className="bg-gradient-to-br from-primary/5 via-card to-primary/3 p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left: Key Numbers */}
+              <div className="lg:col-span-2 space-y-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {/* Immobilienwert */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Home className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-medium uppercase tracking-wider">Immobilienwert</span>
+                    </div>
+                    <p className="text-2xl font-bold text-foreground">{formatCurrency(totalKaufpreis)}</p>
+                  </div>
+                  {/* Gesamtschuld */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Wallet className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-medium uppercase tracking-wider">Restschuld</span>
+                    </div>
+                    <p className="text-2xl font-bold text-destructive">{formatCurrency(totalRestschuld)}</p>
+                  </div>
+                  {/* Bereits getilgt */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-medium uppercase tracking-wider">Bereits getilgt</span>
+                    </div>
+                    <p className="text-2xl font-bold" style={{ color: 'hsl(152, 69%, 31%)' }}>{formatCurrency(totalGetilgt)}</p>
+                  </div>
+                </div>
+
+                {/* Progress Bar: Tilgungsfortschritt */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-medium text-muted-foreground">Gesamter Tilgungsfortschritt</span>
+                    <span className="text-xs font-bold text-foreground">{tilgungsQuote.toFixed(1)}%</span>
+                  </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-1000 ease-out"
+                      style={{ width: `${Math.min(tilgungsQuote, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1.5">
+                    <span className="text-[10px] text-muted-foreground">Volumen: {formatCurrency(totalDarlehensbetrag)}</span>
+                    <span className="text-[10px] text-muted-foreground">Offen: {formatCurrency(totalRestschuld)}</span>
+                  </div>
+                </div>
+
+                {/* Bottom metrics row */}
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex items-center gap-2 bg-card rounded-lg px-3 py-2 border">
+                    <Euro className="h-4 w-4 text-destructive" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Monatl. Belastung</p>
+                      <p className="text-sm font-bold text-foreground">{formatCurrency(totalMonatlicheRate)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-card rounded-lg px-3 py-2 border">
+                    <Percent className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Ø Zinssatz</p>
+                      <p className="text-sm font-bold text-foreground">{formatPercent(avgZinssatz)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-card rounded-lg px-3 py-2 border">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Jährl. Belastung</p>
+                      <p className="text-sm font-bold text-foreground">{formatCurrency(totalMonatlicheRate * 12)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Eigenkapital Ring */}
+              <div className="flex flex-col items-center justify-center">
+                <div className="relative">
+                  <CircularProgress percent={eigenkapitalQuote} size={140} strokeWidth={12} color="hsl(var(--primary))" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <Shield className="h-5 w-5 text-primary mb-0.5" />
+                    <span className="text-2xl font-bold text-foreground">{eigenkapitalQuote.toFixed(0)}%</span>
+                    <span className="text-[10px] text-muted-foreground font-medium">Eigenkapital</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 text-center">
+                  {formatCurrency(totalKaufpreis - totalRestschuld)} von {formatCurrency(totalKaufpreis)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Darlehen List */}
         {isLoading ? (
-          <div className="text-center py-12 text-gray-500">Wird geladen...</div>
+          <div className="text-center py-12 text-muted-foreground">Wird geladen...</div>
         ) : darlehen && darlehen.length > 0 ? (
           <div className="space-y-3">
             {darlehen.map((d) => {
@@ -300,7 +400,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                         <div className="w-20 hidden sm:block">
                           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                             <div 
-                              className="h-full bg-blue-500 rounded-full transition-all"
+                              className="h-full bg-primary rounded-full transition-all"
                               style={{ width: `${Math.min(tilgungsfortschritt, 100)}%` }}
                             />
                           </div>
@@ -364,8 +464,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                                 <TableRow key={z.id}>
                                   <TableCell className="text-xs">{new Date(z.buchungsdatum).toLocaleDateString("de-DE")}</TableCell>
                                   <TableCell className="text-xs font-medium">{formatCurrency(z.betrag)}</TableCell>
-                                  <TableCell className="text-xs text-orange-600">{formatCurrency(z.zinsanteil || 0)}</TableCell>
-                                  <TableCell className="text-xs text-green-600">{formatCurrency(z.tilgungsanteil || 0)}</TableCell>
+                                  <TableCell className="text-xs text-destructive">{formatCurrency(z.zinsanteil || 0)}</TableCell>
+                                  <TableCell className="text-xs text-primary">{formatCurrency(z.tilgungsanteil || 0)}</TableCell>
                                   <TableCell className="text-xs">{z.restschuld_danach != null ? formatCurrency(z.restschuld_danach) : "–"}</TableCell>
                                 </TableRow>
                               ))}
@@ -383,9 +483,9 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
           </div>
         ) : (
           <Card className="p-12 text-center">
-            <Landmark className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">Keine Darlehen vorhanden</h3>
-            <p className="text-sm text-gray-400 mb-4">Erstellen Sie Ihr erstes Darlehen, um Ihre Finanzierungen zu verwalten.</p>
+            <Landmark className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-muted-foreground mb-2">Keine Darlehen vorhanden</h3>
+            <p className="text-sm text-muted-foreground/70 mb-4">Erstellen Sie Ihr erstes Darlehen, um Ihre Finanzierungen zu verwalten.</p>
             <Button onClick={() => { resetForm(); setShowForm(true); }} className="gap-1.5">
               <Plus className="h-4 w-4" /> Darlehen anlegen
             </Button>
