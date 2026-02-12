@@ -1,15 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { EinheitCard } from "./EinheitCard";
-import { ArrowLeft, Building, MapPin, Calendar, Info, Euro, Home, TrendingUp, Loader2, Pencil, Check, X } from "lucide-react";
+import { ArrowLeft, Building, MapPin, Calendar, Info, Loader2, Pencil, Check, X, Droplets, Zap, Flame } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sortUnitsByNumber, getCurrentContract, filterActiveAndTerminatedContracts } from "@/utils/contractUtils";
 import { useEditableField } from "@/hooks/useEditableField";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import { ImmobilienDocumentsTab } from "./ImmobilienDocumentsTab";
 import { ImmobilienNebenkostenTabNew } from "./nebenkosten/ImmobilienNebenkostenTabNew";
 
@@ -34,9 +35,14 @@ export const ImmobilienDetail = ({
   onContractModalClose,
   isHausmeister = false
 }: ImmobilienDetailProps) => {
+  const queryClient = useQueryClient();
   const einheitRefs = useRef<{
     [key: string]: HTMLDivElement | null;
   }>({});
+  
+  // State for editable meter fields
+  const [editingMeter, setEditingMeter] = useState<string | null>(null);
+  const [meterValues, setMeterValues] = useState<Record<string, string>>({});
   
   const {
     startEditing,
@@ -233,199 +239,190 @@ export const ImmobilienDetail = ({
           
           {/* Immobilien Header */}
           <Card className="mb-6">
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-blue-100 rounded-xl">
-                    <Building className="h-8 w-8 text-blue-600" />
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-primary/10 rounded-xl">
+                    <Building className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-3xl font-bold text-gray-900 mb-2">
+                    <CardTitle className="text-xl sm:text-2xl font-bold text-foreground mb-0.5">
                       {immobilie?.name}
                     </CardTitle>
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <MapPin className="h-4 w-4 mr-2" />
+                    <div className="flex items-center text-muted-foreground text-sm">
+                      <MapPin className="h-3.5 w-3.5 mr-1.5" />
                       <span>{immobilie?.adresse}</span>
                     </div>
-                    {immobilie?.beschreibung && <p className="text-gray-500 mt-2">{immobilie.beschreibung}</p>}
                   </div>
                 </div>
                 
-                <div className="text-right space-y-2">
-                  <Badge variant="outline" className="text-lg px-4 py-2">
+                <div className="text-right space-y-1">
+                  <Badge variant="outline" className="text-sm px-3 py-1">
                     {einheiten?.length || 0} von {immobilie?.einheiten_anzahl} Einheiten
                   </Badge>
-                  {immobilie?.objekttyp && <div className="text-sm text-gray-500">
+                  {immobilie?.objekttyp && <div className="text-xs text-muted-foreground">
                       {immobilie.objekttyp}
                     </div>}
                 </div>
               </div>
             </CardHeader>
             
-            <CardContent className="pt-0">
-              {/* Erweiterte Immobilien-Informationen */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                {/* Flächeninformationen */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
-                      <Home className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <p className="text-xs font-medium text-blue-600 mb-1">Gesamtfläche</p>
-                    <p className="text-xl font-bold text-blue-900">{gesamtQm.toLocaleString()}</p>
-                    <p className="text-xs text-blue-700">m²</p>
-                  </div>
+            <CardContent className="pt-0 space-y-4">
+              {/* Compact financial metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Fläche</p>
+                  <p className="text-lg font-bold text-foreground">{gesamtQm.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">m²</span></p>
                 </div>
-
-                {/* Kaltmiete */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
-                      <Euro className="h-6 w-6 text-green-600" />
-                    </div>
-                    <p className="text-xs font-medium text-green-600 mb-1">Kaltmiete</p>
-                    <p className="text-xl font-bold text-green-900">€{gesamtKaltmiete.toLocaleString()}</p>
-                    <p className="text-xs text-green-700">monatlich</p>
-                  </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Kaltmiete</p>
+                  <p className="text-lg font-bold text-foreground">€{gesamtKaltmiete.toLocaleString()}</p>
                 </div>
-
-                {/* Betriebskosten */}
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
-                      <TrendingUp className="h-6 w-6 text-orange-600" />
-                    </div>
-                    <p className="text-xs font-medium text-orange-600 mb-1">Betriebskosten</p>
-                    <p className="text-xl font-bold text-orange-900">€{gesamtBetriebskosten.toLocaleString()}</p>
-                    <p className="text-xs text-orange-700">monatlich</p>
-                  </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Betriebskosten</p>
+                  <p className="text-lg font-bold text-foreground">€{gesamtBetriebskosten.toLocaleString()}</p>
                 </div>
-
-                {/* Warmmiete */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
-                      <Euro className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <p className="text-xs font-medium text-purple-600 mb-1">Warmmiete</p>
-                    <p className="text-xl font-bold text-purple-900">€{gesamtWarmmiete.toLocaleString()}</p>
-                    <p className="text-xs text-purple-700">gesamt</p>
-                  </div>
-                </div>
-
-                {/* Kaufpreis */}
-                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 border border-indigo-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
-                      <Building className="h-6 w-6 text-indigo-600" />
-                    </div>
-                    <p className="text-xs font-medium text-indigo-600 mb-1">Kaufpreis</p>
-                    
-                    {isFieldEditing(immobilieId, 'kaufpreis') ? (
-                      <div className="flex flex-col items-center gap-2 w-full">
-                        <Input
-                          type="number"
-                          value={getEditingValue(immobilieId, 'kaufpreis') || ''}
-                          onChange={(e) => updateValue(immobilieId, 'kaufpreis', e.target.value)}
-                          className="text-center h-8 text-sm"
-                          placeholder="Kaufpreis"
-                        />
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={() => saveSingleField(immobilieId, 'kaufpreis', { table: 'immobilien', type: 'number' })}
-                          >
-                            <Check className="h-3 w-3 text-green-600" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={() => cancelEdit(immobilieId, 'kaufpreis')}
-                          >
-                            <X className="h-3 w-3 text-red-600" />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <p className="text-xl font-bold text-indigo-900">
-                          {immobilie?.kaufpreis ? `€${immobilie.kaufpreis.toLocaleString()}` : 'Nicht erfasst'}
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 w-6 p-0 hover:bg-indigo-200"
-                          onClick={() => startEditing(immobilieId, 'kaufpreis', immobilie?.kaufpreis || 0)}
-                        >
-                          <Pencil className="h-3 w-3 text-indigo-600" />
-                        </Button>
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-indigo-700">einmalig</p>
-                  </div>
-                </div>
-
-                {/* Restschuld */}
-                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200 hover:shadow-md transition-all duration-300">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="p-3 bg-white rounded-full shadow-sm mb-3">
-                      <TrendingUp className="h-6 w-6 text-red-600" />
-                    </div>
-                    <p className="text-xs font-medium text-red-600 mb-1">Restschuld</p>
-                    <p className="text-xl font-bold text-red-900">
-                      {immobilie?.restschuld ? `€${immobilie.restschuld.toLocaleString()}` : 'Nicht erfasst'}
-                    </p>
-                    <p className="text-xs text-red-700">aktuell</p>
-                  </div>
+                <div className="bg-muted/50 rounded-lg p-3 text-center">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Warmmiete</p>
+                  <p className="text-lg font-bold text-foreground">€{gesamtWarmmiete.toLocaleString()}</p>
                 </div>
               </div>
 
-              {/* Zusätzliche Immobilien-Informationen */}
-              {(immobilie?.baujahr || immobilie?.["Kontonr."] || immobilie?.["Annuität"]) && <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-6 border border-slate-200/60 shadow-sm">
-                  <h4 className="text-lg font-semibold text-slate-800 mb-4 flex items-center">
-                    <Info className="h-5 w-5 text-slate-600 mr-2" />
-                    Weitere Informationen
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {immobilie?.baujahr && <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-amber-100 rounded-lg">
-                            <Calendar className="h-5 w-5 text-amber-600" />
+              {/* Allgemeine Zähler (Hausanschluss) - editable */}
+              {(() => {
+                const meterTypes = [
+                  { key: 'wasser', label: 'Wasser', icon: Droplets, zaehlerField: 'allgemein_wasser_zaehler' as const, standField: 'allgemein_wasser_stand' as const, datumField: 'allgemein_wasser_datum' as const },
+                  { key: 'strom', label: 'Strom', icon: Zap, zaehlerField: 'allgemein_strom_zaehler' as const, standField: 'allgemein_strom_stand' as const, datumField: 'allgemein_strom_datum' as const },
+                  { key: 'gas', label: 'Gas', icon: Flame, zaehlerField: 'allgemein_gas_zaehler' as const, standField: 'allgemein_gas_stand' as const, datumField: 'allgemein_gas_datum' as const },
+                ];
+                
+                // Also check for second set (_2)
+                const meterTypes2 = [
+                  { key: 'wasser_2', label: 'Wasser 2', icon: Droplets, zaehlerField: 'allgemein_wasser_zaehler_2' as const, standField: 'allgemein_wasser_stand_2' as const, datumField: 'allgemein_wasser_datum_2' as const },
+                  { key: 'strom_2', label: 'Strom 2', icon: Zap, zaehlerField: 'allgemein_strom_zaehler_2' as const, standField: 'allgemein_strom_stand_2' as const, datumField: 'allgemein_strom_datum_2' as const },
+                  { key: 'gas_2', label: 'Gas 2', icon: Flame, zaehlerField: 'allgemein_gas_zaehler_2' as const, standField: 'allgemein_gas_stand_2' as const, datumField: 'allgemein_gas_datum_2' as const },
+                ];
+                
+                const hasSecondSet = immobilie && (
+                  immobilie.allgemein_wasser_zaehler_2 || immobilie.allgemein_strom_zaehler_2 || immobilie.allgemein_gas_zaehler_2 ||
+                  immobilie.allgemein_wasser_stand_2 || immobilie.allgemein_strom_stand_2 || immobilie.allgemein_gas_stand_2 ||
+                  (immobilie.name || '').toLowerCase().includes('gehrden')
+                );
+                
+                const saveMeterField = async (field: string, value: string, type: 'text' | 'number' | 'date') => {
+                  const updateData: Record<string, any> = {};
+                  if (type === 'number') {
+                    updateData[field] = value ? parseFloat(value) : null;
+                  } else {
+                    updateData[field] = value || null;
+                  }
+                  const { error } = await supabase.from('immobilien').update(updateData).eq('id', immobilieId);
+                  if (error) {
+                    toast.error('Fehler beim Speichern');
+                  } else {
+                    toast.success('Gespeichert');
+                    queryClient.invalidateQueries({ queryKey: ['immobilie', immobilieId] });
+                  }
+                  setEditingMeter(null);
+                };
+
+                const renderMeterRow = (meters: Array<{ key: string; label: string; icon: any; zaehlerField: string; standField: string; datumField: string }>, title?: string) => (
+                  <>
+                    {title && <p className="text-xs font-semibold text-muted-foreground mb-2">{title}</p>}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {meters.map(({ key, label, icon: Icon, zaehlerField, standField, datumField }) => {
+                        const zaehlerVal = (immobilie as any)?.[zaehlerField] || '';
+                        const standVal = (immobilie as any)?.[standField];
+                        const datumVal = (immobilie as any)?.[datumField] || '';
+                        const isEditing = editingMeter === key;
+                        
+                        return (
+                          <div key={key} className="flex items-center gap-2 bg-background rounded-lg p-2 border border-border/50">
+                            <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                            {isEditing ? (
+                              <div className="flex-1 flex flex-col gap-1">
+                                <Input
+                                  placeholder="Zählernr."
+                                  defaultValue={meterValues[`${key}_zaehler`] ?? zaehlerVal}
+                                  onChange={(e) => setMeterValues(prev => ({ ...prev, [`${key}_zaehler`]: e.target.value }))}
+                                  className="h-7 text-xs"
+                                />
+                                <div className="flex gap-1">
+                                  <Input
+                                    type="number"
+                                    placeholder="Stand"
+                                    defaultValue={meterValues[`${key}_stand`] ?? (standVal ?? '')}
+                                    onChange={(e) => setMeterValues(prev => ({ ...prev, [`${key}_stand`]: e.target.value }))}
+                                    className="h-7 text-xs flex-1"
+                                  />
+                                  <Input
+                                    type="date"
+                                    defaultValue={meterValues[`${key}_datum`] ?? datumVal}
+                                    onChange={(e) => setMeterValues(prev => ({ ...prev, [`${key}_datum`]: e.target.value }))}
+                                    className="h-7 text-xs flex-1"
+                                  />
+                                </div>
+                                <div className="flex gap-1 justify-end">
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={async () => {
+                                    await saveMeterField(zaehlerField, meterValues[`${key}_zaehler`] ?? zaehlerVal, 'text');
+                                    await saveMeterField(standField, meterValues[`${key}_stand`] ?? String(standVal ?? ''), 'number');
+                                    await saveMeterField(datumField, meterValues[`${key}_datum`] ?? datumVal, 'date');
+                                  }}>
+                                    <Check className="h-3 w-3 text-green-600" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditingMeter(null)}>
+                                    <X className="h-3 w-3 text-destructive" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex-1 min-w-0 cursor-pointer group" onClick={() => {
+                                setMeterValues({
+                                  [`${key}_zaehler`]: zaehlerVal,
+                                  [`${key}_stand`]: String(standVal ?? ''),
+                                  [`${key}_datum`]: datumVal,
+                                });
+                                setEditingMeter(key);
+                              }}>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium text-foreground">{label}</span>
+                                  <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {zaehlerVal ? `Nr. ${zaehlerVal}` : 'Kein Zähler'} 
+                                  {standVal != null ? ` · ${standVal}` : ''}
+                                  {datumVal ? ` · ${new Date(datumVal).toLocaleDateString('de-DE')}` : ''}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Baujahr</p>
-                            <p className="text-lg font-bold text-slate-900">{immobilie.baujahr}</p>
-                          </div>
-                        </div>
-                      </div>}
-                    {immobilie?.["Kontonr."] && <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-blue-100 rounded-lg">
-                            <Info className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Kontonummer</p>
-                            <p className="text-lg font-bold text-slate-900">{immobilie["Kontonr."]}</p>
-                          </div>
-                        </div>
-                      </div>}
-                    {immobilie?.["Annuität"] && <div className="bg-white rounded-lg p-4 border border-slate-200/40 hover:shadow-md transition-all duration-300">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-emerald-100 rounded-lg">
-                            <Euro className="h-5 w-5 text-emerald-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Annuität</p>
-                            <p className="text-lg font-bold text-slate-900">€{immobilie["Annuität"]?.toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </div>}
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+                
+                return (
+                  <div className="bg-muted/30 rounded-lg p-3 border border-border/30">
+                    <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                      <Info className="h-4 w-4 text-muted-foreground" />
+                      Hausanschlusszähler
+                    </h4>
+                    {renderMeterRow(meterTypes)}
+                    {hasSecondSet && (
+                      <div className="mt-3">
+                        {renderMeterRow(meterTypes2, 'Hausanschlusszähler 2')}
+                      </div>
+                    )}
+                    {immobilie?.baujahr && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>Baujahr: <strong className="text-foreground">{immobilie.baujahr}</strong></span>
+                      </div>
+                    )}
                   </div>
-                </div>}
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
