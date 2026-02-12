@@ -372,8 +372,11 @@ export type Database = {
           objekttyp: Database["public"]["Enums"]["objekttyp"] | null
           restschuld: number | null
           versorger_gas_email: string | null
+          versorger_gas_name: string | null
           versorger_strom_email: string | null
+          versorger_strom_name: string | null
           versorger_wasser_email: string | null
+          versorger_wasser_name: string | null
         }
         Insert: {
           adresse: string
@@ -411,8 +414,11 @@ export type Database = {
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
           restschuld?: number | null
           versorger_gas_email?: string | null
+          versorger_gas_name?: string | null
           versorger_strom_email?: string | null
+          versorger_strom_name?: string | null
           versorger_wasser_email?: string | null
+          versorger_wasser_name?: string | null
         }
         Update: {
           adresse?: string
@@ -450,8 +456,11 @@ export type Database = {
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
           restschuld?: number | null
           versorger_gas_email?: string | null
+          versorger_gas_name?: string | null
           versorger_strom_email?: string | null
+          versorger_strom_name?: string | null
           versorger_wasser_email?: string | null
+          versorger_wasser_name?: string | null
         }
         Relationships: []
       }

@@ -34,10 +34,12 @@ interface MeterReading {
 
 interface PropertyMeterReading {
   immobilieId: string;
-  type: 'wasser' | 'strom' | 'gas';
-  zaehlerNummer: string;
-  stand: string;
-  datum: string;
+  type: 'wasser' | 'strom' | 'gas' | 'versorger_strom' | 'versorger_gas' | 'versorger_wasser';
+  zaehlerNummer?: string;
+  stand?: string;
+  datum?: string;
+  name?: string;
+  email?: string;
 }
 
 interface ZaehlerVerwaltungProps {
@@ -61,6 +63,9 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
         .from('immobilien')
         .select(`
           id, name, adresse, hat_strom, hat_gas, hat_wasser,
+          versorger_strom_name, versorger_strom_email,
+          versorger_gas_name, versorger_gas_email,
+          versorger_wasser_name, versorger_wasser_email,
           allgemein_wasser_zaehler, allgemein_wasser_stand, allgemein_wasser_datum,
           allgemein_strom_zaehler, allgemein_strom_stand, allgemein_strom_datum,
           allgemein_gas_zaehler, allgemein_gas_stand, allgemein_gas_datum,
@@ -193,9 +198,9 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
   };
 
   // Property meter input handling
-  const handlePropertyInputChange = (immobilieId: string, type: string, field: 'zaehler' | 'stand' | 'datum', value: string) => {
+  const handlePropertyInputChange = (immobilieId: string, type: string, field: 'zaehler' | 'stand' | 'datum' | 'name' | 'email', value: string) => {
     const key = `${immobilieId}-${type}`;
-    const fieldMap = { zaehler: 'zaehlerNummer', stand: 'stand', datum: 'datum' } as const;
+    const fieldMap = { zaehler: 'zaehlerNummer', stand: 'stand', datum: 'datum', name: 'name', email: 'email' } as const;
     setEditedPropertyReadings(prev => ({
       ...prev,
       [key]: {
@@ -207,12 +212,14 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
     }));
   };
 
-  const getEditedPropertyValue = (immobilieId: string, type: string, field: 'zaehler' | 'stand' | 'datum') => {
+  const getEditedPropertyValue = (immobilieId: string, type: string, field: 'zaehler' | 'stand' | 'datum' | 'name' | 'email') => {
     const key = `${immobilieId}-${type}`;
     const edited = editedPropertyReadings[key];
     if (!edited) return undefined;
     if (field === 'zaehler') return edited.zaehlerNummer;
     if (field === 'stand') return edited.stand;
+    if (field === 'name') return edited.name;
+    if (field === 'email') return edited.email;
     return edited.datum;
   };
 
@@ -235,6 +242,17 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
       const today = format(new Date(), 'yyyy-MM-dd');
 
       for (const change of propChanges) {
+        // Handle versorger fields
+        if (change.type.startsWith('versorger_')) {
+          const utilityType = change.type.replace('versorger_', '');
+          if (change.name !== undefined) {
+            updates[`versorger_${utilityType}_name`] = change.name || null;
+          }
+          if (change.email !== undefined) {
+            updates[`versorger_${utilityType}_email`] = change.email || null;
+          }
+          continue;
+        }
         const baseType = change.type.replace('_2', '');
         const suffix = change.type.endsWith('_2') ? '_2' : '';
         if (change.zaehlerNummer !== undefined) {
@@ -556,6 +574,40 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                           )}
                         </div>
                       </div>
+                      {/* Versorger-Details pro Versorgungsart */}
+                      {getPropertyMeterTypes(immobilie).length > 0 && (
+                        <div className={`grid gap-2 mb-2`} style={{ gridTemplateColumns: `repeat(${getPropertyMeterTypes(immobilie).length || 1}, 1fr)` }}>
+                          {getPropertyMeterTypes(immobilie).map((type) => {
+                            const nameKey = `versorger_${type}_name` as keyof typeof immobilie;
+                            const emailKey = `versorger_${type}_email` as keyof typeof immobilie;
+                            return (
+                              <div key={`versorger-${type}`} className="bg-background rounded p-1.5 sm:p-2">
+                                <div className="flex items-center gap-1 mb-1">
+                                  {type === 'strom' && <Zap className="h-3 w-3 text-yellow-600" />}
+                                  {type === 'gas' && <Flame className="h-3 w-3 text-red-500" />}
+                                  {type === 'wasser' && <Droplets className="h-3 w-3 text-blue-500" />}
+                                  <span className="text-xs font-medium">Versorger {getMeterLabel(type)}</span>
+                                </div>
+                                <div className="space-y-0.5">
+                                  <Input
+                                    placeholder="Versorger-Name"
+                                    value={getEditedPropertyValue(immobilie.id, `versorger_${type}` as any, 'name') ?? (immobilie[nameKey] as string | null) ?? ''}
+                                    onChange={(e) => handlePropertyInputChange(immobilie.id, `versorger_${type}` as any, 'name', e.target.value)}
+                                    className="h-6 text-xs px-1.5"
+                                  />
+                                  <Input
+                                    type="email"
+                                    placeholder="E-Mail"
+                                    value={getEditedPropertyValue(immobilie.id, `versorger_${type}` as any, 'email') ?? (immobilie[emailKey] as string | null) ?? ''}
+                                    onChange={(e) => handlePropertyInputChange(immobilie.id, `versorger_${type}` as any, 'email', e.target.value)}
+                                    className="h-6 text-xs px-1.5"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                       <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${getPropertyMeterTypes(immobilie).length || 1}, 1fr)` }}>
                         {getPropertyMeterTypes(immobilie).map((type) => {
                           const zaehlerKey = `allgemein_${type}_zaehler` as keyof typeof immobilie;
