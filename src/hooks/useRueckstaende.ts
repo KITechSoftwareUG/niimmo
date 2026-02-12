@@ -13,6 +13,7 @@ export interface FehlendeMietzahlung {
   immobilie_adresse: string;
   einheit_typ: string;
   einheit_etage: string;
+  einheit_nummer: string;
   einheit_qm: number;
   mieter_name: string;
   mieter_email: string;
@@ -241,6 +242,7 @@ export const useRueckstaende = () => {
             immobilie_adresse: immobilie?.adresse || 'Unbekannt',
             einheit_typ: einheit?.einheitentyp || 'Unbekannt',
             einheit_etage: einheit?.etage || 'Unbekannt',
+            einheit_nummer: einheit?.zaehler ? String(einheit.zaehler).padStart(2, '0') : '',
             einheit_qm: einheit?.qm || 0,
             mieter_name: ersteMieter?.mieter ? 
               `${ersteMieter.mieter.vorname} ${ersteMieter.mieter.nachname}` : 'Unbekannt',
