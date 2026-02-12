@@ -17,7 +17,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
 
 import { useState, useMemo, useCallback } from "react";
-import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench } from "lucide-react";
+import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 import { useNavigationState } from "@/hooks/useNavigationState";
@@ -350,6 +350,15 @@ const Index = () => {
                     <KeyRound className="h-4 w-4 mr-1.5 shrink-0" />
                     <span className="truncate">Übergabe</span>
                   </Button>
+                  <Button 
+                    onClick={() => setShowMietUebersicht(true)} 
+                    variant="ghost"
+                    size="sm"
+                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
+                  >
+                    <TableProperties className="h-4 w-4 mr-1.5 shrink-0" />
+                    <span className="truncate">Stammdaten</span>
+                  </Button>
                 </div>
               )}
             </div>
@@ -360,7 +369,6 @@ const Index = () => {
             <DashboardStats 
               immobilien={immobilien} 
               onNavigateToContract={handleNavigateToContract}
-              onShowMietUebersicht={() => setShowMietUebersicht(true)}
             />
           )}
         </div>

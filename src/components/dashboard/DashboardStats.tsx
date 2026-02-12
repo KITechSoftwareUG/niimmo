@@ -1,15 +1,14 @@
 
-import { Building2, Users, AlertTriangle, Euro, Home, TrendingDown, ArrowRight } from "lucide-react";
+import { Building2, Users, AlertTriangle, Euro, Home, TrendingDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardStatsProps {
   immobilien: any[] | undefined;
   onNavigateToContract?: (immobilieId: string, einheitId: string, mietvertragId: string) => void;
-  onShowMietUebersicht?: () => void;
 }
 
-export const DashboardStats = ({ immobilien, onNavigateToContract, onShowMietUebersicht }: DashboardStatsProps) => {
+export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardStatsProps) => {
   const { data: gesamtEinheiten } = useQuery({
     queryKey: ['gesamt-einheiten'],
     queryFn: async () => {
@@ -179,12 +178,10 @@ export const DashboardStats = ({ immobilien, onNavigateToContract, onShowMietUeb
 
       {/* Row 2: Monatliche Miete – volle Breite */}
       <div 
-        className="metric-card p-4 sm:p-5 lg:p-6 rounded-xl sm:rounded-2xl border border-purple-100 bg-purple-50 cursor-pointer hover:shadow-lg transition-all duration-200"
+        className="metric-card p-4 sm:p-5 lg:p-6 rounded-xl sm:rounded-2xl border border-purple-100 bg-purple-50"
         style={{ animationDelay: '0.3s' }}
-        onClick={onShowMietUebersicht}
       >
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <div className="p-2 sm:p-2.5 rounded-lg bg-purple-100 border border-purple-200">
               <Euro className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
             </div>
@@ -192,8 +189,6 @@ export const DashboardStats = ({ immobilien, onNavigateToContract, onShowMietUeb
               <p className="text-sm sm:text-base font-semibold text-gray-800">Monatliche Miete</p>
               <p className="text-[10px] sm:text-xs text-gray-500">{getCurrentMonthYear()}</p>
             </div>
-          </div>
-          <ArrowRight className="h-4 w-4 text-gray-400" />
         </div>
 
         {/* Hauptmetriken */}
