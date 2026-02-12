@@ -1083,6 +1083,8 @@ export default function MietvertragDetailsModal({
                 onContractUpdate={() => {
                   queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
                 }}
+                onShowMahnung={() => setShowMahnungModal(true)}
+                onShowKuendigung={() => setShowTerminationDialog(true)}
                 allMietvertraege={allMietvertraege}
                 vertragId={vertragId}
                 formatDatum={formatDatum}
@@ -1104,26 +1106,8 @@ export default function MietvertragDetailsModal({
             </TabsContent>
           </Tabs>
 
-          {/* Action Buttons for Active Contracts */}
-          {vertrag?.status === 'aktiv' && (
-            <div className="pt-4 border-t border-border space-y-3">
-              <Button
-                variant="default"
-                onClick={() => setShowMahnungModal(true)}
-                className="w-full"
-              >
-                Mahnung erstellen
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setShowTerminationDialog(true)}
-                className="w-full"
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                Mietvertrag kündigen
-              </Button>
-            </div>
-          )}
+
+
         </div>
 
         {/* Create Forderung Modal */}

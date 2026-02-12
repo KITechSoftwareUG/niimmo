@@ -1,12 +1,18 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, Copy, Check, Mail, Phone, Building2, Square, XCircle, AlertTriangle } from "lucide-react";
 import { MietvertragEditableField } from "./MietvertragEditableField";
+import { Input } from "@/components/ui/input";
+import { useEditableField } from "@/hooks/useEditableField";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface MietvertragContractInfoProps {
   vertrag: any;
   einheit?: any;
+  immobilie?: any;
+  mieter?: any[];
   isGlobalEditMode?: boolean;
   editedValues?: Record<string, any>;
   onUpdateEditedValue?: (key: string, value: any) => void;
@@ -16,11 +22,15 @@ interface MietvertragContractInfoProps {
   onCancelEdit: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
+  onShowMahnung?: () => void;
+  onShowKuendigung?: () => void;
 }
 
 export function MietvertragContractInfo({
   vertrag,
   einheit,
+  immobilie,
+  mieter = [],
   isGlobalEditMode = false,
   editedValues = {},
   onUpdateEditedValue,
@@ -29,17 +39,24 @@ export function MietvertragContractInfo({
   onStartEdit,
   onCancelEdit,
   formatDatum,
-  formatBetrag
+  formatBetrag,
+  onShowMahnung,
+  onShowKuendigung,
 }: MietvertragContractInfoProps) {
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const {
+    startEditing,
+    updateValue,
+    cancelEdit,
+    getEditingValue,
+    isFieldEditing,
+    saveSingleField
+  } = useEditableField();
+
   const kaltmiete = isGlobalEditMode && editedValues.kaltmiete !== undefined ? editedValues.kaltmiete : vertrag.kaltmiete;
   const betriebskosten = isGlobalEditMode && editedValues.betriebskosten !== undefined ? editedValues.betriebskosten : vertrag.betriebskosten;
   const anzahlPersonen = isGlobalEditMode && editedValues.anzahl_personen !== undefined ? editedValues.anzahl_personen : vertrag.anzahl_personen;
-  const qm = isGlobalEditMode && editedValues.qm !== undefined ? editedValues.qm : einheit?.qm;
-  
-  // Kosten pro m² nur von Kaltmiete berechnen
-  const kaltmieteProQm = qm && Number(qm) > 0 
-    ? Number(kaltmiete || 0) / Number(qm) 
-    : null;
 
   const mietbeginnValue = isGlobalEditMode
     ? (editedValues.start_datum ?? (vertrag.start_datum || ''))
@@ -49,182 +66,219 @@ export function MietvertragContractInfo({
     ? (editedValues.ende_datum ?? (vertrag.ende_datum || ''))
     : (vertrag.ende_datum || '');
 
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    toast.success(`${fieldName} kopiert`);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const CopyButton = ({ text, fieldName }: { text: string; fieldName: string }) => {
+    if (!text || isGlobalEditMode) return null;
+    return (
+      <button
+        onClick={() => copyToClipboard(text, fieldName)}
+        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted"
+        title="Kopieren"
+      >
+        {copiedField === fieldName ? (
+          <Check className="h-3 w-3 text-green-600" />
+        ) : (
+          <Copy className="h-3 w-3 text-muted-foreground" />
+        )}
+      </button>
+    );
+  };
+
+  // Tenant helpers
+  const getMieterValue = (mieterId: string, field: string, originalValue: any) => {
+    const key = `mieter_${mieterId}_${field}`;
+    if (isGlobalEditMode && editedValues[key] !== undefined) {
+      return editedValues[key];
+    }
+    if (isFieldEditing(mieterId, field)) {
+      return getEditingValue(mieterId, field);
+    }
+    return originalValue;
+  };
+
+  const handleMieterChange = (mieterId: string, field: string, value: any) => {
+    if (isGlobalEditMode) {
+      onUpdateEditedValue?.(`mieter_${mieterId}_${field}`, value);
+    } else {
+      updateValue(mieterId, field, value);
+    }
+  };
+
+  const handleMieterSave = async (mieterId: string, field: string) => {
+    await saveSingleField(mieterId, field, { table: 'mieter' });
+  };
+
+  const isMieterEditing = (mieterId: string, field: string) => {
+    return isGlobalEditMode || isFieldEditing(mieterId, field);
+  };
+
   return (
-    <Card>
-      <CardHeader className="pb-3 md:pb-6">
-        <CardTitle className="text-base md:text-lg">Mietvertrag Informationen</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 md:space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-          <MietvertragEditableField
-            label="Mietbeginn"
-            value={mietbeginnValue}
-            isEditing={isGlobalEditMode || editingMietvertrag === 'start_datum'}
-            onEdit={() => !isGlobalEditMode && onStartEdit('start_datum')}
-            onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('start_datum', raw) : undefined}
-            onSave={(value) => {
-              if (isGlobalEditMode) {
-                onUpdateEditedValue?.('start_datum', value);
-              } else {
-                onEditMietvertrag('start_datum', value);
-              }
-            }}
-            onCancel={onCancelEdit}
-            type="date"
-            formatter={(val) => formatDatum(val as string)}
-            hideEditButton={true}
-            isGlobalEditMode={isGlobalEditMode}
-          />
-          <MietvertragEditableField
-            label="Mietende"
-            value={mietendeValue}
-            isEditing={isGlobalEditMode || editingMietvertrag === 'ende_datum'}
-            onEdit={() => !isGlobalEditMode && onStartEdit('ende_datum')}
-            onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('ende_datum', raw) : undefined}
-            onSave={(value) => {
-              if (isGlobalEditMode) {
-                onUpdateEditedValue?.('ende_datum', value);
-              } else {
-                onEditMietvertrag('ende_datum', value);
-              }
-            }}
-            onCancel={onCancelEdit}
-            type="date"
-            formatter={(val) => (val ? formatDatum(val as string) : 'Unbefristet')}
-            placeholder="Unbefristet"
-            hideEditButton={true}
-            isGlobalEditMode={isGlobalEditMode}
-          />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-          <div>
-            <p className="text-xs md:text-sm font-medium text-muted-foreground">Status</p>
-            <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-xs">
-              {vertrag.status}
-            </Badge>
-          </div>
-        </div>
-        <Separator />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-          <MietvertragEditableField
-            label="Kaltmiete"
-            value={Number(kaltmiete || 0)}
-            isEditing={isGlobalEditMode || editingMietvertrag === 'kaltmiete'}
-            onEdit={() => !isGlobalEditMode && onStartEdit('kaltmiete')}
-            onSave={(value) => {
-              if (isGlobalEditMode) {
-                onUpdateEditedValue?.('kaltmiete', parseFloat(value));
-              } else {
-                onEditMietvertrag('kaltmiete', value);
-              }
-            }}
-            onCancel={onCancelEdit}
-            type="number"
-            step="0.01"
-            className="font-semibold"
-            formatter={formatBetrag}
-            showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
-            hideEditButton={true}
-            isGlobalEditMode={isGlobalEditMode}
-          />
-          <MietvertragEditableField
-            label="Betriebskosten"
-            value={Number(betriebskosten || 0)}
-            isEditing={isGlobalEditMode || editingMietvertrag === 'betriebskosten'}
-            onEdit={() => !isGlobalEditMode && onStartEdit('betriebskosten')}
-            onSave={(value) => {
-              if (isGlobalEditMode) {
-                onUpdateEditedValue?.('betriebskosten', parseFloat(value));
-              } else {
-                onEditMietvertrag('betriebskosten', value);
-              }
-            }}
-            onCancel={onCancelEdit}
-            type="number"
-            step="0.01"
-            formatter={formatBetrag}
-            showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
-            hideEditButton={true}
-            isGlobalEditMode={isGlobalEditMode}
-          />
-          <div>
-            <p className="text-lg font-bold text-green-600">
-              {formatBetrag(Number(kaltmiete || 0) + Number(betriebskosten || 0))}
-            </p>
-          </div>
-          {kaltmieteProQm !== null && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Kaltmiete pro m²</p>
-              <p className="text-lg font-semibold">
-                {formatBetrag(kaltmieteProQm)}
-              </p>
+    <Card className="border-border/50">
+      <CardContent className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* LEFT: Contract Info */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-semibold text-foreground">Vertragsdaten</h3>
+              <div className="flex items-center gap-1.5">
+                <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                  {vertrag.status}
+                </Badge>
+                {/* Action Buttons inline */}
+                {vertrag.status === 'aktiv' && !isGlobalEditMode && (
+                  <>
+                    {onShowMahnung && (
+                      <Button variant="outline" size="sm" onClick={onShowMahnung} className="h-6 text-[10px] px-2 gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        Mahnung
+                      </Button>
+                    )}
+                    {onShowKuendigung && (
+                      <Button variant="destructive" size="sm" onClick={onShowKuendigung} className="h-6 text-[10px] px-2 gap-1">
+                        <XCircle className="h-3 w-3" />
+                        Kündigung
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-        
-        <Separator />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-          <MietvertragEditableField
-            label="Wohnfläche (m²)"
-            value={qm !== null && qm !== undefined ? Number(qm) : ''}
-            isEditing={isGlobalEditMode}
-            onEdit={() => {}}
-            onValueChange={isGlobalEditMode ? (raw) => {
-              const trimmed = raw.trim();
-              if (trimmed === '') {
-                onUpdateEditedValue?.('qm', null);
-                return;
-              }
-              const parsed = parseFloat(trimmed);
-              onUpdateEditedValue?.('qm', Number.isNaN(parsed) ? null : parsed);
-            } : undefined}
-            onSave={(value) => {
-              if (isGlobalEditMode) {
-                onUpdateEditedValue?.('qm', value ? parseFloat(value) : null);
-              }
-            }}
-            onCancel={onCancelEdit}
-            type="number"
-            step="0.01"
-            placeholder="Nicht angegeben"
-            hideEditButton={true}
-            isGlobalEditMode={isGlobalEditMode}
-          />
-          <MietvertragEditableField
-            label="Anzahl Personen"
-            value={anzahlPersonen !== null && anzahlPersonen !== undefined ? Number(anzahlPersonen) : ''}
-            isEditing={isGlobalEditMode || editingMietvertrag === 'anzahl_personen'}
-            onEdit={() => !isGlobalEditMode && onStartEdit('anzahl_personen')}
-            onValueChange={isGlobalEditMode ? (raw) => {
-              const trimmed = raw.trim();
-              if (trimmed === '') {
-                onUpdateEditedValue?.('anzahl_personen', null);
-                return;
-              }
-              const parsed = parseInt(trimmed, 10);
-              onUpdateEditedValue?.('anzahl_personen', Number.isNaN(parsed) ? null : parsed);
-            } : undefined}
-            onSave={(value) => {
-              if (isGlobalEditMode) {
-                onUpdateEditedValue?.('anzahl_personen', value ? parseInt(value, 10) : null);
-              } else {
-                onEditMietvertrag('anzahl_personen', value);
-              }
-            }}
-            onCancel={onCancelEdit}
-            type="number"
-            step="1"
-            placeholder="Nicht angegeben"
-            hideEditButton={true}
-            isGlobalEditMode={isGlobalEditMode}
-          />
-        </div>
-        
-        {/* Show Rücklastschrift-Gebühr only for contracts with Lastschrift */}
-        {vertrag.lastschrift && (
-          <>
-            <Separator />
-            <div className="grid grid-cols-1 gap-3 md:gap-4">
+
+            {/* Objekt & Einheit compact */}
+            {(immobilie || einheit) && (
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                {immobilie && (
+                  <span className="group flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    {immobilie.name}{immobilie.adresse ? ` · ${immobilie.adresse}` : ''}
+                    <CopyButton text={`${immobilie.name} ${immobilie.adresse || ''}`} fieldName="Adresse" />
+                  </span>
+                )}
+                {einheit && (
+                  <span className="group flex items-center gap-1">
+                    <Square className="h-3 w-3" />
+                    {einheit.einheitentyp || 'Einheit'} {einheit.etage ? `· ${einheit.etage}` : ''}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-2">
+              <MietvertragEditableField
+                label="Mietbeginn"
+                value={mietbeginnValue}
+                isEditing={isGlobalEditMode || editingMietvertrag === 'start_datum'}
+                onEdit={() => !isGlobalEditMode && onStartEdit('start_datum')}
+                onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('start_datum', raw) : undefined}
+                onSave={(value) => {
+                  if (isGlobalEditMode) onUpdateEditedValue?.('start_datum', value);
+                  else onEditMietvertrag('start_datum', value);
+                }}
+                onCancel={onCancelEdit}
+                type="date"
+                formatter={(val) => formatDatum(val as string)}
+                hideEditButton={true}
+                isGlobalEditMode={isGlobalEditMode}
+              />
+              <MietvertragEditableField
+                label="Mietende"
+                value={mietendeValue}
+                isEditing={isGlobalEditMode || editingMietvertrag === 'ende_datum'}
+                onEdit={() => !isGlobalEditMode && onStartEdit('ende_datum')}
+                onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('ende_datum', raw) : undefined}
+                onSave={(value) => {
+                  if (isGlobalEditMode) onUpdateEditedValue?.('ende_datum', value);
+                  else onEditMietvertrag('ende_datum', value);
+                }}
+                onCancel={onCancelEdit}
+                type="date"
+                formatter={(val) => (val ? formatDatum(val as string) : 'Unbefristet')}
+                placeholder="Unbefristet"
+                hideEditButton={true}
+                isGlobalEditMode={isGlobalEditMode}
+              />
+            </div>
+
+            {/* Rent */}
+            <div className="grid grid-cols-2 gap-2">
+              <MietvertragEditableField
+                label="Kaltmiete"
+                value={Number(kaltmiete || 0)}
+                isEditing={isGlobalEditMode || editingMietvertrag === 'kaltmiete'}
+                onEdit={() => !isGlobalEditMode && onStartEdit('kaltmiete')}
+                onSave={(value) => {
+                  if (isGlobalEditMode) onUpdateEditedValue?.('kaltmiete', parseFloat(value));
+                  else onEditMietvertrag('kaltmiete', value);
+                }}
+                onCancel={onCancelEdit}
+                type="number"
+                step="0.01"
+                className="font-semibold"
+                formatter={formatBetrag}
+                showLastUpdate={vertrag.letzte_mieterhoehung_am ? formatDatum(vertrag.letzte_mieterhoehung_am) : undefined}
+                hideEditButton={true}
+                isGlobalEditMode={isGlobalEditMode}
+              />
+              <MietvertragEditableField
+                label="Betriebskosten"
+                value={Number(betriebskosten || 0)}
+                isEditing={isGlobalEditMode || editingMietvertrag === 'betriebskosten'}
+                onEdit={() => !isGlobalEditMode && onStartEdit('betriebskosten')}
+                onSave={(value) => {
+                  if (isGlobalEditMode) onUpdateEditedValue?.('betriebskosten', parseFloat(value));
+                  else onEditMietvertrag('betriebskosten', value);
+                }}
+                onCancel={onCancelEdit}
+                type="number"
+                step="0.01"
+                formatter={formatBetrag}
+                hideEditButton={true}
+                isGlobalEditMode={isGlobalEditMode}
+              />
+            </div>
+
+            {/* Warmmiete total */}
+            <div className="group flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Warmmiete:</span>
+              <span className="text-sm font-bold text-primary">
+                {formatBetrag(Number(kaltmiete || 0) + Number(betriebskosten || 0))}
+              </span>
+              <CopyButton text={String(Number(kaltmiete || 0) + Number(betriebskosten || 0))} fieldName="Warmmiete" />
+            </div>
+
+            {/* Personen */}
+            <div className="grid grid-cols-2 gap-2">
+              <MietvertragEditableField
+                label="Personen"
+                value={anzahlPersonen !== null && anzahlPersonen !== undefined ? Number(anzahlPersonen) : ''}
+                isEditing={isGlobalEditMode || editingMietvertrag === 'anzahl_personen'}
+                onEdit={() => !isGlobalEditMode && onStartEdit('anzahl_personen')}
+                onValueChange={isGlobalEditMode ? (raw) => {
+                  const trimmed = raw.trim();
+                  onUpdateEditedValue?.('anzahl_personen', trimmed === '' ? null : parseInt(trimmed, 10) || null);
+                } : undefined}
+                onSave={(value) => {
+                  if (isGlobalEditMode) onUpdateEditedValue?.('anzahl_personen', value ? parseInt(value, 10) : null);
+                  else onEditMietvertrag('anzahl_personen', value);
+                }}
+                onCancel={onCancelEdit}
+                type="number"
+                step="1"
+                placeholder="–"
+                hideEditButton={true}
+                isGlobalEditMode={isGlobalEditMode}
+              />
+            </div>
+
+            {/* Rücklastschrift-Gebühr */}
+            {vertrag.lastschrift && (
               <MietvertragEditableField
                 label="Rücklastschrift-Gebühr"
                 value={Number(vertrag.ruecklastschrift_gebuehr || 7.50)}
@@ -237,67 +291,174 @@ export function MietvertragContractInfo({
                 formatter={formatBetrag}
                 hideEditButton={true}
               />
-            </div>
-          </>
-        )}
-        
-        {/* IBAN / Bankkonto */}
-        <Separator />
-        <div className="grid grid-cols-1 gap-3 md:gap-4">
-          <div>
-            <MietvertragEditableField
-              label="IBAN / Bankkonto Mieter"
-              value={isGlobalEditMode && editedValues.bankkonto_mieter !== undefined ? editedValues.bankkonto_mieter : (vertrag.bankkonto_mieter || '')}
-              isEditing={isGlobalEditMode}
-              onEdit={() => {}}
-              onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('bankkonto_mieter', raw) : undefined}
-              onSave={(value) => {
-                if (isGlobalEditMode) {
-                  onUpdateEditedValue?.('bankkonto_mieter', value);
-                }
-              }}
-              onCancel={onCancelEdit}
-              type="text"
-              placeholder="DE89 3704 0044 0532 0130 00"
-              hideEditButton={true}
-              isGlobalEditMode={isGlobalEditMode}
-            />
-            {vertrag.bankkonto_mieter && !vertrag.bankkonto_mieter_geprueft && (
-              <div className="flex items-center gap-1.5 mt-1.5 text-amber-600 dark:text-amber-400">
-                <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="text-xs">Automatisch übernommen – bitte prüfen</span>
-              </div>
             )}
-          </div>
-        </div>
 
-        {/* Show neue_anschrift field only for terminated or ended contracts */}
-        {(vertrag.status === 'beendet' || vertrag.status === 'gekuendigt') && (
-          <>
-            <Separator />
-            <div className="grid grid-cols-1 gap-3 md:gap-4">
+            {/* IBAN */}
+            <div>
+              <MietvertragEditableField
+                label="IBAN"
+                value={isGlobalEditMode && editedValues.bankkonto_mieter !== undefined ? editedValues.bankkonto_mieter : (vertrag.bankkonto_mieter || '')}
+                isEditing={isGlobalEditMode}
+                onEdit={() => {}}
+                onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('bankkonto_mieter', raw) : undefined}
+                onSave={(value) => { if (isGlobalEditMode) onUpdateEditedValue?.('bankkonto_mieter', value); }}
+                onCancel={onCancelEdit}
+                type="text"
+                placeholder="DE89 3704 0044 0532 0130 00"
+                hideEditButton={true}
+                isGlobalEditMode={isGlobalEditMode}
+              />
+              {!isGlobalEditMode && vertrag.bankkonto_mieter && (
+                <div className="group flex items-center gap-1 mt-0.5">
+                  <span className="text-xs text-muted-foreground font-mono">{vertrag.bankkonto_mieter}</span>
+                  <CopyButton text={vertrag.bankkonto_mieter} fieldName="IBAN" />
+                  {!vertrag.bankkonto_mieter_geprueft && (
+                    <span className="flex items-center gap-0.5 text-[10px] text-amber-600">
+                      <AlertCircle className="h-3 w-3" /> Ungeprüft
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Neue Anschrift for terminated */}
+            {(vertrag.status === 'beendet' || vertrag.status === 'gekuendigt') && (
               <MietvertragEditableField
                 label="Neue Anschrift"
                 value={isGlobalEditMode && editedValues.neue_anschrift !== undefined ? editedValues.neue_anschrift : (vertrag.neue_anschrift || '')}
                 isEditing={isGlobalEditMode || editingMietvertrag === 'neue_anschrift'}
                 onEdit={() => !isGlobalEditMode && onStartEdit('neue_anschrift')}
                 onSave={(value) => {
-                  if (isGlobalEditMode) {
-                    onUpdateEditedValue?.('neue_anschrift', value);
-                  } else {
-                    onEditMietvertrag('neue_anschrift', value);
-                  }
+                  if (isGlobalEditMode) onUpdateEditedValue?.('neue_anschrift', value);
+                  else onEditMietvertrag('neue_anschrift', value);
                 }}
                 onCancel={onCancelEdit}
                 type="textarea"
                 className="text-muted-foreground"
-                placeholder="Straße und Hausnummer&#10;Postleitzahl Ort&#10;z.B. Musterstraße 123&#10;12345 Musterstadt"
+                placeholder="Straße, PLZ Ort"
                 hideEditButton={true}
                 isGlobalEditMode={isGlobalEditMode}
               />
-            </div>
-          </>
-        )}
+            )}
+          </div>
+
+          {/* RIGHT: Tenant Info - compact & copyable */}
+          <div className="space-y-3 md:border-l md:pl-4 border-border/50">
+            <h3 className="text-sm font-semibold text-foreground mb-1">Mieter</h3>
+            
+            {mieter && mieter.length > 0 ? (
+              <div className="space-y-2">
+                {mieter.map((m: any) => (
+                  <div key={m.id} className="space-y-1.5 p-2 rounded-md bg-muted/30 border border-border/30">
+                    {/* Name */}
+                    <div className="group flex items-center gap-1.5">
+                      {isMieterEditing(m.id, 'vorname') ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Input
+                            type="text"
+                            value={getMieterValue(m.id, 'vorname', m.vorname) || ''}
+                            onChange={(e) => handleMieterChange(m.id, 'vorname', e.target.value)}
+                            className="h-7 text-sm flex-1"
+                            placeholder="Vorname"
+                          />
+                          <Input
+                            type="text"
+                            value={getMieterValue(m.id, 'nachname', m.nachname) || ''}
+                            onChange={(e) => handleMieterChange(m.id, 'nachname', e.target.value)}
+                            className="h-7 text-sm flex-1"
+                            placeholder="Nachname"
+                          />
+                          {!isGlobalEditMode && (
+                            <>
+                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleMieterSave(m.id, 'vorname')}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => cancelEdit(m.id, 'vorname')}>
+                                <XCircle className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-sm font-medium">
+                            {getMieterValue(m.id, 'vorname', m.vorname)} {getMieterValue(m.id, 'nachname', m.nachname)}
+                          </span>
+                          <CopyButton 
+                            text={`${m.vorname || ''} ${m.nachname || ''}`} 
+                            fieldName={`Name ${m.id}`} 
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    {/* Email */}
+                    <div className="group flex items-center gap-1.5">
+                      <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      {isMieterEditing(m.id, 'hauptmail') ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Input
+                            type="email"
+                            value={getMieterValue(m.id, 'hauptmail', m.hauptmail) || ''}
+                            onChange={(e) => handleMieterChange(m.id, 'hauptmail', e.target.value)}
+                            className="h-6 text-xs flex-1"
+                          />
+                          {!isGlobalEditMode && (
+                            <>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleMieterSave(m.id, 'hauptmail')}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => cancelEdit(m.id, 'hauptmail')}>
+                                <XCircle className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-xs text-muted-foreground">{m.hauptmail || '–'}</span>
+                          {m.hauptmail && <CopyButton text={m.hauptmail} fieldName={`Email ${m.id}`} />}
+                        </>
+                      )}
+                    </div>
+
+                    {/* Phone */}
+                    <div className="group flex items-center gap-1.5">
+                      <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      {isMieterEditing(m.id, 'telnr') ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Input
+                            type="tel"
+                            value={getMieterValue(m.id, 'telnr', m.telnr) || ''}
+                            onChange={(e) => handleMieterChange(m.id, 'telnr', e.target.value)}
+                            className="h-6 text-xs flex-1"
+                          />
+                          {!isGlobalEditMode && (
+                            <>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleMieterSave(m.id, 'telnr')}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => cancelEdit(m.id, 'telnr')}>
+                                <XCircle className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-xs text-muted-foreground">{m.telnr || '–'}</span>
+                          {m.telnr && <CopyButton text={m.telnr} fieldName={`Tel ${m.id}`} />}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Keine Mieter zugeordnet</p>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

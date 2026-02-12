@@ -1,5 +1,4 @@
 import { MietvertragContractInfo } from "./MietvertragContractInfo";
-import { MietvertragTenantInfo } from "./MietvertragTenantInfo";
 import { MietvertragKautionSection } from "./MietvertragKautionSection";
 import { MietvertragPaymentsSection } from "./MietvertragPaymentsSection";
 import { MietvertragMeterReadings } from "./MietvertragMeterReadings";
@@ -34,6 +33,8 @@ interface MietvertragOverviewTabProps {
   onCancelEditMeterNumber: () => void;
   onCreateForderung: () => void;
   onContractUpdate?: () => void;
+  onShowMahnung?: () => void;
+  onShowKuendigung?: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
 }
@@ -68,35 +69,31 @@ export function MietvertragOverviewTab({
   onCancelEditMeterNumber,
   onCreateForderung,
   onContractUpdate,
+  onShowMahnung,
+  onShowKuendigung,
   formatDatum,
   formatBetrag
 }: MietvertragOverviewTabProps) {
   return (
-    <div className="space-y-3 md:space-y-4">
-      {/* Contract and Tenant Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
-        <MietvertragContractInfo
-          vertrag={vertrag}
-          einheit={einheit}
-          isGlobalEditMode={isGlobalEditMode}
-          editedValues={editedValues}
-          onUpdateEditedValue={onUpdateEditedValue}
-          editingMietvertrag={editingMietvertrag}
-          onEditMietvertrag={onEditMietvertrag}
-          onStartEdit={onStartEdit}
-          onCancelEdit={onCancelEdit}
-          formatDatum={formatDatum}
-          formatBetrag={formatBetrag}
-        />
-        <MietvertragTenantInfo
-          mieter={mieter}
-          immobilie={immobilie}
-          einheit={einheit}
-          isGlobalEditMode={isGlobalEditMode}
-          editedValues={editedValues}
-          onUpdateEditedValue={onUpdateEditedValue}
-        />
-      </div>
+    <div className="space-y-3">
+      {/* Combined Contract + Tenant Info */}
+      <MietvertragContractInfo
+        vertrag={vertrag}
+        einheit={einheit}
+        immobilie={immobilie}
+        mieter={mieter}
+        isGlobalEditMode={isGlobalEditMode}
+        editedValues={editedValues}
+        onUpdateEditedValue={onUpdateEditedValue}
+        editingMietvertrag={editingMietvertrag}
+        onEditMietvertrag={onEditMietvertrag}
+        onStartEdit={onStartEdit}
+        onCancelEdit={onCancelEdit}
+        formatDatum={formatDatum}
+        formatBetrag={formatBetrag}
+        onShowMahnung={onShowMahnung}
+        onShowKuendigung={onShowKuendigung}
+      />
 
       {/* Kaution Section */}
       <MietvertragKautionSection
