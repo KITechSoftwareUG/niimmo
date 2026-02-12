@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle2, XCircle, AlertTriangle, TrendingUp, ArrowRight, Loader2, Copy, CheckCheck, Square, Edit2, Pencil } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -156,6 +157,9 @@ export function PaymentAssignmentResultsModal({
   
   // Track manual corrections
   const [manualCorrections, setManualCorrections] = useState<Record<number, string | null>>({});
+  const [categoryCorrections, setCategoryCorrections] = useState<Record<number, string>>({});
+
+  const KATEGORIE_OPTIONS = ["Miete", "Nichtmiete", "Mietkaution", "Rücklastschrift", "Nebenkosten", "Ignorieren"] as const;
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
     // Default: select all Miete results with mietvertrag_id
@@ -185,6 +189,7 @@ export function PaymentAssignmentResultsModal({
     });
     setSelectedIds(newSelected);
     setManualCorrections({});
+    setCategoryCorrections({});
   }, [mietResults]);
 
   const toggleSelection = (idx: number) => {
@@ -212,12 +217,20 @@ export function PaymentAssignmentResultsModal({
   const getFinalResults = () => {
     return mietResults
       .map((result, originalIdx) => {
-        // Apply manual corrections using the original mietResults index
+        let updated = { ...result };
+        
+        // Apply category corrections
+        const correctedCategory = categoryCorrections[originalIdx];
+        if (correctedCategory) {
+          updated.kategorie = correctedCategory;
+        }
+        
+        // Apply contract corrections
         const correctedContractId = manualCorrections[originalIdx];
         if (correctedContractId !== undefined) {
           const correctedContract = contracts.find(c => c.id === correctedContractId);
-          return {
-            ...result,
+          updated = {
+            ...updated,
             mietvertrag_id: correctedContractId,
             mieter_name: correctedContract?.mieter || result.mieter_name,
             immobilie_name: correctedContract?.immobilie || result.immobilie_name,
@@ -226,7 +239,7 @@ export function PaymentAssignmentResultsModal({
               : 'Manuell entfernt'
           };
         }
-        return result;
+        return updated;
       })
       .filter((_, originalIdx) => selectedIds.has(`${originalIdx}`));
   };
@@ -474,7 +487,21 @@ export function PaymentAssignmentResultsModal({
                           {result.verwendungszweck || "-"}
                         </div>
                       </TableCell>
-                      <TableCell className="py-2">{getKategorieBadge(result.kategorie)}</TableCell>
+                      <TableCell className="py-2">
+                        <Select
+                          value={categoryCorrections[idx] || result.kategorie}
+                          onValueChange={(value) => setCategoryCorrections(prev => ({ ...prev, [idx]: value }))}
+                        >
+                          <SelectTrigger className="h-7 w-[130px] text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {KATEGORIE_OPTIONS.map(kat => (
+                              <SelectItem key={kat} value={kat} className="text-xs">{kat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                       <TableCell className="py-2">
                         {currentContractId ? (
                           <div className="text-xs">
