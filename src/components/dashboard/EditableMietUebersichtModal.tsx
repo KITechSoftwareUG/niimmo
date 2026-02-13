@@ -273,9 +273,9 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Fixed Header */}
-      <div className="sticky top-0 z-30 bg-background border-b shadow-sm">
+      <div className="shrink-0 z-30 bg-background border-b shadow-sm">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -341,29 +341,29 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
         </div>
       </div>
 
-      {/* Table Content */}
+      {/* Table Content - scrollable area */}
       <div className="flex-1 overflow-auto">
         <div className="min-w-[1100px]">
-          <Table>
-            <TableHeader className="sticky top-0 z-20">
-              <TableRow className="bg-muted/80 backdrop-blur-sm border-b-2">
-                <TableHead className="w-8 text-[10px] font-bold py-2 px-2"></TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[50px]">Einheit</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[50px]">Etage</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[55px]">m²</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[75px]">Typ</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[65px]">Status</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2">Mieter</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2">E-Mail</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[100px]">Telefon</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[80px] text-right">Kaltmiete</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[60px] text-right">NK</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[80px] text-right">Warmmiete</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[40px] text-center">Pers</TableHead>
-                <TableHead className="text-[10px] font-bold py-2 px-2 w-[85px]">Beginn</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <table className="w-full caption-bottom text-sm">
+            <thead className="sticky top-0 z-20 [&_tr]:border-b">
+              <tr className="bg-muted border-b-2">
+                <th className="w-8 text-[10px] font-bold py-2 px-2 h-12 text-left align-middle font-medium text-muted-foreground"></th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[50px] h-12 text-left align-middle text-muted-foreground">Einheit</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[50px] h-12 text-left align-middle text-muted-foreground">Etage</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[55px] h-12 text-left align-middle text-muted-foreground">m²</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[75px] h-12 text-left align-middle text-muted-foreground">Typ</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[65px] h-12 text-left align-middle text-muted-foreground">Status</th>
+                <th className="text-[10px] font-bold py-2 px-2 h-12 text-left align-middle text-muted-foreground">Mieter</th>
+                <th className="text-[10px] font-bold py-2 px-2 h-12 text-left align-middle text-muted-foreground">E-Mail</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[100px] h-12 text-left align-middle text-muted-foreground">Telefon</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[80px] text-right h-12 align-middle text-muted-foreground">Kaltmiete</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[60px] text-right h-12 align-middle text-muted-foreground">NK</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[80px] text-right h-12 align-middle text-muted-foreground">Warmmiete</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[40px] text-center h-12 align-middle text-muted-foreground">Pers</th>
+                <th className="text-[10px] font-bold py-2 px-2 w-[85px] h-12 text-left align-middle text-muted-foreground">Beginn</th>
+              </tr>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
               {grouped.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={14} className="text-center py-12 text-muted-foreground">
@@ -467,8 +467,8 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
                   </>
                 );
               })}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
