@@ -272,36 +272,23 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // Gefilterte und klassifizierte Zahlungen
+  // Gefilterte Zahlungen - IMMER alle unzugeordneten Nebenkosten anzeigen
   const displayedPayments = useMemo(() => {
-    // Wenn KI-Klassifizierung vorhanden, nur diese anzeigen
-    if (classifications.length > 0) {
-      const classifiedIds = new Set(classifications.map(c => c.zahlung_id));
-      let payments = (unzugeordneteZahlungen || []).filter(z => classifiedIds.has(z.id));
-      
-      if (searchTerm.trim()) {
-        const search = searchTerm.toLowerCase();
-        payments = payments.filter(z => 
-          z.verwendungszweck?.toLowerCase().includes(search) ||
-          z.empfaengername?.toLowerCase().includes(search) ||
-          z.iban?.toLowerCase().includes(search)
-        );
-      }
-      
-      return payments;
+    if (!unzugeordneteZahlungen) return [];
+    
+    let payments = [...unzugeordneteZahlungen];
+    
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      payments = payments.filter(z => 
+        z.verwendungszweck?.toLowerCase().includes(search) ||
+        z.empfaengername?.toLowerCase().includes(search) ||
+        z.iban?.toLowerCase().includes(search)
+      );
     }
     
-    // Ohne Klassifizierung: alle unzugeordneten
-    if (!unzugeordneteZahlungen) return [];
-    if (!searchTerm.trim()) return unzugeordneteZahlungen;
-    
-    const search = searchTerm.toLowerCase();
-    return unzugeordneteZahlungen.filter(z => 
-      z.verwendungszweck?.toLowerCase().includes(search) ||
-      z.empfaengername?.toLowerCase().includes(search) ||
-      z.iban?.toLowerCase().includes(search)
-    );
-  }, [unzugeordneteZahlungen, searchTerm, classifications]);
+    return payments;
+  }, [unzugeordneteZahlungen, searchTerm]);
 
   const getClassification = (zahlungId: string) => 
     classifications.find(c => c.zahlung_id === zahlungId);
