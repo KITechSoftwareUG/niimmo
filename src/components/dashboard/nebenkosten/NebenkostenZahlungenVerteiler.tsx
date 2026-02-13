@@ -366,7 +366,7 @@ export function NebenkostenZahlungenVerteiler({ immobilieId }: NebenkostenZahlun
                 <div className="text-center py-12 text-muted-foreground">
                   <Euro className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p>Keine Nebenkosten-Zahlungen für {selectedYear} zugeordnet.</p>
-                  <p className="text-sm mt-1">Zahlungen können im Controlboard zugeordnet werden.</p>
+                  <p className="text-sm mt-1">Zahlungen können unter Zahlungen zugeordnet werden.</p>
                 </div>
               ) : (
                 <ScrollArea className="h-[600px]">
