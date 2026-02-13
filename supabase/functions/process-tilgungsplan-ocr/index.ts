@@ -70,26 +70,33 @@ Beispiel:
   ]
 }`;
 
-    const userMessage = textContent && typeof textContent === 'string' && textContent.trim().length > 0
-      ? {
-          role: "user",
-          content: `Bitte analysiere diesen Tilgungsplan und extrahiere alle Daten:\n\n${textContent}`
-        }
-      : {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Bitte analysiere diesen Tilgungsplan und extrahiere alle Daten:"
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${fileType};base64,${fileContent}`
-              }
+    let userMessage: any;
+    if (textContent && typeof textContent === 'string' && textContent.trim().length > 0) {
+      userMessage = {
+        role: "user",
+        content: `Bitte analysiere diesen Tilgungsplan und extrahiere alle Daten:\n\n${textContent}`
+      };
+    } else if (fileContent) {
+      // Determine the correct MIME type for the image_url
+      const mimeType = fileType === 'application/pdf' ? 'application/pdf' : (fileType || 'image/png');
+      userMessage = {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Bitte analysiere diesen Tilgungsplan und extrahiere alle Daten:"
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${fileContent}`
             }
-          ]
-        };
+          }
+        ]
+      };
+    } else {
+      throw new Error("Weder Text noch Dateiinhalt vorhanden");
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
