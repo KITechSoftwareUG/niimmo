@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { 
   Building2, Euro, Check, Calendar, Loader2, 
-  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical
+  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -548,32 +548,47 @@ export function NebenkostenZuordnungTab() {
                           </div>
                         </Collapsible>
 
-                        {/* KI-Vorschlag: Direkt bestätigen wenn vorhanden */}
-                        {suggestedImmobilie && (
-                          <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
-                                <div className="min-w-0">
-                                  <p className="text-xs text-muted-foreground">KI-Vorschlag:</p>
-                                  <p className="font-medium truncate">{suggestedName}</p>
+                        {/* Aktionsleiste */}
+                        <div className="flex items-center justify-between gap-2">
+                          {/* KI-Vorschlag: Direkt bestätigen wenn vorhanden */}
+                          {suggestedImmobilie && (
+                            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex-1">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-xs text-muted-foreground">KI-Vorschlag:</p>
+                                    <p className="font-medium truncate">{suggestedName}</p>
+                                  </div>
                                 </div>
+                                <Button 
+                                  size="sm"
+                                  className="flex-shrink-0 gap-1"
+                                  disabled={assignMutation.isPending}
+                                  onClick={() => assignMutation.mutate({ 
+                                    zahlungId: zahlung.id, 
+                                    immobilieId: suggestedImmobilie 
+                                  })}
+                                >
+                                  <Check className="h-4 w-4" />
+                                  Bestätigen
+                                </Button>
                               </div>
-                              <Button 
-                                size="sm"
-                                className="flex-shrink-0 gap-1"
-                                disabled={assignMutation.isPending}
-                                onClick={() => assignMutation.mutate({ 
-                                  zahlungId: zahlung.id, 
-                                  immobilieId: suggestedImmobilie 
-                                })}
-                              >
-                                <Check className="h-4 w-4" />
-                                Bestätigen
-                              </Button>
                             </div>
-                          </div>
-                        )}
+                          )}
+                          
+                          {/* Nichtmiete Button */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-shrink-0 gap-1 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                            disabled={recategorizeNichtmieteMutation.isPending}
+                            onClick={() => recategorizeNichtmieteMutation.mutate(zahlung.id)}
+                          >
+                            <X className="h-4 w-4" />
+                            Nichtmiete
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
@@ -693,32 +708,6 @@ export function NebenkostenZuordnungTab() {
           </div>
         </div>
       </div>
-
-      {/* Nichtmiete Drop-Zone - erscheint beim Draggen */}
-      {draggingZahlungId && (
-        <div
-          className={cn(
-            "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-xl border-2 border-dashed transition-all shadow-lg",
-            dragOverNichtmiete
-              ? "border-destructive bg-destructive/10 scale-105"
-              : "border-muted-foreground/40 bg-background/95 backdrop-blur"
-          )}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            setDragOverNichtmiete(true);
-          }}
-          onDragLeave={() => setDragOverNichtmiete(false)}
-          onDrop={handleDropNichtmiete}
-        >
-          <p className={cn(
-            "text-sm font-medium",
-            dragOverNichtmiete ? "text-destructive" : "text-muted-foreground"
-          )}>
-            ← Hier ablegen → Als Nichtmiete kategorisieren
-          </p>
-        </div>
-      )}
     </div>
   );
 }
