@@ -427,8 +427,7 @@ export function NebenkostenZuordnungTab() {
                 )}
               </div>
             ) : (
-              <ScrollArea className="h-[600px]">
-                <div className="space-y-3">
+              <div className="space-y-3">
                   {displayedPayments.map(zahlung => {
                     const isSelected = selectedZahlung === zahlung.id;
                     const classification = getClassification(zahlung.id);
@@ -539,7 +538,6 @@ export function NebenkostenZuordnungTab() {
                     );
                   })}
                 </div>
-              </ScrollArea>
             )}
           </CardContent>
         </Card>
