@@ -73,14 +73,14 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // Fetch unzugeordnete Nebenkosten-Zahlungen (kategorie = 'Nebenkosten')
+  // Fetch unzugeordnete Nebenkosten + Nichtmiete Zahlungen
   const { data: unzugeordneteZahlungen, isLoading: unzugeordneteLoading } = useQuery({
     queryKey: ['unzugeordnete-nebenkosten'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('zahlungen')
         .select('*')
-        .eq('kategorie', 'Nebenkosten')
+        .in('kategorie', ['Nebenkosten', 'Nichtmiete'])
         .is('immobilie_id', null)
         .order('buchungsdatum', { ascending: false });
       
@@ -89,14 +89,14 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // Fetch bereits zugeordnete Zahlungen - alle für Gruppierung
+  // Fetch bereits zugeordnete Zahlungen - Nebenkosten + Nichtmiete
   const { data: zugeordneteZahlungen, isLoading: zugeordneteLoading } = useQuery({
     queryKey: ['zugeordnete-nebenkosten'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('zahlungen')
         .select('*, immobilie:immobilie_id(id, name, adresse)')
-        .eq('kategorie', 'Nebenkosten')
+        .in('kategorie', ['Nebenkosten', 'Nichtmiete'])
         .not('immobilie_id', 'is', null)
         .order('buchungsdatum', { ascending: false });
       
