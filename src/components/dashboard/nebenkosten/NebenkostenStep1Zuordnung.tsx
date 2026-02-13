@@ -401,7 +401,7 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                             "text-sm font-bold",
                             monthGroup.total >= 0 ? "text-green-600" : "text-destructive"
                           )}>
-                            {monthGroup.total >= 0 ? "+" : ""}{monthGroup.total.toFixed(2)} €
+                            {(monthGroup.total ?? 0) >= 0 ? "+" : ""}{(monthGroup.total ?? 0).toFixed(2)} €
                           </span>
                         </div>
                       </CollapsibleTrigger>
@@ -441,7 +441,7 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                                           "text-lg font-bold whitespace-nowrap",
                                           zahlung.betrag >= 0 ? "text-green-600" : "text-red-600"
                                         )}>
-                                          {zahlung.betrag >= 0 ? "+" : ""}{zahlung.betrag.toFixed(2)} €
+                                          {(zahlung.betrag ?? 0) >= 0 ? "+" : ""}{(zahlung.betrag ?? 0).toFixed(2)} €
                                         </span>
                                       </div>
                                       <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
@@ -604,7 +604,7 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium">{pos.gesamtbetrag.toFixed(2)} €</span>
+                                  <span className="font-medium">{(pos.gesamtbetrag ?? 0).toFixed(2)} €</span>
                                   <Button
                                     size="icon"
                                     variant="ghost"
