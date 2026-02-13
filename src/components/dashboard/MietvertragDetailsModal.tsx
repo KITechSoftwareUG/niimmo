@@ -1159,21 +1159,33 @@ export default function MietvertragDetailsModal({
             mahnstufe: vertrag.mahnstufe || 0,
             mieter: mieter as any[]
           } : null}
-          offeneForderungen={(forderungen || [])
-            .filter(f => {
-              // Filter for unpaid forderungen by checking if payment exists for this month
-              const hasSufficientPayment = (zahlungen || []).some(z => 
-                z.zugeordneter_monat === f.sollmonat && 
-                Math.abs(Number(z.betrag) - Number(f.sollbetrag)) < 50 // 50€ tolerance
-              );
-              return !hasSufficientPayment;
-            })
-            .map(f => ({
-              id: f.id,
-              sollmonat: f.sollmonat,
-              sollbetrag: Number(f.sollbetrag),
-              ist_faellig: f.ist_faellig || false
-            }))
+          offeneForderungen={(() => {
+            // Summiere alle relevanten Zahlungen (Miete + Rücklastschrift) pro Monat
+            const relevanteZahlungen = (zahlungen || []).filter(z => 
+              z.kategorie === 'Miete' || z.kategorie === 'Rücklastschrift'
+            );
+            const zahlungenProMonat = new Map<string, number>();
+            relevanteZahlungen.forEach(z => {
+              if (!z.zugeordneter_monat) return;
+              const monat = z.zugeordneter_monat;
+              zahlungenProMonat.set(monat, (zahlungenProMonat.get(monat) || 0) + Number(z.betrag));
+            });
+
+            return (forderungen || [])
+              .filter(f => {
+                if (!f.sollmonat) return false;
+                const gezahlt = zahlungenProMonat.get(f.sollmonat) || 0;
+                const soll = Number(f.sollbetrag) || 0;
+                // Forderung ist offen wenn Zahlungen den Sollbetrag nicht decken (50€ Toleranz)
+                return gezahlt < soll - 50;
+              })
+              .map(f => ({
+                id: f.id,
+                sollmonat: f.sollmonat,
+                sollbetrag: Number(f.sollbetrag),
+                ist_faellig: f.ist_faellig || false
+              }));
+          })()
           }
         />
       </DialogContent>
