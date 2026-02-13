@@ -505,7 +505,7 @@ function isPaymentInContractPeriod(paymentDate: string, contract: ContractInfo):
   return true;
 }
 
-// Select best contract from multiple IBAN matches based on payment date
+// Select best contract from multiple IBAN matches based on payment date and amount
 function selectBestContractByDate(payment: Payment, matchingContracts: ContractInfo[]): ContractInfo | null {
   if (matchingContracts.length === 0) return null;
   if (matchingContracts.length === 1) return matchingContracts[0];
@@ -521,12 +521,34 @@ function selectBestContractByDate(payment: Payment, matchingContracts: ContractI
     return validByDate[0];
   }
   
-  if (validByDate.length > 1) {
-    // Multiple contracts valid for this date - prefer "aktiv" over "gekuendigt" over "beendet"
+  // Multiple contracts valid for this date - try amount matching first
+  const candidates = validByDate.length > 1 ? validByDate : matchingContracts;
+  
+  if (candidates.length > 1) {
+    // BETRAG-MATCH: Bei gleicher IBAN, schaue welcher Vertrag zum Betrag passt
+    const amountMatches = candidates.filter(c => 
+      Math.abs(c.gesamtmiete - payment.betrag) <= BETRAG_TOLERANZ && payment.betrag > 0
+    );
+    
+    if (amountMatches.length === 1) {
+      console.log(`Selected contract ${amountMatches[0].id} (${amountMatches[0].mieter}) based on AMOUNT match (${payment.betrag} ≈ ${amountMatches[0].gesamtmiete})`);
+      return amountMatches[0];
+    }
+    
+    // Also check Kaution match
+    const kautionMatches = candidates.filter(c =>
+      c.kaution && Math.abs(payment.betrag - c.kaution) <= BETRAG_TOLERANZ && payment.betrag > 0
+    );
+    if (kautionMatches.length === 1) {
+      console.log(`Selected contract ${kautionMatches[0].id} (${kautionMatches[0].mieter}) based on KAUTION amount match (${payment.betrag} ≈ ${kautionMatches[0].kaution})`);
+      return kautionMatches[0];
+    }
+    
+    // Fall back to status priority
     const statusPriority: Record<string, number> = { "aktiv": 0, "gekuendigt": 1, "beendet": 2 };
-    validByDate.sort((a, b) => (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99));
-    console.log(`Selected contract ${validByDate[0].id} (${validByDate[0].mieter}) - status: ${validByDate[0].status}`);
-    return validByDate[0];
+    candidates.sort((a, b) => (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99));
+    console.log(`Selected contract ${candidates[0].id} (${candidates[0].mieter}) - status: ${candidates[0].status} (no unique amount match)`);
+    return candidates[0];
   }
   
   // No valid date match - fall back to aktiv status
