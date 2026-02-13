@@ -18,6 +18,14 @@ interface EditableMietUebersichtProps {
   onBack: () => void;
 }
 
+interface MieterInfo {
+  id: string;
+  vorname: string;
+  nachname: string;
+  email: string;
+  telefon: string;
+}
+
 interface ContractRow {
   contractId: string;
   objektId: string;
@@ -32,6 +40,7 @@ interface ContractRow {
   nachname: string;
   email: string;
   telefon: string;
+  mieter: MieterInfo[];
   kaltmiete: number;
   betriebskosten: number;
   mietbeginn: string;
@@ -73,21 +82,32 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
         if (contracts.length === 0) return;
         const currentContract = getCurrentContract(contracts);
         if (!currentContract) return;
-        const mieter = currentContract.mietvertrag_mieter?.[0]?.mieter;
+        const allMieter: MieterInfo[] = (currentContract.mietvertrag_mieter || [])
+          .map((mm: any) => mm.mieter)
+          .filter(Boolean)
+          .map((m: any) => ({
+            id: m.id || '',
+            vorname: m.vorname || '',
+            nachname: m.nachname || '',
+            email: m.hauptmail || '',
+            telefon: m.telnr || '',
+          }));
+        const hauptmieter = allMieter[0];
         results.push({
           contractId: currentContract.id,
           objektId: einheit.immobilien.id,
           objektName: einheit.immobilien.name,
           einheitId: einheit.id,
-          mieterId: mieter?.id || '',
+          mieterId: hauptmieter?.id || '',
           etage: einheit.etage || '',
           qm: einheit.qm || 0,
           typ: einheit.einheitentyp || 'Wohnung',
           status: currentContract.status || 'aktiv',
-          vorname: mieter?.vorname || '',
-          nachname: mieter?.nachname || '',
-          email: mieter?.hauptmail || '',
-          telefon: mieter?.telnr || '',
+          vorname: hauptmieter?.vorname || '',
+          nachname: hauptmieter?.nachname || '',
+          email: hauptmieter?.email || '',
+          telefon: hauptmieter?.telefon || '',
+          mieter: allMieter,
           kaltmiete: currentContract.kaltmiete || 0,
           betriebskosten: currentContract.betriebskosten || 0,
           mietbeginn: currentContract.start_datum || '',
@@ -434,16 +454,31 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
                             {statusBadge(row.status)}
                           </TableCell>
                           <TableCell className="py-1 px-2">
-                            <div className="flex gap-0.5">
-                              <EditCell rowId={row.mieterId} table="mieter" field="vorname" value={row.vorname} />
-                              <EditCell rowId={row.mieterId} table="mieter" field="nachname" value={row.nachname} />
+                            <div className="space-y-0.5">
+                              {row.mieter.map((m, mi) => (
+                                <div key={m.id || mi} className="flex gap-0.5">
+                                  <EditCell rowId={m.id} table="mieter" field="vorname" value={m.vorname} />
+                                  <EditCell rowId={m.id} table="mieter" field="nachname" value={m.nachname} />
+                                </div>
+                              ))}
+                              {row.mieter.length === 0 && <span className="text-xs text-muted-foreground">-</span>}
                             </div>
                           </TableCell>
                           <TableCell className="py-1 px-2">
-                            <EditCell rowId={row.mieterId} table="mieter" field="hauptmail" value={row.email} />
+                            <div className="space-y-0.5">
+                              {row.mieter.map((m, mi) => (
+                                <EditCell key={m.id || mi} rowId={m.id} table="mieter" field="hauptmail" value={m.email} />
+                              ))}
+                              {row.mieter.length === 0 && <span className="text-xs text-muted-foreground">-</span>}
+                            </div>
                           </TableCell>
                           <TableCell className="py-1 px-2">
-                            <EditCell rowId={row.mieterId} table="mieter" field="telnr" value={row.telefon} />
+                            <div className="space-y-0.5">
+                              {row.mieter.map((m, mi) => (
+                                <EditCell key={m.id || mi} rowId={m.id} table="mieter" field="telnr" value={m.telefon} />
+                              ))}
+                              {row.mieter.length === 0 && <span className="text-xs text-muted-foreground">-</span>}
+                            </div>
                           </TableCell>
                           <TableCell className="py-1 px-2 text-right">
                             <EditCell rowId={row.contractId} table="mietvertrag" field="kaltmiete" value={row.kaltmiete} type="number" />
