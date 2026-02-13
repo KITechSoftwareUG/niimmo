@@ -206,18 +206,43 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         }
       }
 
-      // If no text extracted, convert to base64 image
+      // If no text extracted from PDF, render pages to actual PNG images
       if (!textContent || textContent.length < 30) {
-        const reader = new FileReader();
-        base64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => {
-            const result = reader.result as string;
-            const commaIdx = result.indexOf(',');
-            resolve(commaIdx >= 0 ? result.slice(commaIdx + 1) : result);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        if (file.type === 'application/pdf') {
+          try {
+            const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+            if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+              pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+                'pdfjs-dist/legacy/build/pdf.worker.min.js',
+                import.meta.url
+              ).toString();
+            }
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 2.0 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d')!;
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            base64 = canvas.toDataURL('image/png').split(',')[1];
+          } catch (e) {
+            console.warn('PDF to image rendering failed:', e);
+          }
+        } else {
+          // Non-PDF file (actual image), read as base64
+          const reader = new FileReader();
+          base64 = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => {
+              const result = reader.result as string;
+              const commaIdx = result.indexOf(',');
+              resolve(commaIdx >= 0 ? result.slice(commaIdx + 1) : result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
       }
 
       const effectiveFileType = (!textContent || textContent.length < 30) ? 'image/png' : file.type;
