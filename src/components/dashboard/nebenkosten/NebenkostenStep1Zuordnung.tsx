@@ -693,7 +693,7 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium">{pos.gesamtbetrag.toFixed(2)} €</span>
+                                  <span className="font-medium">{(pos.gesamtbetrag ?? 0).toFixed(2)} €</span>
                                   <Button
                                     size="icon"
                                     variant="ghost"
