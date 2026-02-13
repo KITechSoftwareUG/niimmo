@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { 
   Building2, Euro, Check, Calendar, Loader2, 
-  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical
+  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -57,6 +57,7 @@ export function NebenkostenZuordnungTab() {
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
   const [draggingZahlungId, setDraggingZahlungId] = useState<string | null>(null);
   const [dragOverImmobilieId, setDragOverImmobilieId] = useState<string | null>(null);
+  const [dragOverNichtmiete, setDragOverNichtmiete] = useState(false);
 
   // Fetch alle Immobilien
   const { data: immobilien, isLoading: immobilienLoading } = useQuery({
@@ -72,14 +73,14 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // Fetch unzugeordnete Nichtmiete-Zahlungen
+  // Fetch unzugeordnete Nebenkosten-Zahlungen (kategorie = 'Nebenkosten')
   const { data: unzugeordneteZahlungen, isLoading: unzugeordneteLoading } = useQuery({
     queryKey: ['unzugeordnete-nebenkosten'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('zahlungen')
         .select('*')
-        .eq('kategorie', 'Nichtmiete')
+        .eq('kategorie', 'Nebenkosten')
         .is('immobilie_id', null)
         .order('buchungsdatum', { ascending: false });
       
@@ -95,7 +96,7 @@ export function NebenkostenZuordnungTab() {
       const { data, error } = await supabase
         .from('zahlungen')
         .select('*, immobilie:immobilie_id(id, name, adresse)')
-        .eq('kategorie', 'Nichtmiete')
+        .eq('kategorie', 'Nebenkosten')
         .not('immobilie_id', 'is', null)
         .order('buchungsdatum', { ascending: false });
       
@@ -244,6 +245,33 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
+  // Zahlung als Nichtmiete re-kategorisieren (wegschieben)
+  const reclassifyMutation = useMutation({
+    mutationFn: async (zahlungId: string) => {
+      const { error } = await supabase
+        .from('zahlungen')
+        .update({ kategorie: 'Nichtmiete', immobilie_id: null })
+        .eq('id', zahlungId);
+      if (error) throw error;
+
+      // Klassifizierung als übersprungen markieren
+      await supabase
+        .from('nebenkosten_klassifizierungen')
+        .update({ uebersprungen: true })
+        .eq('zahlung_id', zahlungId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
+      queryClient.invalidateQueries({ queryKey: ['alle-zahlungen'] });
+      toast.success("Zahlung als Nichtmiete kategorisiert");
+    },
+    onError: () => {
+      toast.error("Fehler beim Umkategorisieren");
+    }
+  });
+
   // Gefilterte und klassifizierte Zahlungen
   const displayedPayments = useMemo(() => {
     // Wenn KI-Klassifizierung vorhanden, nur diese anzeigen
@@ -333,6 +361,16 @@ export function NebenkostenZuordnungTab() {
     setDraggingZahlungId(null);
   };
 
+  const handleDropNichtmiete = (e: React.DragEvent) => {
+    e.preventDefault();
+    const zahlungId = e.dataTransfer.getData('zahlungId');
+    if (zahlungId) {
+      reclassifyMutation.mutate(zahlungId);
+    }
+    setDragOverNichtmiete(false);
+    setDraggingZahlungId(null);
+  };
+
   const isLoading = immobilienLoading || unzugeordneteLoading || zugeordneteLoading || classificationsLoading;
 
   if (isLoading) {
@@ -408,7 +446,7 @@ export function NebenkostenZuordnungTab() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Euro className="h-5 w-5" />
-              {classifications.length > 0 ? 'Erkannte Nebenkosten' : 'Alle Nichtmiete-Zahlungen'} ({displayedPayments.length})
+              {classifications.length > 0 ? 'Erkannte Nebenkosten' : 'Alle Nebenkosten-Zahlungen'} ({displayedPayments.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -427,7 +465,8 @@ export function NebenkostenZuordnungTab() {
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
+              <ScrollArea className="h-[900px]">
+                <div className="space-y-3 pr-3">
                   {displayedPayments.map(zahlung => {
                     const isSelected = selectedZahlung === zahlung.id;
                     const classification = getClassification(zahlung.id);
@@ -538,6 +577,7 @@ export function NebenkostenZuordnungTab() {
                     );
                   })}
                 </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
@@ -650,6 +690,30 @@ export function NebenkostenZuordnungTab() {
               );
             })}
           </div>
+
+          {/* Nichtmiete Drop Zone - Zahlungen wegschieben */}
+          {draggingZahlungId && (
+            <Card
+              className={cn(
+                "transition-all border-2 border-dashed",
+                dragOverNichtmiete 
+                  ? "ring-2 ring-destructive bg-destructive/10 border-destructive scale-[1.02]" 
+                  : "border-muted-foreground/30"
+              )}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setDragOverNichtmiete(true);
+              }}
+              onDragLeave={() => setDragOverNichtmiete(false)}
+              onDrop={handleDropNichtmiete}
+            >
+              <CardContent className="py-6 flex items-center justify-center gap-3 text-muted-foreground">
+                <X className="h-5 w-5" />
+                <span className="font-medium">Hier ablegen → als Nichtmiete kategorisieren</span>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
