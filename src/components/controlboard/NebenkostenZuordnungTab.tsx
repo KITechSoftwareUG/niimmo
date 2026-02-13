@@ -544,129 +544,114 @@ export function NebenkostenZuordnungTab() {
           </CardContent>
         </Card>
 
-        {/* Rechte Spalte: Immobilien mit Drop-Zones */}
+        {/* Rechte Spalte: Immobilien als Karten-Grid */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Building2 className="h-5 w-5" />
             Immobilien
           </h3>
           
-          <ScrollArea className="h-[650px]">
-            <div className="space-y-3 pr-4">
-              {immobilien?.map(immo => {
-                const grouped = zahlungenByImmobilie[immo.id];
-                const zahlungen = grouped?.zahlungen || [];
-                const total = grouped?.total || 0;
-                const isDropTarget = dragOverImmobilieId === immo.id;
-                const hasPayments = zahlungen.length > 0;
-                
-                return (
-                  <Card
-                    key={immo.id}
-                    className={cn(
-                      "transition-all",
-                      isDropTarget && "ring-2 ring-primary bg-primary/5 scale-[1.02]",
-                      draggingZahlungId && !isDropTarget && "opacity-70"
-                    )}
-                    onDragOver={(e) => handleDragOver(e, immo.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, immo.id)}
-                  >
-                    <CardHeader className="py-3 px-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-primary" />
-                          <div>
-                            <p className="font-medium text-sm">{immo.name}</p>
-                            <p className="text-xs text-muted-foreground">{immo.adresse}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          {hasPayments && (
-                            <>
-                              <Badge variant="secondary" className="text-xs">
-                                {zahlungen.length} Zahlungen
-                              </Badge>
-                              <p className={cn(
-                                "text-sm font-bold mt-1",
-                                total < 0 ? "text-destructive" : "text-green-600"
-                              )}>
-                                {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(total)}
-                              </p>
-                            </>
-                          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {immobilien?.map(immo => {
+              const grouped = zahlungenByImmobilie[immo.id];
+              const zahlungen = grouped?.zahlungen || [];
+              const total = grouped?.total || 0;
+              const isDropTarget = dragOverImmobilieId === immo.id;
+              const hasPayments = zahlungen.length > 0;
+              
+              return (
+                <Card
+                  key={immo.id}
+                  className={cn(
+                    "transition-all",
+                    isDropTarget && "ring-2 ring-primary bg-primary/5 scale-[1.02]",
+                    draggingZahlungId && !isDropTarget && "opacity-70"
+                  )}
+                  onDragOver={(e) => handleDragOver(e, immo.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, immo.id)}
+                >
+                  <CardHeader className="py-3 px-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 className="h-4 w-4 text-primary flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{immo.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{immo.adresse}</p>
                         </div>
                       </div>
-                    </CardHeader>
-                    
-                    {/* Drop Zone Indikator */}
-                    {isDropTarget && (
-                      <div className="mx-4 mb-3 border-2 border-dashed border-primary rounded-lg p-4 text-center text-sm text-primary">
-                        Hier ablegen
-                      </div>
-                    )}
-                    
-                    {/* Zugeordnete Zahlungen */}
-                    {hasPayments && !isDropTarget && (
-                      <CardContent className="pt-0 px-4 pb-3">
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {zahlungen.slice(0, 5).map((z: any) => (
-                            <div
-                              key={z.id}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, z.id)}
-                              onDragEnd={handleDragEnd}
-                              className={cn(
-                                "p-2 rounded border bg-card text-xs flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing group",
-                                draggingZahlungId === z.id && "opacity-50"
-                              )}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                <div className="min-w-0">
-                                  <p className="truncate font-medium">{z.empfaengername || 'Unbekannt'}</p>
-                                  <p className="text-muted-foreground">
-                                    {format(new Date(z.buchungsdatum), 'dd.MM.yy', { locale: de })}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-destructive whitespace-nowrap">
-                                  -{formatBetrag(z.betrag)}
-                                </span>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-                                  onClick={() => unassignMutation.mutate(z.id)}
-                                >
-                                  <Undo2 className="h-3 w-3" />
-                                </Button>
-                              </div>
+                      {hasPayments && (
+                        <div className="text-right flex-shrink-0">
+                          <Badge variant="secondary" className="text-xs">
+                            {zahlungen.length}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  
+                  {/* Drop Zone Indikator */}
+                  {isDropTarget && (
+                    <div className="mx-3 mb-3 border-2 border-dashed border-primary rounded-lg p-3 text-center text-sm text-primary">
+                      Hier ablegen
+                    </div>
+                  )}
+                  
+                  {/* Zugeordnete Zahlungen kompakt */}
+                  {hasPayments && !isDropTarget && (
+                    <CardContent className="pt-0 px-3 pb-3">
+                      <div className="space-y-1.5">
+                        {zahlungen.slice(0, 3).map((z: any) => (
+                          <div
+                            key={z.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, z.id)}
+                            onDragEnd={handleDragEnd}
+                            className={cn(
+                              "p-1.5 rounded border bg-card text-xs flex items-center justify-between gap-1 cursor-grab active:cursor-grabbing group",
+                              draggingZahlungId === z.id && "opacity-50"
+                            )}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate">{z.empfaengername || 'Unbekannt'}</span>
                             </div>
-                          ))}
-                          {zahlungen.length > 5 && (
-                            <p className="text-xs text-muted-foreground text-center py-1">
-                              +{zahlungen.length - 5} weitere
-                            </p>
-                          )}
-                        </div>
-                      </CardContent>
-                    )}
-                    
-                    {/* Leere Drop Zone */}
-                    {!hasPayments && !isDropTarget && (
-                      <CardContent className="pt-0 px-4 pb-3">
-                        <div className="border border-dashed rounded-lg p-3 text-center text-xs text-muted-foreground">
-                          Ziehe Zahlungen hierher
-                        </div>
-                      </CardContent>
-                    )}
-                  </Card>
-                );
-              })}
-            </div>
-          </ScrollArea>
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-destructive whitespace-nowrap">
+                                -{formatBetrag(z.betrag)}
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                                onClick={() => unassignMutation.mutate(z.id)}
+                              >
+                                <Undo2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        {zahlungen.length > 3 && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            +{zahlungen.length - 3} weitere
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  )}
+                  
+                  {/* Leere Drop Zone */}
+                  {!hasPayments && !isDropTarget && (
+                    <CardContent className="pt-0 px-3 pb-3">
+                      <div className="border border-dashed rounded-lg p-2 text-center text-xs text-muted-foreground">
+                        Zahlungen hierher ziehen
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
