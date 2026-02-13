@@ -1161,12 +1161,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                                     {yearGroup.count} Zahlungen
                                   </Badge>
                                 </div>
-                                <span className={cn(
-                                  "text-base font-bold",
-                                  yearGroup.total < 0 ? "text-destructive" : "text-green-600"
-                                )}>
-                                  {formatBetrag(yearGroup.total)}
-                                </span>
                               </div>
                             </div>
                             
@@ -1193,12 +1187,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                                             {monthGroup.payments.length}
                                           </Badge>
                                         </div>
-                                        <span className={cn(
-                                          "text-sm font-bold",
-                                          monthGroup.total < 0 ? "text-destructive" : "text-green-600"
-                                        )}>
-                                          {formatBetrag(monthGroup.total)}
-                                        </span>
                                       </div>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
