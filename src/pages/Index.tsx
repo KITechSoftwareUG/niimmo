@@ -349,7 +349,7 @@ const Index = () => {
                     className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
                   >
                     <Settings className="h-4 w-4 mr-1.5 shrink-0" />
-                    <span className="truncate">Controlboard</span>
+                    <span className="truncate">Zahlungen</span>
                   </Button>
                   <Button 
                     onClick={() => setShowUebergabe(true)} 

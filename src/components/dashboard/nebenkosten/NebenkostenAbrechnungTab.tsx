@@ -922,7 +922,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                 <Receipt className="h-12 w-12 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Noch keine Kostenpositionen für {abrechnungsjahr}.</p>
                 <p className="text-xs mt-1">
-                  Fügen Sie Kosten hinzu oder ordnen Sie Zahlungen im Controlboard zu.
+                  Fügen Sie Kosten hinzu oder ordnen Sie Zahlungen unter Zahlungen zu.
                 </p>
                 <Button 
                   variant="outline" 
