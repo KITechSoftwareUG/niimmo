@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { 
   ArrowLeft, Plus, Pencil, Trash2, Building2, Landmark, 
   TrendingDown, Calendar, Euro, Percent, ChevronDown, ChevronUp,
-  PieChart, TrendingUp, Wallet, Home, Shield
+  PieChart, TrendingUp, Wallet, Home, Shield, Upload, FileText, Loader2, Check, AlertTriangle
 } from "lucide-react";
 
 interface DarlehenVerwaltungProps {
@@ -58,6 +58,14 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<DarlehenForm>(emptyForm);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // PDF Import state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [showImportReview, setShowImportReview] = useState(false);
+  const [importedData, setImportedData] = useState<any>(null);
+  const [importedZahlungen, setImportedZahlungen] = useState<any[]>([]);
+  const [importImmobilienIds, setImportImmobilienIds] = useState<string[]>([]);
 
   // Fetch all Darlehen
   const { data: darlehen, isLoading } = useQuery({
@@ -162,6 +170,149 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     setShowForm(false);
   };
 
+  // PDF Import handler
+  const handlePdfImport = async (file: File) => {
+    setIsImporting(true);
+    try {
+      let textContent = '';
+      let base64 = '';
+
+      if (file.type === 'application/pdf') {
+        // Extract text from PDF
+        try {
+          let pdfjsLib: any;
+          try {
+            pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
+          } catch (e) {
+            pdfjsLib = await import('pdfjs-dist/build/pdf');
+          }
+          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+              'pdfjs-dist/legacy/build/pdf.worker.min.js',
+              import.meta.url
+            ).toString();
+          }
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          const numPages = Math.min(pdf.numPages, 10);
+          for (let i = 1; i <= numPages; i++) {
+            const page = await pdf.getPage(i);
+            const tc = await page.getTextContent();
+            textContent += '\n\n' + tc.items.map((item: any) => item.str).join(' ');
+          }
+          textContent = textContent.trim();
+        } catch (e) {
+          console.warn('PDF text extraction failed:', e);
+        }
+      }
+
+      // If no text extracted, convert to base64 image
+      if (!textContent || textContent.length < 30) {
+        const reader = new FileReader();
+        base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = reader.result as string;
+            const commaIdx = result.indexOf(',');
+            resolve(commaIdx >= 0 ? result.slice(commaIdx + 1) : result);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      const effectiveFileType = (!textContent || textContent.length < 30) ? 'image/png' : file.type;
+
+      const { data, error } = await supabase.functions.invoke('process-tilgungsplan-ocr', {
+        body: {
+          fileName: file.name,
+          fileType: effectiveFileType,
+          fileContent: base64,
+          textContent: textContent,
+        },
+      });
+
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error || 'Verarbeitung fehlgeschlagen');
+
+      const extracted = data.extractedData;
+      setImportedData(extracted);
+      setImportedZahlungen(extracted.zahlungen || []);
+      setImportImmobilienIds([]);
+      setShowImportReview(true);
+      toast.success(`Tilgungsplan erkannt: ${extracted.zahlungen?.length || 0} Zahlungen extrahiert`);
+    } catch (err: any) {
+      console.error('PDF Import Error:', err);
+      toast.error('PDF-Import fehlgeschlagen: ' + err.message);
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Save imported darlehen + zahlungen
+  const saveImportMutation = useMutation({
+    mutationFn: async () => {
+      if (!importedData) throw new Error('Keine Daten');
+
+      const { zahlungen: _, ...loanData } = importedData;
+      const darlehenInsert = {
+        bezeichnung: loanData.bezeichnung || 'Importiertes Darlehen',
+        bank: loanData.bank || null,
+        kontonummer: loanData.kontonummer || null,
+        darlehensbetrag: loanData.darlehensbetrag || 0,
+        restschuld: loanData.restschuld || 0,
+        zinssatz_prozent: loanData.zinssatz_prozent || 0,
+        tilgungssatz_prozent: loanData.tilgungssatz_prozent || 0,
+        monatliche_rate: loanData.monatliche_rate || 0,
+        start_datum: loanData.start_datum || null,
+        ende_datum: loanData.ende_datum || null,
+        notizen: loanData.notizen || null,
+      };
+
+      const { data: newDarlehen, error: dError } = await supabase
+        .from('darlehen')
+        .insert(darlehenInsert)
+        .select('id')
+        .single();
+      if (dError) throw dError;
+
+      // Save immobilien assignments
+      if (importImmobilienIds.length > 0) {
+        const mappings = importImmobilienIds.map((immId) => ({
+          darlehen_id: newDarlehen.id,
+          immobilie_id: immId,
+        }));
+        await supabase.from('darlehen_immobilien').insert(mappings);
+      }
+
+      // Save Zahlungen
+      if (importedZahlungen.length > 0) {
+        const zahlungenInserts = importedZahlungen.map((z: any) => ({
+          darlehen_id: newDarlehen.id,
+          buchungsdatum: z.buchungsdatum,
+          betrag: z.betrag || 0,
+          zinsanteil: z.zinsanteil || 0,
+          tilgungsanteil: z.tilgungsanteil || 0,
+          restschuld_danach: z.restschuld_danach ?? null,
+        }));
+        const { error: zError } = await supabase.from('darlehen_zahlungen').insert(zahlungenInserts);
+        if (zError) throw zError;
+      }
+
+      return newDarlehen.id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['darlehen'] });
+      queryClient.invalidateQueries({ queryKey: ['darlehen-immobilien'] });
+      queryClient.invalidateQueries({ queryKey: ['darlehen-zahlungen'] });
+      toast.success('Darlehen mit Tilgungsplan importiert!');
+      setShowImportReview(false);
+      setImportedData(null);
+      setImportedZahlungen([]);
+    },
+    onError: (err: any) => toast.error('Fehler beim Speichern: ' + err.message),
+  });
+
   const openEdit = (d: any) => {
     const assignedIds = darlehenImmobilien?.filter((di) => di.darlehen_id === d.id).map((di) => di.immobilie_id) || [];
     setForm({
@@ -244,9 +395,31 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                 <p className="text-xs text-muted-foreground">{anzahlKredite} {anzahlKredite === 1 ? 'Kredit' : 'Kredite'} · {immobilien?.length || 0} Immobilien</p>
               </div>
             </div>
-            <Button onClick={() => { resetForm(); setShowForm(true); }} size="sm" className="gap-1.5">
-              <Plus className="h-4 w-4" /> Neues Darlehen
-            </Button>
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePdfImport(file);
+                }}
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-1.5"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+              >
+                {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                {isImporting ? "Wird analysiert..." : "PDF importieren"}
+              </Button>
+              <Button onClick={() => { resetForm(); setShowForm(true); }} size="sm" className="gap-1.5">
+                <Plus className="h-4 w-4" /> Neues Darlehen
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -588,6 +761,205 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
               disabled={!form.bezeichnung || saveMutation.isPending}
             >
               {saveMutation.isPending ? "Speichern..." : editId ? "Aktualisieren" : "Erstellen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Review Modal */}
+      <Dialog open={showImportReview} onOpenChange={(open) => { if (!open) { setShowImportReview(false); setImportedData(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Tilgungsplan prüfen & importieren
+            </DialogTitle>
+          </DialogHeader>
+
+          {importedData && (
+            <div className="space-y-4">
+              {/* Warning */}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-800 dark:text-amber-200">
+                  Bitte prüfen Sie die extrahierten Daten sorgfältig. KI-Extraktion kann Fehler enthalten.
+                </p>
+              </div>
+
+              {/* Loan Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Bezeichnung</Label>
+                  <Input 
+                    value={importedData.bezeichnung || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, bezeichnung: e.target.value })}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Bank</Label>
+                  <Input 
+                    value={importedData.bank || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, bank: e.target.value })}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Kontonummer/IBAN</Label>
+                  <Input 
+                    value={importedData.kontonummer || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, kontonummer: e.target.value })}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Darlehensbetrag (€)</Label>
+                  <Input 
+                    type="number" step="0.01"
+                    value={importedData.darlehensbetrag || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, darlehensbetrag: parseFloat(e.target.value) || 0 })}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Restschuld (€)</Label>
+                  <Input 
+                    type="number" step="0.01"
+                    value={importedData.restschuld || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, restschuld: parseFloat(e.target.value) || 0 })}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Zinssatz (%)</Label>
+                  <Input 
+                    type="number" step="0.01"
+                    value={importedData.zinssatz_prozent || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, zinssatz_prozent: parseFloat(e.target.value) || 0 })}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Monatliche Rate (€)</Label>
+                  <Input 
+                    type="number" step="0.01"
+                    value={importedData.monatliche_rate || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, monatliche_rate: parseFloat(e.target.value) || 0 })}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Laufzeit von</Label>
+                  <Input 
+                    type="date"
+                    value={importedData.start_datum || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, start_datum: e.target.value })}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Laufzeit bis</Label>
+                  <Input 
+                    type="date"
+                    value={importedData.ende_datum || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, ende_datum: e.target.value })}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              {importedData.notizen && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Notizen</Label>
+                  <Textarea 
+                    value={importedData.notizen || ''} 
+                    onChange={(e) => setImportedData({ ...importedData, notizen: e.target.value })}
+                    rows={2}
+                    className="text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Immobilien Assignment */}
+              <div>
+                <Label className="text-xs mb-2 block">Zugeordnete Immobilien</Label>
+                <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
+                  {immobilien?.map((immo) => (
+                    <label key={immo.id} className="flex items-center gap-2 text-xs hover:bg-muted/50 p-1 rounded cursor-pointer">
+                      <Checkbox
+                        checked={importImmobilienIds.includes(immo.id)}
+                        onCheckedChange={(checked) => {
+                          setImportImmobilienIds(
+                            checked
+                              ? [...importImmobilienIds, immo.id]
+                              : importImmobilienIds.filter((id) => id !== immo.id)
+                          );
+                        }}
+                      />
+                      <Building2 className="h-3 w-3 text-muted-foreground" />
+                      <span>{immo.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Zahlungen Preview */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                    <TrendingDown className="h-4 w-4" />
+                    Tilgungsplan ({importedZahlungen.length} Zahlungen)
+                  </h4>
+                </div>
+                {importedZahlungen.length > 0 ? (
+                  <div className="rounded-md border overflow-auto max-h-48">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Datum</TableHead>
+                          <TableHead className="text-xs">Rate</TableHead>
+                          <TableHead className="text-xs">Zinsen</TableHead>
+                          <TableHead className="text-xs">Tilgung</TableHead>
+                          <TableHead className="text-xs">Restschuld</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importedZahlungen.map((z: any, i: number) => (
+                          <TableRow key={i}>
+                            <TableCell className="text-xs">{z.buchungsdatum ? new Date(z.buchungsdatum).toLocaleDateString('de-DE') : '–'}</TableCell>
+                            <TableCell className="text-xs font-medium">{formatCurrency(z.betrag || 0)}</TableCell>
+                            <TableCell className="text-xs text-destructive">{formatCurrency(z.zinsanteil || 0)}</TableCell>
+                            <TableCell className="text-xs text-primary">{formatCurrency(z.tilgungsanteil || 0)}</TableCell>
+                            <TableCell className="text-xs">{z.restschuld_danach != null ? formatCurrency(z.restschuld_danach) : '–'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Keine Zahlungen im Tilgungsplan gefunden.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowImportReview(false); setImportedData(null); }}>
+              Abbrechen
+            </Button>
+            <Button 
+              onClick={() => saveImportMutation.mutate()} 
+              disabled={saveImportMutation.isPending || !importedData?.bezeichnung}
+              className="gap-1.5"
+            >
+              {saveImportMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {saveImportMutation.isPending ? "Wird gespeichert..." : "Darlehen importieren"}
             </Button>
           </DialogFooter>
         </DialogContent>
