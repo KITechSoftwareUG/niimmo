@@ -455,29 +455,29 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
                           </TableCell>
                           <TableCell className="py-1 px-2">
                             <div className="space-y-0.5">
-                              {row.mieter.map((m, mi) => (
+                              {(row.mieter || []).map((m, mi) => (
                                 <div key={m.id || mi} className="flex gap-0.5">
                                   <EditCell rowId={m.id} table="mieter" field="vorname" value={m.vorname} />
                                   <EditCell rowId={m.id} table="mieter" field="nachname" value={m.nachname} />
                                 </div>
                               ))}
-                              {row.mieter.length === 0 && <span className="text-xs text-muted-foreground">-</span>}
+                              {(!row.mieter || row.mieter.length === 0) && <span className="text-xs text-muted-foreground">-</span>}
                             </div>
                           </TableCell>
                           <TableCell className="py-1 px-2">
                             <div className="space-y-0.5">
-                              {row.mieter.map((m, mi) => (
+                              {(row.mieter || []).map((m, mi) => (
                                 <EditCell key={m.id || mi} rowId={m.id} table="mieter" field="hauptmail" value={m.email} />
                               ))}
-                              {row.mieter.length === 0 && <span className="text-xs text-muted-foreground">-</span>}
+                              {(!row.mieter || row.mieter.length === 0) && <span className="text-xs text-muted-foreground">-</span>}
                             </div>
                           </TableCell>
                           <TableCell className="py-1 px-2">
                             <div className="space-y-0.5">
-                              {row.mieter.map((m, mi) => (
+                              {(row.mieter || []).map((m, mi) => (
                                 <EditCell key={m.id || mi} rowId={m.id} table="mieter" field="telnr" value={m.telefon} />
                               ))}
-                              {row.mieter.length === 0 && <span className="text-xs text-muted-foreground">-</span>}
+                              {(!row.mieter || row.mieter.length === 0) && <span className="text-xs text-muted-foreground">-</span>}
                             </div>
                           </TableCell>
                           <TableCell className="py-1 px-2 text-right">
