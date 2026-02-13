@@ -244,6 +244,45 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
+  // Als Nichtmiete rekategorisieren (aus Nebenkosten entfernen)
+  const recategorizeNichtmieteMutation = useMutation({
+    mutationFn: async (zahlungId: string) => {
+      // Kategorie zurück auf Nichtmiete setzen und immobilie_id entfernen
+      const { error } = await supabase
+        .from('zahlungen')
+        .update({ kategorie: 'Nichtmiete', immobilie_id: null })
+        .eq('id', zahlungId);
+      if (error) throw error;
+
+      // Klassifizierung als übersprungen markieren
+      await supabase
+        .from('nebenkosten_klassifizierungen')
+        .update({ uebersprungen: true })
+        .eq('zahlung_id', zahlungId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
+      toast.success("Zahlung als Nichtmiete kategorisiert");
+    },
+    onError: () => {
+      toast.error("Fehler beim Rekategorisieren");
+    }
+  });
+
+  const [dragOverNichtmiete, setDragOverNichtmiete] = useState(false);
+
+  const handleDropNichtmiete = (e: React.DragEvent) => {
+    e.preventDefault();
+    const zahlungId = e.dataTransfer.getData('zahlungId');
+    if (zahlungId) {
+      recategorizeNichtmieteMutation.mutate(zahlungId);
+    }
+    setDragOverNichtmiete(false);
+    setDraggingZahlungId(null);
+  };
+
   // Gefilterte und klassifizierte Zahlungen
   const displayedPayments = useMemo(() => {
     // Wenn KI-Klassifizierung vorhanden, nur diese anzeigen
@@ -427,7 +466,8 @@ export function NebenkostenZuordnungTab() {
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
+              <ScrollArea className="h-[900px]">
+                <div className="space-y-3 pr-2">
                   {displayedPayments.map(zahlung => {
                     const isSelected = selectedZahlung === zahlung.id;
                     const classification = getClassification(zahlung.id);
@@ -538,6 +578,7 @@ export function NebenkostenZuordnungTab() {
                     );
                   })}
                 </div>
+              </ScrollArea>
             )}
           </CardContent>
         </Card>
@@ -652,6 +693,32 @@ export function NebenkostenZuordnungTab() {
           </div>
         </div>
       </div>
+
+      {/* Nichtmiete Drop-Zone - erscheint beim Draggen */}
+      {draggingZahlungId && (
+        <div
+          className={cn(
+            "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-xl border-2 border-dashed transition-all shadow-lg",
+            dragOverNichtmiete
+              ? "border-destructive bg-destructive/10 scale-105"
+              : "border-muted-foreground/40 bg-background/95 backdrop-blur"
+          )}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setDragOverNichtmiete(true);
+          }}
+          onDragLeave={() => setDragOverNichtmiete(false)}
+          onDrop={handleDropNichtmiete}
+        >
+          <p className={cn(
+            "text-sm font-medium",
+            dragOverNichtmiete ? "text-destructive" : "text-muted-foreground"
+          )}>
+            ← Hier ablegen → Als Nichtmiete kategorisieren
+          </p>
+        </div>
+      )}
     </div>
   );
 }
