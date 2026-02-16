@@ -22,24 +22,31 @@ export class OCRProcessingService {
 
       let textContent = '';
       let base64 = '';
-
       let effectiveFileType = file.type;
 
       // Handle PDF files
       if (file.type === 'application/pdf') {
         // First try text extraction
-        textContent = await this.extractTextFromPDF(file);
-        console.log('Extracted text from PDF:', textContent.length, 'characters');
+        const extractedText = await this.extractTextFromPDF(file);
+        console.log('Extracted text from PDF:', extractedText.length, 'characters');
         
-        // If no usable text, render first page as JPEG image
-        // (The AI Gateway only supports image formats, not raw PDFs)
-        if (!textContent || textContent.trim().length < 30) {
-          console.log('PDF has no extractable text, rendering as JPEG for AI processing');
+        if (extractedText && extractedText.trim().length >= 50) {
+          // Good text extraction - use text mode, no image needed
+          textContent = extractedText;
+          console.log('Using extracted text for AI processing');
+        } else {
+          // Poor/no text extraction - render as JPEG for vision processing
+          console.log('PDF has insufficient extractable text, rendering as JPEG for AI processing');
+          textContent = ''; // Clear any short garbage text
           base64 = await this.renderPdfFirstPageToBase64(file);
           effectiveFileType = 'image/jpeg';
-          if (!base64) {
-            return { success: false, error: 'PDF konnte nicht verarbeitet werden. Bitte lade ein klares Bild (JPG/PNG) oder ein textbasiertes PDF hoch.' };
+          
+          // Validate base64 is a valid JPEG (starts with /9j/ = FF D8 FF)
+          if (!base64 || base64.length < 100 || !base64.startsWith('/9j/')) {
+            console.error('Invalid JPEG base64 generated, length:', base64?.length, 'starts with:', base64?.substring(0, 4));
+            return { success: false, error: 'PDF konnte nicht als Bild gerendert werden. Bitte lade ein klares Bild (JPG/PNG) oder ein textbasiertes PDF hoch.' };
           }
+          console.log('Valid JPEG base64 generated:', Math.round(base64.length / 1024), 'KB');
         }
       } else {
         // Convert non-PDF files to base64 for image processing
