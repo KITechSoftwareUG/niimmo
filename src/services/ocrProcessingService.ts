@@ -71,7 +71,7 @@ export class OCRProcessingService {
     }
   }
 
-  private static async extractTextFromPDF(file: File): Promise<string> {
+  static async extractTextFromPDF(file: File): Promise<string> {
     try {
       // Dynamically import PDF.js (prefer legacy build for better bundler compatibility)
       let pdfjsLib: any;
@@ -115,7 +115,7 @@ export class OCRProcessingService {
     }
   }
 
-  private static async renderPdfFirstPageToPngBase64(file: File): Promise<string> {
+  static async renderPdfFirstPageToPngBase64(file: File): Promise<string> {
     try {
       let pdfjsLib: any;
       try {
