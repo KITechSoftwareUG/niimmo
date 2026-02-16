@@ -1159,35 +1159,24 @@ export default function MietvertragDetailsModal({
             mahnstufe: vertrag.mahnstufe || 0,
             mieter: mieter as any[]
           } : null}
-          offeneForderungen={(() => {
-            // Summiere alle relevanten Zahlungen (Miete + Rücklastschrift) pro Monat
+          rueckstand={(() => {
             const relevanteZahlungen = (zahlungen || []).filter(z => 
               z.kategorie === 'Miete' || z.kategorie === 'Rücklastschrift'
             );
             const zahlungenProMonat = new Map<string, number>();
             relevanteZahlungen.forEach(z => {
               if (!z.zugeordneter_monat) return;
-              const monat = z.zugeordneter_monat;
-              zahlungenProMonat.set(monat, (zahlungenProMonat.get(monat) || 0) + Number(z.betrag));
+              zahlungenProMonat.set(z.zugeordneter_monat, (zahlungenProMonat.get(z.zugeordneter_monat) || 0) + Number(z.betrag));
             });
 
-            return (forderungen || [])
-              .filter(f => {
-                if (!f.sollmonat) return false;
-                const gezahlt = zahlungenProMonat.get(f.sollmonat) || 0;
-                const soll = Number(f.sollbetrag) || 0;
-                // Forderung ist offen wenn Zahlungen den Sollbetrag nicht decken (50€ Toleranz)
-                return gezahlt < soll - 50;
-              })
-              .map(f => ({
-                id: f.id,
-                sollmonat: f.sollmonat,
-                sollbetrag: Number(f.sollbetrag),
-                gezahlt: zahlungenProMonat.get(f.sollmonat) || 0,
-                ist_faellig: f.ist_faellig || false
-              }));
-          })()
-          }
+            return (forderungen || []).reduce((sum, f) => {
+              if (!f.sollmonat) return sum;
+              const gezahlt = zahlungenProMonat.get(f.sollmonat) || 0;
+              const soll = Number(f.sollbetrag) || 0;
+              const diff = soll - gezahlt;
+              return sum + Math.max(0, diff);
+            }, 0);
+          })()}
         />
       </DialogContent>
     </Dialog>
