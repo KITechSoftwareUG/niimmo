@@ -73,25 +73,8 @@ Beispiel-Antwort:
         role: "user",
         content: `Bitte analysiere dieses Mietvertragsdokument (Textauszug):\n\n${textContent}`
       };
-    } else if (fileType === 'application/pdf') {
-      // Send PDF directly to Gemini - it supports native PDF processing
-      userMessage = {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Bitte analysiere dieses Mietvertragsdokument (PDF) und extrahiere die relevanten Daten:"
-          },
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:application/pdf;base64,${fileContent}`
-            }
-          }
-        ]
-      };
     } else {
-      // Image-based processing (JPG, PNG, etc.)
+      // Image-based processing (JPG, PNG, rendered PDF pages)
       userMessage = {
         role: "user",
         content: [
