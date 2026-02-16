@@ -496,10 +496,9 @@ export const HausmeisterDashboard = () => {
                         })}
                       </div>
 
-                      {/* Zweiter Satz Hausanschlusszähler (Sonderfall z.B. Gehrden) */}
-                      {(immobilie.allgemein_strom_zaehler_2 || immobilie.allgemein_gas_zaehler_2 || immobilie.allgemein_wasser_zaehler_2 ||
-                        immobilie.allgemein_strom_stand_2 || immobilie.allgemein_gas_stand_2 || immobilie.allgemein_wasser_stand_2 ||
-                        immobilie.name?.includes('Gehrden')) && (
+                      {/* Zweiter Satz Hausanschlusszähler (Sonderfall) */}
+                      {(immobilie.allgemein_strom_zaehler_2 != null || immobilie.allgemein_gas_zaehler_2 != null || immobilie.allgemein_wasser_zaehler_2 != null ||
+                        immobilie.allgemein_strom_stand_2 || immobilie.allgemein_gas_stand_2 || immobilie.allgemein_wasser_stand_2) && (
                         <>
                           <div className="mt-2 mb-1">
                             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Hausanschlusszähler 2</span>
