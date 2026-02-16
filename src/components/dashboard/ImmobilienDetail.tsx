@@ -304,9 +304,8 @@ export const ImmobilienDetail = ({
                 ];
                 
                 const hasSecondSet = immobilie && (
-                  immobilie.allgemein_wasser_zaehler_2 || immobilie.allgemein_strom_zaehler_2 || immobilie.allgemein_gas_zaehler_2 ||
-                  immobilie.allgemein_wasser_stand_2 || immobilie.allgemein_strom_stand_2 || immobilie.allgemein_gas_stand_2 ||
-                  (immobilie.name || '').toLowerCase().includes('gehrden')
+                  immobilie.allgemein_wasser_zaehler_2 != null || immobilie.allgemein_strom_zaehler_2 != null || immobilie.allgemein_gas_zaehler_2 != null ||
+                  immobilie.allgemein_wasser_stand_2 || immobilie.allgemein_strom_stand_2 || immobilie.allgemein_gas_stand_2
                 );
                 
                 const saveMeterField = async (field: string, value: string, type: 'text' | 'number' | 'date') => {
