@@ -286,13 +286,13 @@ export const NewTenantContractDialog = ({
       // If no text extracted, render first page as image
       if (!textContent || textContent.trim().length < 30) {
         try {
-          base64 = await OCRProcessingService.renderPdfFirstPageToPngBase64(file);
+          base64 = await OCRProcessingService.renderPdfFirstPageToBase64(file);
         } catch (e) {
           console.warn('PDF render failed:', e);
         }
       }
 
-      const effectiveFileType = (!textContent || textContent.trim().length < 30) ? 'image/png' : file.type;
+      const effectiveFileType = (!textContent || textContent.trim().length < 30) ? 'image/jpeg' : file.type;
 
       // Call Supabase Edge Function
       const { data: result, error } = await supabase.functions.invoke('process-contract-ocr', {

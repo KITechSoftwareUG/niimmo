@@ -35,14 +35,14 @@ export class OCRProcessingService {
       // If PDF has no text, render first page as image and continue with OCR backend
       if (file.type === 'application/pdf' && (!textContent || textContent.trim().length < 30)) {
         console.warn('PDF enthält keinen verwertbaren Text. Rendere erste Seite als Bild für OCR.');
-        base64 = await this.renderPdfFirstPageToPngBase64(file);
+        base64 = await this.renderPdfFirstPageToBase64(file);
         if (!base64) {
           return { success: false, error: 'PDF konnte nicht für OCR vorbereitet werden. Bitte lade ein klares Bild (JPG/PNG) oder ein textbasiertes PDF hoch.' };
         }
       }
 
       // Prepare fileType based on whether we rendered an image fallback
-      const effectiveFileType = (file.type === 'application/pdf' && (!textContent || textContent.trim().length < 30)) ? 'image/png' : file.type;
+      const effectiveFileType = (file.type === 'application/pdf' && (!textContent || textContent.trim().length < 30)) ? 'image/jpeg' : file.type;
 
       // Invoke Supabase Edge Function (für Bild-OCR oder wenn Text vorhanden ist)
       const { data, error } = await (await import('@/integrations/supabase/client'))
@@ -115,7 +115,7 @@ export class OCRProcessingService {
     }
   }
 
-  static async renderPdfFirstPageToPngBase64(file: File): Promise<string> {
+  static async renderPdfFirstPageToBase64(file: File): Promise<string> {
     try {
       let pdfjsLib: any;
       try {
@@ -131,17 +131,55 @@ export class OCRProcessingService {
       }
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1.5 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const context = canvas.getContext('2d');
-      if (!context) return '';
-      await page.render({ canvasContext: context, viewport }).promise;
-      const dataUrl = canvas.toDataURL('image/png');
-      const commaIdx = dataUrl.indexOf(',');
-      return commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : '';
+      
+      // Render first page(s) as JPEG with lower scale for smaller payload
+      const pagesToRender = Math.min(pdf.numPages, 2);
+      const allBase64Parts: string[] = [];
+      
+      for (let i = 1; i <= pagesToRender; i++) {
+        const page = await pdf.getPage(i);
+        // Use scale 1.0 to keep size manageable (typically < 500KB per page as JPEG)
+        const viewport = page.getViewport({ scale: 1.0 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+        if (!context) continue;
+        await page.render({ canvasContext: context, viewport }).promise;
+        // Use JPEG at 70% quality - much smaller than PNG
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        const commaIdx = dataUrl.indexOf(',');
+        const b64 = commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : '';
+        if (b64.length > 100) { // sanity check
+          allBase64Parts.push(b64);
+        }
+        // Clean up
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+      
+      // Return just the first page for now (multi-page would need array support)
+      const result = allBase64Parts[0] || '';
+      console.log(`PDF rendered to JPEG base64: ${Math.round(result.length / 1024)}KB`);
+      
+      // Reject if too large (> 4MB base64 ≈ 3MB image)
+      if (result.length > 4 * 1024 * 1024) {
+        console.warn('Rendered PDF image too large, re-rendering at lower quality');
+        // Re-render at even lower quality
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 0.75 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+        if (!context) return '';
+        await page.render({ canvasContext: context, viewport }).promise;
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+        const commaIdx = dataUrl.indexOf(',');
+        return commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : '';
+      }
+      
+      return result;
     } catch (e) {
       console.error('PDF first page render failed:', e);
       return '';
