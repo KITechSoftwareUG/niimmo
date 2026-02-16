@@ -1183,6 +1183,7 @@ export default function MietvertragDetailsModal({
                 id: f.id,
                 sollmonat: f.sollmonat,
                 sollbetrag: Number(f.sollbetrag),
+                gezahlt: zahlungenProMonat.get(f.sollmonat) || 0,
                 ist_faellig: f.ist_faellig || false
               }));
           })()
