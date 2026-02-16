@@ -23,26 +23,23 @@ export class OCRProcessingService {
       let textContent = '';
       let base64 = '';
 
-      // Handle PDF files by extracting text
+      // Handle PDF files
       if (file.type === 'application/pdf') {
+        // First try text extraction
         textContent = await this.extractTextFromPDF(file);
         console.log('Extracted text from PDF:', textContent.length, 'characters');
+        
+        // If no usable text, send the raw PDF to the backend (Gemini supports native PDF)
+        if (!textContent || textContent.trim().length < 30) {
+          console.log('PDF has no extractable text, sending raw PDF to backend for native processing');
+          base64 = await this.fileToBase64(file);
+        }
       } else {
         // Convert non-PDF files to base64 for image processing
         base64 = await this.fileToBase64(file);
       }
 
-      // If PDF has no text, render first page as image and continue with OCR backend
-      if (file.type === 'application/pdf' && (!textContent || textContent.trim().length < 30)) {
-        console.warn('PDF enthält keinen verwertbaren Text. Rendere erste Seite als Bild für OCR.');
-        base64 = await this.renderPdfFirstPageToBase64(file);
-        if (!base64) {
-          return { success: false, error: 'PDF konnte nicht für OCR vorbereitet werden. Bitte lade ein klares Bild (JPG/PNG) oder ein textbasiertes PDF hoch.' };
-        }
-      }
-
-      // Prepare fileType based on whether we rendered an image fallback
-      const effectiveFileType = (file.type === 'application/pdf' && (!textContent || textContent.trim().length < 30)) ? 'image/jpeg' : file.type;
+      const effectiveFileType = file.type;
 
       // Invoke Supabase Edge Function (für Bild-OCR oder wenn Text vorhanden ist)
       const { data, error } = await (await import('@/integrations/supabase/client'))

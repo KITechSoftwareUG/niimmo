@@ -65,26 +65,49 @@ Beispiel-Antwort:
   "warmwasser_einzug": 45678
 }`;
 
-    const userMessage = textContent && typeof textContent === 'string' && textContent.trim().length > 0
-      ? {
-          role: "user",
-          content: `Bitte analysiere dieses Mietvertragsdokument (Textauszug):\n\n${textContent}`
-        }
-      : {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Bitte analysiere dieses Mietvertragsdokument und extrahiere die relevanten Daten:"
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${fileType};base64,${fileContent}`
-              }
+    let userMessage: any;
+    
+    if (textContent && typeof textContent === 'string' && textContent.trim().length > 0) {
+      // Text-based processing
+      userMessage = {
+        role: "user",
+        content: `Bitte analysiere dieses Mietvertragsdokument (Textauszug):\n\n${textContent}`
+      };
+    } else if (fileType === 'application/pdf') {
+      // Send PDF directly to Gemini - it supports native PDF processing
+      userMessage = {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Bitte analysiere dieses Mietvertragsdokument (PDF) und extrahiere die relevanten Daten:"
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:application/pdf;base64,${fileContent}`
             }
-          ]
-        };
+          }
+        ]
+      };
+    } else {
+      // Image-based processing (JPG, PNG, etc.)
+      userMessage = {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Bitte analysiere dieses Mietvertragsdokument und extrahiere die relevanten Daten:"
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${fileType};base64,${fileContent}`
+            }
+          }
+        ]
+      };
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
