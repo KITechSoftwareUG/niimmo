@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { NebenkostenZuordnungTab } from "./NebenkostenZuordnungTab";
+import { LastUploadReviewModal } from "./LastUploadReviewModal";
 
 /**
  * Robuster Betragsparser für deutsche und englische Formate:
@@ -148,7 +149,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const [aiDuplicates, setAiDuplicates] = useState<DuplicatePayment[]>([]);
   const [aiStats, setAiStats] = useState<AIAssignmentStats | null>(null);
   const [resultsModalOpen, setResultsModalOpen] = useState(false);
-  
+  const [lastUploadReviewOpen, setLastUploadReviewOpen] = useState(false);
   // Zahlungsübersicht State
   const [selectedZahlungId, setSelectedZahlungId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'datum-desc' | 'datum-asc' | 'betrag-desc' | 'betrag-asc' | 'status' | 'kategorie'>('datum-desc');
@@ -991,7 +992,11 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
               <div className="space-y-4">
                 {lastUpload && (
-                  <div className="bg-muted/50 p-4 rounded-lg">
+                  <div 
+                    className="bg-muted/50 p-4 rounded-lg cursor-pointer hover:bg-muted/80 transition-colors"
+                    onClick={() => setLastUploadReviewOpen(true)}
+                    title="Klicken um Zuordnungsergebnisse anzuzeigen"
+                  >
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <FileText className="h-4 w-4" />
                       <span>Letzter Upload: <strong>{lastUpload.dateiname}</strong></span>
@@ -1004,6 +1009,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                           <span>{lastUpload.anzahl_datensaetze} Datensätze</span>
                         </>
                       )}
+                      <span className="ml-auto text-xs text-primary font-medium">Ergebnisse anzeigen →</span>
                     </div>
                   </div>
                 )}
@@ -1513,6 +1519,15 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           duplicates={aiDuplicates}
           stats={aiStats}
           onApply={handleApplyAssignments}
+        />
+      )}
+
+      {/* Last Upload Review Modal */}
+      {lastUpload && (
+        <LastUploadReviewModal
+          open={lastUploadReviewOpen}
+          onOpenChange={setLastUploadReviewOpen}
+          upload={lastUpload}
         />
       )}
     </div>
