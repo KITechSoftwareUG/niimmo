@@ -1160,22 +1160,11 @@ export default function MietvertragDetailsModal({
             mieter: mieter as any[]
           } : null}
           rueckstand={(() => {
-            const relevanteZahlungen = (zahlungen || []).filter(z => 
-              z.kategorie === 'Miete' || z.kategorie === 'Rücklastschrift'
-            );
-            const zahlungenProMonat = new Map<string, number>();
-            relevanteZahlungen.forEach(z => {
-              if (!z.zugeordneter_monat) return;
-              zahlungenProMonat.set(z.zugeordneter_monat, (zahlungenProMonat.get(z.zugeordneter_monat) || 0) + Number(z.betrag));
-            });
-
-            return (forderungen || []).reduce((sum, f) => {
-              if (!f.sollmonat) return sum;
-              const gezahlt = zahlungenProMonat.get(f.sollmonat) || 0;
-              const soll = Number(f.sollbetrag) || 0;
-              const diff = soll - gezahlt;
-              return sum + Math.max(0, diff);
-            }, 0);
+            const gesamtSoll = (forderungen || []).reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+            const gesamtGezahlt = (zahlungen || [])
+              .filter(z => z.kategorie === 'Miete' || z.kategorie === 'Rücklastschrift')
+              .reduce((sum, z) => sum + Number(z.betrag), 0);
+            return Math.max(0, gesamtSoll - gesamtGezahlt);
           })()}
         />
       </DialogContent>
