@@ -67,14 +67,28 @@ Beispiel-Antwort:
 
     let userMessage: any;
     
-    if (textContent && typeof textContent === 'string' && textContent.trim().length > 0) {
+    if (textContent && typeof textContent === 'string' && textContent.trim().length > 10) {
       // Text-based processing
+      console.log(`Using text mode, text length: ${textContent.trim().length}`);
       userMessage = {
         role: "user",
         content: `Bitte analysiere dieses Mietvertragsdokument (Textauszug):\n\n${textContent}`
       };
-    } else {
+    } else if (fileContent && typeof fileContent === 'string' && fileContent.length > 100) {
       // Image-based processing (JPG, PNG, rendered PDF pages)
+      // Validate base64 starts with JPEG magic bytes
+      const isValidJpeg = fileContent.startsWith('/9j/');
+      const isValidPng = fileContent.startsWith('iVBOR');
+      console.log(`Using image mode, base64 length: ${fileContent.length}, valid JPEG: ${isValidJpeg}, valid PNG: ${isValidPng}`);
+      
+      if (!isValidJpeg && !isValidPng) {
+        console.error('Invalid image data: does not start with known image magic bytes. First 20 chars:', fileContent.substring(0, 20));
+        return new Response(
+          JSON.stringify({ success: false, error: 'Ungültiges Bildformat. Bitte lade ein klares JPG oder PNG hoch.' }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+      
       userMessage = {
         role: "user",
         content: [
@@ -90,6 +104,12 @@ Beispiel-Antwort:
           }
         ]
       };
+    } else {
+      console.error('No usable content received. textContent length:', textContent?.length, 'fileContent length:', fileContent?.length);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Kein verwertbarer Inhalt im Dokument gefunden. Bitte lade ein textbasiertes PDF oder ein klares Bild hoch.' }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
