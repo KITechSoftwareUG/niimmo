@@ -15,7 +15,6 @@ import { Loader2, User, Users, Plus, Check, Calendar, Euro, FileUp, X, Building2
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OCRProcessingService } from "@/services/ocrProcessingService";
-import { ContractPdfWebhookService } from "@/services/contractPdfWebhookService";
 
 interface NewTenantContractDialogProps {
   isOpen: boolean;
@@ -261,7 +260,6 @@ export const NewTenantContractDialog = ({
     setOcrResults(null);
     
     try {
-      // Nur PDFs verarbeiten
       if (file.type !== 'application/pdf') {
         toast({
           title: "Nur PDF-Dateien werden unterstützt",
@@ -273,37 +271,71 @@ export const NewTenantContractDialog = ({
       
       toast({
         title: "PDF wird verarbeitet...",
-        description: "Das Dokument wird an den Verarbeitungs-Service gesendet.",
+        description: "Das Dokument wird per KI analysiert.",
       });
       
-      // Sende PDF an Webhook
-      const result = await ContractPdfWebhookService.uploadAndExtractContract(file);
-      console.log('Webhook Result:', result);
-      
-      if (result.success && result.extractedData) {
-        // Validiere extrahierte Daten
-        const validation = ContractPdfWebhookService.validateExtractedData(result.extractedData);
-        
-        if (!validation.valid) {
-          console.warn('Validierungswarnungen:', validation.errors);
-          toast({
-            title: "Daten extrahiert mit Warnungen",
-            description: `${result.fieldsExtracted || 0} Felder gefunden. Bitte prüfe die Daten: ${validation.errors[0]}`,
-          });
+      // Extract text from PDF using pdfjs
+      let textContent = '';
+      let base64 = '';
+      try {
+        textContent = await OCRProcessingService.extractTextFromPDF(file);
+      } catch (e) {
+        console.warn('PDF text extraction failed:', e);
+      }
+
+      // If no text extracted, render first page as image
+      if (!textContent || textContent.trim().length < 30) {
+        try {
+          base64 = await OCRProcessingService.renderPdfFirstPageToPngBase64(file);
+        } catch (e) {
+          console.warn('PDF render failed:', e);
         }
-        
+      }
+
+      const effectiveFileType = (!textContent || textContent.trim().length < 30) ? 'image/png' : file.type;
+
+      // Call Supabase Edge Function
+      const { data: result, error } = await supabase.functions.invoke('process-contract-ocr', {
+        body: {
+          fileName: file.name,
+          fileType: effectiveFileType,
+          fileSize: file.size,
+          fileContent: base64,
+          textContent: textContent,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Verarbeitung fehlgeschlagen');
+      }
+
+      console.log('Edge Function Result:', result);
+      
+      if (result?.success && result?.extractedData) {
         setOcrResults(result);
         
         // Auto-fill Contract-Felder
-        const formattedData = ContractPdfWebhookService.formatDataForForm(result.extractedData);
-        setContractData(prev => ({
-          ...prev,
-          ...formattedData
-        }));
+        const formattedData: any = {};
+        const d = result.extractedData;
+        if (d.kaltmiete != null) formattedData.kaltmiete = d.kaltmiete.toString();
+        if (d.betriebskosten != null) formattedData.betriebskosten = d.betriebskosten.toString();
+        if (d.kaution_betrag != null) formattedData.kaution_betrag = d.kaution_betrag.toString();
+        if (d.ruecklastschrift_gebuehr != null) formattedData.ruecklastschrift_gebuehr = d.ruecklastschrift_gebuehr.toString();
+        if (d.start_datum) formattedData.start_datum = d.start_datum;
+        if (d.ende_datum) formattedData.ende_datum = d.ende_datum;
+        if (d.verwendungszweck) formattedData.verwendungszweck = d.verwendungszweck;
+        if (d.bankkonto_mieter) formattedData.bankkonto_mieter = d.bankkonto_mieter;
+        if (typeof d.lastschrift === 'boolean') formattedData.lastschrift = d.lastschrift;
+        if (d.strom_einzug != null) formattedData.strom_einzug = d.strom_einzug.toString();
+        if (d.gas_einzug != null) formattedData.gas_einzug = d.gas_einzug.toString();
+        if (d.kaltwasser_einzug != null) formattedData.kaltwasser_einzug = d.kaltwasser_einzug.toString();
+        if (d.warmwasser_einzug != null) formattedData.warmwasser_einzug = d.warmwasser_einzug.toString();
+
+        setContractData(prev => ({ ...prev, ...formattedData }));
         
-        // Auto-fill Mieter-Daten wenn vorhanden
-        if (result.extractedData.mieter && result.extractedData.mieter.length > 0) {
-          setNewTenants(result.extractedData.mieter.map(mieter => ({
+        // Auto-fill Mieter
+        if (Array.isArray(d.mieter) && d.mieter.length > 0) {
+          setNewTenants(d.mieter.map((mieter: any) => ({
             vorname: mieter.vorname || '',
             nachname: mieter.nachname || '',
             hauptmail: mieter.hauptmail || '',
@@ -316,7 +348,7 @@ export const NewTenantContractDialog = ({
           
           toast({
             title: "✅ Dokument erfolgreich verarbeitet!",
-            description: `${result.fieldsExtracted || 0} Felder und ${result.extractedData.mieter.length} Mieter automatisch ausgefüllt.`,
+            description: `${result.fieldsExtracted || 0} Felder und ${d.mieter.length} Mieter automatisch ausgefüllt.`,
           });
         } else {
           toast({
@@ -325,15 +357,12 @@ export const NewTenantContractDialog = ({
           });
         }
         
-        // Wechsel zu Manual Mode damit Nutzer Daten überprüfen kann
         setInputMode('manual');
         setStep('tenant');
-        
       } else {
-        // Fehlerfall
         toast({
           title: "PDF konnte nicht verarbeitet werden",
-          description: result.error || "Bitte fülle die Felder manuell aus.",
+          description: result?.error || "Bitte fülle die Felder manuell aus.",
           variant: "destructive"
         });
         setInputMode('manual');
@@ -341,7 +370,7 @@ export const NewTenantContractDialog = ({
       }
       
     } catch (error: any) {
-      console.error('Webhook processing error:', error);
+      console.error('OCR processing error:', error);
       toast({
         title: "❌ Fehler bei der PDF-Verarbeitung",
         description: error.message || "Bitte fülle die Felder manuell aus.",

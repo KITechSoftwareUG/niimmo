@@ -2,19 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
-
-interface ContractData {
-  kaltmiete?: number;
-  betriebskosten?: number;
-  kaution_betrag?: number;
-  start_datum?: string;
-  ende_datum?: string;
-  mieter_vorname?: string;
-  mieter_nachname?: string;
-  verwendungszweck?: string;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,33 +20,71 @@ serve(async (req) => {
 
     console.log(`Processing document: ${fileName} (${fileType})`);
 
-    // Prepare the prompt for contract data extraction
     const systemPrompt = `Du bist ein Experte für die Extraktion von Mietvertragsdaten aus deutschen Dokumenten. 
-    Analysiere das bereitgestellte Dokument und extrahiere folgende Informationen:
-    
-    - Kaltmiete (nur der Betrag in Euro, ohne Währungszeichen)
-    - Betriebskosten/Nebenkosten (nur der Betrag in Euro)
-    - Kaution/Sicherheitsleistung (nur der Betrag in Euro)
-    - Mietbeginn/Startdatum (Format: YYYY-MM-DD)
-    - Mietende/Enddatum falls befristet (Format: YYYY-MM-DD oder null)
-    - Mieter Vorname
-    - Mieter Nachname (falls mehrere Mieter, nimm den ersten Hauptmieter)
-    - Verwendungszweck für Mietzahlungen falls angegeben
-    
-    Antworte NUR mit einem JSON-Objekt ohne zusätzliche Erklärungen.
-    Bei fehlenden Daten verwende null.
-    
-    Beispiel-Antwort:
+Analysiere das bereitgestellte Dokument und extrahiere folgende Informationen:
+
+- Alle Mieter mit Vorname, Nachname, E-Mail, Telefonnummer, Geburtsdatum und Rolle (hauptmieter oder mitmieter)
+- Kaltmiete (nur der Betrag in Euro, als Zahl)
+- Betriebskosten/Nebenkosten (nur der Betrag in Euro, als Zahl)
+- Kaution/Sicherheitsleistung (nur der Betrag in Euro, als Zahl)
+- Mietbeginn/Startdatum (Format: YYYY-MM-DD)
+- Mietende/Enddatum falls befristet (Format: YYYY-MM-DD oder null)
+- Ob Lastschrift vereinbart ist (true/false)
+- IBAN/Bankkonto des Mieters
+- Rücklastschrift-Gebühr falls angegeben
+- Verwendungszweck für Mietzahlungen
+- Zählerstände bei Einzug: Strom, Gas, Kaltwasser, Warmwasser
+
+Antworte NUR mit einem JSON-Objekt ohne zusätzliche Erklärungen.
+Bei fehlenden Daten verwende null.
+
+Beispiel-Antwort:
+{
+  "mieter": [
     {
-      "kaltmiete": 850.00,
-      "betriebskosten": 120.50,
-      "kaution_betrag": 2550.00,
-      "start_datum": "2024-01-15",
-      "ende_datum": null,
-      "mieter_vorname": "Max",
-      "mieter_nachname": "Mustermann",
-      "verwendungszweck": "Miete Wohnung 12 - Musterstraße 123"
-    }`;
+      "vorname": "Max",
+      "nachname": "Mustermann",
+      "hauptmail": "max@example.de",
+      "telnr": "+49 123 456789",
+      "geburtsdatum": "1990-01-15",
+      "rolle": "hauptmieter"
+    }
+  ],
+  "kaltmiete": 850.00,
+  "betriebskosten": 120.50,
+  "kaution_betrag": 2550.00,
+  "start_datum": "2024-01-15",
+  "ende_datum": null,
+  "lastschrift": true,
+  "bankkonto_mieter": "DE89 3704 0044 0532 0130 00",
+  "ruecklastschrift_gebuehr": 7.50,
+  "verwendungszweck": "Miete Wohnung 12",
+  "strom_einzug": 12345,
+  "gas_einzug": 23456,
+  "kaltwasser_einzug": 34567,
+  "warmwasser_einzug": 45678
+}`;
+
+    const userMessage = textContent && typeof textContent === 'string' && textContent.trim().length > 0
+      ? {
+          role: "user",
+          content: `Bitte analysiere dieses Mietvertragsdokument (Textauszug):\n\n${textContent}`
+        }
+      : {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Bitte analysiere dieses Mietvertragsdokument und extrahiere die relevanten Daten:"
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${fileType};base64,${fileContent}`
+              }
+            }
+          ]
+        };
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -65,42 +92,33 @@ serve(async (req) => {
         "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt
-            },
-            textContent && typeof textContent === 'string' && textContent.trim().length > 0
-              ? {
-                  role: "user",
-                  content: `Bitte analysiere dieses Mietvertragsdokument (Textauszug):\n\n${textContent}`
-                }
-              : {
-                  role: "user",
-                  content: [
-                    {
-                      type: "text",
-                      text: "Bitte analysiere dieses Mietvertragsdokument und extrahiere die relevanten Daten:"
-                    },
-                    {
-                      type: "image_url",
-                      image_url: {
-                        url: `data:${fileType};base64,${fileContent}`
-                      }
-                    }
-                  ]
-                }
-          ],
-          max_tokens: 1000,
-          temperature: 0.1
-        }),
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          userMessage,
+        ],
+        max_tokens: 2000,
+        temperature: 0.1
+      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI Gateway error:", response.status, errorText);
+
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Rate-Limit erreicht. Bitte versuche es in einer Minute erneut." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, error: "AI-Credits aufgebraucht. Bitte Credits aufladen." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
 
       let friendly = "AI-Verarbeitung fehlgeschlagen.";
       try {
@@ -110,9 +128,7 @@ serve(async (req) => {
             friendly = "Das hochgeladene PDF konnte nicht als Bild gelesen werden. Bitte lade ein klares JPG/PNG hoch oder ein textbasiertes PDF.";
           }
         }
-      } catch (_) {
-        // ignore JSON parse error of errorText
-      }
+      } catch (_) { /* ignore */ }
 
       return new Response(
         JSON.stringify({ success: false, error: friendly, extractedData: {}, fieldsExtracted: 0, confidence: 'low' }),
@@ -129,10 +145,9 @@ serve(async (req) => {
 
     console.log("AI extracted text:", extractedText);
 
-    // Parse the JSON response
-    let extractedData: ContractData;
+    // Parse JSON
+    let extractedData: any;
     try {
-      // Remove any markdown formatting if present
       const cleanedText = extractedText.replace(/```json\n?|\n?```/g, '').trim();
       extractedData = JSON.parse(cleanedText);
     } catch (parseError) {
@@ -140,79 +155,74 @@ serve(async (req) => {
       throw new Error("Could not parse extracted data as JSON");
     }
 
-    // Validate and clean the extracted data
-    const validatedData: ContractData = {};
-    
-    if (extractedData.kaltmiete && typeof extractedData.kaltmiete === 'number' && extractedData.kaltmiete > 0) {
-      validatedData.kaltmiete = extractedData.kaltmiete;
-    }
-    
-    if (extractedData.betriebskosten && typeof extractedData.betriebskosten === 'number' && extractedData.betriebskosten > 0) {
-      validatedData.betriebskosten = extractedData.betriebskosten;
-    }
-    
-    if (extractedData.kaution_betrag && typeof extractedData.kaution_betrag === 'number' && extractedData.kaution_betrag > 0) {
-      validatedData.kaution_betrag = extractedData.kaution_betrag;
-    }
-    
-    if (extractedData.start_datum && typeof extractedData.start_datum === 'string') {
-      // Validate date format
-      if (/^\d{4}-\d{2}-\d{2}$/.test(extractedData.start_datum)) {
-        validatedData.start_datum = extractedData.start_datum;
-      }
-    }
-    
-    if (extractedData.ende_datum && typeof extractedData.ende_datum === 'string') {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(extractedData.ende_datum)) {
-        validatedData.ende_datum = extractedData.ende_datum;
-      }
-    }
-    
-    if (extractedData.mieter_vorname && typeof extractedData.mieter_vorname === 'string') {
-      validatedData.mieter_vorname = extractedData.mieter_vorname.trim();
-    }
-    
-    if (extractedData.mieter_nachname && typeof extractedData.mieter_nachname === 'string') {
-      validatedData.mieter_nachname = extractedData.mieter_nachname.trim();
-    }
-    
-    if (extractedData.verwendungszweck && typeof extractedData.verwendungszweck === 'string') {
-      validatedData.verwendungszweck = extractedData.verwendungszweck.trim();
+    // Count extracted fields
+    let fieldsExtracted = 0;
+    const validatedData: any = {};
+
+    // Mieter array
+    if (Array.isArray(extractedData.mieter) && extractedData.mieter.length > 0) {
+      validatedData.mieter = extractedData.mieter.map((m: any) => ({
+        vorname: m.vorname || '',
+        nachname: m.nachname || '',
+        hauptmail: m.hauptmail || '',
+        telnr: m.telnr || '',
+        geburtsdatum: m.geburtsdatum || '',
+        rolle: m.rolle === 'mitmieter' ? 'mitmieter' : 'hauptmieter',
+      }));
+      fieldsExtracted += validatedData.mieter.length;
     }
 
-    console.log("Validated extracted data:", validatedData);
+    // Numeric fields
+    for (const key of ['kaltmiete', 'betriebskosten', 'kaution_betrag', 'ruecklastschrift_gebuehr', 'strom_einzug', 'gas_einzug', 'kaltwasser_einzug', 'warmwasser_einzug']) {
+      if (extractedData[key] != null && !isNaN(Number(extractedData[key]))) {
+        validatedData[key] = Number(extractedData[key]);
+        fieldsExtracted++;
+      }
+    }
+
+    // Date fields
+    for (const key of ['start_datum', 'ende_datum']) {
+      if (extractedData[key] && typeof extractedData[key] === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(extractedData[key])) {
+        validatedData[key] = extractedData[key];
+        fieldsExtracted++;
+      }
+    }
+
+    // String fields
+    for (const key of ['verwendungszweck', 'bankkonto_mieter']) {
+      if (extractedData[key] && typeof extractedData[key] === 'string') {
+        validatedData[key] = extractedData[key].trim();
+        fieldsExtracted++;
+      }
+    }
+
+    // Boolean fields
+    if (typeof extractedData.lastschrift === 'boolean') {
+      validatedData.lastschrift = extractedData.lastschrift;
+      fieldsExtracted++;
+    }
+
+    console.log("Validated extracted data:", validatedData, "Fields:", fieldsExtracted);
 
     return new Response(
       JSON.stringify({
         success: true,
         extractedData: validatedData,
-        confidence: Object.keys(validatedData).length > 0 ? 'high' : 'low',
-        fieldsExtracted: Object.keys(validatedData).length
+        confidence: fieldsExtracted >= 5 ? 'high' : fieldsExtracted >= 2 ? 'medium' : 'low',
+        fieldsExtracted
       }),
-      {
-        headers: { 
-          ...corsHeaders, 
-          "Content-Type": "application/json" 
-        },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: any) {
     console.error("OCR processing error:", error);
-    
     return new Response(
       JSON.stringify({
         success: false,
         error: error.message || "OCR processing failed",
         extractedData: {}
       }),
-      {
-        status: 200,
-        headers: { 
-          ...corsHeaders, 
-          "Content-Type": "application/json" 
-        },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
