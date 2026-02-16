@@ -349,12 +349,6 @@ export function MahnungErstellungModal({
                                 <span className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded">Fällig</span>
                               )}
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Soll: {forderung.sollbetrag.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                              {forderung.gezahlt > 0 && (
-                                <> · Gezahlt: {forderung.gezahlt.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</>
-                              )}
-                            </div>
                           </div>
                           <div className="text-right">
                             <span className="font-bold text-destructive">
