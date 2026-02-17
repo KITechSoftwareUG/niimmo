@@ -1153,7 +1153,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                   {allPaymentsLoading ? (
                     <div className="text-center py-12"><p className="text-muted-foreground">Lade Zahlungen...</p></div>
                   ) : paymentsByYearMonth && paymentsByYearMonth.length > 0 ? (
-                    <ScrollArea className="h-[calc(100vh-520px)]">
+                    <ScrollArea className="h-[calc(100vh-400px)]">
                       <div className="p-4 space-y-4">
                         {paymentsByYearMonth.map((yearGroup) => (
                           <div key={yearGroup.year} className="space-y-2">
