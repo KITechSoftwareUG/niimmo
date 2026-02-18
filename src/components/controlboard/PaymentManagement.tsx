@@ -1052,7 +1052,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           <TabsContent value="alle">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left: Zahlungsliste */}
-              <Card className="h-[calc(100vh-200px)]">
+              <Card className="h-[calc(100vh-280px)]">
                 <CardHeader className="pb-3">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1153,7 +1153,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                   {allPaymentsLoading ? (
                     <div className="text-center py-12"><p className="text-muted-foreground">Lade Zahlungen...</p></div>
                   ) : paymentsByYearMonth && paymentsByYearMonth.length > 0 ? (
-                    <ScrollArea className="h-[calc(100vh-320px)]">
+                    <ScrollArea className="h-[calc(100vh-400px)]">
                       <div className="p-4 space-y-4">
                         {paymentsByYearMonth.map((yearGroup) => (
                           <div key={yearGroup.year} className="space-y-2">
@@ -1271,7 +1271,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
               </Card>
 
               {/* Right: Details */}
-              <Card className="h-[calc(100vh-200px)]">
+              <Card className="h-[calc(100vh-280px)]">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2">
                     <Building2 className="h-5 w-5 text-blue-600" />
@@ -1280,7 +1280,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                 </CardHeader>
                 <CardContent>
                   {selectedZahlung ? (
-                    <ScrollArea className="h-[calc(100vh-320px)]">
+                    <ScrollArea className="h-[calc(100vh-400px)]">
                       <div className="space-y-6">
                         <div>
                           <h3 className="font-semibold text-gray-900 mb-3">Zahlungsdetails</h3>
