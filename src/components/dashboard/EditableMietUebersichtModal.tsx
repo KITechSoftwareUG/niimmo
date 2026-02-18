@@ -13,6 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { sortPropertiesByName, getCurrentContract } from "@/utils/contractUtils";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 interface EditableMietUebersichtProps {
   onBack: () => void;
@@ -57,6 +61,7 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
   const [statusFilter, setStatusFilter] = useState("all");
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [editing, setEditing] = useState<{ id: string; field: string; value: any } | null>(null);
+  const [pendingKaltmiete, setPendingKaltmiete] = useState<{ contractId: string; oldValue: number; newValue: number } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -155,14 +160,15 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
   }, [rows, search, statusFilter]);
 
   // Save field
-  const saveField = useCallback(async (table: string, id: string, field: string, value: any) => {
+  const saveField = useCallback(async (table: string, id: string, field: string, value: any, extraUpdate?: Record<string, any>) => {
     if (!id || id.trim() === '') {
       toast({ title: "Fehler", description: "Kein gültiger Datensatz gefunden", variant: "destructive" });
       setEditing(null);
       return;
     }
     try {
-      const { error } = await supabase.from(table as any).update({ [field]: value }).eq('id', id);
+      const updateData = { [field]: value, ...extraUpdate };
+      const { error } = await supabase.from(table as any).update(updateData).eq('id', id);
       if (error) throw error;
       setEditing(null);
       queryClient.invalidateQueries({ queryKey: ['miet-overview'] });
@@ -172,11 +178,26 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
       queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
       queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] });
       queryClient.invalidateQueries({ queryKey: ['mietvertrag-mit-details'] });
-      toast({ title: "✓ Gespeichert" });
+      queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail'] });
+      toast({ title: extraUpdate?.letzte_mieterhoehung_am ? "✓ Mieterhöhung dokumentiert" : "✓ Gespeichert" });
     } catch (err: any) {
       toast({ title: "Fehler", description: err.message, variant: "destructive" });
     }
   }, [queryClient, toast]);
+
+  // Intercept kaltmiete saves to show confirmation dialog
+  const handleSaveField = useCallback((table: string, id: string, field: string, value: any) => {
+    if (field === 'kaltmiete') {
+      const row = rows?.find(r => r.contractId === id);
+      const oldValue = row?.kaltmiete ?? 0;
+      const newValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+      if (newValue !== oldValue) {
+        setPendingKaltmiete({ contractId: id, oldValue, newValue });
+        return;
+      }
+    }
+    saveField(table, id, field, value);
+  }, [rows, saveField]);
 
   // Inline edit cell
   const EditCell = ({ rowId, table, field, value, type = "text", className = "" }: any) => {
@@ -209,15 +230,15 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
               </SelectContent>
             </Select>
           ) : type === "personen" ? (
-            <Input type="number" step="1" min="1" value={displayValue ?? ''} onChange={(e) => setEditing({ ...editing!, value: e.target.value ? parseInt(e.target.value) : null })} className="h-7 text-xs w-14 border-primary" autoFocus onKeyDown={(e) => e.key === 'Enter' && saveField(table, rowId, field, editing!.value)} />
+            <Input type="number" step="1" min="1" value={displayValue ?? ''} onChange={(e) => setEditing({ ...editing!, value: e.target.value ? parseInt(e.target.value) : null })} className="h-7 text-xs w-14 border-primary" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSaveField(table, rowId, field, editing!.value)} />
           ) : (type === "number" || type === "qm") ? (
-            <Input type="number" step="0.01" value={displayValue} onChange={(e) => setEditing({ ...editing!, value: parseFloat(e.target.value) || 0 })} className="h-7 text-xs w-20 border-primary" autoFocus onKeyDown={(e) => e.key === 'Enter' && saveField(table, rowId, field, editing!.value)} />
+            <Input type="number" step="0.01" value={displayValue} onChange={(e) => setEditing({ ...editing!, value: parseFloat(e.target.value) || 0 })} className="h-7 text-xs w-20 border-primary" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSaveField(table, rowId, field, editing!.value)} />
           ) : type === "date" ? (
-            <Input type="date" value={displayValue?.slice(0, 10) || ''} onChange={(e) => setEditing({ ...editing!, value: e.target.value })} className="h-7 text-xs w-[120px] border-primary" autoFocus onKeyDown={(e) => e.key === 'Enter' && saveField(table, rowId, field, editing!.value)} />
+            <Input type="date" value={displayValue?.slice(0, 10) || ''} onChange={(e) => setEditing({ ...editing!, value: e.target.value })} className="h-7 text-xs w-[120px] border-primary" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSaveField(table, rowId, field, editing!.value)} />
           ) : (
-            <Input value={displayValue} onChange={(e) => setEditing({ ...editing!, value: e.target.value })} className="h-7 text-xs w-full min-w-[80px] border-primary" autoFocus onKeyDown={(e) => e.key === 'Enter' && saveField(table, rowId, field, editing!.value)} />
+            <Input value={displayValue} onChange={(e) => setEditing({ ...editing!, value: e.target.value })} className="h-7 text-xs w-full min-w-[80px] border-primary" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleSaveField(table, rowId, field, editing!.value)} />
           )}
-          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={() => saveField(table, rowId, field, editing!.value)}>
+          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={() => handleSaveField(table, rowId, field, editing!.value)}>
             <Check className="h-3 w-3 text-green-600" />
           </Button>
           <Button size="sm" variant="ghost" className="h-6 w-6 p-0 shrink-0" onClick={() => setEditing(null)}>
@@ -506,6 +527,59 @@ export const EditableMietUebersicht = ({ onBack }: EditableMietUebersichtProps) 
           </table>
         </div>
       </div>
+
+      {/* Rent Increase Confirmation Dialog */}
+      <AlertDialog open={!!pendingKaltmiete} onOpenChange={(open) => {
+        if (!open) {
+          setPendingKaltmiete(null);
+          setEditing(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mietänderung bestätigen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sie haben die Kaltmiete von {pendingKaltmiete?.oldValue.toFixed(2)} € auf {pendingKaltmiete?.newValue.toFixed(2)} € geändert. Handelt es sich um eine offizielle Mieterhöhung?
+              <br /><br />
+              <strong>Ja:</strong> Das Datum der letzten Mieterhöhung wird automatisch auf heute gesetzt.
+              <br />
+              <strong>Nein:</strong> Die Miete wird nur korrigiert, ohne das Mieterhöhungsdatum zu ändern.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={(e) => {
+              e.stopPropagation();
+              setPendingKaltmiete(null);
+              setEditing(null);
+            }}>
+              Abbrechen
+            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (pendingKaltmiete) {
+                  saveField('mietvertrag', pendingKaltmiete.contractId, 'kaltmiete', pendingKaltmiete.newValue);
+                  setPendingKaltmiete(null);
+                }
+              }}
+            >
+              Nein, nur Korrektur
+            </Button>
+            <AlertDialogAction onClick={(e) => {
+              e.stopPropagation();
+              if (pendingKaltmiete) {
+                saveField('mietvertrag', pendingKaltmiete.contractId, 'kaltmiete', pendingKaltmiete.newValue, {
+                  letzte_mieterhoehung_am: new Date().toISOString().split('T')[0],
+                });
+                setPendingKaltmiete(null);
+              }
+            }}>
+              Ja, offizielle Mieterhöhung
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
