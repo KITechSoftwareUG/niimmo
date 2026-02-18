@@ -1187,6 +1187,59 @@ export type Database = {
         }
         Relationships: []
       }
+      versicherungen: {
+        Row: {
+          aktualisiert_am: string | null
+          email: string | null
+          erstellt_am: string | null
+          firma: string | null
+          id: string
+          immobilie_id: string
+          jahresbeitrag: number | null
+          kontaktperson: string | null
+          notizen: string | null
+          telefon: string | null
+          typ: string
+          vertragsnummer: string | null
+        }
+        Insert: {
+          aktualisiert_am?: string | null
+          email?: string | null
+          erstellt_am?: string | null
+          firma?: string | null
+          id?: string
+          immobilie_id: string
+          jahresbeitrag?: number | null
+          kontaktperson?: string | null
+          notizen?: string | null
+          telefon?: string | null
+          typ: string
+          vertragsnummer?: string | null
+        }
+        Update: {
+          aktualisiert_am?: string | null
+          email?: string | null
+          erstellt_am?: string | null
+          firma?: string | null
+          id?: string
+          immobilie_id?: string
+          jahresbeitrag?: number | null
+          kontaktperson?: string | null
+          notizen?: string | null
+          telefon?: string | null
+          typ?: string
+          vertragsnummer?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "versicherungen_immobilie_id_fkey"
+            columns: ["immobilie_id"]
+            isOneToOne: false
+            referencedRelation: "immobilien"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_nachrichten: {
         Row: {
           absender_name: string | null
@@ -1393,6 +1446,7 @@ export type Database = {
         | "Mietkaution"
         | "Mieterunterlagen"
         | "Schriftverkehr"
+        | "Versicherungen"
       mieterrolle: "Hauptmieter" | "Zweitmieter" | "Drittmieter"
       mietstatus: "aktiv" | "gekuendigt" | "beendet"
       objekttyp: "Wohnhaus" | "Gewerbe" | "Mischnutzung"
@@ -1548,6 +1602,7 @@ export const Constants = {
         "Mietkaution",
         "Mieterunterlagen",
         "Schriftverkehr",
+        "Versicherungen",
       ],
       mieterrolle: ["Hauptmieter", "Zweitmieter", "Drittmieter"],
       mietstatus: ["aktiv", "gekuendigt", "beendet"],

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ImmobilienDocumentsTab } from "./ImmobilienDocumentsTab";
 import { ImmobilienNebenkostenTabNew } from "./nebenkosten/ImmobilienNebenkostenTabNew";
+import { ImmobilienVersicherungenTab } from "./ImmobilienVersicherungenTab";
 
 interface ImmobilienDetailProps {
   immobilieId: string;
@@ -428,9 +429,10 @@ export const ImmobilienDetail = ({
 
         {/* Tabs für Einheiten, Dokumente und Zahlungen */}
         <Tabs defaultValue="einheiten" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="einheiten">Einheiten</TabsTrigger>
             <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
+            <TabsTrigger value="versicherungen">Versicherungen</TabsTrigger>
             <TabsTrigger value="zahlungen">Nebenkosten</TabsTrigger>
           </TabsList>
 
@@ -486,6 +488,10 @@ export const ImmobilienDetail = ({
               immobilieId={immobilieId}
               dokumente={immobilienDokumente || []}
             />
+          </TabsContent>
+
+          <TabsContent value="versicherungen">
+            <ImmobilienVersicherungenTab immobilieId={immobilieId} />
           </TabsContent>
 
           <TabsContent value="zahlungen">
