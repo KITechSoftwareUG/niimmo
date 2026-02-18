@@ -330,7 +330,7 @@ export function NebenkostenStep2Verteilung({ immobilieId, selectedYear }: Nebenk
   return (
     <div className="space-y-6">
       {/* Übersicht */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
@@ -452,7 +452,7 @@ export function NebenkostenStep2Verteilung({ immobilieId, selectedYear }: Nebenk
           </p>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[calc(100vh-500px)]">
+          <ScrollArea className="h-[400px] sm:h-[calc(100vh-500px)]">
             <div className="p-4 space-y-3">
               {kategorienMitKosten.length === 0 ? (
                 <div className="text-center py-12">
@@ -481,36 +481,36 @@ export function NebenkostenStep2Verteilung({ immobilieId, selectedYear }: Nebenk
                           ? "border-green-200 bg-green-50/50"
                           : "border-amber-200 bg-amber-50/50"
                       )}>
-                        <CollapsibleTrigger className="w-full p-4 text-left hover:bg-white/50 rounded-t-xl transition-colors">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
+                        <CollapsibleTrigger className="w-full p-3 sm:p-4 text-left hover:bg-white/50 rounded-t-xl transition-colors">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3">
                               {isExpanded ? (
-                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
                               ) : (
-                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
                               )}
                               <div className={cn(
-                                "w-10 h-10 rounded-lg flex items-center justify-center",
+                                "w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0",
                                 kategorie.umlagefaehig ? "bg-green-100" : "bg-amber-100"
                               )}>
                                 <Icon className={cn(
-                                  "h-5 w-5",
+                                  "h-4 w-4 sm:h-5 sm:w-5",
                                   kategorie.umlagefaehig ? "text-green-600" : "text-amber-600"
                                 )} />
                               </div>
-                              <div>
-                                <p className="font-semibold">{kategorie.name}</p>
-                                <p className="text-sm text-muted-foreground">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm sm:text-base truncate">{kategorie.name}</p>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
                                   {positionen.length} Position(en)
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <Badge variant={kategorie.umlagefaehig ? "default" : "secondary"}>
-                                {kategorie.umlagefaehig ? "Umlagefähig" : "Nicht umlagefähig"}
+                            <div className="flex items-center gap-2 sm:gap-3 ml-10 sm:ml-0">
+                              <Badge variant={kategorie.umlagefaehig ? "default" : "secondary"} className="text-[10px] sm:text-xs">
+                                {kategorie.umlagefaehig ? "Umlagefähig" : "Nicht umlagef."}
                               </Badge>
                               <span className={cn(
-                                "text-xl font-bold",
+                                "text-base sm:text-xl font-bold whitespace-nowrap",
                                 kategorie.umlagefaehig ? "text-green-700" : "text-amber-700"
                               )}>
                                 {total.toFixed(2)} €
@@ -522,7 +522,7 @@ export function NebenkostenStep2Verteilung({ immobilieId, selectedYear }: Nebenk
                         <CollapsibleContent>
                           <div className="px-4 pb-4 space-y-4 border-t">
                             {/* Verteilungsschlüssel wählen */}
-                            <div className="flex items-center justify-between pt-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-4 gap-2">
                               <p className="text-sm font-medium">Verteilungsschlüssel:</p>
                               <Select
                                 value={currentSchluessel}
@@ -531,7 +531,7 @@ export function NebenkostenStep2Verteilung({ immobilieId, selectedYear }: Nebenk
                                   [kategorieId]: v,
                                 }))}
                               >
-                                <SelectTrigger className="w-[200px]">
+                                <SelectTrigger className="w-full sm:w-[200px]">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent className="bg-background border shadow-lg z-50">
@@ -558,7 +558,7 @@ export function NebenkostenStep2Verteilung({ immobilieId, selectedYear }: Nebenk
                             </div>
 
                             {/* Verteilungstabelle */}
-                            <div className="rounded-lg border bg-white overflow-hidden">
+                            <div className="rounded-lg border bg-white overflow-x-auto">
                               <Table>
                                 <TableHeader>
                                   <TableRow className="bg-muted/50">

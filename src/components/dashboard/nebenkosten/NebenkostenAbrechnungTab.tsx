@@ -520,7 +520,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
               </div>
             </div>
             
-            <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <Label className="text-sm whitespace-nowrap">Jahr:</Label>
                 <Select 
@@ -546,7 +546,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                   value={verteilungsModus} 
                   onValueChange={(v) => setVerteilungsModus(v as VerteilungsModus)}
                 >
-                  <SelectTrigger className="w-[160px]">
+                  <SelectTrigger className="w-full sm:w-[160px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -577,7 +577,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
       </Card>
 
       {/* Übersicht Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
@@ -668,7 +668,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
         </Card>
       </Collapsible>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Linke Spalte: Mieter-Übersicht */}
         <Card>
           <CardHeader className="pb-3">
@@ -684,7 +684,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                 <p className="text-sm">Keine aktiven Mietverträge im Abrechnungszeitraum.</p>
               </div>
             ) : (
-              <ScrollArea className="h-[600px]">
+              <ScrollArea className="h-[400px] sm:h-[600px]">
                 <div className="space-y-4">
                   {mieterMitAnteilen.map((mieter) => (
                     <div
@@ -738,7 +738,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                       ) && (
                         <div className="mb-3 p-2 bg-muted/30 rounded text-xs">
                           <p className="text-muted-foreground mb-1 font-medium">Zählerstände:</p>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             {mieter.verbrauchsdaten?.strom?.einzug !== null && (
                               <div>
                                 <span className="text-muted-foreground">Strom: </span>
@@ -791,7 +791,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
                         </div>
                       )}
 
-                      <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
                         <div className="p-2 bg-muted/50 rounded">
                           <p className="text-xs text-muted-foreground">Vorauszahlung</p>
                           <p className="font-medium">{mieter.vorauszahlungenGesamt.toFixed(2)} €</p>
@@ -841,7 +841,7 @@ export function NebenkostenAbrechnungTab({ immobilieId }: NebenkostenAbrechnungT
           </CardHeader>
           <CardContent>
             {kostenpositionen && kostenpositionen.length > 0 ? (
-              <ScrollArea className="h-[600px]">
+              <ScrollArea className="h-[400px] sm:h-[600px]">
                 <div className="space-y-2">
                   {kostenpositionen.map((kp) => {
                     const nebenkostenart = nebenkostenarten?.find(n => n.id === kp.nebenkostenart_id);

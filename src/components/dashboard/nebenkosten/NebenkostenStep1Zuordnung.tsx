@@ -346,7 +346,7 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 h-full">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 h-full">
       {/* Linke Spalte: Unzugeordnete Zahlungen */}
       <Card className="flex flex-col">
         <CardHeader className="pb-3 border-b">
@@ -364,7 +364,7 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
           </p>
         </CardHeader>
         <CardContent className="flex-1 p-0">
-          <ScrollArea className="h-[calc(100vh-400px)]">
+          <ScrollArea className="h-[400px] sm:h-[calc(100vh-400px)]">
             <div className="p-4 space-y-3">
               {unassignedZahlungen.length === 0 ? (
                 <div className="text-center py-12">
@@ -538,7 +538,7 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
           </p>
         </CardHeader>
         <CardContent className="flex-1 p-0">
-          <ScrollArea className="h-[calc(100vh-400px)]">
+          <ScrollArea className="h-[400px] sm:h-[calc(100vh-400px)]">
             <div className="p-4 space-y-3">
               {/* Umlagefähige Kategorien */}
               <div className="space-y-2">
