@@ -194,6 +194,10 @@ export function MietvertragContractInfo({
                 value={Number(kaltmiete || 0)}
                 isEditing={isGlobalEditMode || editingMietvertrag === 'kaltmiete'}
                 onEdit={() => !isGlobalEditMode && onStartEdit('kaltmiete')}
+                onValueChange={isGlobalEditMode ? (raw) => {
+                  const parsed = parseFloat(raw);
+                  onUpdateEditedValue?.('kaltmiete', isNaN(parsed) ? 0 : parsed);
+                } : undefined}
                 onSave={(value) => {
                   if (isGlobalEditMode) onUpdateEditedValue?.('kaltmiete', parseFloat(value));
                   else onEditMietvertrag('kaltmiete', value);
@@ -212,6 +216,10 @@ export function MietvertragContractInfo({
                 value={Number(betriebskosten || 0)}
                 isEditing={isGlobalEditMode || editingMietvertrag === 'betriebskosten'}
                 onEdit={() => !isGlobalEditMode && onStartEdit('betriebskosten')}
+                onValueChange={isGlobalEditMode ? (raw) => {
+                  const parsed = parseFloat(raw);
+                  onUpdateEditedValue?.('betriebskosten', isNaN(parsed) ? 0 : parsed);
+                } : undefined}
                 onSave={(value) => {
                   if (isGlobalEditMode) onUpdateEditedValue?.('betriebskosten', parseFloat(value));
                   else onEditMietvertrag('betriebskosten', value);
