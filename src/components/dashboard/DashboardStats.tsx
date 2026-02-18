@@ -64,9 +64,10 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
 
   const aktiveMietvertraege = mietvertraege?.filter(mv => mv.status === 'aktiv') || [];
   const gekuendigteMietvertraege = mietvertraege?.filter(mv => mv.status === 'gekuendigt') || [];
+  const relevanteVertraege = [...aktiveMietvertraege, ...gekuendigteMietvertraege];
   
-  const gesamtKaltmiete = aktiveMietvertraege.reduce((sum, v) => sum + (v.kaltmiete || 0), 0);
-  const gesamtBetriebskosten = aktiveMietvertraege.reduce((sum, v) => sum + (v.betriebskosten || 0), 0);
+  const gesamtKaltmiete = relevanteVertraege.reduce((sum, v) => sum + (v.kaltmiete || 0), 0);
+  const gesamtBetriebskosten = relevanteVertraege.reduce((sum, v) => sum + (v.betriebskosten || 0), 0);
   const erwartedMiete = gesamtKaltmiete + gesamtBetriebskosten;
   const differenz = erwartedMiete - (erfassedMiete || 0);
   
