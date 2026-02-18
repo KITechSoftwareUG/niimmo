@@ -828,7 +828,8 @@ Analysiere die Rücklastschrift und finde den zugehörigen Mietvertrag.
 
 async function processStandardPayment(
   payment: Payment, 
-  contractContext: string
+  contractContext: string,
+  nichtmieteVerdacht: boolean = false
 ): Promise<ProcessedPayment> {
   const verwendungszweck = (payment.verwendungszweck || "").toLowerCase();
   
@@ -842,7 +843,7 @@ async function processStandardPayment(
                         verwendungszweck.includes("hauptstr") ||
                         payment.betrag > 200; // Larger payments are likely rent
   
-  if (!looksLikeRent) {
+  if (!looksLikeRent && !nichtmieteVerdacht) {
     // Doesn't look like rent, skip AI
     return {
       ...payment,
@@ -853,6 +854,10 @@ async function processStandardPayment(
       selected: false
     };
   }
+
+  const nichtmieteHinweis = nichtmieteVerdacht 
+    ? `\n\nHINWEIS: Diese Zahlung wurde regelbasiert als mögliche Nichtmiete erkannt (Empfänger/Verwendungszweck passt zu bekannten Versorgern, Kommunen oder Darlehen). Prüfe trotzdem sorgfältig, ob es sich vielleicht doch um eine Mietzahlung handelt. Im Zweifelsfall kategorisiere als "Nichtmiete".`
+    : '';
 
   const systemPrompt = `Du bist ein Experte für die Zuordnung von Mietzahlungen in einer Immobilienverwaltung.
 
@@ -866,7 +871,9 @@ Analysiere diese Zahlung und ordne sie dem richtigen Mieter zu.
 - Suche nach "Bennigsen", "Sarstedt" etc. für Ortsangaben
 - WICHTIG: Wenn "Miete" im Text steht, ist es IMMER eine Mietzahlung, NIEMALS Nichtmiete!
 - Bei Kaution im Text UND passendem Betrag → Mietkaution
-- Bei Mieternamen im Text → Miete für diesen Mieter`;
+- Bei Mieternamen im Text → Miete für diesen Mieter
+- Kommunale Zahlungen (Grundsteuer, Straßenreinigung, Schmutzwasser, Regenwasser) von Stadtkassen sind KEINE Mietzahlungen, auch wenn der Ortsname einer Immobilie vorkommt!
+- Zahlungen an Versorgungsunternehmen, Versicherungen, Banken sind in der Regel Nichtmiete${nichtmieteHinweis}`;
 
   const userPrompt = `Zahlung analysieren:
 - Betrag: ${payment.betrag} €
@@ -940,6 +947,11 @@ serve(async (req) => {
     
     console.log(`Loaded ${nichtmieteRegeln.length} Nichtmiete-Regeln, ${sonderfallRegeln.length} Sonderfall-Regeln, ${contracts.length} contracts`);
     const contractContextString = JSON.stringify(contracts, null, 2);
+    
+    // Build Nichtmiete-Regeln context for AI
+    const nichtmieteRegelnContext = nichtmieteRegeln.length > 0
+      ? `\n\nWICHTIG - Bekannte Nichtmiete-Empfänger/Muster (aus Datenbank-Regeln):\n${nichtmieteRegeln.map(r => `- Typ: ${r.regel_typ}, Wert: "${r.wert}"${r.beschreibung ? ` (${r.beschreibung})` : ''}`).join('\n')}\nDiese Muster deuten STARK auf Nichtmiete hin (z.B. Versorger, kommunale Abgaben, Darlehen, Erstattungen). Prüfe aber trotzdem den Kontext - in seltenen Fällen könnte eine Zahlung mit solchem Empfänger doch eine Miete sein.`
+      : '';
 
     // ============= DUPLIKATSPRÜFUNG (Hash + Fallback) =============
     
@@ -1107,14 +1119,8 @@ serve(async (req) => {
       const paymentType = categorizePaymentType(payment, nichtmieteRegeln);
       
       if (paymentType === "nichtmiete") {
-        results.push({
-          ...payment,
-          mietvertrag_id: null,
-          kategorie: "Nichtmiete",
-          zuordnungsgrund: `DB-Regel: Empfänger/Verwendungszweck als Versorger/Darlehen erkannt`,
-          confidence: 100,
-          selected: true
-        });
+        // Statt hartem Block → an KI weiterleiten mit Nichtmiete-Hinweis
+        needsAI.push({ payment, type: "nichtmiete_verdacht" });
       } else if (paymentType === "retoure") {
         const ruleMatch = matchPaymentByRules(payment, contracts, sonderfallRegeln);
         if (ruleMatch) {
@@ -1162,12 +1168,14 @@ serve(async (req) => {
       console.log(`AI Processing: ${payment.betrag}€, Type: ${type}`);
       
       if (type === "bg_zahlung") {
-        processed = await processBGZahlung(payment, contractContextString);
+        processed = await processBGZahlung(payment, contractContextString + nichtmieteRegelnContext);
       } else if (type === "retoure") {
-        processed = await processRuecklastschrift(payment, contractContextString);
+        processed = await processRuecklastschrift(payment, contractContextString + nichtmieteRegelnContext);
+      } else if (type === "nichtmiete_verdacht") {
+        // Regelbasiert als Nichtmiete erkannt, KI soll final entscheiden
+        processed = await processStandardPayment(payment, contractContextString + nichtmieteRegelnContext, true);
       } else if (type === "standard") {
-        // STANDARD: Use AI to find contract match for unmatched rent payments
-        processed = await processStandardPayment(payment, contractContextString);
+        processed = await processStandardPayment(payment, contractContextString + nichtmieteRegelnContext);
       } else {
         processed = {
           ...payment,
