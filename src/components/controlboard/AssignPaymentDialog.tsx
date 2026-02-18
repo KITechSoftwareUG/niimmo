@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +29,20 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
   const [searchTerm, setSearchTerm] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const isMiete = payment?.kategorie === 'Miete';
-  const [assignmentType, setAssignmentType] = useState<'contract' | 'property'>('contract');
+  const isNebenkosten = payment?.kategorie === 'Nebenkosten';
+  const [assignmentType, setAssignmentType] = useState<'contract' | 'property'>(
+    isNebenkosten ? 'property' : 'contract'
+  );
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+
+  // Reset assignment type when payment changes
+  useEffect(() => {
+    if (payment) {
+      setAssignmentType(payment.kategorie === 'Nebenkosten' ? 'property' : 'contract');
+    }
+  }, [payment]);
 
   // Fetch contracts with related data (active, terminated, and ended)
   const { data: contracts, isLoading: contractsLoading } = useQuery({
