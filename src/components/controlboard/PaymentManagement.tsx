@@ -1219,11 +1219,12 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                                                   <div className="flex items-center gap-2 mb-1">
                                                     <span className="text-xs text-muted-foreground">{formatDatum(zahlung.buchungsdatum)}</span>
                                                   </div>
-                                                  {zahlung.empfaengername && (
-                                                    <p className="text-sm font-medium truncate">
-                                                      {zahlung.betrag < 0 ? 'An: ' : 'Von: '}{zahlung.empfaengername}
-                                                    </p>
-                                                  )}
+                                                  <p className="text-sm font-medium truncate">
+                                                    {zahlung.empfaengername 
+                                                      ? `${zahlung.betrag < 0 ? 'An' : 'Von'}: ${zahlung.empfaengername}`
+                                                      : <span className="text-muted-foreground italic">Kein Empfänger/Absender</span>
+                                                    }
+                                                  </p>
                                                   <p className={cn(
                                                     "text-lg font-bold",
                                                     zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'
