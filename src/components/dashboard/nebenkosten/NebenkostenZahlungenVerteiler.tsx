@@ -288,7 +288,7 @@ export function NebenkostenZahlungenVerteiler({ immobilieId }: NebenkostenZahlun
       {/* Header */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Sparkles className="h-6 w-6 text-primary" />
@@ -348,7 +348,7 @@ export function NebenkostenZahlungenVerteiler({ immobilieId }: NebenkostenZahlun
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Linke Spalte: Zahlungen */}
         <div className="lg:col-span-2">
           <Card>
@@ -369,7 +369,7 @@ export function NebenkostenZahlungenVerteiler({ immobilieId }: NebenkostenZahlun
                   <p className="text-sm mt-1">Zahlungen können unter Zahlungen zugeordnet werden.</p>
                 </div>
               ) : (
-                <ScrollArea className="h-[600px]">
+                <ScrollArea className="h-[400px] sm:h-[600px]">
                   <div className="space-y-6">
                     {Array.from(zahlungenNachMonat.entries()).map(([monat, monatZahlungen]) => (
                       <div key={monat}>

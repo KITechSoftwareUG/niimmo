@@ -129,58 +129,58 @@ export function BetrKVNebenkostenTab({ immobilieId }: BetrKVNebenkostenTabProps)
       </div>
 
       {/* Statistik-Übersicht */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                <ClipboardList className="h-5 w-5 text-blue-700" />
+          <CardContent className="pt-3 pb-3 sm:pt-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+                <ClipboardList className="h-4 w-4 sm:h-5 sm:w-5 text-blue-700" />
               </div>
-              <div>
-                <p className="text-sm text-blue-700 font-medium">Noch offen</p>
-                <p className="text-2xl font-bold text-blue-800">{stats.unassignedCount}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-blue-700 font-medium truncate">Noch offen</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-800">{stats.unassignedCount}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-green-700" />
+          <CardContent className="pt-3 pb-3 sm:pt-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-green-500/20 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-700" />
               </div>
-              <div>
-                <p className="text-sm text-green-700 font-medium">Zugeordnet</p>
-                <p className="text-2xl font-bold text-green-800">{stats.assignedCount}</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-green-700 font-medium truncate">Zugeordnet</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-800">{stats.assignedCount}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <Euro className="h-5 w-5 text-emerald-700" />
+          <CardContent className="pt-3 pb-3 sm:pt-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0">
+                <Euro className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-700" />
               </div>
-              <div>
-                <p className="text-sm text-emerald-700 font-medium">Umlagefähig</p>
-                <p className="text-2xl font-bold text-emerald-800">{stats.totalUmlagefaehig.toFixed(2)} €</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-emerald-700 font-medium truncate">Umlagefähig</p>
+                <p className="text-lg sm:text-2xl font-bold text-emerald-800">{stats.totalUmlagefaehig.toFixed(2)} €</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <Euro className="h-5 w-5 text-amber-700" />
+          <CardContent className="pt-3 pb-3 sm:pt-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+                <Euro className="h-4 w-4 sm:h-5 sm:w-5 text-amber-700" />
               </div>
-              <div>
-                <p className="text-sm text-amber-700 font-medium">Nicht umlagefähig</p>
-                <p className="text-2xl font-bold text-amber-800">{stats.totalNichtUmlagefaehig.toFixed(2)} €</p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-amber-700 font-medium truncate">Nicht umlagef.</p>
+                <p className="text-lg sm:text-2xl font-bold text-amber-800">{stats.totalNichtUmlagefaehig.toFixed(2)} €</p>
               </div>
             </div>
           </CardContent>
@@ -188,43 +188,43 @@ export function BetrKVNebenkostenTab({ immobilieId }: BetrKVNebenkostenTabProps)
       </div>
 
       {/* Zwei-Schritte-Tabs */}
-      <Tabs value={activeStep} onValueChange={setActiveStep} className="space-y-6">
+      <Tabs value={activeStep} onValueChange={setActiveStep} className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-muted">
           <TabsTrigger
             value="step1"
-            className="flex items-center gap-3 py-4 px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="flex items-center gap-2 sm:gap-3 py-2.5 px-3 sm:py-4 sm:px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+            <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary/10 text-primary font-bold text-xs sm:text-sm shrink-0">
               1
             </div>
-            <div className="text-left">
-              <p className="font-semibold">Zahlungen zuordnen</p>
-              <p className="text-xs text-muted-foreground hidden sm:block">
+            <div className="text-left min-w-0">
+              <p className="font-semibold text-xs sm:text-sm truncate">Zahlungen zuordnen</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground hidden md:block">
                 Zahlungen den Nebenkostenarten zuweisen
               </p>
             </div>
             {stats.unassignedCount > 0 && (
-              <Badge variant="secondary" className="ml-auto">
-                {stats.unassignedCount} offen
+              <Badge variant="secondary" className="ml-auto text-[10px] sm:text-xs shrink-0">
+                {stats.unassignedCount}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger
             value="step2"
-            className="flex items-center gap-3 py-4 px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="flex items-center gap-2 sm:gap-3 py-2.5 px-3 sm:py-4 sm:px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+            <div className="flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary/10 text-primary font-bold text-xs sm:text-sm shrink-0">
               2
             </div>
-            <div className="text-left">
-              <p className="font-semibold">Kosten verteilen</p>
-              <p className="text-xs text-muted-foreground hidden sm:block">
+            <div className="text-left min-w-0">
+              <p className="font-semibold text-xs sm:text-sm truncate">Kosten verteilen</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground hidden md:block">
                 Auf Einheiten & Mietverträge aufteilen
               </p>
             </div>
             {stats.assignedCount > 0 && (
-              <Badge variant="default" className="ml-auto bg-green-600">
-                {stats.assignedCount} Positionen
+              <Badge variant="default" className="ml-auto bg-green-600 text-[10px] sm:text-xs shrink-0">
+                {stats.assignedCount}
               </Badge>
             )}
           </TabsTrigger>
