@@ -1172,7 +1172,12 @@ export default function MietvertragDetailsModal({
     </Dialog>
 
     {/* Rent Increase Confirmation Dialog - OUTSIDE the main Dialog to avoid portal/z-index conflicts */}
-    <AlertDialog open={showRentIncreaseConfirm} onOpenChange={setShowRentIncreaseConfirm}>
+    <AlertDialog open={showRentIncreaseConfirm} onOpenChange={(open) => {
+      if (!open) {
+        setShowRentIncreaseConfirm(false);
+        setPendingKaltmieteValue(null);
+      }
+    }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Mietänderung bestätigen</AlertDialogTitle>
@@ -1185,7 +1190,8 @@ export default function MietvertragDetailsModal({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => {
+          <AlertDialogCancel onClick={(e) => {
+            e.stopPropagation();
             setShowRentIncreaseConfirm(false);
             setPendingKaltmieteValue(null);
             setEditingMietvertrag(null);
@@ -1194,11 +1200,17 @@ export default function MietvertragDetailsModal({
           </AlertDialogCancel>
           <Button
             variant="outline"
-            onClick={() => handleRentIncreaseConfirm(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRentIncreaseConfirm(false);
+            }}
           >
             Nein, nur Korrektur
           </Button>
-          <AlertDialogAction onClick={() => handleRentIncreaseConfirm(true)}>
+          <AlertDialogAction onClick={(e) => {
+            e.stopPropagation();
+            handleRentIncreaseConfirm(true);
+          }}>
             Ja, offizielle Mieterhöhung
           </AlertDialogAction>
         </AlertDialogFooter>
