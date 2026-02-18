@@ -1168,41 +1168,42 @@ export default function MietvertragDetailsModal({
           })()}
         />
 
-        {/* Rent Increase Confirmation Dialog */}
-        <AlertDialog open={showRentIncreaseConfirm} onOpenChange={setShowRentIncreaseConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Mietänderung bestätigen</AlertDialogTitle>
-              <AlertDialogDescription>
-                Sie haben die Kaltmiete geändert. Handelt es sich um eine offizielle Mieterhöhung?
-                <br /><br />
-                <strong>Ja:</strong> Das Datum der letzten Mieterhöhung wird automatisch auf heute gesetzt.
-                <br />
-                <strong>Nein:</strong> Die Miete wird nur korrigiert, ohne das Mieterhöhungsdatum zu ändern.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {
-                setShowRentIncreaseConfirm(false);
-                setPendingKaltmieteValue(null);
-                setEditingMietvertrag(null);
-              }}>
-                Abbrechen
-              </AlertDialogCancel>
-              <Button
-                variant="outline"
-                onClick={() => handleRentIncreaseConfirm(false)}
-              >
-                Nein, nur Korrektur
-              </Button>
-              <AlertDialogAction onClick={() => handleRentIncreaseConfirm(true)}>
-                Ja, offizielle Mieterhöhung
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </DialogContent>
     </Dialog>
+
+    {/* Rent Increase Confirmation Dialog - OUTSIDE the main Dialog to avoid portal/z-index conflicts */}
+    <AlertDialog open={showRentIncreaseConfirm} onOpenChange={setShowRentIncreaseConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Mietänderung bestätigen</AlertDialogTitle>
+          <AlertDialogDescription>
+            Sie haben die Kaltmiete geändert. Handelt es sich um eine offizielle Mieterhöhung?
+            <br /><br />
+            <strong>Ja:</strong> Das Datum der letzten Mieterhöhung wird automatisch auf heute gesetzt.
+            <br />
+            <strong>Nein:</strong> Die Miete wird nur korrigiert, ohne das Mieterhöhungsdatum zu ändern.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => {
+            setShowRentIncreaseConfirm(false);
+            setPendingKaltmieteValue(null);
+            setEditingMietvertrag(null);
+          }}>
+            Abbrechen
+          </AlertDialogCancel>
+          <Button
+            variant="outline"
+            onClick={() => handleRentIncreaseConfirm(false)}
+          >
+            Nein, nur Korrektur
+          </Button>
+          <AlertDialogAction onClick={() => handleRentIncreaseConfirm(true)}>
+            Ja, offizielle Mieterhöhung
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
