@@ -47,6 +47,7 @@ export default function MietvertragDetailsModal({
   // Rent increase confirmation dialog state
   const [showRentIncreaseConfirm, setShowRentIncreaseConfirm] = useState(false);
   const [pendingKaltmieteValue, setPendingKaltmieteValue] = useState<number | null>(null);
+  const [pendingGlobalUpdates, setPendingGlobalUpdates] = useState<any>(null);
   
   // Set up real-time subscriptions for instant updates when this modal is open
   useEffect(() => {
@@ -562,7 +563,16 @@ export default function MietvertragDetailsModal({
 
   // Handle rent increase confirmation
   const handleRentIncreaseConfirm = async (isOfficialIncrease: boolean) => {
-    if (pendingKaltmieteValue !== null) {
+    if (pendingGlobalUpdates) {
+      // Global edit mode: continue saving with the rent increase decision
+      const updates = { ...pendingGlobalUpdates };
+      if (isOfficialIncrease) {
+        updates.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
+      }
+      await finishGlobalSave(updates);
+      setPendingGlobalUpdates(null);
+    } else if (pendingKaltmieteValue !== null) {
+      // Individual field edit mode
       await saveNumericField('kaltmiete', pendingKaltmieteValue, isOfficialIncrease);
     }
     setShowRentIncreaseConfirm(false);
@@ -856,33 +866,44 @@ export default function MietvertragDetailsModal({
         }
       });
 
-      // Check if rent increased
+      // Check if kaltmiete changed - if so, show confirmation dialog
       const oldKaltmiete = Number(vertrag?.kaltmiete || 0);
-      const oldBetriebskosten = Number(vertrag?.betriebskosten || 0);
-      const newKaltmiete = Number(editedValues.kaltmiete || 0);
-      const newBetriebskosten = Number(editedValues.betriebskosten || 0);
+      const newKaltmiete = Number(editedValues.kaltmiete ?? oldKaltmiete);
 
-      if (newKaltmiete > oldKaltmiete || newBetriebskosten > oldBetriebskosten) {
-        mietvertragUpdates.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
+      if (newKaltmiete !== oldKaltmiete) {
+        // Store the pending updates and show confirmation dialog
+        setPendingGlobalUpdates(mietvertragUpdates);
+        setPendingKaltmieteValue(newKaltmiete);
+        setShowRentIncreaseConfirm(true);
+        return; // Don't save yet - wait for user confirmation
       }
 
-      console.log('handleSaveGlobalEdit - mietvertragUpdates:', mietvertragUpdates);
+      // No kaltmiete change - save directly
+      await finishGlobalSave(mietvertragUpdates);
+
+    } catch (error) {
+      console.error('Fehler beim Speichern:', error);
+      toast({
+        title: "Fehler",
+        description: "Die Änderungen konnten nicht gespeichert werden.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Shared function to finish the global save (after rent increase confirmation if needed)
+  const finishGlobalSave = async (mietvertragUpdates: any) => {
+    try {
+      console.log('finishGlobalSave - mietvertragUpdates:', mietvertragUpdates);
 
       // Update mietvertrag
       if (Object.keys(mietvertragUpdates).length > 0) {
-        console.log('handleSaveGlobalEdit - Updating mietvertrag with id:', vertragId);
         const { error: mietvertragError } = await supabase
           .from('mietvertrag')
           .update(mietvertragUpdates)
           .eq('id', vertragId);
 
-        if (mietvertragError) {
-          console.error('handleSaveGlobalEdit - Mietvertrag update error:', mietvertragError);
-          throw mietvertragError;
-        }
-        console.log('handleSaveGlobalEdit - Mietvertrag update successful');
-      } else {
-        console.log('handleSaveGlobalEdit - No mietvertrag updates needed');
+        if (mietvertragError) throw mietvertragError;
       }
 
       // Update einheit meter numbers if changed
@@ -935,23 +956,20 @@ export default function MietvertragDetailsModal({
         }
       }
 
-      // Invalidate all related queries for instant updates
+      // Invalidate all related queries
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
         queryClient.invalidateQueries({ queryKey: ['mietvertrag-mieter-detail', vertragId] }),
         queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData?.id] }),
         queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
-        // Parent queries for instant UI updates without leaving
         queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
         queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
         queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
         queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] }),
         queryClient.invalidateQueries({ queryKey: ['mietvertraege'] }),
-        // Invalidate ALL mietvertrag-detail queries (for ImmobilienDetail which uses different key format)
         queryClient.invalidateQueries({ predicate: (query) => 
           Array.isArray(query.queryKey) && query.queryKey[0] === 'mietvertrag-detail'
         }),
-        // Invalidate mieter queries for tenant data updates
         queryClient.invalidateQueries({ queryKey: ['mieter'] }),
         queryClient.invalidateQueries({ queryKey: ['all-tenants'] }),
         queryClient.invalidateQueries({ predicate: (query) => 
@@ -960,9 +978,12 @@ export default function MietvertragDetailsModal({
         }),
       ]);
 
+      const isRentIncrease = mietvertragUpdates.letzte_mieterhoehung_am;
       toast({
-        title: "Erfolgreich gespeichert",
-        description: "Alle Änderungen wurden übernommen.",
+        title: isRentIncrease ? "Mieterhöhung dokumentiert" : "Erfolgreich gespeichert",
+        description: isRentIncrease 
+          ? "Kaltmiete wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt."
+          : "Alle Änderungen wurden übernommen.",
       });
 
       setIsGlobalEditMode(false);
@@ -1176,6 +1197,7 @@ export default function MietvertragDetailsModal({
       if (!open) {
         setShowRentIncreaseConfirm(false);
         setPendingKaltmieteValue(null);
+        setPendingGlobalUpdates(null);
       }
     }}>
       <AlertDialogContent>
@@ -1194,6 +1216,7 @@ export default function MietvertragDetailsModal({
             e.stopPropagation();
             setShowRentIncreaseConfirm(false);
             setPendingKaltmieteValue(null);
+            setPendingGlobalUpdates(null);
             setEditingMietvertrag(null);
           }}>
             Abbrechen
