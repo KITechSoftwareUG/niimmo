@@ -1052,7 +1052,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           <TabsContent value="alle">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left: Zahlungsliste */}
-              <Card className="h-[calc(100vh-280px)]">
+              <Card className="h-[calc(100vh-280px)] overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1271,7 +1271,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
               </Card>
 
               {/* Right: Details */}
-              <Card className="h-[calc(100vh-280px)]">
+              <Card className="h-[calc(100vh-280px)] overflow-hidden">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2">
                     <Building2 className="h-5 w-5 text-blue-600" />
