@@ -121,8 +121,8 @@ export function MietvertragContractInfo({
   return (
     <Card className="border-border/50">
       <CardContent className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* LEFT: Contract Info */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr,auto] gap-4">
+          {/* LEFT: Contract Info - takes most space */}
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-semibold text-foreground">Vertragsdaten</h3>
@@ -364,7 +364,7 @@ export function MietvertragContractInfo({
           </div>
 
           {/* RIGHT: Tenant Info - compact & copyable */}
-          <div className="space-y-3 md:border-l md:pl-4 border-border/50">
+          <div className="space-y-3 md:border-l md:pl-4 border-border/50 md:w-64 md:min-w-[16rem]">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-semibold text-foreground">Mieter</h3>
               {vertrag.status === 'aktiv' && !isGlobalEditMode && (
