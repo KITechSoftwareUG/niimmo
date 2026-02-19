@@ -92,33 +92,38 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
         .order('start_datum', { ascending: false });
 
       if (error) throw error;
+      if (!data || data.length === 0) return [] as ContractWithDetails[];
 
-      // Fetch mieter for each contract
-      const contractsWithMieter = await Promise.all(
-        (data || []).map(async (contract) => {
-          const { data: mieterData } = await supabase
-            .from('mietvertrag_mieter')
-            .select('mieter:mieter_id (id, vorname, nachname)')
-            .eq('mietvertrag_id', contract.id);
+      // Bulk-fetch all mieter assignments in one query instead of N queries
+      const contractIds = data.map(c => c.id);
+      const { data: allMieterData } = await supabase
+        .from('mietvertrag_mieter')
+        .select('mietvertrag_id, mieter:mieter_id (id, vorname, nachname)')
+        .in('mietvertrag_id', contractIds);
 
-          return {
-            ...contract,
-            einheit: {
-              id: contract.einheiten.id,
-              etage: contract.einheiten.etage,
-              zaehler: contract.einheiten.zaehler,
-              immobilie: {
-                id: contract.einheiten.immobilien.id,
-                name: contract.einheiten.immobilien.name,
-                adresse: contract.einheiten.immobilien.adresse,
-              }
-            },
-            mieter: mieterData?.map(m => m.mieter).filter(Boolean) || []
-          };
-        })
-      );
+      // Build a lookup map: mietvertrag_id -> mieter[]
+      const mieterByContract = new Map<string, Array<{ id: string; vorname: string; nachname: string }>>();
+      (allMieterData || []).forEach(entry => {
+        if (!entry.mieter) return;
+        const list = mieterByContract.get(entry.mietvertrag_id) || [];
+        list.push(entry.mieter as any);
+        mieterByContract.set(entry.mietvertrag_id, list);
+      });
 
-      return contractsWithMieter as ContractWithDetails[];
+      return data.map(contract => ({
+        ...contract,
+        einheit: {
+          id: contract.einheiten.id,
+          etage: contract.einheiten.etage,
+          zaehler: contract.einheiten.zaehler,
+          immobilie: {
+            id: contract.einheiten.immobilien.id,
+            name: contract.einheiten.immobilien.name,
+            adresse: contract.einheiten.immobilien.adresse,
+          }
+        },
+        mieter: mieterByContract.get(contract.id) || []
+      })) as ContractWithDetails[];
     }
   });
 
