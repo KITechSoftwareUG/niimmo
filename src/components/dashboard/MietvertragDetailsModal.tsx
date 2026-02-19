@@ -1,17 +1,15 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Building2, Loader2, AlertCircle, XCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Building2, Loader2, AlertCircle } from "lucide-react";
 import { CreateForderungModal } from "./CreateForderungModal";
 import { MietvertragOverviewTab } from "./mietvertrag-details/MietvertragOverviewTab";
 import { MietvertragDocumentsTab } from "./mietvertrag-details/MietvertragDocumentsTab";
 import { TerminationDialog } from "./termination/TerminationDialog";
 import { MahnungErstellungModal } from "./MahnungErstellungModal";
+import { useMietvertragData } from "@/hooks/useMietvertragData";
+import { useMietvertragMutations } from "@/hooks/useMietvertragMutations";
 
 interface MietvertragDetailsModalProps {
   isOpen: boolean;
@@ -28,982 +26,25 @@ export default function MietvertragDetailsModal({
   einheit, 
   immobilie
 }: MietvertragDetailsModalProps) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
-  // Global edit mode state
-  const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
-  const [editedValues, setEditedValues] = useState<Record<string, any>>({});
-  
-  // Simplified state management (legacy - kept for backwards compatibility)
-  const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
-  const [editingMietvertrag, setEditingMietvertrag] = useState<'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | null>(null);
-  const [editingMeter, setEditingMeter] = useState<string | null>(null);
-  const [editingMeterNumber, setEditingMeterNumber] = useState<string | null>(null);
-  const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
-  const [showTerminationDialog, setShowTerminationDialog] = useState(false);
-  const [showMahnungModal, setShowMahnungModal] = useState(false);
-  
-  // Rent increase confirmation dialog state
-  const [showRentIncreaseConfirm, setShowRentIncreaseConfirm] = useState(false);
-  const [pendingKaltmieteValue, setPendingKaltmieteValue] = useState<number | null>(null);
-  const [pendingGlobalUpdates, setPendingGlobalUpdates] = useState<any>(null);
-  
-  // Set up real-time subscriptions for instant updates when this modal is open
-  useEffect(() => {
-    if (!isOpen || !vertragId) return;
+  // Data fetching + realtime
+  const {
+    vertrag, vertragLoading, fetchedEinheit,
+    mieter, zahlungen, allMietvertraege, forderungen, dokumente,
+    queryClient,
+  } = useMietvertragData(vertragId, isOpen);
 
-    const channel = supabase
-      .channel(`mietvertrag-details-${vertragId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'mietforderungen',
-          filter: `mietvertrag_id=eq.${vertragId}`
-        },
-        (payload) => {
-          console.log('Contract forderungen changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] });
-          queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-          queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
-          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
-          queryClient.invalidateQueries({ queryKey: ['immobilien'] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'zahlungen',
-          filter: `mietvertrag_id=eq.${vertragId}`
-        },
-        (payload) => {
-          console.log('Contract zahlungen changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] });
-          queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-          queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
-          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
-          queryClient.invalidateQueries({ queryKey: ['immobilien'] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'mietvertrag',
-          filter: `id=eq.${vertragId}`
-        },
-        (payload) => {
-          console.log('Contract details changed:', payload);
-          queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-          queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
-          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
-          queryClient.invalidateQueries({ queryKey: ['immobilien'] });
-          queryClient.invalidateQueries({ queryKey: ['einheiten'] });
-          // Invalidate all mietvertrag-detail queries with predicate
-          queryClient.invalidateQueries({ predicate: (query) => 
-            Array.isArray(query.queryKey) && query.queryKey[0] === 'mietvertrag-detail'
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'mieter'
-        },
-        (payload) => {
-          console.log('Mieter data changed:', payload);
-          // Invalidate all tenant-related queries for instant UI updates
-          queryClient.invalidateQueries({ queryKey: ['mietvertrag-mieter-detail', vertragId] });
-          queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
-          queryClient.invalidateQueries({ queryKey: ['mieter'] });
-          // Invalidate all mietvertrag-detail queries to refresh tenant info in unit cards
-          queryClient.invalidateQueries({ predicate: (query) => 
-            Array.isArray(query.queryKey) && query.queryKey[0] === 'mietvertrag-detail'
-          });
-          queryClient.invalidateQueries({ predicate: (query) => 
-            Array.isArray(query.queryKey) && 
-            (query.queryKey[0] === 'mietvertrag-mieter' || query.queryKey[0] === 'mietvertrag-mieter-detail')
-          });
-          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
-        }
-      )
-      .subscribe();
+  const einheitData = fetchedEinheit || einheit;
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [isOpen, vertragId, queryClient]);
+  // All editing state + mutations
+  const mutations = useMietvertragMutations({ vertragId, vertrag, einheitData, mieter });
 
   // Utility functions
   const formatDatum = (datum: string) => {
-    return new Date(datum).toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    return new Date(datum).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   const formatBetrag = (betrag: number) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(betrag);
-  };
-
-  // Data fetching
-  const { data: vertrag, isLoading: vertragLoading } = useQuery({
-    queryKey: ['mietvertrag-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietvertrag')
-        .select('*')
-        .eq('id', vertragId)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: isOpen && !!vertragId
-  });
-
-  // Fetch einheit data based on vertrag
-  const { data: fetchedEinheit } = useQuery({
-    queryKey: ['einheit-detail', vertrag?.einheit_id],
-    queryFn: async () => {
-      if (!vertrag?.einheit_id) return null;
-      
-      const { data, error } = await supabase
-        .from('einheiten')
-        .select('*')
-        .eq('id', vertrag.einheit_id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: isOpen && !!vertrag?.einheit_id
-  });
-
-  // Use fetched einheit if available, otherwise use prop
-  const einheitData = fetchedEinheit || einheit;
-
-  const { data: mieter } = useQuery({
-    queryKey: ['mietvertrag-mieter-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietvertrag_mieter')
-        .select(`
-          mieter:mieter_id (
-            id,
-            vorname,
-            nachname,
-            hauptmail,
-            telnr,
-            geburtsdatum
-          )
-        `)
-        .eq('mietvertrag_id', vertragId);
-
-      if (error) throw error;
-      return data?.map(mm => mm.mieter) || [];
-    },
-    enabled: isOpen && !!vertragId
-  });
-
-  const { data: zahlungen } = useQuery({
-    queryKey: ['zahlungen-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('zahlungen')
-        .select('*')
-        .eq('mietvertrag_id', vertragId)
-        .order('buchungsdatum', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const { data: allMietvertraege } = useQuery({
-    queryKey: ['all-mietvertraege'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietvertrag')
-        .select(`
-          id,
-          einheit_id,
-          einheiten (
-            immobilie_id,
-            immobilien (
-              name,
-              adresse
-            )
-          ),
-          mietvertrag_mieter (
-            mieter:mieter_id (
-              vorname,
-              nachname
-            )
-          )
-        `);
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: isOpen
-  });
-
-
-  const { data: forderungen } = useQuery({
-    queryKey: ['mietforderungen', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('mietforderungen')
-        .select('*, ist_faellig, faelligkeitsdatum, faellig_seit')
-        .eq('mietvertrag_id', vertragId)
-        .order('sollmonat', { ascending: true });
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: isOpen && !!vertragId
-  });
-
-  const { data: dokumente } = useQuery({
-    queryKey: ['dokumente-detail', vertragId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('dokumente')
-        .select('*')
-        .eq('mietvertrag_id', vertragId)
-        .eq('geloescht', false)
-        .order('hochgeladen_am', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: isOpen && !!vertragId
-  });
-
-  const handleEditMietvertrag = async (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen', value: string) => {
-    try {
-      // Handle anzahl_personen field
-      if (field === 'anzahl_personen') {
-        const numValue = value && value.trim() !== '' ? parseInt(value) : null;
-        
-        const { error } = await supabase
-          .from('mietvertrag')
-          .update({ anzahl_personen: numValue })
-          .eq('id', vertragId);
-
-        if (error) throw error;
-
-        toast({
-          title: "✅ Personenanzahl aktualisiert",
-          description: numValue !== null 
-            ? `Personenanzahl wurde auf ${numValue} gesetzt.`
-            : "Personenanzahl wurde entfernt.",
-        });
-
-        setEditingMietvertrag(null);
-        await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-        await queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
-        return;
-      }
-      
-      // Handle ende_datum field with validation
-      if (field === 'ende_datum') {
-        const newEndForDb = value && value.trim() !== '' ? value : null;
-
-        // Validate that end date is not before start date
-        if (newEndForDb && vertrag.start_datum) {
-          const startDate = new Date(vertrag.start_datum);
-          const endDate = new Date(newEndForDb);
-
-          if (endDate < startDate) {
-            toast({
-              title: "Ungültiges Datum",
-              description: "Das Mietende kann nicht vor dem Mietbeginn liegen.",
-              variant: "destructive",
-            });
-            // keep edit open so the user can correct
-            return;
-          }
-        }
-
-        // Risk mitigation: prevent overlaps when extending/changing the end date
-        if (vertrag?.einheit_id && vertrag.start_datum) {
-          const { checkContractOverlap } = await import("@/utils/contractOverlapValidation");
-          const overlapCheck = await checkContractOverlap(
-            vertrag.einheit_id,
-            vertrag.start_datum,
-            newEndForDb,
-            vertragId
-          );
-
-          if (overlapCheck.hasOverlap) {
-            toast({
-              title: "Überschneidung erkannt",
-              description:
-                overlapCheck.warningMessage ||
-                "Der gewählte Zeitraum überschneidet sich mit einem bestehenden Vertrag. Änderung wurde nicht gespeichert.",
-              variant: "destructive",
-            });
-            // keep edit open so the user can correct
-            return;
-          }
-        }
-
-        const isPast = !!newEndForDb && new Date(newEndForDb) < new Date();
-
-        const { error } = await supabase
-          .from('mietvertrag')
-          .update({
-            ende_datum: newEndForDb,
-            ...(isPast ? { status: 'beendet' } : {}),
-          })
-          .eq('id', vertragId);
-
-        if (error) {
-          console.error('Error updating ende_datum:', error);
-          throw error;
-        }
-
-        toast({
-          title: "✅ Mietende aktualisiert",
-          description: newEndForDb
-            ? `Mietende wurde auf ${new Date(newEndForDb).toLocaleDateString('de-DE')} gesetzt.${isPast ? ' Hinweis: Datum liegt in der Vergangenheit – der Vertrag wird automatisch als beendet behandelt.' : ''}`
-            : "Mietvertrag wurde auf unbefristet gesetzt.",
-        });
-
-        setEditingMietvertrag(null);
-        await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-        await queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
-        return;
-      }
-
-      // Handle date field (start_datum)
-      if (field === 'start_datum') {
-        if (!vertrag?.einheit_id) {
-          toast({
-            title: "Fehler",
-            description: "Einheit-ID nicht gefunden.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        console.log('Checking contract overlap for start_datum:', value);
-
-        // Import and use overlap validation
-        const { checkContractOverlap } = await import('@/utils/contractOverlapValidation');
-
-        const overlapCheck = await checkContractOverlap(
-          vertrag.einheit_id,
-          value,
-          vertrag.ende_datum,
-          vertragId
-        );
-
-        console.log('Overlap check result:', overlapCheck);
-
-        if (overlapCheck.hasOverlap) {
-          toast({
-            title: 'Überschneidung erkannt',
-            description: overlapCheck.warningMessage || 'Das gewählte Startdatum überschneidet sich mit einem bestehenden Vertrag. Änderung wurde nicht gespeichert.',
-            variant: 'destructive',
-          });
-          // Keep edit mode open so the user can correct the date
-          return;
-        }
-
-        // Update the start date
-        const { error } = await supabase
-          .from('mietvertrag')
-          .update({ start_datum: value })
-          .eq('id', vertragId);
-
-        if (error) {
-          console.error('Error updating start_datum:', error);
-          throw error;
-        }
-
-        console.log('Start datum updated successfully');
-
-        toast({
-          title: "✅ Startdatum aktualisiert",
-          description: overlapCheck.hasOverlap
-            ? "Startdatum wurde geändert. Bitte beachten Sie die Überschneidung mit anderen Verträgen."
-            : "Startdatum wurde erfolgreich aktualisiert.",
-        });
-
-        setEditingMietvertrag(null);
-        await queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
-        await queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] });
-        return;
-      }
-
-      // Handle text fields separately
-      if (field === 'neue_anschrift') {
-        const { error } = await supabase
-          .from('mietvertrag')
-          .update({ [field]: value.trim() })
-          .eq('id', vertragId);
-
-        if (error) throw error;
-
-        toast({
-          title: "Aktualisiert",
-          description: "Neue Anschrift wurde erfolgreich aktualisiert.",
-        });
-
-        setEditingMietvertrag(null);
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
-          queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
-          queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
-        ]);
-        return;
-      }
-
-      // Handle numeric fields (kaltmiete, betriebskosten, ruecklastschrift_gebuehr)
-      const numericValue = parseFloat(value);
-      if (isNaN(numericValue)) {
-        toast({
-          title: "Fehler",
-          description: "Bitte geben Sie einen gültigen Betrag ein.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const oldKaltmiete = Number(vertrag?.kaltmiete || 0);
-
-      // If kaltmiete is being changed, ask for confirmation
-      if (field === 'kaltmiete' && numericValue !== oldKaltmiete) {
-        setPendingKaltmieteValue(numericValue);
-        setShowRentIncreaseConfirm(true);
-        return;
-      }
-
-      // For other fields, proceed normally
-      await saveNumericField(field, numericValue, false);
-
-    } catch (error) {
-      console.error('Fehler beim Aktualisieren:', error);
-      const fieldName = field === 'kaltmiete' ? 'Kaltmiete' :
-                       field === 'betriebskosten' ? 'Betriebskosten' :
-                       field === 'neue_anschrift' ? 'Neue Anschrift' :
-                       'Rücklastschrift-Gebühr';
-      toast({
-        title: "Fehler",
-        description: `${fieldName} konnte nicht aktualisiert werden.`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Helper function to save numeric fields
-  const saveNumericField = async (field: string, numericValue: number, isOfficialRentIncrease: boolean) => {
-    try {
-      const updateData: any = { [field]: numericValue };
-      
-      // Only set letzte_mieterhoehung_am if it's an official rent increase
-      if (field === 'kaltmiete' && isOfficialRentIncrease) {
-        updateData.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
-      }
-
-      const { error } = await supabase
-        .from('mietvertrag')
-        .update(updateData)
-        .eq('id', vertragId);
-
-      if (error) throw error;
-
-      if (field === 'kaltmiete' && isOfficialRentIncrease) {
-        toast({
-          title: "Mieterhöhung dokumentiert",
-          description: "Kaltmiete wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt.",
-        });
-      } else {
-        const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : 
-                         field === 'betriebskosten' ? 'Betriebskosten' : 
-                         'Rücklastschrift-Gebühr';
-        toast({
-          title: "Aktualisiert",
-          description: `${fieldName} wurde erfolgreich aktualisiert.`,
-        });
-      }
-
-      setEditingMietvertrag(null);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
-        queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
-        queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
-        queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] }),
-      ]);
-
-    } catch (error) {
-      console.error('Fehler beim Speichern:', error);
-      toast({
-        title: "Fehler",
-        description: "Änderung konnte nicht gespeichert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle rent increase confirmation
-  const handleRentIncreaseConfirm = async (isOfficialIncrease: boolean) => {
-    if (pendingGlobalUpdates) {
-      // Global edit mode: continue saving with the rent increase decision
-      const updates = { ...pendingGlobalUpdates };
-      if (isOfficialIncrease) {
-        updates.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
-      }
-      await finishGlobalSave(updates);
-      setPendingGlobalUpdates(null);
-    } else if (pendingKaltmieteValue !== null) {
-      // Individual field edit mode
-      await saveNumericField('kaltmiete', pendingKaltmieteValue, isOfficialIncrease);
-    }
-    setShowRentIncreaseConfirm(false);
-    setPendingKaltmieteValue(null);
-  };
-
-  const handleEditKaution = async (field: 'soll' | 'ist', value: string) => {
-    try {
-      const numericValue = parseFloat(value);
-      if (isNaN(numericValue)) {
-        toast({
-          title: "Fehler",
-          description: "Bitte geben Sie einen gültigen Betrag ein.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const updateData = field === 'soll' 
-        ? { kaution_betrag: numericValue }
-        : { kaution_ist: numericValue };
-
-      const { error } = await supabase
-        .from('mietvertrag')
-        .update(updateData)
-        .eq('id', vertragId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Aktualisiert",
-        description: `Kaution ${field === 'soll' ? 'Soll' : 'Ist'} wurde erfolgreich aktualisiert.`,
-      });
-
-      setEditingKaution(null);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
-        queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
-      ]);
-
-    } catch (error) {
-      console.error('Fehler beim Aktualisieren:', error);
-      toast({
-        title: "Fehler",
-        description: "Kaution konnte nicht aktualisiert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEditMeter = async (field: string, value: string) => {
-    try {
-      const numericValue = parseFloat(value);
-      if (isNaN(numericValue)) {
-        toast({
-          title: "Fehler",
-          description: "Bitte geben Sie einen gültigen Zählerstand ein.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('mietvertrag')
-        .update({ [field]: numericValue })
-        .eq('id', vertragId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Aktualisiert",
-        description: "Zählerstand wurde erfolgreich aktualisiert.",
-      });
-
-      setEditingMeter(null);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
-      ]);
-
-    } catch (error) {
-      console.error('Fehler beim Aktualisieren des Zählerstands:', error);
-      toast({
-        title: "Fehler",
-        description: "Zählerstand konnte nicht aktualisiert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleEditMeterNumber = async (field: string, value: string) => {
-    try {
-      if (!einheitData?.id) {
-        toast({
-          title: "Fehler",
-          description: "Einheit nicht gefunden.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { error } = await supabase
-        .from('einheiten')
-        .update({ [field]: value })
-        .eq('id', einheitData.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Aktualisiert",
-        description: "Zählernummer wurde erfolgreich aktualisiert.",
-      });
-
-      setEditingMeterNumber(null);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData.id] }),
-        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
-        queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
-      ]);
-
-    } catch (error) {
-      console.error('Fehler beim Aktualisieren der Zählernummer:', error);
-      toast({
-        title: "Fehler",
-        description: "Zählernummer konnte nicht aktualisiert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleTerminationSuccess = () => {
-    setShowTerminationDialog(false);
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
-      queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
-      queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
-      queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
-      queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
-    ]);
-    toast({
-      title: "Kündigung erfolgreich",
-      description: "Der Mietvertrag wurde erfolgreich gekündigt.",
-    });
-  };
-
-  // Global edit mode handlers
-  const handleStartGlobalEdit = () => {
-    // Initialize edited values with current data
-    const initialValues: Record<string, any> = {
-      start_datum: vertrag?.start_datum || '',
-      ende_datum: vertrag?.ende_datum || '',
-      kaltmiete: vertrag?.kaltmiete || 0,
-      betriebskosten: vertrag?.betriebskosten || 0,
-      anzahl_personen: vertrag?.anzahl_personen ?? null,
-      ruecklastschrift_gebuehr: vertrag?.ruecklastschrift_gebuehr || 7.50,
-      neue_anschrift: vertrag?.neue_anschrift || '',
-      bankkonto_mieter: vertrag?.bankkonto_mieter || '',
-      kaution_betrag: vertrag?.kaution_betrag || 0,
-      kaution_ist: vertrag?.kaution_ist || 0,
-      kaltwasser_einzug: vertrag?.kaltwasser_einzug || 0,
-      warmwasser_einzug: vertrag?.warmwasser_einzug || 0,
-      strom_einzug: vertrag?.strom_einzug || 0,
-      gas_einzug: vertrag?.gas_einzug || 0,
-      kaltwasser_auszug: vertrag?.kaltwasser_auszug || 0,
-      warmwasser_auszug: vertrag?.warmwasser_auszug || 0,
-      strom_auszug: vertrag?.strom_auszug || 0,
-      gas_auszug: vertrag?.gas_auszug || 0,
-    };
-    
-    // Add einheit data if available
-    if (einheitData) {
-      initialValues.kaltwasser_zaehler = einheitData.kaltwasser_zaehler || '';
-      initialValues.warmwasser_zaehler = einheitData.warmwasser_zaehler || '';
-      initialValues.strom_zaehler = einheitData.strom_zaehler || '';
-      initialValues.gas_zaehler = einheitData.gas_zaehler || '';
-      initialValues.qm = einheitData.qm ?? null;
-    }
-    
-    // Add mieter data
-    if (mieter) {
-      mieter.forEach((m: any) => {
-        initialValues[`mieter_${m.id}_vorname`] = m.vorname || '';
-        initialValues[`mieter_${m.id}_nachname`] = m.nachname || '';
-        initialValues[`mieter_${m.id}_hauptmail`] = m.hauptmail || '';
-        initialValues[`mieter_${m.id}_telnr`] = m.telnr || '';
-      });
-    }
-    
-    setEditedValues(initialValues);
-    setIsGlobalEditMode(true);
-  };
-
-  const handleCancelGlobalEdit = () => {
-    setEditedValues({});
-    setIsGlobalEditMode(false);
-  };
-
-  const handleSaveGlobalEdit = async () => {
-    try {
-      // Prepare mietvertrag updates
-      const mietvertragUpdates: any = {};
-
-      // Normalize date fields (Supabase expects null, not empty string)
-      const rawStart = (editedValues.start_datum ?? vertrag?.start_datum ?? '') as string;
-      const rawEnd = (editedValues.ende_datum ?? vertrag?.ende_datum ?? '') as string;
-      const startForDb = rawStart && rawStart.trim() !== '' ? rawStart : null;
-      const endForDb = rawEnd && rawEnd.trim() !== '' ? rawEnd : null;
-
-      console.log('handleSaveGlobalEdit - Debug:', {
-        editedValues,
-        rawStart,
-        rawEnd,
-        startForDb,
-        endForDb,
-        vertragId,
-        vertragStartDatum: vertrag?.start_datum,
-        vertragEndeDatum: vertrag?.ende_datum
-      });
-
-      // Validation: end date must not be before start date
-      if (startForDb && endForDb) {
-        const startDate = new Date(startForDb);
-        const endDate = new Date(endForDb);
-        if (endDate < startDate) {
-          toast({
-            title: "Ungültiges Datum",
-            description: "Das Mietende kann nicht vor dem Mietbeginn liegen.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      // Risk mitigation: prevent creating overlaps with other contracts of the same unit
-      // NUR prüfen wenn sich Start- oder Enddatum tatsächlich geändert haben
-      // Vergleiche die tatsächlichen DB-Werte, nicht die editedValues (die beim Start mit allen Werten initialisiert werden)
-      const originalStartDatum = vertrag?.start_datum || '';
-      const originalEndDatum = vertrag?.ende_datum || '';
-      const startDatumChanged = startForDb !== originalStartDatum;
-      const endDatumChanged = endForDb !== originalEndDatum;
-      
-      if (vertrag?.einheit_id && startForDb && (startDatumChanged || endDatumChanged)) {
-        const { checkContractOverlap } = await import("@/utils/contractOverlapValidation");
-        const overlapCheck = await checkContractOverlap(
-          vertrag.einheit_id,
-          startForDb,
-          endForDb,
-          vertragId
-        );
-
-        if (overlapCheck.hasOverlap) {
-          toast({
-            title: "Überschneidung erkannt",
-            description:
-              overlapCheck.warningMessage ||
-              "Der gewählte Zeitraum überschneidet sich mit einem bestehenden Vertrag. Änderung wurde nicht gespeichert.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      const mietvertragFields = [
-        'start_datum', 'ende_datum',
-        'kaltmiete', 'betriebskosten', 'anzahl_personen', 'ruecklastschrift_gebuehr', 'neue_anschrift',
-        'bankkonto_mieter',
-        'kaution_betrag', 'kaution_ist',
-        'kaltwasser_einzug', 'warmwasser_einzug', 'strom_einzug', 'gas_einzug',
-        'kaltwasser_auszug', 'warmwasser_auszug', 'strom_auszug', 'gas_auszug'
-      ];
-
-      mietvertragFields.forEach(field => {
-        if (editedValues[field] !== undefined) {
-          if (field === 'start_datum') {
-            mietvertragUpdates.start_datum = startForDb;
-            return;
-          }
-          if (field === 'ende_datum') {
-            mietvertragUpdates.ende_datum = endForDb;
-
-            // Wenn rückdatiert, Vertrag sofort als beendet markieren
-            if (endForDb && new Date(endForDb) < new Date()) {
-              mietvertragUpdates.status = 'beendet';
-            }
-            return;
-          }
-
-          mietvertragUpdates[field] = editedValues[field];
-        }
-      });
-
-      // Check if kaltmiete changed - if so, show confirmation dialog
-      const oldKaltmiete = Number(vertrag?.kaltmiete || 0);
-      const newKaltmiete = Number(editedValues.kaltmiete ?? oldKaltmiete);
-
-      if (newKaltmiete !== oldKaltmiete) {
-        // Store the pending updates and show confirmation dialog
-        setPendingGlobalUpdates(mietvertragUpdates);
-        setPendingKaltmieteValue(newKaltmiete);
-        setShowRentIncreaseConfirm(true);
-        return; // Don't save yet - wait for user confirmation
-      }
-
-      // No kaltmiete change - save directly
-      await finishGlobalSave(mietvertragUpdates);
-
-    } catch (error) {
-      console.error('Fehler beim Speichern:', error);
-      toast({
-        title: "Fehler",
-        description: "Die Änderungen konnten nicht gespeichert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Shared function to finish the global save (after rent increase confirmation if needed)
-  const finishGlobalSave = async (mietvertragUpdates: any) => {
-    try {
-      console.log('finishGlobalSave - mietvertragUpdates:', mietvertragUpdates);
-
-      // Update mietvertrag
-      if (Object.keys(mietvertragUpdates).length > 0) {
-        const { error: mietvertragError } = await supabase
-          .from('mietvertrag')
-          .update(mietvertragUpdates)
-          .eq('id', vertragId);
-
-        if (mietvertragError) throw mietvertragError;
-      }
-
-      // Update einheit meter numbers if changed
-      if (einheitData) {
-        const einheitUpdates: any = {};
-        const einheitFields = ['kaltwasser_zaehler', 'warmwasser_zaehler', 'strom_zaehler', 'gas_zaehler', 'qm'];
-        
-        einheitFields.forEach(field => {
-          if (editedValues[field] !== undefined) {
-            einheitUpdates[field] = editedValues[field];
-          }
-        });
-
-        if (Object.keys(einheitUpdates).length > 0) {
-          const { error: einheitError } = await supabase
-            .from('einheiten')
-            .update(einheitUpdates)
-            .eq('id', einheitData.id);
-
-          if (einheitError) throw einheitError;
-        }
-      }
-
-      // Update mieter data
-      if (mieter) {
-        for (const m of mieter) {
-          const mieterUpdates: any = {};
-          
-          if (editedValues[`mieter_${m.id}_vorname`] !== undefined) {
-            mieterUpdates.vorname = editedValues[`mieter_${m.id}_vorname`];
-          }
-          if (editedValues[`mieter_${m.id}_nachname`] !== undefined) {
-            mieterUpdates.nachname = editedValues[`mieter_${m.id}_nachname`];
-          }
-          if (editedValues[`mieter_${m.id}_hauptmail`] !== undefined) {
-            mieterUpdates.hauptmail = editedValues[`mieter_${m.id}_hauptmail`];
-          }
-          if (editedValues[`mieter_${m.id}_telnr`] !== undefined) {
-            mieterUpdates.telnr = editedValues[`mieter_${m.id}_telnr`];
-          }
-
-          if (Object.keys(mieterUpdates).length > 0) {
-            const { error: mieterError } = await supabase
-              .from('mieter')
-              .update(mieterUpdates)
-              .eq('id', m.id);
-
-            if (mieterError) throw mieterError;
-          }
-        }
-      }
-
-      // Invalidate all related queries
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['mietvertrag-mieter-detail', vertragId] }),
-        queryClient.invalidateQueries({ queryKey: ['einheit-detail', einheitData?.id] }),
-        queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
-        queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
-        queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
-        queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
-        queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] }),
-        queryClient.invalidateQueries({ queryKey: ['mietvertraege'] }),
-        queryClient.invalidateQueries({ predicate: (query) => 
-          Array.isArray(query.queryKey) && query.queryKey[0] === 'mietvertrag-detail'
-        }),
-        queryClient.invalidateQueries({ queryKey: ['mieter'] }),
-        queryClient.invalidateQueries({ queryKey: ['all-tenants'] }),
-        queryClient.invalidateQueries({ predicate: (query) => 
-          Array.isArray(query.queryKey) && 
-          (query.queryKey[0] === 'mietvertrag-mieter' || query.queryKey[0] === 'mietvertrag-mieter-detail')
-        }),
-      ]);
-
-      const isRentIncrease = mietvertragUpdates.letzte_mieterhoehung_am;
-      toast({
-        title: isRentIncrease ? "Mieterhöhung dokumentiert" : "Erfolgreich gespeichert",
-        description: isRentIncrease 
-          ? "Kaltmiete wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt."
-          : "Alle Änderungen wurden übernommen.",
-      });
-
-      setIsGlobalEditMode(false);
-      setEditedValues({});
-
-    } catch (error) {
-      console.error('Fehler beim Speichern:', error);
-      toast({
-        title: "Fehler",
-        description: "Die Änderungen konnten nicht gespeichert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleUpdateEditedValue = (key: string, value: any) => {
-    setEditedValues(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(betrag);
   };
 
   // Loading state
@@ -1053,16 +94,16 @@ export default function MietvertragDetailsModal({
             </div>
             
             <div className="flex gap-2 mr-8">
-              {!isGlobalEditMode ? (
-                <Button onClick={handleStartGlobalEdit} variant="outline" size="sm">
+              {!mutations.isGlobalEditMode ? (
+                <Button onClick={mutations.handleStartGlobalEdit} variant="outline" size="sm">
                   Bearbeiten
                 </Button>
               ) : (
                 <>
-                  <Button onClick={handleSaveGlobalEdit} size="sm">
+                  <Button onClick={mutations.handleSaveGlobalEdit} size="sm">
                     Speichern
                   </Button>
-                  <Button onClick={handleCancelGlobalEdit} variant="outline" size="sm">
+                  <Button onClick={mutations.handleCancelGlobalEdit} variant="outline" size="sm">
                     Abbrechen
                   </Button>
                 </>
@@ -1086,31 +127,31 @@ export default function MietvertragDetailsModal({
                 zahlungen={zahlungen || []}
                 immobilie={immobilie}
                 einheit={einheitData}
-                isGlobalEditMode={isGlobalEditMode}
-                editedValues={editedValues}
-                onUpdateEditedValue={handleUpdateEditedValue}
-                editingMietvertrag={editingMietvertrag}
-                editingKaution={editingKaution}
-                onEditMietvertrag={handleEditMietvertrag}
-                onStartEdit={(field) => setEditingMietvertrag(field)}
-                onCancelEdit={() => setEditingMietvertrag(null)}
-                onEditKaution={handleEditKaution}
-                onStartEditKaution={setEditingKaution}
-                onCancelEditKaution={() => setEditingKaution(null)}
-                editingMeter={editingMeter}
-                editingMeterNumber={editingMeterNumber}
-                onEditMeter={handleEditMeter}
-                onStartEditMeter={setEditingMeter}
-                onCancelEditMeter={() => setEditingMeter(null)}
-                onEditMeterNumber={handleEditMeterNumber}
-                onStartEditMeterNumber={setEditingMeterNumber}
-                onCancelEditMeterNumber={() => setEditingMeterNumber(null)}
-                onCreateForderung={() => setShowCreateForderungModal(true)}
+                isGlobalEditMode={mutations.isGlobalEditMode}
+                editedValues={mutations.editedValues}
+                onUpdateEditedValue={mutations.handleUpdateEditedValue}
+                editingMietvertrag={mutations.editingMietvertrag}
+                editingKaution={mutations.editingKaution}
+                onEditMietvertrag={mutations.handleEditMietvertrag}
+                onStartEdit={(field) => mutations.setEditingMietvertrag(field)}
+                onCancelEdit={() => mutations.setEditingMietvertrag(null)}
+                onEditKaution={mutations.handleEditKaution}
+                onStartEditKaution={mutations.setEditingKaution}
+                onCancelEditKaution={() => mutations.setEditingKaution(null)}
+                editingMeter={mutations.editingMeter}
+                editingMeterNumber={mutations.editingMeterNumber}
+                onEditMeter={mutations.handleEditMeter}
+                onStartEditMeter={mutations.setEditingMeter}
+                onCancelEditMeter={() => mutations.setEditingMeter(null)}
+                onEditMeterNumber={mutations.handleEditMeterNumber}
+                onStartEditMeterNumber={mutations.setEditingMeterNumber}
+                onCancelEditMeterNumber={() => mutations.setEditingMeterNumber(null)}
+                onCreateForderung={() => mutations.setShowCreateForderungModal(true)}
                 onContractUpdate={() => {
                   queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] });
                 }}
-                onShowMahnung={() => setShowMahnungModal(true)}
-                onShowKuendigung={() => setShowTerminationDialog(true)}
+                onShowMahnung={() => mutations.setShowMahnungModal(true)}
+                onShowKuendigung={() => mutations.setShowTerminationDialog(true)}
                 allMietvertraege={allMietvertraege}
                 vertragId={vertragId}
                 formatDatum={formatDatum}
@@ -1124,22 +165,17 @@ export default function MietvertragDetailsModal({
                 formatDatum={formatDatum}
                 mietvertragId={vertragId}
                 onDocumentsChange={() => {
-                  queryClient.invalidateQueries({ 
-                    queryKey: ['dokumente-detail', vertragId] 
-                  });
+                  queryClient.invalidateQueries({ queryKey: ['dokumente-detail', vertragId] });
                 }}
               />
             </TabsContent>
           </Tabs>
-
-
-
         </div>
 
         {/* Create Forderung Modal */}
         <CreateForderungModal
-          isOpen={showCreateForderungModal}
-          onClose={() => setShowCreateForderungModal(false)}
+          isOpen={mutations.showCreateForderungModal}
+          onClose={() => mutations.setShowCreateForderungModal(false)}
           mietvertragId={vertragId}
           currentKaltmiete={Number(vertrag?.kaltmiete || 0)}
           currentBetriebskosten={Number(vertrag?.betriebskosten || 0)}
@@ -1147,19 +183,19 @@ export default function MietvertragDetailsModal({
 
         {/* Termination Dialog */}
         <TerminationDialog
-          isOpen={showTerminationDialog}
-          onClose={() => setShowTerminationDialog(false)}
+          isOpen={mutations.showTerminationDialog}
+          onClose={() => mutations.setShowTerminationDialog(false)}
           vertragId={vertragId}
           einheit={einheitData}
           immobilie={immobilie}
-          onTerminationSuccess={handleTerminationSuccess}
+          onTerminationSuccess={mutations.handleTerminationSuccess}
         />
 
         {/* Mahnung Modal */}
         <MahnungErstellungModal
-          isOpen={showMahnungModal}
+          isOpen={mutations.showMahnungModal}
           onClose={() => {
-            setShowMahnungModal(false);
+            mutations.setShowMahnungModal(false);
             Promise.all([
               queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
               queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
@@ -1192,13 +228,9 @@ export default function MietvertragDetailsModal({
       </DialogContent>
     </Dialog>
 
-    {/* Rent Increase Confirmation Dialog - OUTSIDE the main Dialog to avoid portal/z-index conflicts */}
-    <AlertDialog open={showRentIncreaseConfirm} onOpenChange={(open) => {
-      if (!open) {
-        setShowRentIncreaseConfirm(false);
-        setPendingKaltmieteValue(null);
-        setPendingGlobalUpdates(null);
-      }
+    {/* Rent Increase Confirmation Dialog */}
+    <AlertDialog open={mutations.showRentIncreaseConfirm} onOpenChange={(open) => {
+      if (!open) mutations.handleRentIncreaseCancel();
     }}>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -1214,10 +246,7 @@ export default function MietvertragDetailsModal({
         <AlertDialogFooter>
           <AlertDialogCancel onClick={(e) => {
             e.stopPropagation();
-            setShowRentIncreaseConfirm(false);
-            setPendingKaltmieteValue(null);
-            setPendingGlobalUpdates(null);
-            setEditingMietvertrag(null);
+            mutations.handleRentIncreaseCancel();
           }}>
             Abbrechen
           </AlertDialogCancel>
@@ -1225,14 +254,14 @@ export default function MietvertragDetailsModal({
             variant="outline"
             onClick={(e) => {
               e.stopPropagation();
-              handleRentIncreaseConfirm(false);
+              mutations.handleRentIncreaseConfirm(false);
             }}
           >
             Nein, nur Korrektur
           </Button>
           <AlertDialogAction onClick={(e) => {
             e.stopPropagation();
-            handleRentIncreaseConfirm(true);
+            mutations.handleRentIncreaseConfirm(true);
           }}>
             Ja, offizielle Mieterhöhung
           </AlertDialogAction>
