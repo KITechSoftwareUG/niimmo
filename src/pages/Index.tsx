@@ -76,29 +76,41 @@ const Index = () => {
     queryKey: ['einheiten-status-all'],
     queryFn: async () => {
       if (!immobilien) return {};
+
+      // Bulk-fetch all units and contracts in 2 queries instead of 2*N
+      const { data: alleEinheiten, error: einheitenError } = await supabase
+        .from('einheiten')
+        .select('id, immobilie_id');
+      if (einheitenError) throw einheitenError;
+
+      const einheitIds = (alleEinheiten || []).map(e => e.id);
+      const { data: alleVertraege, error: vertraegeError } = await supabase
+        .from('mietvertrag')
+        .select('status, einheit_id')
+        .in('einheit_id', einheitIds);
+      if (vertraegeError) throw vertraegeError;
+
+      // Build a map: einheit_id -> immobilie_id
+      const einheitToImmobilie: Record<string, string> = {};
+      for (const e of alleEinheiten || []) {
+        if (e.immobilie_id) einheitToImmobilie[e.id] = e.immobilie_id;
+      }
+
+      // Count active contracts per immobilie
+      const aktiveProImmobilie: Record<string, number> = {};
+      for (const v of alleVertraege || []) {
+        if (v.status === 'aktiv' && v.einheit_id) {
+          const immId = einheitToImmobilie[v.einheit_id];
+          if (immId) {
+            aktiveProImmobilie[immId] = (aktiveProImmobilie[immId] || 0) + 1;
+          }
+        }
+      }
+
       const statusMap: Record<string, number> = {};
       for (const immobilie of immobilien) {
-        // Get all units for this property
-        const {
-          data: einheiten,
-          error: einheitenError
-        } = await supabase.from('einheiten').select('id').eq('immobilie_id', immobilie.id);
-        if (einheitenError) throw einheitenError;
-        if (!einheiten || einheiten.length === 0) {
-          statusMap[immobilie.id] = 0;
-          continue;
-        }
-
-        // Get rental contracts for these units
-        const einheitIds = einheiten.map(e => e.id);
-        const {
-          data: vertraege,
-          error: vertraegeError
-        } = await supabase.from('mietvertrag').select('status').in('einheit_id', einheitIds);
-        if (vertraegeError) throw vertraegeError;
-        const aktive = vertraege?.filter(v => v.status === 'aktiv').length || 0;
-        const auslastung = Math.round(aktive / immobilie.einheiten_anzahl * 100);
-        statusMap[immobilie.id] = auslastung;
+        const aktive = aktiveProImmobilie[immobilie.id] || 0;
+        statusMap[immobilie.id] = Math.round((aktive / immobilie.einheiten_anzahl) * 100);
       }
       return statusMap;
     },
