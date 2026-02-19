@@ -3,10 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Home, Square, Users, Calendar, Euro, User, AlertTriangle, Copy, Phone, Mail, Link2, Briefcase, UserCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useAutoExpireContract } from "@/hooks/useAutoExpireContracts";
 import { EinheitHistorieView } from "./EinheitHistorieView";
 import MietvertragDetailsModal from "./MietvertragDetailsModal";
 import { NewTenantContractDialog } from "./NewTenantContractDialog";
-import { supabase } from "@/integrations/supabase/client";
+
 import { useToast } from "@/hooks/use-toast";
 import { useLinkedContracts } from "@/hooks/useLinkedContracts";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -84,30 +85,8 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
     }
   }, [openMietvertragId, vertrag?.id]);
 
-  // Check if contract should be automatically ended
-  useEffect(() => {
-    const checkAndUpdateContractStatus = async () => {
-      if (vertrag && vertrag.status === 'gekuendigt' && vertrag.kuendigungsdatum) {
-        const terminationDate = new Date(vertrag.kuendigungsdatum);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        terminationDate.setHours(0, 0, 0, 0);
-        
-        if (terminationDate <= today) {
-          try {
-            await supabase
-              .from('mietvertrag')
-              .update({ status: 'beendet' })
-              .eq('id', vertrag.id);
-          } catch (error) {
-            console.error('Error updating contract status:', error);
-          }
-        }
-      }
-    };
-
-    checkAndUpdateContractStatus();
-  }, [vertrag]);
+  // Auto-expire contracts past their Kündigungsdatum
+  useAutoExpireContract(vertrag?.id, vertrag?.status, vertrag?.kuendigungsdatum);
 
   const getStatusColor = () => {
     if (!vertrag) return "bg-red-100 border-red-200";
