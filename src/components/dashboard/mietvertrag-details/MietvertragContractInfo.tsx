@@ -57,7 +57,7 @@ export function MietvertragContractInfo({
   const kaltmiete = isGlobalEditMode && editedValues.kaltmiete !== undefined ? editedValues.kaltmiete : vertrag.kaltmiete;
   const betriebskosten = isGlobalEditMode && editedValues.betriebskosten !== undefined ? editedValues.betriebskosten : vertrag.betriebskosten;
   const anzahlPersonen = isGlobalEditMode && editedValues.anzahl_personen !== undefined ? editedValues.anzahl_personen : vertrag.anzahl_personen;
-
+  const qmValue = isGlobalEditMode && editedValues.qm !== undefined ? editedValues.qm : einheit?.qm;
   const mietbeginnValue = isGlobalEditMode
     ? (editedValues.start_datum ?? (vertrag.start_datum || ''))
     : (vertrag.start_datum || '');
@@ -233,14 +233,46 @@ export function MietvertragContractInfo({
               />
             </div>
 
-            {/* Warmmiete total */}
-            <div className="group flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Warmmiete:</span>
-              <span className="text-sm font-bold text-primary">
-                {formatBetrag(Number(kaltmiete || 0) + Number(betriebskosten || 0))}
-              </span>
-              <CopyButton text={String(Number(kaltmiete || 0) + Number(betriebskosten || 0))} fieldName="Warmmiete" />
+            {/* Warmmiete total + QM row */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="group flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Warmmiete:</span>
+                <span className="text-sm font-bold text-primary">
+                  {formatBetrag(Number(kaltmiete || 0) + Number(betriebskosten || 0))}
+                </span>
+                <CopyButton text={String(Number(kaltmiete || 0) + Number(betriebskosten || 0))} fieldName="Warmmiete" />
+              </div>
+              <MietvertragEditableField
+                label="Wohnfläche (m²)"
+                value={qmValue !== null && qmValue !== undefined ? Number(qmValue) : ''}
+                isEditing={isGlobalEditMode}
+                onEdit={() => {}}
+                onValueChange={isGlobalEditMode ? (raw) => {
+                  const trimmed = raw.trim();
+                  onUpdateEditedValue?.('qm', trimmed === '' ? null : parseFloat(trimmed) || null);
+                } : undefined}
+                onSave={(value) => {
+                  if (isGlobalEditMode) onUpdateEditedValue?.('qm', value ? parseFloat(value) : null);
+                }}
+                onCancel={onCancelEdit}
+                type="number"
+                step="0.01"
+                placeholder="–"
+                formatter={(val) => val ? `${val} m²` : '–'}
+                hideEditButton={true}
+                isGlobalEditMode={isGlobalEditMode}
+              />
             </div>
+
+            {/* Kaltmiete pro m² - computed */}
+            {qmValue && Number(qmValue) > 0 && (
+              <div className="group flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Kaltmiete/m²:</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {formatBetrag(Number(kaltmiete || 0) / Number(qmValue))}
+                </span>
+              </div>
+            )}
 
             {/* Personen */}
             <div className="grid grid-cols-2 gap-2">
