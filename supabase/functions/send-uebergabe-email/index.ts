@@ -1,12 +1,20 @@
  import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
  import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
  
- const corsHeaders = {
-   "Access-Control-Allow-Origin": "*",
-   "Access-Control-Allow-Headers":
-     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
- };
- 
+const ALLOWED_ORIGINS = [
+  'https://immobilien-blick-dashboard.lovable.app',
+  'https://id-preview--8e9e2f9b-7950-413f-adfd-90b0d2663ae1.lovable.app',
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('Origin') || '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  };
+}
+
  interface EmailRecipient {
    mieterId: string;
    email: string;
@@ -22,9 +30,22 @@
  }
  
  const handler = async (req: Request): Promise<Response> => {
+   const corsHeaders = getCorsHeaders(req);
+
    // Handle CORS preflight requests
    if (req.method === "OPTIONS") {
      return new Response(null, { headers: corsHeaders });
+   }
+
+   // Auth check
+   const authHeader = req.headers.get('Authorization');
+   if (!authHeader?.startsWith('Bearer ')) {
+     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+   }
+   const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+   const { error: authError } = await authClient.auth.getUser();
+   if (authError) {
+     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
    }
  
    try {

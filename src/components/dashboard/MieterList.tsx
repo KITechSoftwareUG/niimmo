@@ -21,8 +21,6 @@ export const MieterList = ({ mieter }: MieterListProps) => {
     weitere_mails: string;
   }>({ hauptmail: '', telnr: '', weitere_mails: '' });
 
-  // Debug: Console log um die Datenstruktur zu sehen
-  console.log('MieterList mieter data:', mieter);
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -41,13 +39,11 @@ export const MieterList = ({ mieter }: MieterListProps) => {
   };
 
   const startEditing = (mieterData: any) => {
-    console.log('Starting edit for mieter:', mieterData);
     // Handle different data structures - either direct mieter object or nested mieter.mieter
     const mieterObj = mieterData.mieter || mieterData;
     const mieterId = mieterObj.id;
     
     if (!mieterId) {
-      console.error('No mieter ID found in:', mieterData);
       return;
     }
     
@@ -65,7 +61,6 @@ export const MieterList = ({ mieter }: MieterListProps) => {
   };
 
   const saveChanges = async (mieterId: string) => {
-    console.log('Saving changes for mieter ID:', mieterId, 'with values:', editValues);
     try {
       const { error } = await supabase
         .from('mieter')
@@ -77,7 +72,6 @@ export const MieterList = ({ mieter }: MieterListProps) => {
         .eq('id', mieterId);
 
       if (error) {
-        console.error('Supabase error:', error);
         throw error;
       }
 
@@ -92,7 +86,6 @@ export const MieterList = ({ mieter }: MieterListProps) => {
       // Seite neu laden, um die Änderungen anzuzeigen
       window.location.reload();
     } catch (err) {
-      console.error('Fehler beim Speichern:', err);
       toast({
         title: "Fehler",
         description: "Die Kontaktdaten konnten nicht gespeichert werden.",
