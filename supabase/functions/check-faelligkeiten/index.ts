@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const ALLOWED_ORIGINS = [
   'https://immobilien-blick-dashboard.lovable.app',
   'https://id-preview--8e9e2f9b-7950-413f-adfd-90b0d2663ae1.lovable.app',
+  'https://dashboard.niimmo.de',
 ];
 
 function getCorsHeaders(req: Request) {
