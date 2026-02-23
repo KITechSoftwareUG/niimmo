@@ -22,11 +22,8 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
   const [success, setSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log('🔥 handleSubmit called!', { mode, email, loading });
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log('Form submitted - mode:', mode, 'email:', email);
     
     setError(null);
     setSuccess(null);
@@ -53,17 +50,12 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
 
     try {
       if (mode === 'login') {
-        console.log('Attempting login with:', email.trim());
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         });
 
-        console.log('Login response:', { data, error });
-
         if (error) {
-          console.error('Login error:', error);
-          
           // Handle different error cases
           if (error.message.includes('Invalid login credentials')) {
             setError('Ungültige Anmeldedaten. Bitte überprüfen Sie E-Mail und Passwort oder registrieren Sie sich zuerst.');
@@ -75,11 +67,9 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
             setError(`Anmeldefehler: ${error.message}`);
           }
         } else if (data?.user) {
-          console.log('Login successful:', data);
           setSuccess('Erfolgreich angemeldet!');
         }
       } else {
-        console.log('Attempting signup with:', email.trim());
         const redirectUrl = `${window.location.origin}/`;
         
         const { data, error } = await supabase.auth.signUp({
@@ -90,11 +80,7 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
           }
         });
 
-        console.log('Signup response:', { data, error });
-
         if (error) {
-          console.error('Signup error:', error);
-          
           // Handle different signup errors
           if (error.message.includes('User already registered')) {
             setError('Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert. Bitte melden Sie sich an.');
@@ -106,7 +92,6 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
             setError(`Registrierungsfehler: ${error.message}`);
           }
         } else if (data?.user) {
-          console.log('Signup successful:', data);
           if (data.user.email_confirmed_at) {
             setSuccess('Registrierung erfolgreich! Sie werden automatisch angemeldet.');
           } else {
@@ -212,7 +197,6 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
             className="w-full cursor-pointer relative z-10" 
             disabled={loading}
             onClick={(e) => {
-              console.log('🔥 Button clicked!');
               handleSubmit(e);
             }}
             style={{ pointerEvents: 'auto' }}

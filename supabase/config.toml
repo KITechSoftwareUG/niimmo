@@ -20,3 +20,27 @@ verify_jwt = false
 
 [functions.process-tilgungsplan-ocr]
 verify_jwt = false
+
+[functions.process-payments]
+verify_jwt = false
+
+[functions.generate-mahnung-pdf]
+verify_jwt = false
+
+[functions.generate-uebergabe-pdf]
+verify_jwt = false
+
+[functions.check-faelligkeiten]
+verify_jwt = false
+
+[functions.check-mahnstufen]
+verify_jwt = false
+
+[functions.send-mahnung]
+verify_jwt = false
+
+[functions.send-rent-increase-notification]
+verify_jwt = false
+
+[functions.send-uebergabe-email]
+verify_jwt = false
