@@ -769,6 +769,7 @@ export function MietvertragTimelineView({
           const monthDate = new Date(month + '-01');
           const forderungenData = data.forderungen;
           const zahlungenData = data.zahlungen.filter((zahlung: any) => {
+            if (zahlung.kategorie === 'Nebenkosten') return false;
             if (zahlung.kategorie === 'Ignorieren' && !showIgnoredPayments) return false;
             return true;
           });

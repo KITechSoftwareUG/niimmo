@@ -299,7 +299,7 @@ export function LinkedContractsTimeline({
               ))}
 
               {/* Zahlungen */}
-              {zahlungen.filter((z: any) => z.kategorie !== 'Ignorieren').map((z: any) => (
+              {zahlungen.filter((z: any) => z.kategorie !== 'Ignorieren' && z.kategorie !== 'Nebenkosten').map((z: any) => (
                 <div 
                   key={z.id}
                   draggable
