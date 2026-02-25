@@ -33,11 +33,13 @@ import {
   FileText,
   Check,
   X,
+  Split,
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { NebenkostenSplitDialog } from "./NebenkostenSplitDialog";
 
 interface NebenkostenStep1ZuordnungProps {
   immobilieId: string;
@@ -80,6 +82,8 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
   const [draggedPayment, setDraggedPayment] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [splitDialogZahlung, setSplitDialogZahlung] = useState<any | null>(null);
 
   // Fetch zahlungen für diese Immobilie
   const { data: zahlungen } = useQuery({
@@ -211,11 +215,19 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
     },
   });
 
-  // Zahlungen nach Jahr filtern und unzugeordnete finden
+  // Zahlungen nach Jahr filtern und unzugeordnete/teilzugeordnete finden
   const unassignedZahlungen = useMemo(() => {
     const yearPayments = zahlungen?.filter((z) => new Date(z.buchungsdatum).getFullYear() === selectedYear) || [];
-    const assignedIds = new Set(kostenpositionen?.map((kp) => kp.zahlung_id).filter(Boolean));
-    return yearPayments.filter((z) => !assignedIds.has(z.id));
+    
+    return yearPayments.filter((z) => {
+      // Find all kostenpositionen for this zahlung
+      const positions = kostenpositionen?.filter((kp) => kp.zahlung_id === z.id) || [];
+      if (positions.length === 0) return true; // fully unassigned
+      
+      // Check if total assigned < payment amount (partial assignment)
+      const assignedTotal = positions.reduce((sum, kp) => sum + kp.gesamtbetrag, 0);
+      return assignedTotal < Math.abs(z.betrag) - 0.01; // still has rest
+    });
   }, [zahlungen, selectedYear, kostenpositionen]);
 
   // Gruppiere unzugeordnete Zahlungen nach Monat
@@ -327,25 +339,19 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
     });
   };
 
-  // Schnellzuordnung per Klick
-  const handleQuickAssign = (zahlungId: string, kategorieId: string) => {
-    const zahlung = zahlungen?.find((z) => z.id === zahlungId);
-    if (!zahlung) return;
+  // Helper: get already assigned amount for a zahlung
+  const getAssignedAmount = (zahlungId: string) => {
+    const positions = kostenpositionen?.filter((kp) => kp.zahlung_id === zahlungId) || [];
+    return positions.reduce((sum, kp) => sum + kp.gesamtbetrag, 0);
+  };
 
-    const kategorie = [...BETRKV_KATEGORIEN, ...NICHT_UMLAGEFAEHIGE_KATEGORIEN].find((k) => k.id === kategorieId);
-    if (!kategorie) return;
-
-    createKostenpositionMutation.mutate({
-      zahlungId,
-      kategorieId,
-      betrag: zahlung.betrag,
-      bezeichnung: zahlung.verwendungszweck || zahlung.empfaengername || kategorie.name,
-      istUmlagefaehig: kategorie.umlagefaehig,
-      verteilerschluessel: kategorie.schluessel,
-    });
+  const openSplitDialog = (zahlung: any) => {
+    setSplitDialogZahlung(zahlung);
+    setSplitDialogOpen(true);
   };
 
   return (
+    <>
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 h-full">
       {/* Linke Spalte: Unzugeordnete Zahlungen */}
       <Card className="flex flex-col">
@@ -444,6 +450,18 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                                           {(zahlung.betrag ?? 0) >= 0 ? "+" : ""}{(zahlung.betrag ?? 0).toFixed(2)} €
                                         </span>
                                       </div>
+                                      {/* Show partial assignment badge */}
+                                      {(() => {
+                                        const assigned = getAssignedAmount(zahlung.id);
+                                        if (assigned > 0.01) {
+                                          return (
+                                            <Badge variant="outline" className="text-xs mt-1 border-primary/50 text-primary">
+                                              {assigned.toFixed(2)} € verteilt – Rest: {(Math.abs(zahlung.betrag) - assigned).toFixed(2)} €
+                                            </Badge>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
                                       <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                                         <span className="flex items-center gap-1">
                                           <Calendar className="h-3.5 w-3.5" />
@@ -485,9 +503,20 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                                         </div>
                                       )}
 
-                                      {/* Schnellzuordnung */}
-                                      <div className="pt-3 border-t">
-                                        <p className="text-xs font-medium text-muted-foreground mb-2">Schnellzuordnung:</p>
+                                      {/* Schnellzuordnung + Aufteilen */}
+                                      <div className="pt-3 border-t flex flex-col gap-3">
+                                        <Button
+                                          size="sm"
+                                          className="w-full gap-2"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openSplitDialog(zahlung);
+                                          }}
+                                        >
+                                          <Split className="h-4 w-4" />
+                                          Aufteilen / Zuordnen
+                                        </Button>
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">Schnellzuordnung (1:1):</p>
                                         <div className="flex flex-wrap gap-2">
                                           {BETRKV_KATEGORIEN.slice(0, 8).map((kat) => {
                                             const Icon = kat.icon;
@@ -499,7 +528,15 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
                                                 className="h-8 text-xs gap-1.5"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
-                                                  handleQuickAssign(zahlung.id, kat.id);
+                                                  // Quick assign creates a single kostenposition with full amount
+                                                  createKostenpositionMutation.mutate({
+                                                    zahlungId: zahlung.id,
+                                                    kategorieId: kat.id,
+                                                    betrag: zahlung.betrag,
+                                                    bezeichnung: zahlung.verwendungszweck || zahlung.empfaengername || kat.name,
+                                                    istUmlagefaehig: kat.umlagefaehig,
+                                                    verteilerschluessel: kat.schluessel,
+                                                  });
                                                 }}
                                               >
                                                 <Icon className="h-3.5 w-3.5" />
@@ -722,5 +759,14 @@ export function NebenkostenStep1Zuordnung({ immobilieId, selectedYear }: Nebenko
         </CardContent>
       </Card>
     </div>
+
+    <NebenkostenSplitDialog
+      open={splitDialogOpen}
+      onOpenChange={setSplitDialogOpen}
+      zahlung={splitDialogZahlung}
+      immobilieId={immobilieId}
+      selectedYear={selectedYear}
+    />
+    </>
   );
 }
