@@ -79,8 +79,14 @@ export function BetrKVNebenkostenTab({ immobilieId }: BetrKVNebenkostenTabProps)
   // Statistiken
   const stats = useMemo(() => {
     const yearPayments = zahlungen?.filter((z) => new Date(z.buchungsdatum).getFullYear() === selectedYear) || [];
-    const assignedIds = new Set(kostenpositionen?.map((kp) => kp.zahlung_id).filter(Boolean));
-    const unassigned = yearPayments.filter((z) => !assignedIds.has((z as any).id));
+    
+    // Count payments that still have unassigned rest amount
+    const unassigned = yearPayments.filter((z) => {
+      const positions = kostenpositionen?.filter((kp) => kp.zahlung_id === (z as any).id) || [];
+      if (positions.length === 0) return true;
+      const assignedTotal = positions.reduce((sum, kp) => sum + kp.gesamtbetrag, 0);
+      return assignedTotal < Math.abs((z as any).betrag || 0) - 0.01;
+    });
     
     const totalUmlagefaehig = kostenpositionen?.filter((kp) => kp.ist_umlagefaehig).reduce((s, kp) => s + kp.gesamtbetrag, 0) || 0;
     const totalNichtUmlagefaehig = kostenpositionen?.filter((kp) => !kp.ist_umlagefaehig).reduce((s, kp) => s + kp.gesamtbetrag, 0) || 0;
