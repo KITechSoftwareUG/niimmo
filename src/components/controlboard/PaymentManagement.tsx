@@ -87,6 +87,7 @@ interface ProcessedPayment {
   verwendungszweck: string;
   empfaengername?: string;
   mietvertrag_id: string | null;
+  immobilie_id?: string | null;
   kategorie: string;
   zuordnungsgrund: string;
   confidence: number;
@@ -833,6 +834,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         const updatePayload: Record<string, any> = {
           mietvertrag_id: result.mietvertrag_id,
           kategorie: result.kategorie as any,
+          immobilie_id: result.immobilie_id || null,
         };
         
         const { error } = await supabase
@@ -869,6 +871,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             verwendungszweck: vzValue,
             empfaengername: result.empfaengername?.trim() || null,
             mietvertrag_id: result.mietvertrag_id || null,
+            immobilie_id: result.immobilie_id || null,
             kategorie: result.kategorie as any || null,
           });
         
