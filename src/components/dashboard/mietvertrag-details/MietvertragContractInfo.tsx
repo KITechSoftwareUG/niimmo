@@ -326,6 +326,7 @@ export function MietvertragContractInfo({
                 placeholder="DE89 3704 0044 0532 0130 00"
                 hideEditButton={true}
                 isGlobalEditMode={isGlobalEditMode}
+                inputClassName="w-full h-8 text-sm sm:w-56 font-mono"
               />
               {!isGlobalEditMode && vertrag.bankkonto_mieter && (
                 <div className="group flex items-center gap-1 mt-0.5">
