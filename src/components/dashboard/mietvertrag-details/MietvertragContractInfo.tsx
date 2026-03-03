@@ -123,8 +123,8 @@ export function MietvertragContractInfo({
       <CardContent className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-[1fr,auto] gap-4">
           {/* LEFT: Contract Info - takes most space */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-1">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">Vertragsdaten</h3>
               <Badge variant={vertrag.status === 'aktiv' ? 'default' : 'secondary'} className="text-[10px] h-5">
                 {vertrag.status}
@@ -264,18 +264,16 @@ export function MietvertragContractInfo({
               />
             </div>
 
-            {/* Kaltmiete pro m² - computed */}
-            {qmValue && Number(qmValue) > 0 && (
-              <div className="group flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Kaltmiete/m²:</span>
-                <span className="text-sm font-semibold text-foreground">
-                  {formatBetrag(Number(kaltmiete || 0) / Number(qmValue))}
-                </span>
-              </div>
-            )}
-
-            {/* Personen */}
+            {/* Kaltmiete/m² + Personen */}
             <div className="grid grid-cols-2 gap-2">
+              {qmValue && Number(qmValue) > 0 ? (
+                <div className="group flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Kaltmiete/m²:</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {formatBetrag(Number(kaltmiete || 0) / Number(qmValue))}
+                  </span>
+                </div>
+              ) : <div />}
               <MietvertragEditableField
                 label="Personen"
                 value={anzahlPersonen !== null && anzahlPersonen !== undefined ? Number(anzahlPersonen) : ''}
@@ -315,7 +313,7 @@ export function MietvertragContractInfo({
             )}
 
             {/* IBAN */}
-            <div>
+            <div className="contents">
               <MietvertragEditableField
                 label="IBAN"
                 value={isGlobalEditMode && editedValues.bankkonto_mieter !== undefined ? editedValues.bankkonto_mieter : (vertrag.bankkonto_mieter || '')}
