@@ -640,27 +640,27 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
               </div>
               <div>
                 <Label className="text-xs">Darlehensbetrag (€)</Label>
-                <Input type="number" step="0.01" value={form.darlehensbetrag || ""} onChange={(e) => setForm({ ...form, darlehensbetrag: parseFloat(e.target.value) || 0 })} />
+                <Input type="number" step="0.01" value={form.darlehensbetrag} onChange={(e) => setForm({ ...form, darlehensbetrag: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Restschuld (€)</Label>
-                <Input type="number" step="0.01" value={form.restschuld || ""} onChange={(e) => setForm({ ...form, restschuld: parseFloat(e.target.value) || 0 })} />
+                <Input type="number" step="0.01" value={form.restschuld} onChange={(e) => setForm({ ...form, restschuld: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
               </div>
               <div>
                 <Label className="text-xs">Monatliche Rate (€)</Label>
-                <Input type="number" step="0.01" value={form.monatliche_rate || ""} onChange={(e) => setForm({ ...form, monatliche_rate: parseFloat(e.target.value) || 0 })} />
+                <Input type="number" step="0.01" value={form.monatliche_rate} onChange={(e) => setForm({ ...form, monatliche_rate: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Zinssatz (%)</Label>
-                <Input type="number" step="0.01" value={form.zinssatz_prozent || ""} onChange={(e) => setForm({ ...form, zinssatz_prozent: parseFloat(e.target.value) || 0 })} />
+                <Input type="number" step="0.01" value={form.zinssatz_prozent} onChange={(e) => setForm({ ...form, zinssatz_prozent: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
               </div>
               <div>
                 <Label className="text-xs">Tilgungssatz (%)</Label>
-                <Input type="number" step="0.01" value={form.tilgungssatz_prozent || ""} onChange={(e) => setForm({ ...form, tilgungssatz_prozent: parseFloat(e.target.value) || 0 })} />
+                <Input type="number" step="0.01" value={form.tilgungssatz_prozent} onChange={(e) => setForm({ ...form, tilgungssatz_prozent: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -768,8 +768,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                   <Label className="text-xs text-muted-foreground">Darlehensbetrag (€)</Label>
                   <Input 
                     type="number" step="0.01"
-                    value={importedData.darlehensbetrag || ''} 
-                    onChange={(e) => setImportedData({ ...importedData, darlehensbetrag: parseFloat(e.target.value) || 0 })}
+                    value={importedData.darlehensbetrag ?? 0} 
+                    onChange={(e) => setImportedData({ ...importedData, darlehensbetrag: parseFloat(e.target.value.replace(',', '.')) || 0 })}
                     className="text-sm"
                   />
                 </div>
@@ -779,8 +779,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                   <Label className="text-xs text-muted-foreground">Restschuld (€)</Label>
                   <Input 
                     type="number" step="0.01"
-                    value={importedData.restschuld || ''} 
-                    onChange={(e) => setImportedData({ ...importedData, restschuld: parseFloat(e.target.value) || 0 })}
+                    value={importedData.restschuld ?? 0} 
+                    onChange={(e) => setImportedData({ ...importedData, restschuld: parseFloat(e.target.value.replace(',', '.')) || 0 })}
                     className="text-sm"
                   />
                 </div>
@@ -788,8 +788,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                   <Label className="text-xs text-muted-foreground">Zinssatz (%)</Label>
                   <Input 
                     type="number" step="0.01"
-                    value={importedData.zinssatz_prozent || ''} 
-                    onChange={(e) => setImportedData({ ...importedData, zinssatz_prozent: parseFloat(e.target.value) || 0 })}
+                    value={importedData.zinssatz_prozent ?? 0} 
+                    onChange={(e) => setImportedData({ ...importedData, zinssatz_prozent: parseFloat(e.target.value.replace(',', '.')) || 0 })}
                     className="text-sm"
                   />
                 </div>
@@ -797,8 +797,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                   <Label className="text-xs text-muted-foreground">Monatliche Rate (€)</Label>
                   <Input 
                     type="number" step="0.01"
-                    value={importedData.monatliche_rate || ''} 
-                    onChange={(e) => setImportedData({ ...importedData, monatliche_rate: parseFloat(e.target.value) || 0 })}
+                    value={importedData.monatliche_rate ?? 0} 
+                    onChange={(e) => setImportedData({ ...importedData, monatliche_rate: parseFloat(e.target.value.replace(',', '.')) || 0 })}
                     className="text-sm"
                   />
                 </div>
