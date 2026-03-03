@@ -20,6 +20,7 @@ interface ImmobilienDocumentsTabProps {
 }
 
 const DOCUMENT_CATEGORIES = [
+  'Mietvertrag',
   'Kaufvertrag',
   'Grundbuchauszug',
   'Energieausweis',
