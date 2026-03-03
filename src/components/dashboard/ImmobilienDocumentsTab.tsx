@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Loader2, Eye, Plus, Trash2 } from "lucide-react";
+import { FileText, Download, Loader2, Eye, Plus, Trash2, Edit3, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
@@ -41,6 +41,41 @@ export function ImmobilienDocumentsTab({ immobilieId, dokumente }: ImmobilienDoc
   const [uploadKategorie, setUploadKategorie] = useState("Sonstiges");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [updatingCategory, setUpdatingCategory] = useState<string | null>(null);
+
+  const handleCategoryChange = async (dokumentId: string, newCategory: string) => {
+    setUpdatingCategory(dokumentId);
+    try {
+      const { error } = await supabase
+        .from('dokumente')
+        .update({ kategorie: newCategory as any })
+        .eq('id', dokumentId);
+
+      if (error) {
+        toast({
+          title: "Fehler",
+          description: "Kategorie konnte nicht geändert werden.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erfolg",
+          description: "Kategorie wurde erfolgreich geändert.",
+        });
+        queryClient.invalidateQueries({ queryKey: ['immobilien-dokumente', immobilieId] });
+      }
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: "Ein Fehler ist aufgetreten.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingCategory(null);
+      setEditingCategory(null);
+    }
+  };
 
   const formatDatum = (datum: string) => {
     if (!datum) return 'Unbekannt';
@@ -240,9 +275,50 @@ export function ImmobilienDocumentsTab({ immobilieId, dokumente }: ImmobilienDoc
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <p className="font-medium">{dok.titel}</p>
-                        <Badge variant="secondary" className="text-xs">
-                          {dok.kategorie}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          {editingCategory === dok.id ? (
+                            <div className="flex items-center gap-1">
+                              <Select
+                                value={dok.kategorie}
+                                onValueChange={(value) => handleCategoryChange(dok.id, value)}
+                                disabled={updatingCategory === dok.id}
+                              >
+                                <SelectTrigger className="w-40 h-7">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {DOCUMENT_CATEGORIES.map((cat) => (
+                                    <SelectItem key={cat} value={cat}>
+                                      {cat}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setEditingCategory(null)}
+                                className="h-7 w-7 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {dok.kategorie}
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setEditingCategory(dok.id)}
+                                className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+                              >
+                                <Edit3 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <p className="text-sm text-muted-foreground">
