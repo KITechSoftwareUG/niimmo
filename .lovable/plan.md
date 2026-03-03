@@ -1,28 +1,46 @@
 
 
-## Plan: Mieter-Bereich rechts redesignen — mehr Platz, Buttons unten
+## Plan: Nebenkosten-Zahlungen im Zuordnungsdialog einer Immobilie zuweisen
 
 ### Problem
-Die rechte Spalte ist auf `md:w-64` fixiert — alles ist gequetscht. Die Buttons "Mahnung" und "Kündigung" stehen neben der Überschrift "Mieter" und nehmen dort wertvollen Platz weg.
+Nach dem CSV-Upload und der AI-Zuordnung zeigt das `PaymentAssignmentResultsModal` nur die Möglichkeit, Zahlungen einem **Mietvertrag** zuzuordnen. Wenn eine Zahlung als "Nebenkosten" kategorisiert wird, soll sie stattdessen einer **Immobilie** zugeordnet werden können — nicht einem Mieter.
 
 ### Lösung
 
-**Datei: `MietvertragContractInfo.tsx`**
+**3 Dateien ändern:**
 
-1. **Rechte Spalte breiter machen** (Zeile 365): `md:w-64 md:min-w-[16rem]` → `md:w-72 md:min-w-[18rem]` — gibt 2rem mehr Platz für Kontaktdaten.
+#### 1. `PaymentAssignmentResultsModal.tsx`
+- **`immobilie_id` zum `ProcessedPayment`-Interface hinzufügen** — neues optionales Feld.
+- **Immobilien-Daten laden**: Zweites `useQuery` für `immobilien` (id, name, adresse), aktiviert wenn `open`.
+- **`immobilieCorrections` State** hinzufügen (analog zu `manualCorrections`): `Record<number, string | null>`.
+- **Zuordnungsspalte anpassen**: Wenn Kategorie = "Nebenkosten", statt Mietvertrag-Name die Immobilie anzeigen. Prüfung: `(categoryCorrections[idx] || result.kategorie) === "Nebenkosten"`.
+- **"Ändern"-Button Logik**: Bei Nebenkosten den `PaymentCorrectionDialog` im Immobilien-Modus öffnen (neues Prop `mode`).
+- **`getFinalResults()` erweitern**: Bei Nebenkosten-Zahlungen `immobilie_id` aus `immobilieCorrections` übernehmen, `mietvertrag_id` auf null setzen.
+- **Status-Icon**: Bei Nebenkosten grünes Häkchen wenn `immobilie_id` gesetzt, sonst Warnung.
 
-2. **Header vereinfachen** (Zeile 366-384): Die Buttons "Mahnung" und "Kündigung" aus dem Header entfernen. Nur noch `<h3>Mieter</h3>` im Header.
+#### 2. `PaymentCorrectionDialog.tsx`
+- **Neues Prop `mode: 'mietvertrag' | 'immobilie'`** (default: `'mietvertrag'`).
+- **Neues Prop `immobilien`**: Array von `{id, name, adresse}`.
+- **Neues Prop `currentImmobilieId`**: Aktuell zugewiesene Immobilie.
+- **Neues Callback `onSelectImmobilie`**: `(immobilieId: string | null) => void`.
+- Im Immobilien-Modus:
+  - Titel: "Immobilie zuordnen" statt "Mietvertrag zuordnen".
+  - Liste zeigt Immobilien (Name + Adresse) statt Mietverträge.
+  - Suche filtert nach Name/Adresse.
+  - Auswahl ruft `onSelectImmobilie` auf.
 
-3. **Buttons unter die Mieter-Liste verschieben** (nach Zeile 493): Die beiden Buttons als eigene Zeile am Ende des rechten Bereichs platzieren, mit `flex gap-2` nebeneinander, volle Breite. Das gibt der Mieter-Info Luft und die Buttons sind trotzdem gut erreichbar.
+#### 3. `PaymentManagement.tsx` — `handleApplyAssignments`
+- **`immobilie_id` beim Insert/Update setzen**: Wenn `result.immobilie_id` vorhanden (= Nebenkosten), dieses Feld im Insert/Update-Payload mitgeben. `mietvertrag_id` bleibt null.
+- **`ProcessedPayment` Interface**: `immobilie_id?: string | null` hinzufügen.
 
-4. **Mieter-Karten etwas mehr Padding** (Zeile 389): `p-1.5` → `p-2.5` und `space-y-1` → `space-y-1.5` — die Kontaktdaten brauchen etwas Atem.
+### Datenfluss
+```text
+CSV → AI (kategorie=Nebenkosten) → Modal zeigt Immobilie-Spalte
+                                  → "Ändern" öffnet Immobilien-Auswahl
+                                  → Übernehmen: immobilie_id in zahlungen gesetzt
+                                  → Zahlung erscheint im Nebenkosten-Tab
+```
 
-5. **Spacing des Containers** (Zeile 365): `space-y-1.5` → `space-y-2.5` — etwas mehr Abstand zwischen Header, Mieter-Karten und Buttons.
-
-### Ergebnis
-- Mieter-Kontaktdaten haben mehr Platz (breitere Spalte + weniger Header-Elemente)
-- Buttons logisch unter den Mietern positioniert
-- Sauberes, aufgeräumtes Design
-
-Nur 1 Datei, reine Layout-Änderungen.
+### Keine DB-Änderungen nötig
+`zahlungen.immobilie_id` existiert bereits.
 
