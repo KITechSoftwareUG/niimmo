@@ -362,31 +362,13 @@ export function MietvertragContractInfo({
           </div>
 
           {/* RIGHT: Tenant Info - compact & copyable */}
-          <div className="space-y-1.5 md:border-l md:pl-4 border-border/50 md:w-64 md:min-w-[16rem]">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Mieter</h3>
-              {vertrag.status === 'aktiv' && !isGlobalEditMode && (
-                <div className="flex items-center gap-2">
-                  {onShowMahnung && (
-                    <Button variant="outline" size="sm" onClick={onShowMahnung} className="h-7 text-xs px-3 gap-1.5">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      Mahnung
-                    </Button>
-                  )}
-                  {onShowKuendigung && (
-                    <Button variant="destructive" size="sm" onClick={onShowKuendigung} className="h-7 text-xs px-3 gap-1.5">
-                      <XCircle className="h-3.5 w-3.5" />
-                      Kündigung
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
+          <div className="space-y-2.5 md:border-l md:pl-4 border-border/50 md:w-72 md:min-w-[18rem]">
+            <h3 className="text-sm font-semibold text-foreground">Mieter</h3>
             
             {mieter && mieter.length > 0 ? (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {mieter.map((m: any) => (
-                  <div key={m.id} className="space-y-1 p-1.5 rounded-md bg-muted/30 border border-border/30">
+                  <div key={m.id} className="space-y-1.5 p-2.5 rounded-md bg-muted/30 border border-border/30">
                     {/* Name */}
                     <div className="group flex items-center gap-1.5">
                       {isMieterEditing(m.id, 'vorname') ? (
@@ -493,6 +475,24 @@ export function MietvertragContractInfo({
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">Keine Mieter zugeordnet</p>
+            )}
+
+            {/* Action Buttons - below tenant list */}
+            {vertrag.status === 'aktiv' && !isGlobalEditMode && (
+              <div className="flex gap-2 pt-1">
+                {onShowMahnung && (
+                  <Button variant="outline" size="sm" onClick={onShowMahnung} className="h-8 text-xs flex-1 gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Mahnung
+                  </Button>
+                )}
+                {onShowKuendigung && (
+                  <Button variant="destructive" size="sm" onClick={onShowKuendigung} className="h-8 text-xs flex-1 gap-1.5">
+                    <XCircle className="h-3.5 w-3.5" />
+                    Kündigung
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>
