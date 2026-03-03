@@ -34,17 +34,21 @@ serve(async (req) => {
   }
 
   try {
-    const { fileContent, fileName, fileType, textContent } = await req.json();
+    const { textContent } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log(`Processing Tilgungsplan: ${fileName} (${fileType})`);
+    if (!textContent || typeof textContent !== 'string' || textContent.trim().length < 20) {
+      throw new Error("Bitte fügen Sie den Tilgungsplan-Text ein (mindestens 20 Zeichen).");
+    }
+
+    console.log(`Processing Tilgungsplan text (${textContent.length} chars)`);
 
     const systemPrompt = `Du bist ein Experte für die Extraktion von Darlehens- und Tilgungsplandaten aus deutschen Bankdokumenten.
-Analysiere das bereitgestellte Dokument und extrahiere folgende Informationen:
+Der Benutzer hat den Tilgungsplan als kopierten Text eingefügt. Analysiere den Text und extrahiere folgende Informationen:
 
 1. Darlehens-Stammdaten:
 - bezeichnung: Name/Bezeichnung des Darlehens (z.B. "KFW Darlehen Langenhagen")
@@ -66,6 +70,12 @@ Extrahiere ALLE Zeilen des Tilgungsplans als Array "zahlungen" mit:
 - zinsanteil: Zinsanteil in Euro (Zahl)
 - tilgungsanteil: Tilgungsanteil in Euro (Zahl)
 - restschuld_danach: Restschuld nach dieser Zahlung in Euro (Zahl)
+
+WICHTIG:
+- Der Text kann unformatiert oder tabellarisch sein, Spalten können durch Leerzeichen, Tabs oder andere Trennzeichen getrennt sein.
+- Deutsche Zahlenformate beachten: 1.250,00 = 1250.00
+- Manchmal stehen Datum und Betrag in verschiedenen Formaten — erkenne sie trotzdem.
+- Wenn Spalten nicht eindeutig sind, nutze den Kontext (z.B. Zinsanteil ist immer kleiner als Rate, Restschuld sinkt).
 
 Antworte NUR mit einem JSON-Objekt. Bei fehlenden Daten verwende null.
 
@@ -93,34 +103,6 @@ Beispiel:
   ]
 }`;
 
-    let userMessage: any;
-    if (textContent && typeof textContent === 'string' && textContent.trim().length > 0) {
-      userMessage = {
-        role: "user",
-        content: `Bitte analysiere diesen Tilgungsplan und extrahiere alle Daten:\n\n${textContent}`
-      };
-    } else if (fileContent) {
-      // Determine the correct MIME type for the image_url
-      const mimeType = fileType === 'application/pdf' ? 'application/pdf' : (fileType || 'image/png');
-      userMessage = {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "Bitte analysiere diesen Tilgungsplan und extrahiere alle Daten:"
-          },
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:${mimeType};base64,${fileContent}`
-            }
-          }
-        ]
-      };
-    } else {
-      throw new Error("Weder Text noch Dateiinhalt vorhanden");
-    }
-
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -128,10 +110,10 @@ Beispiel:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          userMessage
+          { role: "user", content: `Bitte analysiere diesen kopierten Tilgungsplan und extrahiere alle Daten:\n\n${textContent}` }
         ],
         max_tokens: 16000,
         temperature: 0.1
@@ -141,6 +123,20 @@ Beispiel:
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI Gateway error:", response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Rate-Limit erreicht. Bitte versuchen Sie es in einer Minute erneut." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, error: "AI-Guthaben aufgebraucht. Bitte laden Sie Ihr Guthaben auf." }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 402 }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ success: false, error: "AI-Verarbeitung fehlgeschlagen." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -151,7 +147,7 @@ Beispiel:
     const extractedText = aiResult.choices?.[0]?.message?.content;
 
     if (!extractedText) {
-      throw new Error("No content extracted from AI response");
+      throw new Error("Keine Daten aus der KI-Antwort extrahiert");
     }
 
     console.log("AI extracted text length:", extractedText.length);

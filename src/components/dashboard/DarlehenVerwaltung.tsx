@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { 
   ArrowLeft, Plus, Pencil, Trash2, Building2, Landmark, 
   TrendingDown, Calendar, Euro, Percent, ChevronDown, ChevronUp,
-  PieChart, TrendingUp, Wallet, Home, Shield, Upload, FileText, Loader2, Check, AlertTriangle
+  PieChart, TrendingUp, Wallet, Home, Shield, ClipboardPaste, FileText, Loader2, Check, AlertTriangle
 } from "lucide-react";
 
 interface DarlehenVerwaltungProps {
@@ -59,8 +59,9 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [form, setForm] = useState<DarlehenForm>(emptyForm);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // PDF Import state
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Text Import state
+  const [showTextImport, setShowTextImport] = useState(false);
+  const [importText, setImportText] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [showImportReview, setShowImportReview] = useState(false);
   const [importedData, setImportedData] = useState<any>(null);
@@ -170,65 +171,17 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     setShowForm(false);
   };
 
-  // PDF Import handler
-  const handlePdfImport = async (file: File) => {
+  // Text Import handler
+  const handleTextImport = async () => {
+    if (!importText.trim() || importText.trim().length < 20) {
+      toast.error("Bitte fügen Sie einen vollständigen Tilgungsplan ein (mindestens 20 Zeichen).");
+      return;
+    }
+    
     setIsImporting(true);
     try {
-      let textContent = '';
-      let base64 = '';
-
-      if (file.type === 'application/pdf') {
-        // Extract text from PDF
-        try {
-          let pdfjsLib: any;
-          try {
-            pdfjsLib = await import('pdfjs-dist/legacy/build/pdf');
-          } catch (e) {
-            pdfjsLib = await import('pdfjs-dist/build/pdf');
-          }
-          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-              'pdfjs-dist/legacy/build/pdf.worker.min.js',
-              import.meta.url
-            ).toString();
-          }
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          const numPages = Math.min(pdf.numPages, 10);
-          for (let i = 1; i <= numPages; i++) {
-            const page = await pdf.getPage(i);
-            const tc = await page.getTextContent();
-            textContent += '\n\n' + tc.items.map((item: any) => item.str).join(' ');
-          }
-          textContent = textContent.trim();
-        } catch (e) {
-          console.warn('PDF text extraction failed:', e);
-        }
-      }
-
-      // If no text extracted, send the raw file as base64
-      if (!textContent || textContent.length < 30) {
-        const reader = new FileReader();
-        base64 = await new Promise<string>((resolve, reject) => {
-          reader.onload = () => {
-            const result = reader.result as string;
-            const commaIdx = result.indexOf(',');
-            resolve(commaIdx >= 0 ? result.slice(commaIdx + 1) : result);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      }
-
-      const effectiveFileType = (!textContent || textContent.length < 30) ? file.type : file.type;
-
       const { data, error } = await supabase.functions.invoke('process-tilgungsplan-ocr', {
-        body: {
-          fileName: file.name,
-          fileType: effectiveFileType,
-          fileContent: base64,
-          textContent: textContent,
-        },
+        body: { textContent: importText.trim() },
       });
 
       if (error) throw new Error(error.message);
@@ -238,14 +191,14 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
       setImportedData(extracted);
       setImportedZahlungen(extracted.zahlungen || []);
       setImportImmobilienIds([]);
+      setShowTextImport(false);
       setShowImportReview(true);
       toast.success(`Tilgungsplan erkannt: ${extracted.zahlungen?.length || 0} Zahlungen extrahiert`);
     } catch (err: any) {
-      console.error('PDF Import Error:', err);
-      toast.error('PDF-Import fehlgeschlagen: ' + err.message);
+      console.error('Text Import Error:', err);
+      toast.error('Import fehlgeschlagen: ' + err.message);
     } finally {
       setIsImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -396,25 +349,14 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handlePdfImport(file);
-                }}
-              />
               <Button 
                 variant="outline" 
                 size="sm" 
                 className="gap-1.5"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
+                onClick={() => { setImportText(""); setShowTextImport(true); }}
               >
-                {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {isImporting ? "Wird analysiert..." : "PDF importieren"}
+                <ClipboardPaste className="h-4 w-4" />
+                Tilgungsplan einfügen
               </Button>
               <Button onClick={() => { resetForm(); setShowForm(true); }} size="sm" className="gap-1.5">
                 <Plus className="h-4 w-4" /> Neues Darlehen
@@ -960,6 +902,48 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
             >
               {saveImportMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               {saveImportMutation.isPending ? "Wird gespeichert..." : "Darlehen importieren"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Text Import Dialog */}
+      <Dialog open={showTextImport} onOpenChange={(open) => { if (!open) setShowTextImport(false); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardPaste className="h-5 w-5 text-primary" />
+              Tilgungsplan einfügen
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Kopieren Sie den gesamten Tilgungsplan aus Ihrem Bankdokument und fügen Sie ihn hier ein. 
+              Die KI erkennt automatisch alle Darlehensdetails und Zahlungen.
+            </p>
+            <div>
+              <Label className="text-xs">Tilgungsplan-Text</Label>
+              <Textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder={`Beispiel:\n\nDarlehen: KFW 124, IBAN DE49 2559...\nDarlehensbetrag: 116.000,00 EUR\nZinssatz: 0,76% p.a.\nRate: 363,33 EUR/Monat\n\nDatum        Rate      Zinsen    Tilgung   Restschuld\n30.10.2021   363,33    73,47     289,86    115.710,14\n30.11.2021   363,33    73,28     290,05    115.420,09\n...`}
+                rows={14}
+                className="font-mono text-xs"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {importText.length > 0 ? `${importText.length} Zeichen` : "Mindestens 20 Zeichen erforderlich"}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTextImport(false)}>Abbrechen</Button>
+            <Button 
+              onClick={handleTextImport} 
+              disabled={isImporting || importText.trim().length < 20}
+              className="gap-1.5"
+            >
+              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {isImporting ? "KI analysiert..." : "Analysieren"}
             </Button>
           </DialogFooter>
         </DialogContent>
