@@ -1,35 +1,39 @@
 
 
-## Plan: Tilgungsplan-Import für Volksbank optimieren
+## Plan: Dedizierte SMTP-Konfiguration für Übergabe-E-Mails
 
-### Probleme identifiziert
+### Aktueller Stand
 
-1. **Restschuld wird als 0 gespeichert**: `loanData.restschuld || 0` — wenn der Wert negativ ist (z.B. `-290933.56`), greift `|| 0` zwar nicht, aber die KI extrahiert den Wert teilweise gar nicht oder als 0.
-2. **AI-Prompt zu generisch**: Sagt nur "letzte Restschuld im Plan", aber der User will den "Aktueller Kontostand" aus den Kopfdaten des Volksbank-Dokuments.
-3. **Negative Werte**: Volksbank zeigt Restschuld/Kontostand als negative Zahlen (z.B. `-290.933,56 EUR`). Diese müssen als positive Beträge gespeichert werden.
-4. **Volksbank-spezifische Felder** werden nicht extrahiert: Zinsbindungsende, Restschuld zum Zinsbindungsende, BIC, Ursprungsdarlehen.
+Die Edge Function `send-uebergabe-email` nutzt die allgemeinen SMTP-Secrets (`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM_EMAIL`, `SMTP_FROM_NAME`). Der User möchte eine separate E-Mail-Adresse speziell für Übergabe-Benachrichtigungen verwenden.
 
 ### Änderungen
 
-#### 1. Edge Function `process-tilgungsplan-ocr/index.ts` — AI-Prompt optimieren
+#### 1. Neue Supabase Secrets anlegen
 
-Den System-Prompt komplett auf das Volksbank-Format ausrichten:
+Sobald der User die Zugangsdaten liefert, werden diese als eigene Secrets gespeichert:
 
-- **Kopfdaten-Priorität betonen**: "Die wichtigsten Daten stehen im Kopfbereich des Dokuments (Kontoinhaber, IBAN, Ursprungsdarlehen, Aktueller Kontostand, Zinsbindungsende, Restschuld zum Zinsbindungsende)."
-- **`restschuld`** = Absoluter Wert von "Aktueller Kontostand" (nicht letzte Zeile im Tilgungsplan)
-- **Neues Feld `restschuld_zinsbindungsende`**: Separates Feld für "Restschuld zum Zinsbindungsende"
-- **Vorzeichen-Anweisung**: "Alle Beträge als positive Zahlen zurückgeben. Negative Vorzeichen im Dokument ignorieren."
-- **Volksbank-Beispiel** im Prompt mit dem exakten Format aus dem Screenshot (Kontoinhaber, IBAN, BIC, Zinsbindungsende, Ursprungsdarlehen, Aktueller Kontostand, Restschuld zum Zinsbindungsende)
-- **Tilgungsplan-Spalten**: Zeitraum (MM.YYYY → YYYY-MM-01), Zahlung, Tilgung, Sollzinsen, Restschuld
-- **`max_tokens` auf 32000 erhöhen** — Tilgungspläne können lang sein
+- `UEBERGABE_SMTP_HOST` (falls abweichend vom bestehenden SMTP-Server)
+- `UEBERGABE_SMTP_PORT`
+- `UEBERGABE_SMTP_USER`
+- `UEBERGABE_SMTP_PASS`
+- `UEBERGABE_SMTP_FROM_EMAIL` — die neue dedizierte Adresse
+- `UEBERGABE_SMTP_FROM_NAME` — z.B. "NilImmo Übergabe"
 
-#### 2. `DarlehenVerwaltung.tsx` — Import-Speicherlogik korrigieren
+#### 2. Edge Function `send-uebergabe-email/index.ts` anpassen
 
-- **Restschuld-Übernahme**: `Math.abs(loanData.restschuld)` statt `loanData.restschuld || 0` — negative Werte werden positiv, und `0` bleibt `0` wenn wirklich kein Wert da ist.
-- **Alle numerischen Felder mit `Math.abs()`**: darlehensbetrag, restschuld, monatliche_rate, zinssatz_prozent, tilgungssatz_prozent
-- **Restschuld zum Zinsbindungsende** in Notizen aufnehmen, wenn vorhanden
-- **Review-Modal**: "Aktueller Kontostand" Label statt "Restschuld" für bessere Klarheit
+- Zuerst die `UEBERGABE_SMTP_*` Secrets prüfen
+- Fallback auf die allgemeinen `SMTP_*` Secrets, wenn die dedizierten nicht gesetzt sind
+- So funktioniert alles weiterhin, auch bevor die neuen Secrets konfiguriert sind
 
-### Kein DB-Schema-Änderung nötig
-`restschuld_zinsbindungsende` wird in `notizen` aufgenommen.
+```
+Priorität: UEBERGABE_SMTP_HOST → SMTP_HOST (Fallback)
+```
+
+#### 3. Keine Frontend-Änderung nötig
+
+Der Absender wird serverseitig in der Edge Function bestimmt — das Frontend bleibt unverändert.
+
+### Nächster Schritt
+
+Bitte teile mir die SMTP-Zugangsdaten für die neue E-Mail-Adresse mit (Host, Port, Benutzername, Passwort, Absenderadresse, Absendername). Ich speichere sie dann als Supabase Secrets und passe die Edge Function an.
 
