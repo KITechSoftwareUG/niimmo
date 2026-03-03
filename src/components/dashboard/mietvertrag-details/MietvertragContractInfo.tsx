@@ -362,8 +362,8 @@ export function MietvertragContractInfo({
           </div>
 
           {/* RIGHT: Tenant Info - compact & copyable */}
-          <div className="space-y-3 md:border-l md:pl-4 border-border/50 md:w-64 md:min-w-[16rem]">
-            <div className="flex items-center justify-between mb-1">
+          <div className="space-y-1.5 md:border-l md:pl-4 border-border/50 md:w-64 md:min-w-[16rem]">
+            <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">Mieter</h3>
               {vertrag.status === 'aktiv' && !isGlobalEditMode && (
                 <div className="flex items-center gap-2">
@@ -384,9 +384,9 @@ export function MietvertragContractInfo({
             </div>
             
             {mieter && mieter.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {mieter.map((m: any) => (
-                  <div key={m.id} className="space-y-1.5 p-2 rounded-md bg-muted/30 border border-border/30">
+                  <div key={m.id} className="space-y-1 p-1.5 rounded-md bg-muted/30 border border-border/30">
                     {/* Name */}
                     <div className="group flex items-center gap-1.5">
                       {isMieterEditing(m.id, 'vorname') ? (
