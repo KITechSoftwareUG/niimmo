@@ -10,21 +10,16 @@ interface MietvertragEditableFieldProps {
   isEditing: boolean;
   onEdit: () => void;
   onSave: (value: string) => void;
-  /**
-   * Optional: called on every input change (useful for global edit mode)
-   */
   onValueChange?: (value: string) => void;
   onCancel: () => void;
   type?: "text" | "number" | "textarea" | "date";
   step?: string;
   className?: string;
+  inputClassName?: string;
   formatter?: (value: string | number) => string;
   showLastUpdate?: string;
   placeholder?: string;
   hideEditButton?: boolean;
-  /**
-   * When true, hides the per-field ✅/✖ buttons (use global save/cancel instead)
-   */
   isGlobalEditMode?: boolean;
 }
 
@@ -39,6 +34,7 @@ export function MietvertragEditableField({
   type = "text",
   step,
   className = "",
+  inputClassName,
   formatter,
   showLastUpdate,
   placeholder,
@@ -95,7 +91,7 @@ export function MietvertragEditableField({
                 setEditValue(next);
                 onValueChange?.(next);
               }}
-              className={`w-full h-8 text-sm ${type === 'date' ? 'sm:w-44' : 'sm:w-32'}`}
+              className={inputClassName || `w-full h-8 text-sm ${type === 'date' ? 'sm:w-44' : 'sm:w-32'}`}
               placeholder={type === "number" ? "0.00" : placeholder || ""}
             />
           )}
