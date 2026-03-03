@@ -584,17 +584,18 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonder
   
   // 1. IBAN-Match (highest priority - includes weitere_bankkonten)
   // Collect ALL matching contracts first, then select best one by date
+  // WICHTIG: BG-IBAN ausschließen — Verträge mit der staatlichen BG-IBAN dürfen nicht per IBAN gematcht werden
   const ibanMatchedContracts: { contract: ContractInfo; matchType: 'primary' | 'weitere' }[] = [];
   
   for (const contract of contracts) {
-    // Primary IBAN
-    if (contract.iban && payment.iban === contract.iban) {
+    // Primary IBAN — skip if it's the BG-IBAN (staatliche Zahlung, nicht mieter-spezifisch)
+    if (contract.iban && payment.iban === contract.iban && contract.iban !== BG_ZAHLUNG_IBAN) {
       ibanMatchedContracts.push({ contract, matchType: 'primary' });
     }
     
-    // Weitere Bankkonten (comma-separated)
+    // Weitere Bankkonten (comma-separated) — also skip BG-IBAN entries
     if (contract.weitere_iban) {
-      const weitereIbans = contract.weitere_iban.split(',').map(i => i.trim());
+      const weitereIbans = contract.weitere_iban.split(',').map(i => i.trim()).filter(i => i !== BG_ZAHLUNG_IBAN);
       if (weitereIbans.includes(payment.iban)) {
         ibanMatchedContracts.push({ contract, matchType: 'weitere' });
       }
@@ -739,6 +740,151 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonder
   return null;
 }
 
+// ============= BG-ZAHLUNG REGELBASIERTES MATCHING =============
+
+/**
+ * Dediziertes regelbasiertes Matching für BG-Zahlungen (Bundesagentur für Arbeit / Jobcenter).
+ * BG-Zahlungen enthalten IMMER den Mieternamen im Verwendungszweck.
+ * 
+ * Strategie:
+ * 1. Jeden Vertragsnachnamen (≥4 Zeichen) als exakten Substring im Verwendungszweck suchen
+ * 2. Fuzzy-Matching (Levenshtein ≤1) für Schreibvarianten (z.B. "Hickes" ↔ "Hickey")
+ * 3. Adress-Match als Tiebreaker bei mehreren Namens-Treffern
+ * 4. Kaution-Erkennung wenn "Kaution" im Text + Betrag passt
+ */
+function matchBGPaymentByName(payment: Payment, contracts: ContractInfo[]): ProcessedPayment | null {
+  const verwendungszweck = (payment.verwendungszweck || "").toLowerCase();
+  
+  if (!verwendungszweck) return null;
+  
+  interface BGMatch {
+    contract: ContractInfo;
+    matchedName: string;
+    isExact: boolean; // exact substring vs fuzzy
+    hasAddressMatch: boolean;
+  }
+  
+  const matches: BGMatch[] = [];
+  
+  for (const contract of contracts) {
+    if (!contract.mieterNamen || contract.mieterNamen.length === 0) continue;
+    
+    let bestNameMatch: { name: string; isExact: boolean } | null = null;
+    
+    for (const name of contract.mieterNamen) {
+      // Only match surnames (≥4 chars) to avoid false positives with short first names
+      if (name.length < 4) continue;
+      
+      // 1. Exact substring match
+      if (verwendungszweck.includes(name)) {
+        bestNameMatch = { name, isExact: true };
+        break; // Exact match found, no need to check further
+      }
+      
+      // 2. Fuzzy match — check each word in verwendungszweck against this name
+      // This catches "Hickes" ↔ "Hickey", "Vaduva" ↔ "Waduva" etc.
+      const words = verwendungszweck.split(/[\s\/,.\-;:]+/).filter(w => w.length >= 4);
+      for (const word of words) {
+        // Word must be similar length (±2 chars)
+        if (Math.abs(word.length - name.length) > 2) continue;
+        
+        const distance = levenshteinDistance(word, name);
+        // Allow max distance 1 for names ≥4 chars, ensuring quality match
+        if (distance <= 1 && distance > 0) {
+          if (!bestNameMatch || !bestNameMatch.isExact) {
+            bestNameMatch = { name, isExact: false };
+          }
+        }
+      }
+    }
+    
+    if (!bestNameMatch) continue;
+    
+    // Check for address match as tiebreaker
+    let hasAddressMatch = false;
+    const immobilieLower = contract.immobilie.toLowerCase();
+    // Extract meaningful location words from immobilie (≥4 chars, no pure numbers)
+    const locationWords = immobilieLower
+      .split(/[\s,.\-\/]+/)
+      .filter(w => w.length >= 4 && !/^\d+$/.test(w))
+      .filter(w => !["straße", "strasse", "gasse", "platz", "ring"].includes(w));
+    
+    for (const locWord of locationWords) {
+      if (verwendungszweck.includes(locWord)) {
+        hasAddressMatch = true;
+        break;
+      }
+    }
+    
+    matches.push({
+      contract,
+      matchedName: bestNameMatch.name,
+      isExact: bestNameMatch.isExact,
+      hasAddressMatch,
+    });
+  }
+  
+  if (matches.length === 0) return null;
+  
+  // Select best match
+  let bestMatch: BGMatch;
+  
+  if (matches.length === 1) {
+    bestMatch = matches[0];
+  } else {
+    // Multiple matches — prioritize: exact+address > exact > fuzzy+address > fuzzy
+    matches.sort((a, b) => {
+      const scoreA = (a.isExact ? 2 : 0) + (a.hasAddressMatch ? 1 : 0);
+      const scoreB = (b.isExact ? 2 : 0) + (b.hasAddressMatch ? 1 : 0);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      // Tiebreak by contract status (aktiv > gekündigt > beendet)
+      const statusPriority: Record<string, number> = { "aktiv": 0, "gekuendigt": 1, "beendet": 2 };
+      return (statusPriority[a.contract.status] ?? 99) - (statusPriority[b.contract.status] ?? 99);
+    });
+    bestMatch = matches[0];
+    console.log(`BG-Match: ${matches.length} Kandidaten, gewählt: ${bestMatch.contract.mieter} (exact=${bestMatch.isExact}, address=${bestMatch.hasAddressMatch})`);
+  }
+  
+  // Also filter by date if possible
+  const dateValidMatches = matches.filter(m => isPaymentInContractPeriod(payment.buchungsdatum, m.contract));
+  if (dateValidMatches.length === 1) {
+    bestMatch = dateValidMatches[0];
+  } else if (dateValidMatches.length > 1) {
+    // Re-sort date-valid matches
+    dateValidMatches.sort((a, b) => {
+      const scoreA = (a.isExact ? 2 : 0) + (a.hasAddressMatch ? 1 : 0);
+      const scoreB = (b.isExact ? 2 : 0) + (b.hasAddressMatch ? 1 : 0);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      const statusPriority: Record<string, number> = { "aktiv": 0, "gekuendigt": 1, "beendet": 2 };
+      return (statusPriority[a.contract.status] ?? 99) - (statusPriority[b.contract.status] ?? 99);
+    });
+    bestMatch = dateValidMatches[0];
+  }
+  
+  // Determine category: Kaution or Miete
+  let kategorie = "Miete";
+  const kautionInText = verwendungszweck.includes("kaution");
+  if (kautionInText && bestMatch.contract.kaution && 
+      Math.abs(payment.betrag - bestMatch.contract.kaution) <= BETRAG_TOLERANZ) {
+    kategorie = "Mietkaution";
+  }
+  
+  const confidence = bestMatch.isExact ? 90 : 80;
+  const matchDetail = bestMatch.isExact ? "Exakter Namens-Match" : "Fuzzy-Namens-Match";
+  const addressDetail = bestMatch.hasAddressMatch ? " + Adress-Match" : "";
+  
+  console.log(`BG-Zahlung regelbasiert zugeordnet: "${bestMatch.matchedName}" → ${bestMatch.contract.mieter} (${matchDetail}${addressDetail}, confidence=${confidence})`);
+  
+  return {
+    ...payment,
+    mietvertrag_id: bestMatch.contract.id,
+    kategorie,
+    zuordnungsgrund: `BG-Zahlung ${matchDetail}${addressDetail}: "${bestMatch.matchedName}" → ${bestMatch.contract.mieter}`,
+    confidence,
+    selected: true
+  };
+}
+
 // ============= AI PROCESSING =============
 
 async function processBGZahlung(
@@ -756,21 +902,28 @@ Analysiere die Zahlung vom Jobcenter/Sozialamt und ordne sie dem richtigen Miete
 - Vergleiche mit den Mieternamen in den Verträgen
 - Prüfe ob der Betrag zur Miete oder Kaution passt
 - Bei "Kaution" im Verwendungszweck UND passendem Betrag → "Mietkaution"
-- Sonst → "Miete"`;
+- Sonst → "Miete"
+- BG-Zahlungen sind IMMER Mietzahlungen oder Mietkautionen, NIEMALS Nichtmiete!`;
 
   const userPrompt = `BG-Zahlung (Jobcenter) analysieren:
 - Betrag: ${payment.betrag} €
 - Verwendungszweck: ${payment.verwendungszweck}
 - Datum: ${payment.buchungsdatum}
 
-Finde den passenden Mieter und kategorisiere die Zahlung.`;
+Finde den passenden Mieter und kategorisiere die Zahlung. Dies ist IMMER eine Miete oder Mietkaution!`;
 
   try {
     const result = await callAI(systemPrompt, userPrompt);
+    // BG-Zahlungen sind NIEMALS Nichtmiete — override if AI says so
+    let kategorie = result.kategorie || "Miete";
+    if (kategorie === "Nichtmiete" || kategorie === "Ignorieren") {
+      kategorie = "Miete";
+      console.log(`BG-Zahlung AI override: Kategorie "${result.kategorie}" → "Miete" (BG-Zahlungen sind immer Miete)`);
+    }
     return {
       ...payment,
       mietvertrag_id: result.mietvertrag_id || null,
-      kategorie: result.kategorie || "Miete",
+      kategorie,
       zuordnungsgrund: result.zuordnungsgrund,
       confidence: result.confidence,
       selected: true
@@ -1155,7 +1308,14 @@ serve(async (req) => {
           needsAI.push({ payment, type: "retoure" });
         }
       } else if (paymentType === "bg_zahlung") {
-        needsAI.push({ payment, type: "bg_zahlung" });
+        // BG-Zahlung: Erst regelbasiertes Namens-Matching, dann KI als Fallback
+        const bgMatch = matchBGPaymentByName(payment, contracts);
+        if (bgMatch) {
+          results.push(bgMatch);
+        } else {
+          console.log(`BG-Zahlung: Kein regelbasierter Match für "${payment.verwendungszweck}" — weiter an KI`);
+          needsAI.push({ payment, type: "bg_zahlung" });
+        }
       } else {
         const ruleMatch = matchPaymentByRules(payment, contracts, sonderfallRegeln);
         if (ruleMatch) {
