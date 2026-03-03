@@ -1,60 +1,35 @@
 
 
-## Analyse: Warum BG-Zahlungen (Bundesagentur für Arbeit) nicht zugeordnet werden
+## Plan: Tilgungsplan-Import für Volksbank optimieren
 
-### Das Problem im Detail
+### Probleme identifiziert
 
-Die Zahlung `782,76€ Bundesagentur fuer Arbeit — Miete Vaduva Leverster Str. 6` hat die IBAN `DE94760000000076001601`. Das ist die hardcoded `BG_ZAHLUNG_IBAN` (Zeile 19).
+1. **Restschuld wird als 0 gespeichert**: `loanData.restschuld || 0` — wenn der Wert negativ ist (z.B. `-290933.56`), greift `|| 0` zwar nicht, aber die KI extrahiert den Wert teilweise gar nicht oder als 0.
+2. **AI-Prompt zu generisch**: Sagt nur "letzte Restschuld im Plan", aber der User will den "Aktueller Kontostand" aus den Kopfdaten des Volksbank-Dokuments.
+3. **Negative Werte**: Volksbank zeigt Restschuld/Kontostand als negative Zahlen (z.B. `-290.933,56 EUR`). Diese müssen als positive Beträge gespeichert werden.
+4. **Volksbank-spezifische Felder** werden nicht extrahiert: Zinsbindungsende, Restschuld zum Zinsbindungsende, BIC, Ursprungsdarlehen.
 
-**Aktueller Ablauf für BG-Zahlungen:**
-1. `categorizePaymentType()` erkennt die IBAN → gibt `"bg_zahlung"` zurück (Zeile 397-399)
-2. Das bedeutet: **Die gesamte regelbasierte Zuordnung wird übersprungen** (Zeile 1157-1158)
-3. Die Zahlung geht direkt an die KI (`processBGZahlung`)
-4. Die KI bekommt den gesamten Vertragskontext als JSON und soll den Namen im Verwendungszweck finden
-5. Die KI versagt bei ~30% der Fälle (3 von 10 Zahlungen falsch als "Nichtmiete" kategorisiert)
+### Änderungen
 
-**Konkrete Fehler aus der DB:**
-- `Hickes Bahnhofstr. 18` → **Nichtmiete** (Mieter heißt "Hickey" — Schreibvariante!)
-- `A. Feistel Hildesheim` → **Nichtmiete** (kein "Miete"-Keyword im Text)
-- `Familie Khider/ Levester Str.6` → **Nichtmiete** (kein "Miete"-Keyword)
+#### 1. Edge Function `process-tilgungsplan-ocr/index.ts` — AI-Prompt optimieren
 
-**Zusätzliches Risiko:** Einige Mietverträge haben `bankkonto_mieter = DE94760000000076001601` (die BG-IBAN) eingetragen. Falls BG-Zahlungen durch die normale IBAN-Zuordnung laufen würden, würden sie dem falschen Vertrag zugeordnet.
+Den System-Prompt komplett auf das Volksbank-Format ausrichten:
 
-### Lösung: Dedizierte regelbasierte BG-Namensextraktion VOR der KI
+- **Kopfdaten-Priorität betonen**: "Die wichtigsten Daten stehen im Kopfbereich des Dokuments (Kontoinhaber, IBAN, Ursprungsdarlehen, Aktueller Kontostand, Zinsbindungsende, Restschuld zum Zinsbindungsende)."
+- **`restschuld`** = Absoluter Wert von "Aktueller Kontostand" (nicht letzte Zeile im Tilgungsplan)
+- **Neues Feld `restschuld_zinsbindungsende`**: Separates Feld für "Restschuld zum Zinsbindungsende"
+- **Vorzeichen-Anweisung**: "Alle Beträge als positive Zahlen zurückgeben. Negative Vorzeichen im Dokument ignorieren."
+- **Volksbank-Beispiel** im Prompt mit dem exakten Format aus dem Screenshot (Kontoinhaber, IBAN, BIC, Zinsbindungsende, Ursprungsdarlehen, Aktueller Kontostand, Restschuld zum Zinsbindungsende)
+- **Tilgungsplan-Spalten**: Zeitraum (MM.YYYY → YYYY-MM-01), Zahlung, Tilgung, Sollzinsen, Restschuld
+- **`max_tokens` auf 32000 erhöhen** — Tilgungspläne können lang sein
 
-**Datei: `supabase/functions/process-payments/index.ts`**
+#### 2. `DarlehenVerwaltung.tsx` — Import-Speicherlogik korrigieren
 
-#### 1. Neue Funktion `matchBGPaymentByName()`
-Extrahiert den Mieternamen aus dem Verwendungszweck einer BG-Zahlung und gleicht ihn mit den Verträgen ab:
+- **Restschuld-Übernahme**: `Math.abs(loanData.restschuld)` statt `loanData.restschuld || 0` — negative Werte werden positiv, und `0` bleibt `0` wenn wirklich kein Wert da ist.
+- **Alle numerischen Felder mit `Math.abs()`**: darlehensbetrag, restschuld, monatliche_rate, zinssatz_prozent, tilgungssatz_prozent
+- **Restschuld zum Zinsbindungsende** in Notizen aufnehmen, wenn vorhanden
+- **Review-Modal**: "Aktueller Kontostand" Label statt "Restschuld" für bessere Klarheit
 
-- **Nachnamen-Extraktion:** Sucht jeden Vertragsnachnamen (≥4 Zeichen) als Substring im Verwendungszweck
-- **Fuzzy-Matching:** Nutzt die vorhandene `fuzzyMatch()`-Funktion für Schreibvarianten (z.B. "Hickes" ↔ "Hickey", Levenshtein-Distanz ≤1)
-- **Adress-Match als Tiebreaker:** Wenn mehrere Namens-Matches existieren, prüft auch Straßennamen im Verwendungszweck
-- **IBAN-Matching explizit ausgeschlossen:** Die BG-IBAN wird nie für Vertragsauswahl verwendet
-- **Confidence:** 90 bei exaktem Namens-Match, 80 bei Fuzzy-Match
-
-#### 2. Hauptschleife anpassen (Zeile 1157-1158)
-Statt BG-Zahlungen sofort an die KI zu schicken:
-```
-bg_zahlung erkannt
-  → matchBGPaymentByName() versuchen (regelbasiert)
-  → Bei Treffer: direkt in results mit Kategorie "Miete"
-  → Kein Treffer: weiter an processBGZahlung() (KI-Fallback)
-```
-
-#### 3. BG-IBAN aus IBAN-Matching ausschließen (Zeile 585-625)
-Im normalen IBAN-Matching (`matchPaymentByRules`): Verträge mit `bankkonto_mieter = BG_ZAHLUNG_IBAN` überspringen, damit nicht-BG-Zahlungen nicht fälschlicherweise diesen Verträgen zugeordnet werden.
-
-#### 4. Kaution-Erkennung für BG-Zahlungen
-Wenn der Verwendungszweck "Kaution" enthält UND der Betrag zur Kaution passt → Kategorie "Mietkaution" statt "Miete" (wie bei der Sonderfall-Regel für Noah Weich).
-
-### Warum das 100% zuverlässig wird
-
-- **BG-Zahlungen enthalten IMMER den Mieternamen im Verwendungszweck** — das ist der Standard der Bundesagentur
-- Regelbasiertes Matching ist deterministisch (kein KI-Zufall)
-- Fuzzy-Matching fängt Schreibvarianten ab (Hickes/Hickey, Vaduva/Waduva)
-- KI bleibt als Fallback für wirklich unklare Fälle
-
-### Nur 1 Datei betroffen
-`supabase/functions/process-payments/index.ts`
+### Kein DB-Schema-Änderung nötig
+`restschuld_zinsbindungsende` wird in `notizen` aufgenommen.
 
