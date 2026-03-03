@@ -116,7 +116,15 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
   const saveMutation = useMutation({
     mutationFn: async (formData: DarlehenForm) => {
-      const { immobilien_ids, ...darlehenData } = formData;
+      const { immobilien_ids, ...rawData } = formData;
+      const darlehenData = {
+        ...rawData,
+        start_datum: rawData.start_datum || null,
+        ende_datum: rawData.ende_datum || null,
+        bank: rawData.bank || null,
+        kontonummer: rawData.kontonummer || null,
+        notizen: rawData.notizen || null,
+      };
       
       let darlehenId = editId;
       
