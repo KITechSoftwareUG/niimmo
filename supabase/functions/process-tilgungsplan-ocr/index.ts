@@ -47,58 +47,76 @@ serve(async (req) => {
 
     console.log(`Processing Tilgungsplan text (${textContent.length} chars)`);
 
-    const systemPrompt = `Du bist ein Experte für die Extraktion von Darlehens- und Tilgungsplandaten aus deutschen Bankdokumenten.
-Der Benutzer hat den Tilgungsplan als kopierten Text eingefügt. Analysiere den Text und extrahiere folgende Informationen:
+    const systemPrompt = `Du bist ein Experte für die Extraktion von Darlehens- und Tilgungsplandaten aus Volksbank-Dokumenten.
+
+WICHTIG — VOLKSBANK-FORMAT:
+Die Dokumente haben immer dasselbe Format. Die wichtigsten Daten stehen im KOPFBEREICH des Dokuments:
+- Kontoinhaber (= bezeichnung)
+- IBAN (= kontonummer)
+- BIC
+- Zinsbindungsende (= ende_datum)
+- Ursprungsdarlehen (= darlehensbetrag)
+- Aktueller Kontostand (= restschuld) — ACHTUNG: Steht oft als negativer Betrag, z.B. "-290.933,56 EUR". Den ABSOLUTEN WERT als restschuld verwenden!
+- Restschuld zum Zinsbindungsende (= restschuld_zinsbindungsende) — ebenfalls als positiven Wert
+
+VORZEICHEN-REGEL: Alle Beträge IMMER als POSITIVE Zahlen zurückgeben. Negative Vorzeichen im Dokument ignorieren und den Absolutwert nehmen.
+
+Danach folgt der Tilgungsplan als Tabelle mit Spalten:
+- Zeitraum (Format MM.YYYY) → als buchungsdatum im Format YYYY-MM-01 zurückgeben
+- Zahlung (= betrag, Gesamtrate)
+- Tilgung (= tilgungsanteil)
+- Sollzinsen (= zinsanteil)
+- Restschuld (= restschuld_danach)
+
+Extrahiere folgende Felder:
 
 1. Darlehens-Stammdaten:
-- bezeichnung: Name/Bezeichnung des Darlehens (z.B. "KFW Darlehen Langenhagen")
-- bank: Name der Bank
-- kontonummer: IBAN oder Kontonummer des Darlehens
-- darlehensbetrag: Ursprünglicher Darlehensbetrag in Euro (Zahl)
-- restschuld: Aktuelle Restschuld in Euro (Zahl, die letzte im Plan genannte)
-- zinssatz_prozent: Zinssatz in Prozent (Zahl)
-- tilgungssatz_prozent: Tilgungssatz in Prozent falls angegeben (Zahl oder null)
-- monatliche_rate: Monatliche Rate/Annuität in Euro (Zahl)
-- start_datum: Startdatum des Darlehens (Format: YYYY-MM-DD)
-- ende_datum: Enddatum/Zinsbindungsende (Format: YYYY-MM-DD oder null)
-- notizen: Wichtige Zusatzinfos wie Zinsbindungsende, Sondertilgungsrechte etc.
+- bezeichnung: Kontoinhaber oder Name des Darlehens
+- bank: "Volksbank" (oder aus dem Dokument, falls anders)
+- kontonummer: IBAN
+- darlehensbetrag: Ursprungsdarlehen in Euro (positiv!)
+- restschuld: Absoluter Wert von "Aktueller Kontostand" (positiv!)
+- zinssatz_prozent: Zinssatz in Prozent
+- tilgungssatz_prozent: Tilgungssatz falls angegeben, sonst null
+- monatliche_rate: Monatliche Rate in Euro (aus der ersten Zahlung im Plan oder den Kopfdaten)
+- start_datum: Erstes Datum im Tilgungsplan (Format YYYY-MM-DD)
+- ende_datum: Zinsbindungsende (Format YYYY-MM-DD)
+- restschuld_zinsbindungsende: Restschuld zum Zinsbindungsende (positiv!) — separates Feld
+- notizen: Weitere relevante Infos (BIC, Sondertilgungsrechte etc.)
 
-2. Tilgungsplan-Zahlungen (Array):
-Extrahiere ALLE Zeilen des Tilgungsplans als Array "zahlungen" mit:
-- buchungsdatum: Datum der Zahlung (Format: YYYY-MM-DD)
-- betrag: Gesamtbetrag der Rate in Euro (Zahl, positiv)
-- zinsanteil: Zinsanteil in Euro (Zahl)
-- tilgungsanteil: Tilgungsanteil in Euro (Zahl)
-- restschuld_danach: Restschuld nach dieser Zahlung in Euro (Zahl)
+2. Tilgungsplan-Zahlungen (Array "zahlungen"):
+Extrahiere ALLE Zeilen des Tilgungsplans:
+- buchungsdatum: Zeitraum MM.YYYY → Format YYYY-MM-01
+- betrag: Zahlung (Gesamtrate, positiv)
+- zinsanteil: Sollzinsen (positiv)
+- tilgungsanteil: Tilgung (positiv)
+- restschuld_danach: Restschuld nach dieser Zahlung (positiv)
 
-WICHTIG:
-- Der Text kann unformatiert oder tabellarisch sein, Spalten können durch Leerzeichen, Tabs oder andere Trennzeichen getrennt sein.
-- Deutsche Zahlenformate beachten: 1.250,00 = 1250.00
-- Manchmal stehen Datum und Betrag in verschiedenen Formaten — erkenne sie trotzdem.
-- Wenn Spalten nicht eindeutig sind, nutze den Kontext (z.B. Zinsanteil ist immer kleiner als Rate, Restschuld sinkt).
+DEUTSCHE ZAHLENFORMATE: 1.250,00 = 1250.00 / 290.933,56 = 290933.56
 
-Antworte NUR mit einem JSON-Objekt. Bei fehlenden Daten verwende null.
+Antworte NUR mit einem JSON-Objekt. Kein zusätzlicher Text, keine Erklärungen.
 
-Beispiel:
+Beispiel-Antwort:
 {
-  "bezeichnung": "KFW Darlehen",
+  "bezeichnung": "Max Mustermann",
   "bank": "Volksbank",
   "kontonummer": "DE49 2559 1413 3155 4105 42",
-  "darlehensbetrag": 1116000.00,
-  "restschuld": 645618.49,
+  "darlehensbetrag": 300000.00,
+  "restschuld": 290933.56,
   "zinssatz_prozent": 0.76,
-  "tilgungssatz_prozent": 3.15,
+  "tilgungssatz_prozent": null,
   "monatliche_rate": 3630.33,
   "start_datum": "2021-10-01",
   "ende_datum": "2031-09-30",
-  "notizen": "Zinsbindung bis 30.09.2031, Restschuld bei Zinsbindungsende: 421.847,59 EUR",
+  "restschuld_zinsbindungsende": 210000.00,
+  "notizen": "BIC: GENODEF1NIE",
   "zahlungen": [
     {
-      "buchungsdatum": "2021-10-30",
+      "buchungsdatum": "2021-10-01",
       "betrag": 3630.33,
       "zinsanteil": 706.80,
       "tilgungsanteil": 2923.53,
-      "restschuld_danach": 1113076.47
+      "restschuld_danach": 297076.47
     }
   ]
 }`;
@@ -113,9 +131,9 @@ Beispiel:
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Bitte analysiere diesen kopierten Tilgungsplan und extrahiere alle Daten:\n\n${textContent}` }
+          { role: "user", content: `Bitte analysiere diesen kopierten Volksbank-Tilgungsplan und extrahiere alle Daten. Achte besonders auf den "Aktueller Kontostand" im Kopfbereich — das ist die Restschuld!\n\n${textContent}` }
         ],
-        max_tokens: 16000,
+        max_tokens: 32000,
         temperature: 0.1
       }),
     });
@@ -155,7 +173,26 @@ Beispiel:
     const cleanedText = extractedText.replace(/```json\n?|\n?```/g, '').trim();
     const extractedData = JSON.parse(cleanedText);
 
-    console.log("Extracted loan:", extractedData.bezeichnung, "with", extractedData.zahlungen?.length || 0, "payments");
+    // Post-processing: ensure all numeric values are positive (absolute values)
+    const absNum = (v: any) => (typeof v === 'number' ? Math.abs(v) : v);
+    extractedData.darlehensbetrag = absNum(extractedData.darlehensbetrag);
+    extractedData.restschuld = absNum(extractedData.restschuld);
+    extractedData.monatliche_rate = absNum(extractedData.monatliche_rate);
+    extractedData.zinssatz_prozent = absNum(extractedData.zinssatz_prozent);
+    extractedData.tilgungssatz_prozent = absNum(extractedData.tilgungssatz_prozent);
+    extractedData.restschuld_zinsbindungsende = absNum(extractedData.restschuld_zinsbindungsende);
+
+    if (Array.isArray(extractedData.zahlungen)) {
+      extractedData.zahlungen = extractedData.zahlungen.map((z: any) => ({
+        ...z,
+        betrag: absNum(z.betrag),
+        zinsanteil: absNum(z.zinsanteil),
+        tilgungsanteil: absNum(z.tilgungsanteil),
+        restschuld_danach: absNum(z.restschuld_danach),
+      }));
+    }
+
+    console.log("Extracted loan:", extractedData.bezeichnung, "restschuld:", extractedData.restschuld, "with", extractedData.zahlungen?.length || 0, "payments");
 
     return new Response(
       JSON.stringify({

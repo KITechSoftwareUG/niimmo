@@ -215,19 +215,27 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     mutationFn: async () => {
       if (!importedData) throw new Error('Keine Daten');
 
-      const { zahlungen: _, ...loanData } = importedData;
+      const { zahlungen: _, restschuld_zinsbindungsende, ...loanData } = importedData;
+      
+      // Build notizen: include restschuld_zinsbindungsende if available
+      let notizen = loanData.notizen || '';
+      if (restschuld_zinsbindungsende && typeof restschuld_zinsbindungsende === 'number' && restschuld_zinsbindungsende > 0) {
+        const formatted = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(restschuld_zinsbindungsende);
+        notizen = notizen ? `${notizen}\nRestschuld zum Zinsbindungsende: ${formatted}` : `Restschuld zum Zinsbindungsende: ${formatted}`;
+      }
+      
       const darlehenInsert = {
         bezeichnung: loanData.bezeichnung || 'Importiertes Darlehen',
         bank: loanData.bank || null,
         kontonummer: loanData.kontonummer || null,
-        darlehensbetrag: loanData.darlehensbetrag || 0,
-        restschuld: loanData.restschuld || 0,
-        zinssatz_prozent: loanData.zinssatz_prozent || 0,
-        tilgungssatz_prozent: loanData.tilgungssatz_prozent || 0,
-        monatliche_rate: loanData.monatliche_rate || 0,
+        darlehensbetrag: Math.abs(loanData.darlehensbetrag || 0),
+        restschuld: Math.abs(loanData.restschuld || 0),
+        zinssatz_prozent: Math.abs(loanData.zinssatz_prozent || 0),
+        tilgungssatz_prozent: Math.abs(loanData.tilgungssatz_prozent || 0),
+        monatliche_rate: Math.abs(loanData.monatliche_rate || 0),
         start_datum: loanData.start_datum || null,
         ende_datum: loanData.ende_datum || null,
-        notizen: loanData.notizen || null,
+        notizen: notizen || null,
       };
 
       const { data: newDarlehen, error: dError } = await supabase
@@ -776,7 +784,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Restschuld (€)</Label>
+                  <Label className="text-xs text-muted-foreground">Akt. Kontostand / Restschuld (€)</Label>
                   <Input 
                     type="number" step="0.01"
                     value={importedData.restschuld ?? 0} 
