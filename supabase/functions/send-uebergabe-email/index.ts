@@ -61,13 +61,13 @@ function getCorsHeaders(req: Request) {
        throw new Error("Betreff und Nachricht sind erforderlich");
      }
  
-     // Get SMTP configuration from environment
-     const smtpHost = Deno.env.get("SMTP_HOST");
-     const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
-     const smtpUser = Deno.env.get("SMTP_USER");
-     const smtpPass = Deno.env.get("SMTP_PASS");
-     const smtpFromEmail = Deno.env.get("SMTP_FROM_EMAIL");
-     const smtpFromName = Deno.env.get("SMTP_FROM_NAME") || "Hausverwaltung";
+    // Get SMTP configuration — dedicated Übergabe secrets with fallback to general SMTP
+      const smtpHost = Deno.env.get("UEBERGABE_SMTP_HOST") || Deno.env.get("SMTP_HOST");
+      const smtpPort = parseInt(Deno.env.get("UEBERGABE_SMTP_PORT") || Deno.env.get("SMTP_PORT") || "587");
+      const smtpUser = Deno.env.get("UEBERGABE_SMTP_USER") || Deno.env.get("SMTP_USER");
+      const smtpPass = Deno.env.get("UEBERGABE_SMTP_PASS") || Deno.env.get("SMTP_PASS");
+      const smtpFromEmail = Deno.env.get("UEBERGABE_SMTP_FROM_EMAIL") || Deno.env.get("SMTP_FROM_EMAIL");
+      const smtpFromName = Deno.env.get("UEBERGABE_SMTP_FROM_NAME") || Deno.env.get("SMTP_FROM_NAME") || "Hausverwaltung";
  
      if (!smtpHost || !smtpUser || !smtpPass || !smtpFromEmail) {
        console.error("SMTP configuration missing:", {
