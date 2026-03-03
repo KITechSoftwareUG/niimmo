@@ -26,12 +26,19 @@ interface ProcessedPayment {
   verwendungszweck: string;
   empfaengername?: string;
   mietvertrag_id: string | null;
+  immobilie_id?: string | null;
   kategorie: string;
   zuordnungsgrund: string;
   confidence: number;
   mieter_name?: string;
   immobilie_name?: string;
   selected?: boolean;
+}
+
+interface ImmobilieOption {
+  id: string;
+  name: string;
+  adresse: string;
 }
 
 interface DuplicatePayment {
@@ -141,6 +148,20 @@ export function PaymentAssignmentResultsModal({
     },
     enabled: open
   });
+
+  // Fetch immobilien for Nebenkosten assignment
+  const { data: immobilien = [] } = useQuery<ImmobilieOption[]>({
+    queryKey: ['immobilien-for-assignment'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('immobilien')
+        .select('id, name, adresse')
+        .order('name');
+      if (error) throw error;
+      return (data || []) as ImmobilieOption[];
+    },
+    enabled: open
+  });
   
   // Show all payment results (Miete, Mietkaution, Rücklastschrift, etc.)
   // Only exclude "Nichtmiete" which is handled separately
@@ -157,6 +178,7 @@ export function PaymentAssignmentResultsModal({
   
   // Track manual corrections
   const [manualCorrections, setManualCorrections] = useState<Record<number, string | null>>({});
+  const [immobilieCorrections, setImmobilieCorrections] = useState<Record<number, string | null>>({});
   const [categoryCorrections, setCategoryCorrections] = useState<Record<number, string>>({});
 
   const KATEGORIE_OPTIONS = ["Miete", "Nichtmiete", "Mietkaution", "Rücklastschrift", "Nebenkosten", "Ignorieren"] as const;
@@ -189,6 +211,7 @@ export function PaymentAssignmentResultsModal({
     });
     setSelectedIds(newSelected);
     setManualCorrections({});
+    setImmobilieCorrections({});
     setCategoryCorrections({});
   }, [mietResults]);
 
@@ -224,20 +247,38 @@ export function PaymentAssignmentResultsModal({
         if (correctedCategory) {
           updated.kategorie = correctedCategory;
         }
-        
-        // Apply contract corrections
-        const correctedContractId = manualCorrections[originalIdx];
-        if (correctedContractId !== undefined) {
-          const correctedContract = contracts.find(c => c.id === correctedContractId);
-          updated = {
-            ...updated,
-            mietvertrag_id: correctedContractId,
-            mieter_name: correctedContract?.mieter || result.mieter_name,
-            immobilie_name: correctedContract?.immobilie || result.immobilie_name,
-            zuordnungsgrund: correctedContractId 
-              ? `Manuell korrigiert: ${correctedContract?.mieter}`
-              : 'Manuell entfernt'
-          };
+
+        const effectiveKategorie = updated.kategorie;
+
+        // For Nebenkosten: apply immobilie corrections, clear mietvertrag
+        if (effectiveKategorie === 'Nebenkosten') {
+          const correctedImmobilieId = immobilieCorrections[originalIdx];
+          if (correctedImmobilieId !== undefined) {
+            const imm = immobilien.find(i => i.id === correctedImmobilieId);
+            updated.immobilie_id = correctedImmobilieId;
+            updated.immobilie_name = imm?.name || result.immobilie_name;
+            updated.zuordnungsgrund = correctedImmobilieId
+              ? `Manuell zugeordnet: ${imm?.name}`
+              : 'Manuell entfernt';
+          }
+          // Nebenkosten should not have mietvertrag_id
+          updated.mietvertrag_id = null;
+        } else {
+          // Apply contract corrections for non-Nebenkosten
+          const correctedContractId = manualCorrections[originalIdx];
+          if (correctedContractId !== undefined) {
+            const correctedContract = contracts.find(c => c.id === correctedContractId);
+            updated = {
+              ...updated,
+              mietvertrag_id: correctedContractId,
+              immobilie_id: null,
+              mieter_name: correctedContract?.mieter || result.mieter_name,
+              immobilie_name: correctedContract?.immobilie || result.immobilie_name,
+              zuordnungsgrund: correctedContractId 
+                ? `Manuell korrigiert: ${correctedContract?.mieter}`
+                : 'Manuell entfernt'
+            };
+          }
         }
         return updated;
       })
@@ -245,7 +286,7 @@ export function PaymentAssignmentResultsModal({
   };
 
   const selectedResults = getFinalResults();
-  const selectedWithAssignment = selectedResults.filter(r => r.mietvertrag_id);
+  const selectedWithAssignment = selectedResults.filter(r => r.mietvertrag_id || r.immobilie_id);
   
   // Check if import is possible (either Miete selected OR Nichtmiete present)
   const canImport = selectedIds.size > 0 || nichtmieteCount > 0;
@@ -293,6 +334,22 @@ export function PaymentAssignmentResultsModal({
     if (selectedPaymentIdx !== null) {
       handleContractChange(selectedPaymentIdx, contractId || 'none');
     }
+  };
+
+  const handleImmobilieCorrectionSelect = (immobilieId: string | null) => {
+    if (selectedPaymentIdx !== null) {
+      setImmobilieCorrections(prev => ({
+        ...prev,
+        [selectedPaymentIdx]: immobilieId
+      }));
+      if (immobilieId) {
+        setSelectedIds(prev => new Set([...prev, `${selectedPaymentIdx}`]));
+      }
+    }
+  };
+
+  const getEffectiveKategorie = (idx: number, result: ProcessedPayment) => {
+    return categoryCorrections[idx] || result.kategorie;
   };
 
   const getSelectedPayment = () => {
@@ -440,14 +497,20 @@ export function PaymentAssignmentResultsModal({
                 {mietResults.map((result, idx) => {
                   const isSelected = selectedIds.has(`${idx}`);
                   const currentContractId = getCurrentContractId(idx, result);
-                  const isManuallyChanged = manualCorrections[idx] !== undefined;
+                  const effectiveKategorie = getEffectiveKategorie(idx, result);
+                  const isNebenkosten = effectiveKategorie === 'Nebenkosten';
+                  const currentImmobilieId = immobilieCorrections[idx] !== undefined 
+                    ? immobilieCorrections[idx] 
+                    : result.immobilie_id || null;
+                  const isManuallyChanged = manualCorrections[idx] !== undefined || immobilieCorrections[idx] !== undefined;
                   const needsAttention = result.confidence < 50;
+                  const hasAssignment = isNebenkosten ? !!currentImmobilieId : !!currentContractId;
                   
                   return (
                     <TableRow 
                       key={idx} 
                       className={`
-                        ${needsAttention ? "bg-red-50/50" : result.mietvertrag_id ? "" : "bg-amber-50/50"} 
+                        ${needsAttention ? "bg-red-50/50" : hasAssignment ? "" : "bg-amber-50/50"} 
                         ${!isSelected ? "opacity-50" : ""}
                         ${isManuallyChanged ? "bg-blue-50/50" : ""}
                       `}
@@ -461,7 +524,7 @@ export function PaymentAssignmentResultsModal({
                       <TableCell className="py-2">
                         {isManuallyChanged ? (
                           <Edit2 className="h-4 w-4 text-blue-600" />
-                        ) : currentContractId ? (
+                        ) : hasAssignment ? (
                           <CheckCircle2 className="h-4 w-4 text-green-600" />
                         ) : (
                           <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -503,21 +566,40 @@ export function PaymentAssignmentResultsModal({
                         </Select>
                       </TableCell>
                       <TableCell className="py-2">
-                        {currentContractId ? (
-                          <div className="text-xs">
-                            <div className="font-medium truncate max-w-[200px]" title={
-                              contracts.find(c => c.id === currentContractId)?.mieter || result.mieter_name
-                            }>
-                              {contracts.find(c => c.id === currentContractId)?.mieter || result.mieter_name || "Zugeordnet"}
+                        {isNebenkosten ? (
+                          /* Nebenkosten: show Immobilie */
+                          currentImmobilieId ? (
+                            <div className="text-xs">
+                              <div className="font-medium truncate max-w-[200px]" title={
+                                immobilien.find(i => i.id === currentImmobilieId)?.name || ''
+                              }>
+                                {immobilien.find(i => i.id === currentImmobilieId)?.name || result.immobilie_name || "Zugeordnet"}
+                              </div>
+                              <div className="text-muted-foreground truncate max-w-[200px]">
+                                {immobilien.find(i => i.id === currentImmobilieId)?.adresse || ''}
+                              </div>
                             </div>
-                            <div className="text-muted-foreground truncate max-w-[200px]" title={
-                              contracts.find(c => c.id === currentContractId)?.immobilie || result.immobilie_name
-                            }>
-                              {contracts.find(c => c.id === currentContractId)?.immobilie || result.immobilie_name}
-                            </div>
-                          </div>
+                          ) : (
+                            <span className="text-xs text-amber-600">Keine Immobilie</span>
+                          )
                         ) : (
-                          <span className="text-xs text-amber-600">Nicht zugeordnet</span>
+                          /* Non-Nebenkosten: show Mietvertrag */
+                          currentContractId ? (
+                            <div className="text-xs">
+                              <div className="font-medium truncate max-w-[200px]" title={
+                                contracts.find(c => c.id === currentContractId)?.mieter || result.mieter_name
+                              }>
+                                {contracts.find(c => c.id === currentContractId)?.mieter || result.mieter_name || "Zugeordnet"}
+                              </div>
+                              <div className="text-muted-foreground truncate max-w-[200px]" title={
+                                contracts.find(c => c.id === currentContractId)?.immobilie || result.immobilie_name
+                              }>
+                                {contracts.find(c => c.id === currentContractId)?.immobilie || result.immobilie_name}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-amber-600">Nicht zugeordnet</span>
+                          )
                         )}
                       </TableCell>
                       <TableCell className="py-2">
@@ -581,9 +663,13 @@ export function PaymentAssignmentResultsModal({
           open={correctionDialogOpen}
           onOpenChange={setCorrectionDialogOpen}
           payment={getSelectedPayment()}
+          mode={selectedPaymentIdx !== null && getEffectiveKategorie(selectedPaymentIdx, mietResults[selectedPaymentIdx]) === 'Nebenkosten' ? 'immobilie' : 'mietvertrag'}
           contracts={contracts}
           currentContractId={selectedPaymentIdx !== null ? getCurrentContractId(selectedPaymentIdx, mietResults[selectedPaymentIdx]) : null}
           onSelectContract={handleCorrectionSelect}
+          immobilien={immobilien}
+          currentImmobilieId={selectedPaymentIdx !== null ? (immobilieCorrections[selectedPaymentIdx] !== undefined ? immobilieCorrections[selectedPaymentIdx] : mietResults[selectedPaymentIdx]?.immobilie_id || null) : null}
+          onSelectImmobilie={handleImmobilieCorrectionSelect}
         />
       </DialogContent>
     </Dialog>
