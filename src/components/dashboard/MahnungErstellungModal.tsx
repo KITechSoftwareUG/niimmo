@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, Download, ArrowLeft, RefreshCw } from "lucide-react";
+import { Loader2, AlertTriangle, Download, ArrowLeft, RefreshCw, Mail, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -41,9 +41,15 @@ export function MahnungErstellungModal({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [step, setStep] = useState<'form' | 'preview'>('form');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [step, setStep] = useState<'form' | 'preview' | 'email'>('form');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfPath, setPdfPath] = useState<string | null>(null);
   
+  // Email fields
+  const [emailRecipient, setEmailRecipient] = useState<string>('');
+  const [emailCc, setEmailCc] = useState<string>('');
+
   // Editable values
   const mahnstufe = (contractData?.mahnstufe || 0) + 1;
   const [rueckstandBetrag, setRueckstandBetrag] = useState<string>("0.00");
@@ -61,7 +67,13 @@ export function MahnungErstellungModal({
     if (isOpen) {
       setStep('form');
       setPdfUrl(null);
+      setPdfPath(null);
       setRueckstandBetrag(rueckstand.toFixed(2));
+      setEmailCc('');
+      
+      // Set default recipient email
+      const firstMieterEmail = contractData?.mieter?.[0]?.hauptmail || '';
+      setEmailRecipient(firstMieterEmail);
       
       if (mahnstufe === 1) setMahngebuehren("5.00");
       else if (mahnstufe === 2) setMahngebuehren("10.00");
@@ -71,7 +83,7 @@ export function MahnungErstellungModal({
       setZusaetzlicheKosten("0.00");
       setZahlungsfrist("14");
     }
-  }, [isOpen, mahnstufe, rueckstand]);
+  }, [isOpen, mahnstufe, rueckstand, contractData]);
 
   const handleSubmit = async () => {
     if (!contractData) return;
@@ -122,9 +134,12 @@ export function MahnungErstellungModal({
         return;
       }
 
+      // Store the path for email attachment
+      setPdfPath(documentData.pfad);
+
       const { data: signedUrlData, error: urlError } = await supabase.storage
         .from('dokumente')
-        .createSignedUrl(documentData.pfad, 3600);
+        .createSignedUrl(documentData.pfad!, 3600);
 
       if (urlError || !signedUrlData) {
         console.error('❌ URL konnte nicht erstellt werden:', urlError);
@@ -188,11 +203,69 @@ export function MahnungErstellungModal({
     }
   };
 
+  const handleGoToEmail = () => {
+    setStep('email');
+  };
+
+  const handleSendEmail = async () => {
+    if (!contractData || !emailRecipient) return;
+
+    setIsSendingEmail(true);
+    try {
+      const recipientName = contractData.mieter?.map(m => `${m.vorname} ${m.nachname}`).join(' & ') || 'Mieter';
+      const ccEmails = emailCc ? emailCc.split(',').map(e => e.trim()).filter(Boolean) : [];
+
+      const { data, error } = await supabase.functions.invoke('send-mahnung', {
+        body: {
+          recipientEmail: emailRecipient,
+          recipientName,
+          ccEmails,
+          mahnstufe,
+          gesamtbetrag: parseFloat(rueckstandBetrag || "0") + parseFloat(mahngebuehren || "0") + parseFloat(verzugszinsen || "0") + parseFloat(zusaetzlicheKosten || "0"),
+          rueckstandBetrag: parseFloat(rueckstandBetrag || "0"),
+          mahngebuehren: parseFloat(mahngebuehren || "0"),
+          verzugszinsen: parseFloat(verzugszinsen || "0"),
+          zusaetzlicheKosten: parseFloat(zusaetzlicheKosten || "0"),
+          zahlungsfristTage: parseInt(zahlungsfrist),
+          immobilieName: contractData.immobilie_name || 'N/A',
+          immobilieAdresse: contractData.immobilie_adresse || 'N/A',
+          pdfPath: pdfPath || '',
+          mietvertragId: contractData.mietvertrag_id,
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "E-Mail versendet",
+        description: `Mahnung Stufe ${mahnstufe} wurde erfolgreich an ${emailRecipient} versendet.`,
+      });
+
+      onClose();
+    } catch (err) {
+      console.error('❌ Fehler beim E-Mail-Versand:', err);
+      toast({
+        title: "Fehler beim E-Mail-Versand",
+        description: err instanceof Error ? err.message : 'E-Mail konnte nicht versendet werden',
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const handleBack = () => {
+    if (step === 'email') {
+      setStep('preview');
+      return;
+    }
     setStep('form');
     if (pdfUrl) {
       URL.revokeObjectURL(pdfUrl);
       setPdfUrl(null);
+      setPdfPath(null);
     }
   };
 
@@ -201,6 +274,7 @@ export function MahnungErstellungModal({
     if (pdfUrl) {
       URL.revokeObjectURL(pdfUrl);
       setPdfUrl(null);
+      setPdfPath(null);
     }
     setRueckstandBetrag(rueckstand.toFixed(2));
     if (mahnstufe === 1) setMahngebuehren("5.00");
@@ -388,7 +462,7 @@ export function MahnungErstellungModal({
               </Button>
             </DialogFooter>
           </>
-        ) : (
+        ) : step === 'preview' ? (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center justify-between">
@@ -428,9 +502,118 @@ export function MahnungErstellungModal({
               )}
             </div>
 
-            <DialogFooter>
-              <Button onClick={onClose}>
+            <DialogFooter className="flex justify-between sm:justify-between">
+              <Button variant="outline" onClick={onClose}>
                 Schließen
+              </Button>
+              <Button onClick={handleGoToEmail} variant="destructive">
+                <Mail className="h-4 w-4 mr-2" />
+                Per E-Mail versenden
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Mail className="h-5 w-5 text-destructive" />
+                <span>Mahnung Stufe {mahnstufe} per E-Mail versenden</span>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6 overflow-auto">
+              {/* Summary Info */}
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <div className="text-sm">
+                  <span className="font-medium">Objekt:</span> {contractData.immobilie_name || 'N/A'}
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Gesamtbetrag:</span>{' '}
+                  <span className="font-bold text-destructive">
+                    {gesamtkosten.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">PDF-Anhang:</span> ✅ wird angehängt
+                </div>
+              </div>
+
+              {/* Email Fields */}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="email-recipient">Empfänger E-Mail *</Label>
+                  <Input
+                    id="email-recipient"
+                    type="email"
+                    value={emailRecipient}
+                    onChange={(e) => setEmailRecipient(e.target.value)}
+                    placeholder="mieter@beispiel.de"
+                    className="mt-1"
+                  />
+                  {contractData.mieter && contractData.mieter.length > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Mieter: {contractData.mieter.map(m => `${m.vorname} ${m.nachname}`).join(', ')}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="email-cc">CC (optional, kommagetrennt)</Label>
+                  <Input
+                    id="email-cc"
+                    type="text"
+                    value={emailCc}
+                    onChange={(e) => setEmailCc(e.target.value)}
+                    placeholder="kopie@beispiel.de, weitere@beispiel.de"
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+
+              {/* Email Preview */}
+              <div className="p-4 bg-muted/50 rounded-lg border space-y-2">
+                <p className="font-medium text-sm">E-Mail-Vorschau:</p>
+                <p className="text-sm">
+                  <span className="font-medium">Betreff:</span>{' '}
+                  {mahnstufe === 3
+                    ? `${mahnstufe}. und letzte Mahnung — Mietrückstand | ${contractData.immobilie_name || 'N/A'}`
+                    : `${mahnstufe}. Mahnung — Mietrückstand | ${contractData.immobilie_name || 'N/A'}`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Die E-Mail enthält ein professionelles HTML-Template mit NilImmo-Branding, 
+                  Forderungsübersicht, Kostenzusammenfassung und das Mahnungs-PDF als Anhang.
+                </p>
+              </div>
+
+              {/* Warning */}
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Die Mahnung wird direkt an den Mieter versendet. Bitte überprüfen Sie die E-Mail-Adresse sorgfältig.
+                </AlertDescription>
+              </Alert>
+            </div>
+
+            <DialogFooter className="flex justify-between sm:justify-between">
+              <Button variant="outline" onClick={handleBack} disabled={isSendingEmail}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Zurück zur Vorschau
+              </Button>
+              <Button 
+                onClick={handleSendEmail} 
+                disabled={isSendingEmail || !emailRecipient}
+                variant="destructive"
+              >
+                {isSendingEmail ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Wird versendet...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Mahnung versenden
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </>
