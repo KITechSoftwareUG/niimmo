@@ -1,4 +1,6 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.0'
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const ALLOWED_ORIGINS = [
   'https://immobilien-blick-dashboard.lovable.app',
@@ -14,17 +16,134 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-interface MahnungRequest {
-  mietvertragId: string;
+interface MahnungEmailRequest {
+  recipientEmail: string;
+  recipientName: string;
+  ccEmails?: string[];
   mahnstufe: number;
-  vertragData: any;
-  forderungen: any[];
+  gesamtbetrag: number;
+  rueckstandBetrag: number;
+  mahngebuehren: number;
+  verzugszinsen: number;
+  zusaetzlicheKosten: number;
+  zahlungsfristTage: number;
+  immobilieName: string;
+  immobilieAdresse: string;
+  pdfPath: string;
+  mietvertragId: string;
+  forderungen?: Array<{ sollmonat: string; sollbetrag: number }>;
 }
 
-Deno.serve(async (req) => {
+function generateMahnungHtml(data: MahnungEmailRequest): string {
+  const zahlungsfristDatum = new Date();
+  zahlungsfristDatum.setDate(zahlungsfristDatum.getDate() + data.zahlungsfristTage);
+  const fristFormatted = zahlungsfristDatum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const heute = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  let eskalationsText = '';
+  let headerColor = '#E67E22';
+  switch (data.mahnstufe) {
+    case 1:
+      eskalationsText = 'Wir bitten Sie höflich, den ausstehenden Betrag bis zum genannten Datum zu begleichen. Sollte die Zahlung bereits unterwegs sein, betrachten Sie dieses Schreiben als gegenstandslos.';
+      headerColor = '#E67E22';
+      break;
+    case 2:
+      eskalationsText = 'Trotz unserer ersten Mahnung haben wir bislang keinen Zahlungseingang feststellen können. Wir fordern Sie daher nachdrücklich auf, den offenen Betrag umgehend zu begleichen. Sollten Sie nicht innerhalb der genannten Frist zahlen, behalten wir uns die Einleitung weiterer Maßnahmen vor.';
+      headerColor = '#E74C3C';
+      break;
+    case 3:
+    default:
+      eskalationsText = '<strong>Dies ist unsere letzte Mahnung.</strong> Sollte der Gesamtbetrag nicht innerhalb der genannten Frist auf unserem Konto eingehen, werden wir ohne weitere Ankündigung rechtliche Schritte einleiten und das Mietverhältnis fristlos kündigen. Die dadurch entstehenden Kosten gehen zu Ihren Lasten.';
+      headerColor = '#C0392B';
+      break;
+  }
+
+  // Build forderungen table rows
+  let forderungenRows = '';
+  if (data.forderungen && data.forderungen.length > 0) {
+    forderungenRows = data.forderungen.map(f => {
+      const monat = new Date(f.sollmonat + '-01').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;">${monat}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;">${f.sollbetrag.toFixed(2)} €</td></tr>`;
+    }).join('');
+  }
+
+  const logoUrl = 'https://dashboard.niimmo.de/nilimmo-logo.png';
+
+  return `<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#333;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:20px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+<!-- Header -->
+<tr><td style="background-color:${headerColor};padding:24px 32px;text-align:center;">
+  <img src="${logoUrl}" alt="NilImmo" height="40" style="margin-bottom:12px;display:inline-block;" />
+  <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;">${data.mahnstufe}. Mahnung — Mietrückstand</h1>
+</td></tr>
+
+<!-- Body -->
+<tr><td style="padding:32px;">
+
+  <p style="margin:0 0 16px;font-size:15px;">Datum: ${heute}</p>
+
+  <p style="margin:0 0 8px;font-size:15px;">Sehr geehrte/r <strong>${data.recipientName}</strong>,</p>
+  <p style="margin:0 0 20px;font-size:15px;">bezüglich Ihres Mietvertrags für das Objekt <strong>${data.immobilieName}</strong>, ${data.immobilieAdresse}, besteht folgender Zahlungsrückstand:</p>
+
+  ${forderungenRows ? `
+  <!-- Forderungstabelle -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;border:1px solid #ddd;border-radius:4px;overflow:hidden;">
+    <tr style="background-color:#f8f8f8;">
+      <th style="padding:10px 12px;text-align:left;font-size:14px;border-bottom:2px solid #ddd;">Monat</th>
+      <th style="padding:10px 12px;text-align:right;font-size:14px;border-bottom:2px solid #ddd;">Betrag</th>
+    </tr>
+    ${forderungenRows}
+  </table>` : ''}
+
+  <!-- Kostenzusammenfassung -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background-color:#fdf2f0;border-radius:6px;padding:4px;">
+    <tr><td style="padding:8px 16px;font-size:14px;">Mietrückstand</td><td style="padding:8px 16px;text-align:right;font-size:14px;">${data.rueckstandBetrag.toFixed(2)} €</td></tr>
+    <tr><td style="padding:8px 16px;font-size:14px;">Mahngebühren</td><td style="padding:8px 16px;text-align:right;font-size:14px;">${data.mahngebuehren.toFixed(2)} €</td></tr>
+    ${data.verzugszinsen > 0 ? `<tr><td style="padding:8px 16px;font-size:14px;">Verzugszinsen</td><td style="padding:8px 16px;text-align:right;font-size:14px;">${data.verzugszinsen.toFixed(2)} €</td></tr>` : ''}
+    ${data.zusaetzlicheKosten > 0 ? `<tr><td style="padding:8px 16px;font-size:14px;">Zusätzliche Kosten</td><td style="padding:8px 16px;text-align:right;font-size:14px;">${data.zusaetzlicheKosten.toFixed(2)} €</td></tr>` : ''}
+    <tr style="border-top:2px solid ${headerColor};">
+      <td style="padding:12px 16px;font-size:16px;font-weight:700;color:${headerColor};">Gesamtbetrag</td>
+      <td style="padding:12px 16px;text-align:right;font-size:18px;font-weight:700;color:${headerColor};">${data.gesamtbetrag.toFixed(2)} €</td>
+    </tr>
+  </table>
+
+  <!-- Zahlungsfrist -->
+  <div style="background-color:#fff3cd;border-left:4px solid #ffc107;padding:12px 16px;margin-bottom:20px;border-radius:0 4px 4px 0;">
+    <p style="margin:0;font-size:14px;font-weight:600;">Bitte überweisen Sie den Gesamtbetrag von ${data.gesamtbetrag.toFixed(2)} € bis spätestens zum <strong>${fristFormatted}</strong>.</p>
+  </div>
+
+  <!-- Eskalationstext -->
+  <p style="margin:0 0 24px;font-size:14px;line-height:1.6;">${eskalationsText}</p>
+
+  <p style="margin:0 0 8px;font-size:14px;">Das Mahnungsschreiben ist dieser E-Mail als PDF beigefügt.</p>
+  <p style="margin:0 0 4px;font-size:14px;">Mit freundlichen Grüßen</p>
+  <p style="margin:0 0 0;font-size:14px;font-weight:600;">Ihre Hausverwaltung — NilImmo</p>
+
+</td></tr>
+
+<!-- Footer -->
+<tr><td style="background-color:#f8f8f8;padding:20px 32px;border-top:1px solid #eee;">
+  <p style="margin:0 0 4px;font-size:11px;color:#888;text-align:center;">NilImmo Hausverwaltung</p>
+  <p style="margin:0 0 4px;font-size:11px;color:#888;text-align:center;">Diese E-Mail wurde automatisch generiert. Bei Fragen wenden Sie sich bitte an Ihre Hausverwaltung.</p>
+  <p style="margin:0;font-size:11px;color:#888;text-align:center;">Mahnstufe: ${data.mahnstufe} | Datum: ${heute}</p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -41,158 +160,122 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const data: MahnungEmailRequest = await req.json();
+    console.log('Mahnung E-Mail wird versendet:', { recipient: data.recipientEmail, mahnstufe: data.mahnstufe });
 
-    const { mietvertragId, mahnstufe, vertragData, forderungen }: MahnungRequest = await req.json()
+    // SMTP config — dedicated Mahnung secrets with fallback
+    const smtpHost = Deno.env.get("MAHNUNG_SMTP_HOST") || Deno.env.get("SMTP_HOST");
+    const smtpPort = parseInt(Deno.env.get("MAHNUNG_SMTP_PORT") || Deno.env.get("SMTP_PORT") || "587");
+    const smtpUser = Deno.env.get("MAHNUNG_SMTP_USER") || Deno.env.get("SMTP_USER");
+    const smtpPass = Deno.env.get("MAHNUNG_SMTP_PASS") || Deno.env.get("SMTP_PASS");
+    const smtpFromEmail = Deno.env.get("MAHNUNG_SMTP_FROM_EMAIL") || Deno.env.get("SMTP_FROM_EMAIL");
+    const smtpFromName = Deno.env.get("MAHNUNG_SMTP_FROM_NAME") || Deno.env.get("SMTP_FROM_NAME") || "NilImmo Hausverwaltung";
 
-    console.log('Mahnung wird versendet:', { mietvertragId, mahnstufe, forderungenCount: forderungen?.length })
-
-    // Hole Mieter-Daten
-    const { data: mieterData, error: mieterError } = await supabase
-      .from('mietvertrag_mieter')
-      .select(`
-        mieter:mieter_id (
-          vorname,
-          nachname,
-          hauptmail,
-          weitere_mails
-        )
-      `)
-      .eq('mietvertrag_id', mietvertragId);
-
-    if (mieterError) {
-      console.error('Fehler beim Laden der Mieter-Daten:', mieterError)
-      throw mieterError
+    if (!smtpHost || !smtpUser || !smtpPass || !smtpFromEmail) {
+      console.error("SMTP configuration missing for Mahnung");
+      throw new Error("SMTP-Konfiguration für Mahnungen unvollständig. Bitte MAHNUNG_SMTP_* oder SMTP_* Secrets konfigurieren.");
     }
 
-    if (!mieterData || mieterData.length === 0) {
-      throw new Error('Keine Mieter-Daten gefunden')
+    // Load PDF from Supabase Storage
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    let pdfAttachment: { content: Uint8Array; filename: string } | null = null;
+    if (data.pdfPath) {
+      console.log('Loading PDF from storage:', data.pdfPath);
+      const { data: fileData, error: fileError } = await supabase.storage
+        .from('dokumente')
+        .download(data.pdfPath);
+
+      if (fileError) {
+        console.error('PDF download error:', fileError);
+      } else if (fileData) {
+        const arrayBuffer = await fileData.arrayBuffer();
+        pdfAttachment = {
+          content: new Uint8Array(arrayBuffer),
+          filename: `Mahnung_Stufe${data.mahnstufe}_${new Date().toISOString().split('T')[0]}.pdf`,
+        };
+        console.log('PDF loaded successfully, size:', pdfAttachment.content.length);
+      }
     }
 
-    // Hole den ersten Mieter
-    const mieterRecord = mieterData[0];
-    if (!mieterRecord?.mieter) {
-      throw new Error('Mieter-Informationen nicht vollständig')
+    // Generate HTML email
+    const htmlBody = generateMahnungHtml(data);
+    const betreff = data.mahnstufe === 3
+      ? `${data.mahnstufe}. und letzte Mahnung — Mietrückstand | ${data.immobilieName}`
+      : `${data.mahnstufe}. Mahnung — Mietrückstand | ${data.immobilieName}`;
+
+    // Create SMTP client
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: smtpPort,
+        tls: smtpPort === 465,
+        auth: {
+          username: smtpUser,
+          password: smtpPass,
+        },
+      },
+    });
+
+    const toAddresses = [data.recipientEmail];
+    const sendOptions: any = {
+      from: `${smtpFromName} <${smtpFromEmail}>`,
+      to: toAddresses.join(', '),
+      subject: betreff,
+      content: `Mahnung Stufe ${data.mahnstufe} - Gesamtbetrag: ${data.gesamtbetrag.toFixed(2)} €`,
+      html: htmlBody,
+    };
+
+    if (data.ccEmails && data.ccEmails.length > 0) {
+      sendOptions.cc = data.ccEmails.join(', ');
     }
-    const mieter = mieterRecord.mieter as any;
 
-    // Berechne Gesamtbetrag der offenen Forderungen
-    const gesamtbetrag = forderungen.reduce((sum, f) => sum + parseFloat(f.sollbetrag), 0);
-    
-    // Erstelle Mahnung-Nachricht
-    const mahnungstext = generateMahnungstext(mahnstufe, mieter, vertragData, forderungen, gesamtbetrag);
+    if (pdfAttachment) {
+      sendOptions.attachments = [{
+        filename: pdfAttachment.filename,
+        content: pdfAttachment.content,
+        contentType: 'application/pdf',
+        encoding: 'binary',
+      }];
+    }
 
-    // Log die Mahnung in system_logs
-    await supabase
-      .from('system_logs')
-      .insert({
-        message: `Mahnung Stufe ${mahnstufe} für Mietvertrag ${mietvertragId} erstellt. Empfänger: ${mieter.vorname} ${mieter.nachname} (${mieter.hauptmail}). Gesamtbetrag: ${gesamtbetrag.toFixed(2)}€`
-      });
+    await client.send(sendOptions);
+    await client.close();
 
-    // Hier würde normalerweise der E-Mail-Versand stattfinden
-    // Für jetzt simulieren wir den Versand
-    console.log('Mahnung würde versendet an:', mieter.hauptmail);
-    console.log('Mahnungstext:', mahnungstext);
+    console.log('Mahnung E-Mail erfolgreich versendet an:', data.recipientEmail);
 
-    // Erhöhe die Mahnstufe und aktualisiere den Mietvertrag
-    const neueMahnstufe = Math.min(mahnstufe + 1, 3); // Maximal Stufe 3
-    await supabase
-      .from('mietvertrag')
-      .update({
-        mahnstufe: neueMahnstufe,
-        letzte_mahnung_am: new Date().toISOString(),
-        naechste_mahnung_am: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 Tage später
-      })
-      .eq('id', mietvertragId);
+    // Log to system_logs
+    await supabase.from('system_logs').insert({
+      message: `Mahnung Stufe ${data.mahnstufe} per E-Mail versendet an ${data.recipientName} (${data.recipientEmail}). Gesamtbetrag: ${data.gesamtbetrag.toFixed(2)}€. Objekt: ${data.immobilieName}`
+    });
 
-    console.log(`Mahnstufe erhöht von ${mahnstufe} auf ${neueMahnstufe} für Mietvertrag ${mietvertragId}`);
+    // Update mahnstufe on contract
+    const neueMahnstufe = Math.min(data.mahnstufe, 3);
+    await supabase.from('mietvertrag').update({
+      mahnstufe: neueMahnstufe,
+      letzte_mahnung_am: new Date().toISOString(),
+      naechste_mahnung_am: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    }).eq('id', data.mietvertragId);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Mahnung Stufe ${mahnstufe} erfolgreich versendet`,
-        recipient: mieter.hauptmail,
-        amount: gesamtbetrag
+        message: `Mahnung Stufe ${data.mahnstufe} erfolgreich per E-Mail versendet`,
+        recipient: data.recipientEmail,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
-    console.error('Error in send-mahnung function:', error)
-    
+    console.error('Error in send-mahnung function:', error);
     return new Response(
       JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
-})
-
-function generateMahnungstext(mahnstufe: number, mieter: any, vertrag: any, forderungen: any[], gesamtbetrag: number): string {
-  const heute = new Date().toLocaleDateString('de-DE');
-  const name = `${mieter.vorname} ${mieter.nachname}`;
-  
-  let betreff = '';
-  let mahnungsart = '';
-  let zusatztext = '';
-  
-  switch (mahnstufe) {
-    case 1:
-      betreff = '1. Mahnung - Mietrückstand';
-      mahnungsart = 'erste Mahnung';
-      zusatztext = 'Wir bitten Sie, den ausstehenden Betrag umgehend zu begleichen.';
-      break;
-    case 2:
-      betreff = '2. Mahnung - Mietrückstand';
-      mahnungsart = 'zweite Mahnung';
-      zusatztext = 'Sollten Sie nicht innerhalb von 7 Tagen zahlen, behalten wir uns rechtliche Schritte vor.';
-      break;
-    case 3:
-      betreff = '3. und letzte Mahnung - Mietrückstand';
-      mahnungsart = 'dritte und letzte Mahnung';
-      zusatztext = 'Bei Nichtzahlung innerhalb von 3 Tagen werden wir das Mietverhältnis kündigen und rechtliche Schritte einleiten.';
-      break;
-    default:
-      betreff = 'Zahlungserinnerung';
-      mahnungsart = 'Zahlungserinnerung';
-      zusatztext = 'Bitte begleichen Sie den ausstehenden Betrag.';
-  }
-
-  const forderungsListe = forderungen.map(f => {
-    const monat = new Date(f.sollmonat + '-01').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
-    return `- ${monat}: ${parseFloat(f.sollbetrag).toFixed(2)}€`;
-  }).join('\n');
-
-  return `
-Betreff: ${betreff}
-
-Sehr geehrte/r ${name},
-
-hiermit erhalten Sie unsere ${mahnungsart} bezüglich Ihres Mietrückstands.
-
-Folgende Beträge sind noch offen:
-${forderungsListe}
-
-Gesamtbetrag: ${gesamtbetrag.toFixed(2)}€
-
-${zusatztext}
-
-Bitte überweisen Sie den Betrag auf das bekannte Konto oder setzen Sie sich umgehend mit uns in Verbindung.
-
-Mit freundlichen Grüßen
-Ihre Hausverwaltung
-
-Datum: ${heute}
-Mahnstufe: ${mahnstufe}
-  `.trim();
-}
+});
