@@ -3,7 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Copy, Check, Mail, Phone, Building2, Square, XCircle, AlertTriangle } from "lucide-react";
 import { MietvertragEditableField } from "./MietvertragEditableField";
+import { MahnstufeIndicator } from "../MahnstufeIndicator";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEditableField } from "@/hooks/useEditableField";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,9 +18,9 @@ interface MietvertragContractInfoProps {
   isGlobalEditMode?: boolean;
   editedValues?: Record<string, any>;
   onUpdateEditedValue?: (key: string, value: any) => void;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen') => void;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | 'mahnstufe' | null;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | 'mahnstufe', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | 'mahnstufe') => void;
   onCancelEdit: () => void;
   formatDatum: (datum: string) => string;
   formatBetrag: (betrag: number) => string;
@@ -294,6 +296,61 @@ export function MietvertragContractInfo({
                 hideEditButton={true}
                 isGlobalEditMode={isGlobalEditMode}
               />
+            </div>
+
+            {/* Mahnstufe */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-xs md:text-sm font-medium text-muted-foreground">Mahnstufe</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <MahnstufeIndicator stufe={isGlobalEditMode && editedValues.mahnstufe !== undefined ? editedValues.mahnstufe : (vertrag.mahnstufe || 0)} />
+                  {isGlobalEditMode ? (
+                    <Select
+                      value={String(editedValues.mahnstufe !== undefined ? editedValues.mahnstufe : (vertrag.mahnstufe || 0))}
+                      onValueChange={(val) => onUpdateEditedValue?.('mahnstufe', parseInt(val, 10))}
+                    >
+                      <SelectTrigger className="w-20 h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">0</SelectItem>
+                        <SelectItem value="1">1</SelectItem>
+                        <SelectItem value="2">2</SelectItem>
+                        <SelectItem value="3">3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">{vertrag.mahnstufe || 0}</span>
+                      <Button
+                        onClick={() => onStartEdit('mahnstufe')}
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 opacity-60 hover:opacity-100"
+                      >
+                        <AlertTriangle className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                  {editingMietvertrag === 'mahnstufe' && !isGlobalEditMode && (
+                    <Select
+                      value={String(vertrag.mahnstufe || 0)}
+                      onValueChange={(val) => onEditMietvertrag('mahnstufe', val)}
+                    >
+                      <SelectTrigger className="w-20 h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">0</SelectItem>
+                        <SelectItem value="1">1</SelectItem>
+                        <SelectItem value="2">2</SelectItem>
+                        <SelectItem value="3">3</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+              <div />
             </div>
 
             {/* Rücklastschrift-Gebühr */}

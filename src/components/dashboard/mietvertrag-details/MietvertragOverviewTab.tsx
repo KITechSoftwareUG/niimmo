@@ -15,12 +15,12 @@ interface MietvertragOverviewTabProps {
   isGlobalEditMode?: boolean;
   editedValues?: Record<string, any>;
   onUpdateEditedValue?: (key: string, value: any) => void;
-  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | null;
+  editingMietvertrag: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | 'mahnstufe' | null;
   editingKaution: 'soll' | 'ist' | null;
   editingMeter: string | null;
   editingMeterNumber: string | null;
-  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen', value: string) => void;
-  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen') => void;
+  onEditMietvertrag: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | 'mahnstufe', value: string) => void;
+  onStartEdit: (field: 'kaltmiete' | 'betriebskosten' | 'neue_anschrift' | 'ruecklastschrift_gebuehr' | 'start_datum' | 'ende_datum' | 'anzahl_personen' | 'mahnstufe') => void;
   onCancelEdit: () => void;
   onEditKaution: (field: 'soll' | 'ist', value: string) => void;
   onStartEditKaution: (field: 'soll' | 'ist') => void;
