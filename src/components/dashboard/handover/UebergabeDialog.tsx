@@ -213,13 +213,11 @@ export const UebergabeDialog = ({
               gas_einzug: zaehlerstaende.gas ? parseFloat(zaehlerstaende.gas) : null,
               kaltwasser_einzug: zaehlerstaende.wasser ? parseFloat(zaehlerstaende.wasser) : null,
               warmwasser_einzug: zaehlerstaende.warmwasser ? parseFloat(zaehlerstaende.warmwasser) : null,
-              start_datum: format(uebergabeDatum, "yyyy-MM-dd"),
             })
             .eq("id", contract.id);
 
           if (updateError) throw updateError;
         } else {
-          // Only save meter readings first - status and ende_datum are set after full completion
           const { error: updateError } = await supabase
             .from("mietvertrag")
             .update({
@@ -234,15 +232,10 @@ export const UebergabeDialog = ({
         }
       }
 
-      // For Auszug: Show email dialog after saving meter readings (status not yet changed)
+      // For Auszug: Show email dialog after saving meter readings
       if (!isEinzug && mieterData.length > 0) {
         setShowEmailDialog(true);
         return;
-      }
-
-      // For Auszug without email dialog: finalize status now
-      if (!isEinzug) {
-        await finalizeAuszugStatus();
       }
 
       onSuccess?.();
@@ -259,31 +252,7 @@ export const UebergabeDialog = ({
     }
   };
 
-  const finalizeAuszugStatus = async () => {
-    try {
-      for (const contract of contracts) {
-        const { error } = await supabase
-          .from("mietvertrag")
-          .update({ 
-            status: "beendet",
-            ende_datum: uebergabeDatum ? format(uebergabeDatum, "yyyy-MM-dd") : null,
-          })
-          .eq("id", contract.id);
-        if (error) throw error;
-      }
-    } catch (error) {
-      console.error("Error finalizing contract status:", error);
-      toast({
-        title: "Fehler",
-        description: "Der Vertragsstatus konnte nicht aktualisiert werden.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleEmailDialogClose = async () => {
-    // Finalize contract status to "beendet" after email dialog is closed
-    await finalizeAuszugStatus();
     setShowEmailDialog(false);
     onSuccess?.();
     onClose();
