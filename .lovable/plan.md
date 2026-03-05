@@ -1,40 +1,43 @@
 
 
-## Plan: Mahnungsprozess anpassen — Reihenfolge und editierbare Mahnstufe
+## Plan: Übergabe-Workflow radikal vereinfachen
 
-### Ist-Zustand
+### Kernidee
 
-Der aktuelle Flow ist bereits: **Formular → PDF-Vorschau → E-Mail versenden**. Die Mahnstufe wird in `send-mahnung` nach dem Versand automatisch erhöht. Das passt grundsätzlich zum gewünschten Ablauf.
+Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
 
-**Was fehlt:**
-1. Die Mahnstufe kann nach Versand nicht manuell zurückgesetzt werden (z.B. wenn der Mieter sich entschuldigt)
-2. Der Workflow-Flow ist korrekt, aber es fehlt eine explizite Bestätigung/Feedback nach dem Versand
+### Änderungen
 
-### Geplante Änderungen
+#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
 
-#### 1. Mahnstufe editierbar machen im Mietvertrag-Detail
+- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
+- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
+- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
+  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
+  - Auszug: Gekündigte und bald auslaufende Verträge oben
+- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
+- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
 
-**Datei:** `src/components/dashboard/mietvertrag-details/MietvertragOverviewTab.tsx`
+#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
 
-- Ein editierbares Feld für `mahnstufe` hinzufügen (Dropdown oder Zahl-Input: 0, 1, 2, 3)
-- Nutzt die bestehende `handleEditMietvertrag`-Mutation
-- Wird im Bereich neben den bestehenden Vertragsdetails angezeigt
-- So kann die Mahnstufe jederzeit manuell korrigiert werden (z.B. auf 0 zurücksetzen)
+- `showWarningContract`-State und Warning-Dialog-UI komplett raus
+- `handleContractClick` ruft direkt `proceedWithContracts` auf
+- Kein `meetsCriteria`-Check mehr
 
-#### 2. `useMietvertragMutations.ts` erweitern
+#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
 
-- `handleEditMietvertrag` um den Feldtyp `mahnstufe` ergänzen (integer-Validierung, Wertebereich 0-3)
+- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
+- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
+- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
+- Bei Einzug: Kein `start_datum`-Update
+- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
+- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
 
-#### 3. Keine Änderung am Edge Function Flow
-
-- `generate-mahnung-pdf`: Erstellt nur PDF (erhöht keine Mahnstufe) ✅ bereits so
-- `send-mahnung`: Erhöht Mahnstufe nach erfolgreichem Versand ✅ bereits so
-- Reihenfolge: Formular → PDF-Preview → E-Mail → Mahnstufe erhöht ✅ bereits so
-
-### Betroffene Dateien
+#### 4. Betroffene Dateien
 
 | Datei | Änderung |
 |-------|----------|
-| `src/components/dashboard/mietvertrag-details/MietvertragOverviewTab.tsx` | Editierbares Mahnstufe-Feld hinzufügen |
-| `src/hooks/useMietvertragMutations.ts` | `mahnstufe`-Feld in handleEditMietvertrag unterstützen |
+| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
+| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
+| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
 
