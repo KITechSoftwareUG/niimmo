@@ -14,6 +14,7 @@ import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
 import { Uebergabe } from "@/pages/Uebergabe";
 import { DarlehenVerwaltung } from "@/components/dashboard/DarlehenVerwaltung";
 import { HausmeisterDashboard } from "@/components/dashboard/HausmeisterDashboard";
+import { DevStatusBoard } from "@/components/devboard/DevStatusBoard";
 import { ZaehlerVerwaltung } from "@/components/dashboard/ZaehlerVerwaltung";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
