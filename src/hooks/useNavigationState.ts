@@ -10,6 +10,7 @@ interface NavigationState {
   showControlboard: boolean;
   showUebergabe: boolean;
   showDarlehen: boolean;
+  showDevBoard: boolean;
   navigationSource: "dashboard" | "immobilie" | "search";
 }
 
@@ -21,6 +22,7 @@ const defaultState: NavigationState = {
   showControlboard: false,
   showUebergabe: false,
   showDarlehen: false,
+  showDevBoard: false,
   navigationSource: "dashboard",
 };
 
