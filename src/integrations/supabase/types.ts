@@ -185,6 +185,83 @@ export type Database = {
           },
         ]
       }
+      dev_ticket_kommentare: {
+        Row: {
+          erstellt_am: string
+          erstellt_von: string | null
+          id: string
+          kommentar: string
+          ticket_id: string
+        }
+        Insert: {
+          erstellt_am?: string
+          erstellt_von?: string | null
+          id?: string
+          kommentar: string
+          ticket_id: string
+        }
+        Update: {
+          erstellt_am?: string
+          erstellt_von?: string | null
+          id?: string
+          kommentar?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dev_ticket_kommentare_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "dev_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dev_tickets: {
+        Row: {
+          aktualisiert_am: string
+          beschreibung: string | null
+          erstellt_am: string
+          erstellt_von: string | null
+          id: string
+          kurzbeschreibung: string | null
+          prioritaet: string
+          screenshot_urls: string[] | null
+          sort_order: number
+          status: string
+          titel: string
+          typ: string
+        }
+        Insert: {
+          aktualisiert_am?: string
+          beschreibung?: string | null
+          erstellt_am?: string
+          erstellt_von?: string | null
+          id?: string
+          kurzbeschreibung?: string | null
+          prioritaet?: string
+          screenshot_urls?: string[] | null
+          sort_order?: number
+          status?: string
+          titel: string
+          typ?: string
+        }
+        Update: {
+          aktualisiert_am?: string
+          beschreibung?: string | null
+          erstellt_am?: string
+          erstellt_von?: string | null
+          id?: string
+          kurzbeschreibung?: string | null
+          prioritaet?: string
+          screenshot_urls?: string[] | null
+          sort_order?: number
+          status?: string
+          titel?: string
+          typ?: string
+        }
+        Relationships: []
+      }
       dokumente: {
         Row: {
           dateityp: string | null
