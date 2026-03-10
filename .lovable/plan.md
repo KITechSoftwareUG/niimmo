@@ -1,43 +1,26 @@
 
 
-## Plan: Übergabe-Workflow radikal vereinfachen
+## Plan: Einheit 14 (Gartenhaus) zu Objekt 12 Ronnenberg hinzufügen
 
-### Kernidee
+### Was passiert
 
-Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
+1. **Neue Einheit einfügen** in `einheiten`-Tabelle:
+   - ID: `00000000-0000-0000-0000-000000001214`
+   - `immobilie_id`: `00000000-0000-0000-0000-000000000012`
+   - `einheitentyp`: `Sonstiges` (Gartenhaus passt nicht in Garage/Wohnung)
+   - `etage`: `Gartenhaus`
+   - `qm`: NULL
 
-### Änderungen
+2. **`einheiten_anzahl` auf 13 erhöhen** in `immobilien` (aktuell 12, stimmt schon nicht mit den 13 vorhandenen Einheiten überein -- wird auf 14 korrigiert, da es dann 14 Einheiten sind).
 
-#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
+### Betroffene Bereiche (automatisch abgedeckt)
 
-- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
-- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
-- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
-  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
-  - Auszug: Gekündigte und bald auslaufende Verträge oben
-- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
-- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
+Die App lädt Einheiten dynamisch per Supabase-Query (`einheiten` WHERE `immobilie_id`), daher wird Einheit 14 automatisch in folgenden Views angezeigt:
+- **ImmobilienDetail** (Einheiten-Tab)
+- **Stammdaten/Mietübersicht** (EditableMietUebersicht)
+- **Nebenkostenabrechnung** (NebenkostenBuildingView, Verteilung)
+- **Zählerverwaltung** (ZaehlerVerwaltung)
+- **Übergabe** (falls ein Vertrag angelegt wird)
 
-#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
-
-- `showWarningContract`-State und Warning-Dialog-UI komplett raus
-- `handleContractClick` ruft direkt `proceedWithContracts` auf
-- Kein `meetsCriteria`-Check mehr
-
-#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
-
-- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
-- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
-- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
-- Bei Einzug: Kein `start_datum`-Update
-- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
-- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
-
-#### 4. Betroffene Dateien
-
-| Datei | Änderung |
-|-------|----------|
-| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
-| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
-| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
+Es sind **keine Code-Änderungen** nötig -- nur zwei Daten-Operationen (INSERT + UPDATE).
 
