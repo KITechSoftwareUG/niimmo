@@ -504,10 +504,7 @@ export const UebergabeDialog = ({
             <FileDown className="mr-1 h-4 w-4" />
             Download
           </Button>
-          <Button size="sm" onClick={() => {
-            // Save meter readings first, then show email dialog
-            handleSubmit();
-          }} disabled={isSubmitting}>
+          <Button size="sm" onClick={() => setShowConfirmFinalize(true)} disabled={isSubmitting}>
             <Send className="mr-1 h-4 w-4" />
             Abschließen & Senden
           </Button>
