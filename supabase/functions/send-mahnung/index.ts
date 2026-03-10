@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import nodemailer from "npm:nodemailer@6.9.10";
 
 const ALLOWED_ORIGINS = [
   'https://immobilien-blick-dashboard.lovable.app',
@@ -58,7 +58,6 @@ function generateMahnungHtml(data: MahnungEmailRequest): string {
       break;
   }
 
-  // Build forderungen table rows
   let forderungenRows = '';
   if (data.forderungen && data.forderungen.length > 0) {
     forderungenRows = data.forderungen.map(f => {
@@ -76,23 +75,15 @@ function generateMahnungHtml(data: MahnungEmailRequest): string {
 <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f4;padding:20px 0;">
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-
-<!-- Header -->
 <tr><td style="background-color:${headerColor};padding:24px 32px;text-align:center;">
   <img src="${logoUrl}" alt="NilImmo" height="40" style="margin-bottom:12px;display:inline-block;" />
   <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;">${data.mahnstufe}. Mahnung — Mietrückstand</h1>
 </td></tr>
-
-<!-- Body -->
 <tr><td style="padding:32px;">
-
   <p style="margin:0 0 16px;font-size:15px;">Datum: ${heute}</p>
-
   <p style="margin:0 0 8px;font-size:15px;">Sehr geehrte/r <strong>${data.recipientName}</strong>,</p>
   <p style="margin:0 0 20px;font-size:15px;">bezüglich Ihres Mietvertrags für das Objekt <strong>${data.immobilieName}</strong>, ${data.immobilieAdresse}, besteht folgender Zahlungsrückstand:</p>
-
   ${forderungenRows ? `
-  <!-- Forderungstabelle -->
   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;border:1px solid #ddd;border-radius:4px;overflow:hidden;">
     <tr style="background-color:#f8f8f8;">
       <th style="padding:10px 12px;text-align:left;font-size:14px;border-bottom:2px solid #ddd;">Monat</th>
@@ -100,8 +91,6 @@ function generateMahnungHtml(data: MahnungEmailRequest): string {
     </tr>
     ${forderungenRows}
   </table>` : ''}
-
-  <!-- Kostenzusammenfassung -->
   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background-color:#fdf2f0;border-radius:6px;padding:4px;">
     <tr><td style="padding:8px 16px;font-size:14px;">Mietrückstand</td><td style="padding:8px 16px;text-align:right;font-size:14px;">${data.rueckstandBetrag.toFixed(2)} €</td></tr>
     <tr><td style="padding:8px 16px;font-size:14px;">Mahngebühren</td><td style="padding:8px 16px;text-align:right;font-size:14px;">${data.mahngebuehren.toFixed(2)} €</td></tr>
@@ -112,28 +101,19 @@ function generateMahnungHtml(data: MahnungEmailRequest): string {
       <td style="padding:12px 16px;text-align:right;font-size:18px;font-weight:700;color:${headerColor};">${data.gesamtbetrag.toFixed(2)} €</td>
     </tr>
   </table>
-
-  <!-- Zahlungsfrist -->
   <div style="background-color:#fff3cd;border-left:4px solid #ffc107;padding:12px 16px;margin-bottom:20px;border-radius:0 4px 4px 0;">
     <p style="margin:0;font-size:14px;font-weight:600;">Bitte überweisen Sie den Gesamtbetrag von ${data.gesamtbetrag.toFixed(2)} € bis spätestens zum <strong>${fristFormatted}</strong>.</p>
   </div>
-
-  <!-- Eskalationstext -->
   <p style="margin:0 0 24px;font-size:14px;line-height:1.6;">${eskalationsText}</p>
-
   <p style="margin:0 0 8px;font-size:14px;">Das Mahnungsschreiben ist dieser E-Mail als PDF beigefügt.</p>
   <p style="margin:0 0 4px;font-size:14px;">Mit freundlichen Grüßen</p>
   <p style="margin:0 0 0;font-size:14px;font-weight:600;">Ihre Hausverwaltung — NilImmo</p>
-
 </td></tr>
-
-<!-- Footer -->
 <tr><td style="background-color:#f8f8f8;padding:20px 32px;border-top:1px solid #eee;">
   <p style="margin:0 0 4px;font-size:11px;color:#888;text-align:center;">NilImmo Hausverwaltung</p>
   <p style="margin:0 0 4px;font-size:11px;color:#888;text-align:center;">Diese E-Mail wurde automatisch generiert. Bei Fragen wenden Sie sich bitte an Ihre Hausverwaltung.</p>
   <p style="margin:0;font-size:11px;color:#888;text-align:center;">Mahnstufe: ${data.mahnstufe} | Datum: ${heute}</p>
 </td></tr>
-
 </table>
 </td></tr>
 </table>
@@ -149,22 +129,21 @@ serve(async (req) => {
   }
 
   // Auth check
-  // AUTH TEMPORARILY DISABLED FOR SMTP TEST
-  // const authHeader = req.headers.get('Authorization');
-  // if (!authHeader?.startsWith('Bearer ')) {
-  //   return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  // }
-  // const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-  // const { error: authError } = await authClient.auth.getUser();
-  // if (authError) {
-  //   return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  // }
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+  const { error: authError } = await authClient.auth.getUser();
+  if (authError) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
 
   try {
     const data: MahnungEmailRequest = await req.json();
     console.log('Mahnung E-Mail wird versendet:', { recipient: data.recipientEmail, mahnstufe: data.mahnstufe });
 
-    // SMTP config — dedicated Mahnung secrets with fallback
+    // SMTP config
     const smtpHost = Deno.env.get("MAHNUNG_SMTP_HOST") || Deno.env.get("SMTP_HOST");
     const smtpPort = parseInt(Deno.env.get("MAHNUNG_SMTP_PORT") || Deno.env.get("SMTP_PORT") || "587");
     const smtpUser = Deno.env.get("MAHNUNG_SMTP_USER") || Deno.env.get("SMTP_USER");
@@ -173,8 +152,7 @@ serve(async (req) => {
     const smtpFromName = Deno.env.get("MAHNUNG_SMTP_FROM_NAME") || Deno.env.get("SMTP_FROM_NAME") || "NilImmo Hausverwaltung";
 
     if (!smtpHost || !smtpUser || !smtpPass || !smtpFromEmail) {
-      console.error("SMTP configuration missing for Mahnung");
-      throw new Error("SMTP-Konfiguration für Mahnungen unvollständig. Bitte MAHNUNG_SMTP_* oder SMTP_* Secrets konfigurieren.");
+      throw new Error("SMTP-Konfiguration für Mahnungen unvollständig. Bitte MAHNUNG_SMTP_* Secrets konfigurieren.");
     }
 
     // Load PDF from Supabase Storage
@@ -182,7 +160,8 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    let pdfAttachment: { content: Uint8Array; filename: string } | null = null;
+    let pdfBuffer: Buffer | null = null;
+    let pdfFilename = `Mahnung_Stufe${data.mahnstufe}_${new Date().toISOString().split('T')[0]}.pdf`;
     if (data.pdfPath) {
       console.log('Loading PDF from storage:', data.pdfPath);
       const { data: fileData, error: fileError } = await supabase.storage
@@ -193,11 +172,8 @@ serve(async (req) => {
         console.error('PDF download error:', fileError);
       } else if (fileData) {
         const arrayBuffer = await fileData.arrayBuffer();
-        pdfAttachment = {
-          content: new Uint8Array(arrayBuffer),
-          filename: `Mahnung_Stufe${data.mahnstufe}_${new Date().toISOString().split('T')[0]}.pdf`,
-        };
-        console.log('PDF loaded successfully, size:', pdfAttachment.content.length);
+        pdfBuffer = Buffer.from(arrayBuffer);
+        console.log('PDF loaded successfully, size:', pdfBuffer.length);
       }
     }
 
@@ -207,67 +183,37 @@ serve(async (req) => {
       ? `${data.mahnstufe}. und letzte Mahnung — Mietrückstand | ${data.immobilieName}`
       : `${data.mahnstufe}. Mahnung — Mietrückstand | ${data.immobilieName}`;
 
-    // Create SMTP client
-    const client = new SmtpClient();
-    
-    const connectConfig: any = {
-      hostname: smtpHost,
+    // Create nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
       port: smtpPort,
-      username: smtpUser,
-      password: smtpPass,
-    };
-    
-    if (smtpPort === 465) {
-      await client.connectTLS(connectConfig);
-    } else {
-      await client.connect(connectConfig);
-    }
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
 
-    // Encode PDF attachment as base64 if available
-    let contentBody = htmlBody;
-    const boundary = "----=_Part_" + Date.now().toString(36);
-    
-    if (pdfAttachment) {
-      // Build multipart MIME message
-      const base64Content = btoa(String.fromCharCode(...pdfAttachment.content));
-      contentBody = [
-        `--${boundary}`,
-        'Content-Type: text/html; charset=UTF-8',
-        'Content-Transfer-Encoding: 7bit',
-        '',
-        htmlBody,
-        '',
-        `--${boundary}`,
-        `Content-Type: application/pdf; name="${pdfAttachment.filename}"`,
-        'Content-Transfer-Encoding: base64',
-        `Content-Disposition: attachment; filename="${pdfAttachment.filename}"`,
-        '',
-        base64Content,
-        '',
-        `--${boundary}--`,
-      ].join('\r\n');
-    }
-
-    await client.send({
+    const mailOptions: any = {
       from: `${smtpFromName} <${smtpFromEmail}>`,
       to: data.recipientEmail,
-      cc: data.ccEmails && data.ccEmails.length > 0 ? data.ccEmails : undefined,
       subject: betreff,
-      content: pdfAttachment 
-        ? undefined 
-        : `Mahnung Stufe ${data.mahnstufe} - Gesamtbetrag: ${data.gesamtbetrag.toFixed(2)} €`,
-      html: pdfAttachment ? undefined : htmlBody,
-      ...(pdfAttachment ? {
-        headers: {
-          'MIME-Version': '1.0',
-          'Content-Type': `multipart/mixed; boundary="${boundary}"`,
-        },
-        content: contentBody,
-      } : {}),
-    });
-    
-    await client.close();
+      html: htmlBody,
+    };
 
+    if (data.ccEmails && data.ccEmails.length > 0) {
+      mailOptions.cc = data.ccEmails.join(', ');
+    }
+
+    if (pdfBuffer) {
+      mailOptions.attachments = [{
+        filename: pdfFilename,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      }];
+    }
+
+    await transporter.sendMail(mailOptions);
     console.log('Mahnung E-Mail erfolgreich versendet an:', data.recipientEmail);
 
     // Log to system_logs

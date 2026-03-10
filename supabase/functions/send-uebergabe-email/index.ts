@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import nodemailer from "npm:nodemailer@6.9.10";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const ALLOWED_ORIGINS = [
@@ -38,16 +38,16 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // AUTH TEMPORARILY DISABLED FOR SMTP TEST
-  // const authHeader = req.headers.get('Authorization');
-  // if (!authHeader?.startsWith('Bearer ')) {
-  //   return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  // }
-  // const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-  // const { error: authError } = await authClient.auth.getUser();
-  // if (authError) {
-  //   return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  // }
+  // Auth check
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+  const { error: authError } = await authClient.auth.getUser();
+  if (authError) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
 
   try {
     const { recipients, subject, body, pdfPath }: EmailRequest = await req.json();
@@ -68,12 +68,11 @@ serve(async (req) => {
     const smtpFromName = Deno.env.get("UEBERGABE_SMTP_FROM_NAME") || Deno.env.get("MAHNUNG_SMTP_FROM_NAME") || Deno.env.get("SMTP_FROM_NAME") || "NilImmo Hausverwaltung";
 
     if (!smtpHost || !smtpUser || !smtpPass || !smtpFromEmail) {
-      console.error("SMTP configuration missing for Übergabe");
       throw new Error("SMTP-Konfiguration unvollständig. Bitte UEBERGABE_SMTP_* oder MAHNUNG_SMTP_* Secrets konfigurieren.");
     }
 
     // Load PDF attachment if path provided
-    let pdfAttachment: { content: Uint8Array; filename: string } | null = null;
+    let pdfBuffer: Buffer | null = null;
     if (pdfPath) {
       const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
       console.log('Loading PDF from storage:', pdfPath);
@@ -85,29 +84,21 @@ serve(async (req) => {
         console.error('PDF download error:', fileError);
       } else if (fileData) {
         const arrayBuffer = await fileData.arrayBuffer();
-        pdfAttachment = {
-          content: new Uint8Array(arrayBuffer),
-          filename: `Uebergabeprotokoll_${new Date().toISOString().split('T')[0]}.pdf`,
-        };
-        console.log('PDF loaded successfully, size:', pdfAttachment.content.length);
+        pdfBuffer = Buffer.from(arrayBuffer);
+        console.log('PDF loaded successfully, size:', pdfBuffer.length);
       }
     }
 
-    // Create SMTP client
-    const client = new SmtpClient();
-
-    const connectConfig: any = {
-      hostname: smtpHost,
+    // Create nodemailer transporter
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
       port: smtpPort,
-      username: smtpUser,
-      password: smtpPass,
-    };
-
-    if (smtpPort === 465) {
-      await client.connectTLS(connectConfig);
-    } else {
-      await client.connect(connectConfig);
-    }
+      secure: smtpPort === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
 
     const sentEmails: string[] = [];
     const failedEmails: { email: string; error: string }[] = [];
@@ -115,48 +106,23 @@ serve(async (req) => {
 
     for (const recipient of recipients) {
       try {
-        const boundary = "----=_Part_" + Date.now().toString(36) + Math.random().toString(36);
+        const mailOptions: any = {
+          from: `${smtpFromName} <${smtpFromEmail}>`,
+          to: recipient.email,
+          subject: subject,
+          text: body,
+          html: htmlBody,
+        };
 
-        if (pdfAttachment) {
-          // Multipart message with PDF attachment
-          const base64Content = btoa(String.fromCharCode(...pdfAttachment.content));
-          const contentBody = [
-            `--${boundary}`,
-            'Content-Type: text/html; charset=UTF-8',
-            'Content-Transfer-Encoding: 7bit',
-            '',
-            htmlBody,
-            '',
-            `--${boundary}`,
-            `Content-Type: application/pdf; name="${pdfAttachment.filename}"`,
-            'Content-Transfer-Encoding: base64',
-            `Content-Disposition: attachment; filename="${pdfAttachment.filename}"`,
-            '',
-            base64Content,
-            '',
-            `--${boundary}--`,
-          ].join('\r\n');
-
-          await client.send({
-            from: `${smtpFromName} <${smtpFromEmail}>`,
-            to: recipient.email,
-            subject: subject,
-            headers: {
-              'MIME-Version': '1.0',
-              'Content-Type': `multipart/mixed; boundary="${boundary}"`,
-            },
-            content: contentBody,
-          });
-        } else {
-          await client.send({
-            from: `${smtpFromName} <${smtpFromEmail}>`,
-            to: recipient.email,
-            subject: subject,
-            content: body,
-            html: htmlBody,
-          });
+        if (pdfBuffer) {
+          mailOptions.attachments = [{
+            filename: `Uebergabeprotokoll_${new Date().toISOString().split('T')[0]}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          }];
         }
 
+        await transporter.sendMail(mailOptions);
         console.log(`Email sent successfully to: ${recipient.email}`);
         sentEmails.push(recipient.email);
       } catch (emailError) {
@@ -168,7 +134,7 @@ serve(async (req) => {
       }
     }
 
-    await client.close();
+    transporter.close();
 
     if (sentEmails.length === 0 && failedEmails.length > 0) {
       throw new Error(
