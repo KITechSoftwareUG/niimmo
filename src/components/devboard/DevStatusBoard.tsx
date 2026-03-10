@@ -4,9 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { DevTicketCard } from "./DevTicketCard";
 import { DevTicketModal } from "./DevTicketModal";
-import { ArrowLeft, Plus, LayoutGrid, List, Search } from "lucide-react";
+import { ArrowLeft, Plus, Search, Bug, Lightbulb, ListTodo, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -16,22 +15,31 @@ interface DevStatusBoardProps {
   onBack: () => void;
 }
 
-const statusColumns = [
-  { key: "offen", label: "Offen", color: "bg-muted" },
-  { key: "geplant", label: "Geplant", color: "bg-blue-50" },
-  { key: "in_entwicklung", label: "In Entwicklung", color: "bg-yellow-50" },
-  { key: "in_testing", label: "In Testing", color: "bg-purple-50" },
-  { key: "fertig", label: "Fertig", color: "bg-green-50" },
-];
+const statusLabels: Record<string, { label: string; className: string }> = {
+  offen: { label: "Offen", className: "bg-muted text-muted-foreground" },
+  geplant: { label: "Geplant", className: "bg-blue-100 text-blue-700" },
+  in_entwicklung: { label: "In Entwicklung", className: "bg-yellow-100 text-yellow-800" },
+  in_testing: { label: "In Testing", className: "bg-purple-100 text-purple-700" },
+  fertig: { label: "Fertig", className: "bg-green-100 text-green-700" },
+};
 
-const typLabels: Record<string, string> = { bug: "Bug", feature: "Feature", aufgabe: "Aufgabe" };
-const prioLabels: Record<string, string> = { kritisch: "Kritisch", hoch: "Hoch", mittel: "Mittel", niedrig: "Niedrig" };
+const typConfig: Record<string, { icon: any; label: string; className: string }> = {
+  bug: { icon: Bug, label: "Bug", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  feature: { icon: Lightbulb, label: "Feature", className: "bg-blue-100 text-blue-700 border-blue-200" },
+  aufgabe: { icon: ListTodo, label: "Aufgabe", className: "bg-muted text-muted-foreground border-border" },
+};
+
+const prioConfig: Record<string, { label: string; className: string }> = {
+  kritisch: { label: "Kritisch", className: "bg-destructive text-destructive-foreground" },
+  hoch: { label: "Hoch", className: "bg-orange-500 text-white" },
+  mittel: { label: "Mittel", className: "bg-yellow-100 text-yellow-800" },
+  niedrig: { label: "Niedrig", className: "bg-muted text-muted-foreground" },
+};
 
 export const DevStatusBoard = ({ onBack }: DevStatusBoardProps) => {
-  const [view, setView] = useState<"kanban" | "list">("kanban");
   const [search, setSearch] = useState("");
   const [filterTyp, setFilterTyp] = useState<string>("alle");
-  const [filterPrio, setFilterPrio] = useState<string>("alle");
+  const [filterStatus, setFilterStatus] = useState<string>("alle");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
 
@@ -50,7 +58,7 @@ export const DevStatusBoard = ({ onBack }: DevStatusBoardProps) => {
 
   const filtered = tickets.filter((t: any) => {
     if (filterTyp !== "alle" && t.typ !== filterTyp) return false;
-    if (filterPrio !== "alle" && t.prioritaet !== filterPrio) return false;
+    if (filterStatus !== "alle" && t.status !== filterStatus) return false;
     if (search) {
       const s = search.toLowerCase();
       return t.titel?.toLowerCase().includes(s) || t.kurzbeschreibung?.toLowerCase().includes(s) || t.beschreibung?.toLowerCase().includes(s);
@@ -63,14 +71,9 @@ export const DevStatusBoard = ({ onBack }: DevStatusBoardProps) => {
     setModalOpen(true);
   };
 
-  const openNew = () => {
-    setSelectedTicket(null);
-    setModalOpen(true);
-  };
-
   return (
     <div className="min-h-screen modern-dashboard-bg">
-      <div className="container mx-auto px-4 py-4 sm:p-6 lg:p-8">
+      <div className="container mx-auto px-4 py-4 sm:p-6 lg:p-8 max-w-5xl">
         {/* Header */}
         <div className="glass-card p-4 sm:p-6 rounded-xl sm:rounded-2xl mb-4 sm:mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -79,26 +82,18 @@ export const DevStatusBoard = ({ onBack }: DevStatusBoardProps) => {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <h1 className="text-xl sm:text-2xl font-bold">Entwicklungsstatus</h1>
-              <Badge variant="secondary">{tickets.length} Tickets</Badge>
+              <Badge variant="secondary">{tickets.length} Einträge</Badge>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant={view === "kanban" ? "default" : "outline"} size="sm" onClick={() => setView("kanban")}>
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-              <Button variant={view === "list" ? "default" : "outline"} size="sm" onClick={() => setView("list")}>
-                <List className="h-4 w-4" />
-              </Button>
-              <Button size="sm" onClick={openNew}>
-                <Plus className="h-4 w-4 mr-1" /> Neues Ticket
-              </Button>
-            </div>
+            <Button size="sm" onClick={() => { setSelectedTicket(null); setModalOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Neu
+            </Button>
           </div>
 
           {/* Filters */}
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tickets durchsuchen..." className="pl-9 h-9" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Suchen..." className="pl-9 h-9" />
             </div>
             <Select value={filterTyp} onValueChange={setFilterTyp}>
               <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
@@ -109,71 +104,80 @@ export const DevStatusBoard = ({ onBack }: DevStatusBoardProps) => {
                 <SelectItem value="aufgabe">Aufgabe</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filterPrio} onValueChange={setFilterPrio}>
-              <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="alle">Alle Prioritäten</SelectItem>
-                <SelectItem value="kritisch">Kritisch</SelectItem>
-                <SelectItem value="hoch">Hoch</SelectItem>
-                <SelectItem value="mittel">Mittel</SelectItem>
-                <SelectItem value="niedrig">Niedrig</SelectItem>
+                <SelectItem value="alle">Alle Status</SelectItem>
+                <SelectItem value="offen">Offen</SelectItem>
+                <SelectItem value="geplant">Geplant</SelectItem>
+                <SelectItem value="in_entwicklung">In Entwicklung</SelectItem>
+                <SelectItem value="in_testing">In Testing</SelectItem>
+                <SelectItem value="fertig">Fertig</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        {/* Kanban View */}
-        {view === "kanban" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {statusColumns.map((col) => {
-              const colTickets = filtered.filter((t: any) => t.status === col.key);
-              return (
-                <div key={col.key} className={`rounded-xl p-3 ${col.color} min-h-[200px]`}>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold">{col.label}</h3>
-                    <Badge variant="outline" className="text-[10px]">{colTickets.length}</Badge>
-                  </div>
-                  <div className="space-y-2">
-                    {colTickets.map((t: any) => (
-                      <DevTicketCard key={t.id} ticket={t} onClick={() => openTicket(t)} />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* Liste */}
+        <div className="glass-card rounded-xl overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[100px]">Typ</TableHead>
+                <TableHead>Titel</TableHead>
+                <TableHead className="w-[140px]">Status</TableHead>
+                <TableHead className="w-[100px]">Priorität</TableHead>
+                <TableHead className="w-[90px]">Datum</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((t: any) => {
+                const typ = typConfig[t.typ] || typConfig.feature;
+                const status = statusLabels[t.status] || statusLabels.offen;
+                const prio = prioConfig[t.prioritaet] || prioConfig.mittel;
+                const TypIcon = typ.icon;
 
-        {/* List View */}
-        {view === "list" && (
-          <div className="glass-card rounded-xl overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Typ</TableHead>
-                  <TableHead>Titel</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Priorität</TableHead>
-                  <TableHead>Erstellt</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((t: any) => (
+                return (
                   <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openTicket(t)}>
-                    <TableCell><Badge variant="outline" className="text-xs">{typLabels[t.typ] || t.typ}</Badge></TableCell>
-                    <TableCell className="font-medium">{t.titel}</TableCell>
-                    <TableCell>{statusColumns.find((s) => s.key === t.status)?.label || t.status}</TableCell>
-                    <TableCell>{prioLabels[t.prioritaet] || t.prioritaet}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{format(new Date(t.erstellt_am), "dd.MM.yy", { locale: de })}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typ.className}`}>
+                        <TypIcon className="h-3 w-3 mr-0.5" />
+                        {typ.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <span className="font-medium">{t.titel}</span>
+                        {t.kurzbeschreibung && (
+                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{t.kurzbeschreibung}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={`text-[10px] ${status.className}`}>{status.label}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`text-[10px] ${prio.className}`}>
+                        {(t.prioritaet === "kritisch") && <AlertTriangle className="h-3 w-3 mr-0.5" />}
+                        {prio.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {format(new Date(t.erstellt_am), "dd.MM.yy", { locale: de })}
+                    </TableCell>
                   </TableRow>
-                ))}
-                {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Keine Tickets gefunden</TableCell></TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                );
+              })}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    Keine Einträge gefunden
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <DevTicketModal open={modalOpen} onOpenChange={setModalOpen} ticket={selectedTicket} />
