@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -117,6 +118,9 @@ export const UebergabeDialog = ({
   
   // Email dialog
   const [showEmailDialog, setShowEmailDialog] = useState(false);
+  
+  // Confirmation dialog
+  const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
   
   // Tenant data
   const [mieterData, setMieterData] = useState<MieterData[]>([]);
@@ -469,7 +473,7 @@ export const UebergabeDialog = ({
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-3 pt-4 border-t">
-        {/* Preview Button - primary action */}
+        {/* Preview Button - only way to proceed */}
         <Button onClick={handleGeneratePreview} className="w-full h-12 sm:h-10" disabled={isGeneratingPreview || isSubmitting}>
           {isGeneratingPreview ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Vorschau wird erstellt...</>
@@ -483,18 +487,9 @@ export const UebergabeDialog = ({
           Formular zurücksetzen
         </Button>
 
-        <div className="flex flex-col-reverse sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto h-12 sm:h-10" disabled={isSubmitting}>
-            Abbrechen
-          </Button>
-          <Button onClick={handleSubmit} variant="secondary" className="w-full sm:flex-1 h-12 sm:h-10" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Speichern...</>
-            ) : (
-              contracts.length > 1 ? `${contracts.length} Übergaben abschließen` : "Übergabe abschließen (ohne Vorschau)"
-            )}
-          </Button>
-        </div>
+        <Button variant="outline" onClick={onClose} className="w-full h-12 sm:h-10" disabled={isSubmitting}>
+          Abbrechen
+        </Button>
       </div>
     </div>
   );
@@ -512,10 +507,7 @@ export const UebergabeDialog = ({
             <FileDown className="mr-1 h-4 w-4" />
             Download
           </Button>
-          <Button size="sm" onClick={() => {
-            // Save meter readings first, then show email dialog
-            handleSubmit();
-          }} disabled={isSubmitting}>
+          <Button size="sm" onClick={() => setShowConfirmFinalize(true)} disabled={isSubmitting}>
             <Send className="mr-1 h-4 w-4" />
             Abschließen & Senden
           </Button>
@@ -552,9 +544,30 @@ export const UebergabeDialog = ({
     />
   );
 
+  const confirmDialog = (
+    <AlertDialog open={showConfirmFinalize} onOpenChange={setShowConfirmFinalize}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Übergabe abschließen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Zählerstände werden gespeichert und das Übergabeprotokoll wird abgeschlossen. 
+            Bitte stellen Sie sicher, dass alle Angaben korrekt sind.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={handleSubmit}>
+            Bestätigen & Abschließen
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        {confirmDialog}
         {emailDialogComponent}
         <DrawerContent className="max-h-[95vh]">
           <DrawerHeader className="pb-2">
@@ -573,6 +586,7 @@ export const UebergabeDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      {confirmDialog}
       {emailDialogComponent}
       <DialogContent className={cn(
         "max-h-[90vh] overflow-y-auto",

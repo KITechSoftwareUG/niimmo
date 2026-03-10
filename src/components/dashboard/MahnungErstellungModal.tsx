@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +49,8 @@ export function MahnungErstellungModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [step, setStep] = useState<'edit' | 'email'>('edit');
+  const [showConfirmSave, setShowConfirmSave] = useState(false);
+  const [showConfirmSend, setShowConfirmSend] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [pdfPath, setPdfPath] = useState<string | null>(null);
@@ -390,7 +393,7 @@ export function MahnungErstellungModal({
                 </Button>
                 <Button 
                   size="sm" 
-                  onClick={handleSaveAndUpload} 
+                  onClick={() => setShowConfirmSave(true)} 
                   disabled={isSubmitting || parsedRueckstand <= 0}
                   variant="destructive"
                 >
@@ -701,7 +704,7 @@ export function MahnungErstellungModal({
                 </Button>
                 <Button 
                   size="sm" 
-                  onClick={handleSendEmail} 
+                  onClick={() => setShowConfirmSend(true)} 
                   disabled={isSendingEmail || !emailRecipient}
                   variant="destructive"
                 >
@@ -801,6 +804,40 @@ export function MahnungErstellungModal({
           </div>
         )}
       </DialogContent>
+
+      <AlertDialog open={showConfirmSave} onOpenChange={setShowConfirmSave}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mahnung speichern?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mahnung Stufe {mahnstufe} wird gespeichert und als Dokument zum Mietvertrag abgelegt. Fortfahren?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveAndUpload}>
+              Bestätigen & Speichern
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showConfirmSend} onOpenChange={setShowConfirmSend}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mahnung versenden?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Die Mahnung wird an {emailRecipient} versendet. Dies kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSendEmail} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Bestätigen & Senden
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
