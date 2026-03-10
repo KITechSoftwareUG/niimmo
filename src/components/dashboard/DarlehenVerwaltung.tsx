@@ -498,10 +498,11 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
           <div className="space-y-3">
             {darlehen.map((d) => {
               const assignedImmos = getImmobilienForDarlehen(d.id);
-              const zahlungen = getZahlungenForDarlehen(d.id);
-              const isExpanded = expandedId === d.id;
-              const tilgungsfortschritt = d.darlehensbetrag > 0 
-                ? ((d.darlehensbetrag - (d.restschuld || 0)) / d.darlehensbetrag) * 100 
+               const zahlungen = getZahlungenForDarlehen(d.id);
+               const isExpanded = expandedId === d.id;
+               const effectiveRestschuld = getEffectiveRestschuld(d.id, d.restschuld);
+               const tilgungsfortschritt = d.darlehensbetrag > 0 
+                 ? ((d.darlehensbetrag - effectiveRestschuld) / d.darlehensbetrag) * 100 
                 : 0;
 
               return (
