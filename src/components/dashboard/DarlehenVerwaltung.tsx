@@ -316,13 +316,28 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
   const formatPercent = (val: number) => `${val.toFixed(2)}%`;
 
-  // Summary stats
+  // Helper: get effective restschuld for a loan (latest zahlung's restschuld_danach, or static value)
+  const getEffectiveRestschuld = (darlehenId: string, staticRestschuld: number | null): number => {
+    const zahlungen = darlehenZahlungen
+      ?.filter((z) => z.darlehen_id === darlehenId && z.restschuld_danach != null)
+      ?.sort((a, b) => new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime());
+    if (zahlungen && zahlungen.length > 0) {
+      return Math.abs(zahlungen[0].restschuld_danach!);
+    }
+    return Math.abs(staticRestschuld || 0);
+  };
+
+  // Summary stats with dynamic restschuld
   const totalDarlehensbetrag = darlehen?.reduce((s, d) => s + (d.darlehensbetrag || 0), 0) || 0;
-  const totalRestschuld = darlehen?.reduce((s, d) => s + (d.restschuld || 0), 0) || 0;
+  const totalRestschuld = darlehen?.reduce((s, d) => s + getEffectiveRestschuld(d.id, d.restschuld), 0) || 0;
   const totalMonatlicheRate = darlehen?.reduce((s, d) => s + (d.monatliche_rate || 0), 0) || 0;
-  const avgZinssatz = darlehen && darlehen.length > 0 
-    ? darlehen.reduce((s, d) => s + (d.zinssatz_prozent || 0), 0) / darlehen.length 
-    : 0;
+  
+  // Weighted average interest rate (by loan amount)
+  const avgZinssatz = useMemo(() => {
+    if (!darlehen || darlehen.length === 0 || totalDarlehensbetrag === 0) return 0;
+    const weightedSum = darlehen.reduce((s, d) => s + (d.zinssatz_prozent || 0) * (d.darlehensbetrag || 0), 0);
+    return weightedSum / totalDarlehensbetrag;
+  }, [darlehen, totalDarlehensbetrag]);
 
   // Portfolio metrics
   const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
@@ -483,10 +498,11 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
           <div className="space-y-3">
             {darlehen.map((d) => {
               const assignedImmos = getImmobilienForDarlehen(d.id);
-              const zahlungen = getZahlungenForDarlehen(d.id);
-              const isExpanded = expandedId === d.id;
-              const tilgungsfortschritt = d.darlehensbetrag > 0 
-                ? ((d.darlehensbetrag - (d.restschuld || 0)) / d.darlehensbetrag) * 100 
+               const zahlungen = getZahlungenForDarlehen(d.id);
+               const isExpanded = expandedId === d.id;
+               const effectiveRestschuld = getEffectiveRestschuld(d.id, d.restschuld);
+               const tilgungsfortschritt = d.darlehensbetrag > 0 
+                 ? ((d.darlehensbetrag - effectiveRestschuld) / d.darlehensbetrag) * 100 
                 : 0;
 
               return (
@@ -507,7 +523,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                             <Euro className="h-3 w-3" /> {formatCurrency(d.darlehensbetrag)}
                           </span>
                           <span className="flex items-center gap-1">
-                            <TrendingDown className="h-3 w-3" /> Rest: {formatCurrency(d.restschuld || 0)}
+                            <TrendingDown className="h-3 w-3" /> Rest: {formatCurrency(effectiveRestschuld)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Percent className="h-3 w-3" /> {formatPercent(d.zinssatz_prozent || 0)}
