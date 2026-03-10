@@ -167,20 +167,20 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   contactY += 5;
   doc.setFontSize(7);
   doc.setTextColor(80, 80, 80);
-  // Phone icon + number
-  doc.text('\u260E', contactX, contactY);
-  doc.text('05138 – 600 72 72', contactX + 6, contactY);
+  // Phone + number
+  doc.text('Tel.', contactX, contactY);
+  doc.text('05138 – 600 72 72', contactX + 8, contactY);
   contactY += 4;
-  // Fax icon + number
-  doc.text('\u260E', contactX, contactY); // fax symbol
-  doc.text('05138 – 600 72 79', contactX + 6, contactY);
+  // Fax + number
+  doc.text('Fax', contactX, contactY);
+  doc.text('05138 – 600 72 79', contactX + 8, contactY);
   contactY += 4;
   // Address
-  doc.text('Egestorffstraße 11, 31319 Sehnde', contactX + 6, contactY);
+  doc.text('Egestorffstraße 11, 31319 Sehnde', contactX + 8, contactY);
   contactY += 4;
-  // Email icon + address
-  doc.text('\u2709', contactX, contactY);
-  doc.text('mikyas@niimmo.de', contactX + 6, contactY);
+  // Email
+  doc.text('E-Mail', contactX, contactY);
+  doc.text('mikyas@niimmo.de', contactX + 12, contactY);
   
   // ============ DATE ============
   y = 105;
