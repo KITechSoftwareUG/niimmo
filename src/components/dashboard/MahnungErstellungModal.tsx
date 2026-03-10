@@ -804,6 +804,40 @@ export function MahnungErstellungModal({
           </div>
         )}
       </DialogContent>
+
+      <AlertDialog open={showConfirmSave} onOpenChange={setShowConfirmSave}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mahnung speichern?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mahnung Stufe {mahnstufe} wird gespeichert und als Dokument zum Mietvertrag abgelegt. Fortfahren?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveAndUpload}>
+              Bestätigen & Speichern
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showConfirmSend} onOpenChange={setShowConfirmSend}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mahnung versenden?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Die Mahnung wird an {emailRecipient} versendet. Dies kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSendEmail} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Bestätigen & Senden
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
