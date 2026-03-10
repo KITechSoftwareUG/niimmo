@@ -207,41 +207,64 @@ serve(async (req) => {
       : `${data.mahnstufe}. Mahnung — Mietrückstand | ${data.immobilieName}`;
 
     // Create SMTP client
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: smtpPort,
-        tls: smtpPort === 465,
-        auth: {
-          username: smtpUser,
-          password: smtpPass,
-        },
-      },
-    });
-
-    const toAddresses = [data.recipientEmail];
-    const sendOptions: any = {
-      from: `${smtpFromName} <${smtpFromEmail}>`,
-      to: toAddresses.join(', '),
-      subject: betreff,
-      content: `Mahnung Stufe ${data.mahnstufe} - Gesamtbetrag: ${data.gesamtbetrag.toFixed(2)} €`,
-      html: htmlBody,
+    const client = new SmtpClient();
+    
+    const connectConfig: any = {
+      hostname: smtpHost,
+      port: smtpPort,
+      username: smtpUser,
+      password: smtpPass,
     };
-
-    if (data.ccEmails && data.ccEmails.length > 0) {
-      sendOptions.cc = data.ccEmails.join(', ');
+    
+    if (smtpPort === 465) {
+      await client.connectTLS(connectConfig);
+    } else {
+      await client.connect(connectConfig);
     }
 
+    // Encode PDF attachment as base64 if available
+    let contentBody = htmlBody;
+    const boundary = "----=_Part_" + Date.now().toString(36);
+    
     if (pdfAttachment) {
-      sendOptions.attachments = [{
-        filename: pdfAttachment.filename,
-        content: pdfAttachment.content,
-        contentType: 'application/pdf',
-        encoding: 'binary',
-      }];
+      // Build multipart MIME message
+      const base64Content = btoa(String.fromCharCode(...pdfAttachment.content));
+      contentBody = [
+        `--${boundary}`,
+        'Content-Type: text/html; charset=UTF-8',
+        'Content-Transfer-Encoding: 7bit',
+        '',
+        htmlBody,
+        '',
+        `--${boundary}`,
+        `Content-Type: application/pdf; name="${pdfAttachment.filename}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${pdfAttachment.filename}"`,
+        '',
+        base64Content,
+        '',
+        `--${boundary}--`,
+      ].join('\r\n');
     }
 
-    await client.send(sendOptions);
+    await client.send({
+      from: `${smtpFromName} <${smtpFromEmail}>`,
+      to: data.recipientEmail,
+      cc: data.ccEmails && data.ccEmails.length > 0 ? data.ccEmails : undefined,
+      subject: betreff,
+      content: pdfAttachment 
+        ? undefined 
+        : `Mahnung Stufe ${data.mahnstufe} - Gesamtbetrag: ${data.gesamtbetrag.toFixed(2)} €`,
+      html: pdfAttachment ? undefined : htmlBody,
+      ...(pdfAttachment ? {
+        headers: {
+          'MIME-Version': '1.0',
+          'Content-Type': `multipart/mixed; boundary="${boundary}"`,
+        },
+        content: contentBody,
+      } : {}),
+    });
+    
     await client.close();
 
     console.log('Mahnung E-Mail erfolgreich versendet an:', data.recipientEmail);
