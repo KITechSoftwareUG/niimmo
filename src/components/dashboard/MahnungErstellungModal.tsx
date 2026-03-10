@@ -704,7 +704,7 @@ export function MahnungErstellungModal({
                 </Button>
                 <Button 
                   size="sm" 
-                  onClick={handleSendEmail} 
+                  onClick={() => setShowConfirmSend(true)} 
                   disabled={isSendingEmail || !emailRecipient}
                   variant="destructive"
                 >

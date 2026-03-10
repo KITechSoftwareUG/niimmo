@@ -586,6 +586,7 @@ export const UebergabeDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      {confirmDialog}
       {emailDialogComponent}
       <DialogContent className={cn(
         "max-h-[90vh] overflow-y-auto",
