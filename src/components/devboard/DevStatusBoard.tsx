@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { DevTicketModal } from "./DevTicketModal";
-import { ArrowLeft, Plus, Search, Bug, Lightbulb, ListTodo, AlertTriangle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Plus, Search, Bug, Lightbulb, ListTodo, AlertTriangle, CheckCircle2, Clock, Construction } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
@@ -36,12 +37,56 @@ const prioConfig: Record<string, { label: string; className: string }> = {
   niedrig: { label: "Niedrig", className: "bg-muted text-muted-foreground" },
 };
 
+interface FeatureStatus {
+  name: string;
+  progress: number;
+  status: "fertig" | "in_arbeit" | "geplant";
+  details?: string;
+}
+
+const featureOverview: FeatureStatus[] = [
+  { name: "Immobilienverwaltung", progress: 100, status: "fertig", details: "Objekte, Einheiten, Zähler, Versorger" },
+  { name: "Mieterverwaltung", progress: 100, status: "fertig", details: "Anlegen, Bearbeiten, Kontaktdaten" },
+  { name: "Mietvertragsverwaltung", progress: 100, status: "fertig", details: "Verträge, Status, Kündigung, Verknüpfungen" },
+  { name: "Zahlungsverwaltung", progress: 100, status: "fertig", details: "CSV-Import, Zuordnung, Kategorisierung, Splits" },
+  { name: "Dokumentenverwaltung", progress: 100, status: "fertig", details: "Upload, Kategorien, PDF-Vorschau" },
+  { name: "Mahnwesen", progress: 100, status: "fertig", details: "Mahnstufen, PDF-Generierung, Versand" },
+  { name: "Mietforderungen", progress: 100, status: "fertig", details: "Automatische Generierung, Fälligkeiten" },
+  { name: "Darlehensverwaltung", progress: 100, status: "fertig", details: "Tilgungsplan, Zahlungen, OCR-Import" },
+  { name: "Versicherungen", progress: 100, status: "fertig", details: "Typ, Beiträge, Kontaktdaten" },
+  { name: "Zählerverwaltung", progress: 100, status: "fertig", details: "Strom, Gas, Wasser, Ablesungen" },
+  { name: "Dashboard & Statistiken", progress: 100, status: "fertig", details: "Übersicht, Kennzahlen, Filter" },
+  { name: "Mieterhöhung", progress: 85, status: "in_arbeit", details: "Berechnung & PDF fertig, Versand teilweise" },
+  { name: "Kündigung & Vertragsende", progress: 90, status: "in_arbeit", details: "Formular, Dokument-Upload, Auto-Status" },
+  { name: "KI-Chatbot", progress: 80, status: "in_arbeit", details: "Chat funktioniert, Kontextwissen ausbaubar" },
+  { name: "Nebenkostenabrechnung", progress: 60, status: "in_arbeit", details: "Zuordnung & Verteilung vorhanden, Abrechnung/PDF fehlt" },
+  { name: "Übergabeprotokoll", progress: 70, status: "in_arbeit", details: "Formular & Zähler vorhanden, PDF/E-Mail in Arbeit" },
+  { name: "WhatsApp-Integration", progress: 50, status: "in_arbeit", details: "Nachrichten anzeigen, Senden noch nicht live" },
+  { name: "Hausmeister-Dashboard", progress: 40, status: "in_arbeit", details: "Grundstruktur vorhanden, Funktionen begrenzt" },
+  { name: "Entwicklungsstatus-Board", progress: 100, status: "fertig", details: "Tickets, Kommentare, Filterung" },
+];
+
+const getStatusIcon = (status: FeatureStatus["status"]) => {
+  switch (status) {
+    case "fertig": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+    case "in_arbeit": return <Construction className="h-4 w-4 text-yellow-600" />;
+    case "geplant": return <Clock className="h-4 w-4 text-muted-foreground" />;
+  }
+};
+
+const getProgressColor = (progress: number) => {
+  if (progress === 100) return "[&>div]:bg-green-500";
+  if (progress >= 70) return "[&>div]:bg-yellow-500";
+  return "[&>div]:bg-orange-500";
+};
+
 export const DevStatusBoard = ({ onBack }: DevStatusBoardProps) => {
   const [search, setSearch] = useState("");
   const [filterTyp, setFilterTyp] = useState<string>("alle");
   const [filterStatus, setFilterStatus] = useState<string>("alle");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [showFeatures, setShowFeatures] = useState(true);
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["dev-tickets"],
@@ -71,6 +116,10 @@ export const DevStatusBoard = ({ onBack }: DevStatusBoardProps) => {
     setModalOpen(true);
   };
 
+  const fertigCount = featureOverview.filter(f => f.status === "fertig").length;
+  const inArbeitCount = featureOverview.filter(f => f.status === "in_arbeit").length;
+  const avgProgress = Math.round(featureOverview.reduce((sum, f) => sum + f.progress, 0) / featureOverview.length);
+
   return (
     <div className="min-h-screen modern-dashboard-bg">
       <div className="container mx-auto px-4 py-4 sm:p-6 lg:p-8 max-w-5xl">
@@ -82,102 +131,167 @@ export const DevStatusBoard = ({ onBack }: DevStatusBoardProps) => {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <h1 className="text-xl sm:text-2xl font-bold">Entwicklungsstatus</h1>
-              <Badge variant="secondary">{tickets.length} Einträge</Badge>
+              <Badge variant="secondary">{tickets.length} Tickets</Badge>
             </div>
             <Button size="sm" onClick={() => { setSelectedTicket(null); setModalOpen(true); }}>
               <Plus className="h-4 w-4 mr-1" /> Neu
             </Button>
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Suchen..." className="pl-9 h-9" />
-            </div>
-            <Select value={filterTyp} onValueChange={setFilterTyp}>
-              <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="alle">Alle Typen</SelectItem>
-                <SelectItem value="bug">Bug</SelectItem>
-                <SelectItem value="feature">Feature</SelectItem>
-                <SelectItem value="aufgabe">Aufgabe</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="alle">Alle Status</SelectItem>
-                <SelectItem value="offen">Offen</SelectItem>
-                <SelectItem value="geplant">Geplant</SelectItem>
-                <SelectItem value="in_entwicklung">In Entwicklung</SelectItem>
-                <SelectItem value="in_testing">In Testing</SelectItem>
-                <SelectItem value="fertig">Fertig</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Tab Toggle */}
+          <div className="flex gap-2 mb-4">
+            <Button variant={showFeatures ? "default" : "outline"} size="sm" onClick={() => setShowFeatures(true)}>
+              Feature-Übersicht
+            </Button>
+            <Button variant={!showFeatures ? "default" : "outline"} size="sm" onClick={() => setShowFeatures(false)}>
+              Tickets ({tickets.length})
+            </Button>
           </div>
+
+          {/* Filters - nur bei Tickets */}
+          {!showFeatures && (
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Suchen..." className="pl-9 h-9" />
+              </div>
+              <Select value={filterTyp} onValueChange={setFilterTyp}>
+                <SelectTrigger className="w-[130px] h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alle">Alle Typen</SelectItem>
+                  <SelectItem value="bug">Bug</SelectItem>
+                  <SelectItem value="feature">Feature</SelectItem>
+                  <SelectItem value="aufgabe">Aufgabe</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alle">Alle Status</SelectItem>
+                  <SelectItem value="offen">Offen</SelectItem>
+                  <SelectItem value="geplant">Geplant</SelectItem>
+                  <SelectItem value="in_entwicklung">In Entwicklung</SelectItem>
+                  <SelectItem value="in_testing">In Testing</SelectItem>
+                  <SelectItem value="fertig">Fertig</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
-        {/* Liste */}
-        <div className="glass-card rounded-xl overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">Typ</TableHead>
-                <TableHead>Titel</TableHead>
-                <TableHead className="w-[140px]">Status</TableHead>
-                <TableHead className="w-[100px]">Priorität</TableHead>
-                <TableHead className="w-[90px]">Datum</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((t: any) => {
-                const typ = typConfig[t.typ] || typConfig.feature;
-                const status = statusLabels[t.status] || statusLabels.offen;
-                const prio = prioConfig[t.prioritaet] || prioConfig.mittel;
-                const TypIcon = typ.icon;
+        {showFeatures ? (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="glass-card p-4 rounded-xl text-center">
+                <div className="text-2xl font-bold text-green-600">{fertigCount}</div>
+                <div className="text-xs text-muted-foreground">Fertig</div>
+              </div>
+              <div className="glass-card p-4 rounded-xl text-center">
+                <div className="text-2xl font-bold text-yellow-600">{inArbeitCount}</div>
+                <div className="text-xs text-muted-foreground">In Arbeit</div>
+              </div>
+              <div className="glass-card p-4 rounded-xl text-center">
+                <div className="text-2xl font-bold">{avgProgress}%</div>
+                <div className="text-xs text-muted-foreground">Gesamt</div>
+              </div>
+            </div>
 
-                return (
-                  <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openTicket(t)}>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typ.className}`}>
-                        <TypIcon className="h-3 w-3 mr-0.5" />
-                        {typ.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <span className="font-medium">{t.titel}</span>
-                        {t.kurzbeschreibung && (
-                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{t.kurzbeschreibung}</p>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`text-[10px] ${status.className}`}>{status.label}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={`text-[10px] ${prio.className}`}>
-                        {(t.prioritaet === "kritisch") && <AlertTriangle className="h-3 w-3 mr-0.5" />}
-                        {prio.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {format(new Date(t.erstellt_am), "dd.MM.yy", { locale: de })}
+            {/* Feature Liste */}
+            <div className="glass-card rounded-xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[30px]"></TableHead>
+                    <TableHead>Feature</TableHead>
+                    <TableHead className="w-[200px]">Fortschritt</TableHead>
+                    <TableHead className="w-[60px] text-right">%</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {featureOverview.sort((a, b) => b.progress - a.progress || a.name.localeCompare(b.name)).map((f) => (
+                    <TableRow key={f.name}>
+                      <TableCell className="pr-0">{getStatusIcon(f.status)}</TableCell>
+                      <TableCell>
+                        <div>
+                          <span className="font-medium text-sm">{f.name}</span>
+                          {f.details && <p className="text-xs text-muted-foreground mt-0.5">{f.details}</p>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Progress value={f.progress} className={`h-2 ${getProgressColor(f.progress)}`} />
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm font-medium">
+                        {f.progress}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        ) : (
+          /* Tickets Liste */
+          <div className="glass-card rounded-xl overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Typ</TableHead>
+                  <TableHead>Titel</TableHead>
+                  <TableHead className="w-[140px]">Status</TableHead>
+                  <TableHead className="w-[100px]">Priorität</TableHead>
+                  <TableHead className="w-[90px]">Datum</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((t: any) => {
+                  const typ = typConfig[t.typ] || typConfig.feature;
+                  const status = statusLabels[t.status] || statusLabels.offen;
+                  const prio = prioConfig[t.prioritaet] || prioConfig.mittel;
+                  const TypIcon = typ.icon;
+
+                  return (
+                    <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openTicket(t)}>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${typ.className}`}>
+                          <TypIcon className="h-3 w-3 mr-0.5" />
+                          {typ.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <span className="font-medium">{t.titel}</span>
+                          {t.kurzbeschreibung && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{t.kurzbeschreibung}</p>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-[10px] ${status.className}`}>{status.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={`text-[10px] ${prio.className}`}>
+                          {(t.prioritaet === "kritisch") && <AlertTriangle className="h-3 w-3 mr-0.5" />}
+                          {prio.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {format(new Date(t.erstellt_am), "dd.MM.yy", { locale: de })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      Keine Einträge gefunden
                     </TableCell>
                   </TableRow>
-                );
-              })}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    Keine Einträge gefunden
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       <DevTicketModal open={modalOpen} onOpenChange={setModalOpen} ticket={selectedTicket} />
