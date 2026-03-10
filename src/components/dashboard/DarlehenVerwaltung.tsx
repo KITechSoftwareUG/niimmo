@@ -341,9 +341,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
   // Portfolio metrics
   const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
-  const totalGetilgt = totalDarlehensbetrag - totalRestschuld;
-  const eigenkapitalQuote = totalKaufpreis > 0 ? ((totalKaufpreis - totalRestschuld) / totalKaufpreis) * 100 : 0;
-  const tilgungsQuote = totalDarlehensbetrag > 0 ? (totalGetilgt / totalDarlehensbetrag) * 100 : 0;
+  const totalGetilgt = Math.max(0, totalDarlehensbetrag - totalRestschuld);
+  const tilgungsQuote = totalDarlehensbetrag > 0 ? Math.min(100, Math.max(0, (totalGetilgt / totalDarlehensbetrag) * 100)) : 0;
   const anzahlKredite = darlehen?.length || 0;
 
   // Circular progress helper
