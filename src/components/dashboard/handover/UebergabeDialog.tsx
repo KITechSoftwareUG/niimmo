@@ -544,9 +544,30 @@ export const UebergabeDialog = ({
     />
   );
 
+  const confirmDialog = (
+    <AlertDialog open={showConfirmFinalize} onOpenChange={setShowConfirmFinalize}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Übergabe abschließen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Zählerstände werden gespeichert und das Übergabeprotokoll wird abgeschlossen. 
+            Bitte stellen Sie sicher, dass alle Angaben korrekt sind.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogAction onClick={handleSubmit}>
+            Bestätigen & Abschließen
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        {confirmDialog}
         {emailDialogComponent}
         <DrawerContent className="max-h-[95vh]">
           <DrawerHeader className="pb-2">
