@@ -71,23 +71,51 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   const marginLeft = 25;
   const marginRight = 25;
   const contentWidth = pageWidth - marginLeft - marginRight;
-  const maxY = 250; // page break threshold (leave room for footer)
+  const maxY = 252; // page break threshold (leave room for footer)
   
   const logo = await loadLogo();
 
   // Helper: check if we need a page break and add one if so
   function checkPageBreak(currentY: number, neededSpace: number = 15): number {
     if (currentY + neededSpace > maxY) {
-      addFooter(doc, logo);
+      addFooter(doc);
       doc.addPage();
-      addHeader(doc, logo, marginLeft, marginRight, pageWidth);
-      return 58; // resume Y after header on new page
+      addContinuationHeader(doc, logo);
+      return 50; // resume Y after small header on continuation pages
     }
     return currentY;
   }
 
-  // ============ PAGE 1 HEADER ============
-  addHeader(doc, logo, marginLeft, marginRight, pageWidth);
+  // Helper: draw justified text
+  function drawJustifiedText(text: string, x: number, y: number, maxWidth: number, lineHeight: number): number {
+    const lines = doc.splitTextToSize(text, maxWidth);
+    for (let i = 0; i < lines.length; i++) {
+      y = checkPageBreak(y, lineHeight);
+      // Justify all lines except the last one of each paragraph
+      if (i < lines.length - 1) {
+        const words = lines[i].split(' ');
+        if (words.length > 1) {
+          const totalWordsWidth = words.reduce((sum: number, w: string) => sum + doc.getTextWidth(w), 0);
+          const totalSpaceNeeded = maxWidth - totalWordsWidth;
+          const spacePerGap = totalSpaceNeeded / (words.length - 1);
+          let cx = x;
+          for (let j = 0; j < words.length; j++) {
+            doc.text(words[j], cx, y);
+            cx += doc.getTextWidth(words[j]) + spacePerGap;
+          }
+        } else {
+          doc.text(lines[i], x, y);
+        }
+      } else {
+        doc.text(lines[i], x, y);
+      }
+      y += lineHeight;
+    }
+    return y;
+  }
+
+  // ============ PAGE 1 HEADER (large logo, centered) ============
+  addFirstPageHeader(doc, logo, marginLeft, marginRight, pageWidth);
   
   // ============ SENDER LINE ============
   let y = 55;
@@ -115,25 +143,44 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   y += 6;
   doc.text(data.mieterPlzOrt, marginLeft, y);
   
-  // ============ CONTACT BOX (right side) ============
-  const contactX = 130;
-  let contactY = 58;
-  doc.setFontSize(7.5);
-  doc.setTextColor(150, 150, 150);
+  // ============ CONTACT BOX (right side, with border) ============
+  const boxX = 128;
+  const boxY = 56;
+  const boxW = 57;
+  const boxH = 32;
+  
+  // Draw box border
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+  doc.rect(boxX, boxY, boxW, boxH);
+  
+  const contactX = boxX + 3;
+  let contactY = boxY + 5;
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.setFont('helvetica', 'normal');
   doc.text('Rückfragen richten Sie bitte an:', contactX, contactY);
   contactY += 5;
-  doc.setTextColor(80, 80, 80);
-  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(7.5);
   doc.text('Denis Baris Mikyas', contactX, contactY);
   contactY += 5;
   doc.setFontSize(7);
-  doc.text('Tel.    05138 – 600 72 72', contactX, contactY);
+  doc.setTextColor(80, 80, 80);
+  // Phone icon + number
+  doc.text('\u260E', contactX, contactY);
+  doc.text('05138 – 600 72 72', contactX + 6, contactY);
   contactY += 4;
-  doc.text('Fax    05138 – 600 72 79', contactX, contactY);
+  // Fax icon + number
+  doc.text('\u260E', contactX, contactY); // fax symbol
+  doc.text('05138 – 600 72 79', contactX + 6, contactY);
   contactY += 4;
-  doc.text('          Egestorffstraße 11, 31319 Sehnde', contactX, contactY);
+  // Address
+  doc.text('Egestorffstraße 11, 31319 Sehnde', contactX + 6, contactY);
   contactY += 4;
-  doc.text('Mail   mikyas@niimmo.de', contactX, contactY);
+  // Email icon + address
+  doc.text('\u2709', contactX, contactY);
+  doc.text('mikyas@niimmo.de', contactX + 6, contactY);
   
   // ============ DATE ============
   y = 105;
@@ -143,6 +190,12 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   const dateText = `Sehnde, ${data.datum}`;
   const dateWidth = doc.getTextWidth(dateText);
   doc.text(dateText, pageWidth - marginRight - dateWidth, y);
+  
+  // ============ SHORT LINE SEPARATOR BEFORE SUBJECT ============
+  y = 113;
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.15);
+  doc.line(marginLeft, y, marginLeft + 8, y);
   
   // ============ SUBJECT ============
   y = 120;
@@ -174,37 +227,27 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   const lineHeight = 5;
   
   if (data.freitext) {
-    const lines = doc.splitTextToSize(data.freitext, contentWidth);
-    for (const line of lines) {
-      y = checkPageBreak(y, lineHeight);
-      doc.text(line, marginLeft, y);
-      y += lineHeight;
-    }
+    y = drawJustifiedText(data.freitext, marginLeft, y, contentWidth, lineHeight);
     y += 4;
   } else {
     let bodyText: string;
     
     if (data.mahnstufe >= 3) {
-      bodyText = `Sie haben seit Beginn des Mietverhältnisses am ${data.vertragStart} Ihre Mietzahlungen wiederholt verspätet und unregelmäßig erbracht. Trotz meiner Mahnung sind die Mietrückstände nicht ausgeglichen worden.\n\nDer Mietrückstand beläuft sich inzwischen auf ${data.anzahlMonatsmieten} Monatsmieten in Höhe von insgesamt ${formatEuro(data.gesamtRueckstand)} €. Damit befinden Sie sich im erheblichen Zahlungsverzug im Sinne der §§ 543 Abs. 2 Nr. 3, 569 Abs. 3 Nr. 1 BGB.`;
+      bodyText = `Sie haben seit Beginn des Mietverhältnisses am ${data.vertragStart} Ihre Mietzahlungen wiederholt verspätet und unregelmäßig erbracht. Trotz meiner Mahnung sind die Mietrückstände nicht ausgeglichen worden.\nDer Mietrückstand beläuft sich inzwischen auf ${data.anzahlMonatsmieten} Monatsmieten in Höhe von insgesamt ${formatEuro(data.gesamtRueckstand)} €. Damit befinden Sie sich im erheblichen Zahlungsverzug im Sinne der §§ 543 Abs. 2 Nr. 3, 569 Abs. 3 Nr. 1 BGB.`;
     } else if (data.mahnstufe === 2) {
-      bodyText = `trotz unserer ersten Mahnung sind die folgenden Zahlungen weiterhin nicht bei uns eingegangen. Wir fordern Sie hiermit erneut zur Zahlung auf.\n\nDer Mietrückstand beläuft sich auf insgesamt ${formatEuro(data.gesamtRueckstand)} €.`;
+      bodyText = `trotz unserer ersten Mahnung sind die folgenden Zahlungen weiterhin nicht bei uns eingegangen. Wir fordern Sie hiermit erneut zur Zahlung auf.\nDer Mietrückstand beläuft sich auf insgesamt ${formatEuro(data.gesamtRueckstand)} €.`;
     } else {
-      bodyText = `wir möchten Sie darauf hinweisen, dass folgende Mietzahlungen noch nicht bei uns eingegangen sind:\n\nDer Mietrückstand beläuft sich auf insgesamt ${formatEuro(data.gesamtRueckstand)} €.`;
+      bodyText = `wir möchten Sie darauf hinweisen, dass folgende Mietzahlungen noch nicht bei uns eingegangen sind:\nDer Mietrückstand beläuft sich auf insgesamt ${formatEuro(data.gesamtRueckstand)} €.`;
     }
     
-    const paragraphs = bodyText.split('\n\n');
+    const paragraphs = bodyText.split('\n');
     for (const paragraph of paragraphs) {
       if (paragraph.trim() === '') {
         y += 3;
         continue;
       }
-      const lines = doc.splitTextToSize(paragraph, contentWidth);
-      for (const line of lines) {
-        y = checkPageBreak(y, lineHeight);
-        doc.text(line, marginLeft, y);
-        y += lineHeight;
-      }
-      y += 3;
+      y = drawJustifiedText(paragraph, marginLeft, y, contentWidth, lineHeight);
+      y += 2;
     }
     y += 2;
   }
@@ -213,15 +256,8 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   if (data.verzugszinsenDetails.length > 0) {
     y = checkPageBreak(y, 20);
     y += 2;
-    const zinsenIntro = doc.splitTextToSize(
-      'Zusätzlich schulden Sie für die nicht bzw. verspätet gezahlten Mieten Verzugszinsen nach § 288 BGB. Bis zum heutigen Tage belaufen sich diese auf:',
-      contentWidth
-    );
-    for (const line of zinsenIntro) {
-      y = checkPageBreak(y, lineHeight);
-      doc.text(line, marginLeft, y);
-      y += lineHeight;
-    }
+    const zinsenIntro = 'Zusätzlich schulden Sie für die nicht bzw. verspätet gezahlten Mieten Verzugszinsen nach § 288 BGB. Bis zum heutigen Tage belaufen sich diese auf:';
+    y = drawJustifiedText(zinsenIntro, marginLeft, y, contentWidth, lineHeight);
     y += 3;
     
     for (const detail of data.verzugszinsenDetails) {
@@ -229,64 +265,39 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
       const line = detail.laufend
         ? `${detail.monat}: ab ${data.datum} weiter laufend`
         : `${detail.monat}: ${formatEuro(detail.betrag)} €`;
-      doc.text(line, marginLeft + 5, y);
-      y += lineHeight;
-    }
-    
-    y += 2;
-    y = checkPageBreak(y, lineHeight);
-    const zwischenText = `Zwischensumme Verzugszinsen: ${formatEuro(data.verzugszinsenGesamt)} € (zuzüglich weiterer Zinsen bis zur vollständigen Zahlung).`;
-    const zwischenLines = doc.splitTextToSize(zwischenText, contentWidth);
-    for (const line of zwischenLines) {
-      y = checkPageBreak(y, lineHeight);
       doc.text(line, marginLeft, y);
       y += lineHeight;
     }
+    
+    // Zwischensumme on same line flow
+    y = checkPageBreak(y, lineHeight);
+    doc.text(`Zwischensumme Verzugszinsen: ${formatEuro(data.verzugszinsenGesamt)} € (zuzüglich weiterer Zinsen bis zur vollständigen Zahlung).`, marginLeft, y);
+    y += lineHeight;
   }
   
   // Mahnkosten
   if (data.mahnkostenGesamt > 0) {
-    y = checkPageBreak(y, lineHeight + 4);
+    y = checkPageBreak(y, lineHeight + 2);
     const mahnkostenText = `Weiterhin entstehen Mahnkosten i. H. v. ${formatEuro(data.mahnkostenProSchreiben)} € pro Mahnschreiben, somit ${formatEuro(data.mahnkostenGesamt)} €.`;
-    const mahnkostenLines = doc.splitTextToSize(mahnkostenText, contentWidth);
-    for (const line of mahnkostenLines) {
-      y = checkPageBreak(y, lineHeight);
-      doc.text(line, marginLeft, y);
-      y += lineHeight;
-    }
+    y = drawJustifiedText(mahnkostenText, marginLeft, y, contentWidth, lineHeight);
     y += 4;
   }
   
   // ============ KÜNDIGUNG (Stufe 3) ============
   if (data.mahnstufe >= 3) {
-    y = checkPageBreak(y, 30);
+    y = checkPageBreak(y, 20);
     const kuendigungText = `Hiermit kündige ich daher das bestehende Mietverhältnis über die Wohnung in der ${data.immobilieAdresse}, ${data.einheitBezeichnung} außerordentlich fristlos. Wir fordern Sie auf die Wohnung unverzüglich, spätestens jedoch bis zum ${data.raeumungsfristDatum || data.zahlungsfristDatum} zu räumen.`;
-    const kuendigungLines = doc.splitTextToSize(kuendigungText, contentWidth);
-    for (const line of kuendigungLines) {
-      y = checkPageBreak(y, lineHeight);
-      doc.text(line, marginLeft, y);
-      y += lineHeight;
-    }
+    y = drawJustifiedText(kuendigungText, marginLeft, y, contentWidth, lineHeight);
     y += 4;
     
-    y = checkPageBreak(y, 25);
+    y = checkPageBreak(y, 20);
     const fristText = `Unabhängig hiervon setze ich Ihnen – ohne Anerkennung einer Rechtspflicht – eine Frist von 7 Kalendertagen, spätestens bis zum ${data.zahlungsfristDatum}, um sämtliche Mietrückstände nebst Zinsen vollständig auszugleichen. Sollten Sie die Rückstände nicht innerhalb dieser Frist begleichen, werde ich die fristlose Kündigung vollumfänglich durchsetzen und Räumungsklage erheben.`;
-    const fristLines = doc.splitTextToSize(fristText, contentWidth);
-    for (const line of fristLines) {
-      y = checkPageBreak(y, lineHeight);
-      doc.text(line, marginLeft, y);
-      y += lineHeight;
-    }
+    y = drawJustifiedText(fristText, marginLeft, y, contentWidth, lineHeight);
     y += 4;
   } else {
     y = checkPageBreak(y, 15);
     const zahlungsText = `Wir bitten Sie, den Gesamtbetrag bis zum ${data.zahlungsfristDatum} auf unser Konto zu überweisen.`;
-    const zahlungsLines = doc.splitTextToSize(zahlungsText, contentWidth);
-    for (const line of zahlungsLines) {
-      y = checkPageBreak(y, lineHeight);
-      doc.text(line, marginLeft, y);
-      y += lineHeight;
-    }
+    y = drawJustifiedText(zahlungsText, marginLeft, y, contentWidth, lineHeight);
     y += 4;
     
     if (data.mahnstufe === 2) {
@@ -297,14 +308,8 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   }
   
   // Contact closing
-  y = checkPageBreak(y, lineHeight + 8);
-  const closingText = 'Für Rückfragen stehen wir Ihnen gerne unter den oben genannten Kontaktdaten zur Verfügung.';
-  const closingLines = doc.splitTextToSize(closingText, contentWidth);
-  for (const line of closingLines) {
-    y = checkPageBreak(y, lineHeight);
-    doc.text(line, marginLeft, y);
-    y += lineHeight;
-  }
+  y = checkPageBreak(y, lineHeight + 6);
+  doc.text('Für Rückfragen stehen wir Ihnen gerne unter den oben genannten Kontaktdaten zur Verfügung.', marginLeft, y);
   y += 8;
   
   // ============ SIGNATURE ============
@@ -315,73 +320,91 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   doc.text('Denis Mikyas', marginLeft, y);
   y += 5;
   doc.setFont('helvetica', 'italic');
-  doc.setFontSize(8);
+  doc.setFontSize(9);
   doc.text('Geschäftsführer', marginLeft, y);
   
   // ============ FOOTER (last page) ============
-  addFooter(doc, logo);
+  addFooter(doc);
   
   return doc.output('blob');
 }
 
-function addHeader(doc: jsPDF, logo: string | null, marginLeft: number, marginRight: number, pageWidth: number) {
+// First page header: large centered logo + red separator
+function addFirstPageHeader(doc: jsPDF, logo: string | null, marginLeft: number, _marginRight: number, pageWidth: number) {
   if (logo) {
-    doc.addImage(logo, 'PNG', 75, 8, 60, 35);
+    // Logo is roughly square (horse + NiImmo Gruppe text)
+    // Keep proportional: ~30mm wide, ~36mm tall, centered
+    const logoW = 30;
+    const logoH = 36;
+    const logoX = (pageWidth - logoW) / 2;
+    doc.addImage(logo, 'PNG', logoX, 6, logoW, logoH);
   }
   // Red separator line
   doc.setDrawColor(200, 30, 30);
   doc.setLineWidth(0.8);
-  doc.line(marginLeft, 48, pageWidth - marginRight, 48);
+  doc.line(marginLeft, 48, pageWidth - 25, 48);
 }
 
-function addFooter(doc: jsPDF, logo: string | null) {
+// Continuation page header: small centered logo, no red line
+function addContinuationHeader(doc: jsPDF, logo: string | null) {
+  if (logo) {
+    const logoW = 16;
+    const logoH = 19;
+    const logoX = (210 - logoW) / 2;
+    doc.addImage(logo, 'PNG', logoX, 6, logoW, logoH);
+  }
+}
+
+function addFooter(doc: jsPDF) {
   const marginLeft = 25;
   const pageWidth = 210;
   const marginRight = 25;
-  const footerY = 255;
+  const footerY = 258;
   
+  // Separator line
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.3);
   doc.line(marginLeft, footerY, pageWidth - marginRight, footerY);
   
-  doc.setFontSize(6.5);
+  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   
   let fy = footerY + 4;
+  
+  // Left column
   doc.setFont('helvetica', 'bold');
   doc.text('Vertretungsberechtigte Geschäftsführer:', marginLeft, fy);
   doc.setFont('helvetica', 'normal');
-  doc.text('Ayhan Yeyrek, Denis Mikyas', marginLeft, fy + 3);
-  
+  fy += 3;
+  doc.text('Ayhan Yeyrek, Denis Mikyas', marginLeft, fy);
+  fy += 3;
   doc.setFont('helvetica', 'bold');
-  doc.text('Registergericht:', marginLeft, fy + 7);
+  doc.text('Registergericht:', marginLeft, fy);
   doc.setFont('helvetica', 'normal');
-  doc.text('Amtsgericht Hildesheim Handelsregister B', marginLeft, fy + 10);
-  doc.text('Registernummer:', marginLeft, fy + 13);
-  doc.text('HRB 208111', marginLeft + 25, fy + 13);
-  
+  fy += 3;
+  doc.text('Amtsgericht Hildesheim Handelsregister B', marginLeft, fy);
+  fy += 3;
+  doc.text('Registernummer: HRB 208111', marginLeft, fy);
+  fy += 3;
   doc.setFont('helvetica', 'bold');
-  doc.text('Gewerbeerlaubnis nach § 34 C GewO; Aufsichtsbehörde:', marginLeft, fy + 18);
+  doc.text('Gewerbeerlaubnis nach § 34 C GewO; Aufsichtsbehörde:', marginLeft, fy);
   doc.setFont('helvetica', 'normal');
-  doc.text('IHK Hannover', marginLeft, fy + 21);
-  
-  doc.setFont('helvetica', 'bold');
-  doc.text('Steuer-Nummer:', marginLeft, fy + 25);
-  doc.setFont('helvetica', 'normal');
-  doc.text('16/204/50884', marginLeft + 22, fy + 25);
+  fy += 3;
+  doc.text('IHK Hannover', marginLeft, fy);
+  fy += 3;
+  doc.text('Steuer-Nummer: 16/204/50884', marginLeft, fy);
   
   // Right column
   const rightCol = 130;
+  let rfy = footerY + 4;
   doc.setFont('helvetica', 'bold');
-  doc.text('Mitglied in:', rightCol, fy);
+  doc.text('Mitglied in:', rightCol, rfy);
   doc.setFont('helvetica', 'normal');
-  doc.text('IHK Industrie- und Handelskammer', rightCol, fy + 3);
-  doc.text('Creditreform', rightCol, fy + 6);
-  
-  if (logo) {
-    doc.addImage(logo, 'PNG', 85, footerY + 10, 30, 18);
-  }
+  rfy += 3;
+  doc.text('IHK Industrie- und Handelskammer', rightCol, rfy);
+  rfy += 5;
+  doc.text('Creditreform', rightCol, rfy);
 }
 
 function formatEuro(betrag: number): string {
