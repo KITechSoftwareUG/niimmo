@@ -316,13 +316,28 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
   const formatPercent = (val: number) => `${val.toFixed(2)}%`;
 
-  // Summary stats
+  // Helper: get effective restschuld for a loan (latest zahlung's restschuld_danach, or static value)
+  const getEffectiveRestschuld = (darlehenId: string, staticRestschuld: number | null): number => {
+    const zahlungen = darlehenZahlungen
+      ?.filter((z) => z.darlehen_id === darlehenId && z.restschuld_danach != null)
+      ?.sort((a, b) => new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime());
+    if (zahlungen && zahlungen.length > 0) {
+      return Math.abs(zahlungen[0].restschuld_danach!);
+    }
+    return Math.abs(staticRestschuld || 0);
+  };
+
+  // Summary stats with dynamic restschuld
   const totalDarlehensbetrag = darlehen?.reduce((s, d) => s + (d.darlehensbetrag || 0), 0) || 0;
-  const totalRestschuld = darlehen?.reduce((s, d) => s + (d.restschuld || 0), 0) || 0;
+  const totalRestschuld = darlehen?.reduce((s, d) => s + getEffectiveRestschuld(d.id, d.restschuld), 0) || 0;
   const totalMonatlicheRate = darlehen?.reduce((s, d) => s + (d.monatliche_rate || 0), 0) || 0;
-  const avgZinssatz = darlehen && darlehen.length > 0 
-    ? darlehen.reduce((s, d) => s + (d.zinssatz_prozent || 0), 0) / darlehen.length 
-    : 0;
+  
+  // Weighted average interest rate (by loan amount)
+  const avgZinssatz = useMemo(() => {
+    if (!darlehen || darlehen.length === 0 || totalDarlehensbetrag === 0) return 0;
+    const weightedSum = darlehen.reduce((s, d) => s + (d.zinssatz_prozent || 0) * (d.darlehensbetrag || 0), 0);
+    return weightedSum / totalDarlehensbetrag;
+  }, [darlehen, totalDarlehensbetrag]);
 
   // Portfolio metrics
   const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
