@@ -457,20 +457,6 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                 </div>
               </div>
 
-              {/* Right: Eigenkapital Ring */}
-              <div className="flex flex-col items-center justify-center">
-                <div className="relative">
-                  <CircularProgress percent={eigenkapitalQuote} size={140} strokeWidth={12} color="hsl(var(--primary))" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <Shield className="h-5 w-5 text-primary mb-0.5" />
-                    <span className="text-2xl font-bold text-foreground">{eigenkapitalQuote.toFixed(0)}%</span>
-                    <span className="text-[10px] text-muted-foreground font-medium">Eigenkapital</span>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 text-center">
-                  {formatCurrency(totalKaufpreis - totalRestschuld)} von {formatCurrency(totalKaufpreis)}
-                </p>
-              </div>
             </div>
           </div>
         </Card>
