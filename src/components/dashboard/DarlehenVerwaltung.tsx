@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { 
   ArrowLeft, Plus, Pencil, Trash2, Building2, Landmark, 
   TrendingDown, Calendar, Euro, Percent, ChevronDown, ChevronUp,
-  PieChart, TrendingUp, Wallet, Home, Shield, ClipboardPaste, FileText, Loader2, Check, AlertTriangle
+  TrendingUp, Wallet, Home, ClipboardPaste, FileText, Loader2, Check, AlertTriangle
 } from "lucide-react";
 
 interface DarlehenVerwaltungProps {
@@ -341,25 +341,10 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
   // Portfolio metrics
   const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
-  const totalGetilgt = totalDarlehensbetrag - totalRestschuld;
-  const eigenkapitalQuote = totalKaufpreis > 0 ? ((totalKaufpreis - totalRestschuld) / totalKaufpreis) * 100 : 0;
-  const tilgungsQuote = totalDarlehensbetrag > 0 ? (totalGetilgt / totalDarlehensbetrag) * 100 : 0;
+  const totalGetilgt = Math.max(0, totalDarlehensbetrag - totalRestschuld);
+  const tilgungsQuote = totalDarlehensbetrag > 0 ? Math.min(100, Math.max(0, (totalGetilgt / totalDarlehensbetrag) * 100)) : 0;
   const anzahlKredite = darlehen?.length || 0;
 
-  // Circular progress helper
-  const CircularProgress = ({ percent, size = 120, strokeWidth = 10, color = "hsl(var(--primary))" }: { percent: number; size?: number; strokeWidth?: number; color?: string }) => {
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (Math.min(percent, 100) / 100) * circumference;
-    return (
-      <svg width={size} height={size} className="transform -rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth}
-          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
-          className="transition-all duration-1000 ease-out" />
-      </svg>
-    );
-  };
 
   return (
     <div className="min-h-screen modern-dashboard-bg">
@@ -399,9 +384,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         {/* Hero Portfolio Card */}
         <Card className="p-0 overflow-hidden mb-6">
           <div className="bg-gradient-to-br from-primary/5 via-card to-primary/3 p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left: Key Numbers */}
-              <div className="lg:col-span-2 space-y-5">
+            <div>
+              <div className="space-y-5">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {/* Immobilienwert */}
                   <div className="space-y-1">
@@ -473,20 +457,6 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                 </div>
               </div>
 
-              {/* Right: Eigenkapital Ring */}
-              <div className="flex flex-col items-center justify-center">
-                <div className="relative">
-                  <CircularProgress percent={eigenkapitalQuote} size={140} strokeWidth={12} color="hsl(var(--primary))" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <Shield className="h-5 w-5 text-primary mb-0.5" />
-                    <span className="text-2xl font-bold text-foreground">{eigenkapitalQuote.toFixed(0)}%</span>
-                    <span className="text-[10px] text-muted-foreground font-medium">Eigenkapital</span>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 text-center">
-                  {formatCurrency(totalKaufpreis - totalRestschuld)} von {formatCurrency(totalKaufpreis)}
-                </p>
-              </div>
             </div>
           </div>
         </Card>

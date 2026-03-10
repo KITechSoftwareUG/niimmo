@@ -1,30 +1,43 @@
 
 
-## Plan: Darlehen-Dashboard aufräumen
+## Plan: Übergabe-Workflow radikal vereinfachen
 
-### Probleme im aktuellen Code
+### Kernidee
 
-1. **Eigenkapitalquote (Ring-Chart)** -- Die Formel `(Kaufpreis - Restschuld) / Kaufpreis` ist irreführend. Sie setzt voraus, dass Kaufpreis = Marktwert und ignoriert tatsächlich eingebrachtes Eigenkapital. Das Feld wird komplett entfernt.
-
-2. **"Bereits getilgt"** -- Berechnung `Darlehensbetrag - Restschuld` kann falsch sein, wenn die statische Restschuld beim Import nicht korrekt war oder nie aktualisiert wurde. Die dynamische Restschuld aus `darlehen_zahlungen` wird bereits genutzt, aber das Ergebnis kann trotzdem unsinnig sein (z.B. negativ oder > Darlehensbetrag).
+Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
 
 ### Änderungen
 
-**1. Eigenkapital-Ring komplett entfernen** (Zeilen 476-489)
-- Den gesamten rechten Ring-Chart-Bereich entfernen
-- Grid von `lg:grid-cols-3` auf volle Breite umstellen (`lg:col-span` anpassen)
-- `CircularProgress`-Komponente und `eigenkapitalQuote`-Variable entfernen
-- Imports `Shield`, `PieChart` aufräumen
+#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
 
-**2. "Bereits getilgt" absichern**
-- Wert auf `Math.max(0, totalGetilgt)` clampen, damit nie negative Werte angezeigt werden
-- Tilgungsquote ebenfalls auf 0-100% begrenzen
+- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
+- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
+- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
+  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
+  - Auszug: Gekündigte und bald auslaufende Verträge oben
+- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
+- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
 
-**3. Layout vereinfachen**
-- Hero-Card wird einspaltiger ohne den Ring-Chart
-- KPI-Reihe bleibt: Immobilienwert, Restschuld, Bereits getilgt
-- Fortschrittsbalken und Bottom-Metrics bleiben
+#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
 
-### Betroffene Datei
-- `src/components/dashboard/DarlehenVerwaltung.tsx` (Zeilen 342-489 hauptsächlich)
+- `showWarningContract`-State und Warning-Dialog-UI komplett raus
+- `handleContractClick` ruft direkt `proceedWithContracts` auf
+- Kein `meetsCriteria`-Check mehr
+
+#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
+
+- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
+- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
+- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
+- Bei Einzug: Kein `start_datum`-Update
+- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
+- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
+
+#### 4. Betroffene Dateien
+
+| Datei | Änderung |
+|-------|----------|
+| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
+| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
+| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
 
