@@ -470,7 +470,7 @@ export const UebergabeDialog = ({
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-3 pt-4 border-t">
-        {/* Preview Button - primary action */}
+        {/* Preview Button - only way to proceed */}
         <Button onClick={handleGeneratePreview} className="w-full h-12 sm:h-10" disabled={isGeneratingPreview || isSubmitting}>
           {isGeneratingPreview ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Vorschau wird erstellt...</>
@@ -484,18 +484,9 @@ export const UebergabeDialog = ({
           Formular zurücksetzen
         </Button>
 
-        <div className="flex flex-col-reverse sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto h-12 sm:h-10" disabled={isSubmitting}>
-            Abbrechen
-          </Button>
-          <Button onClick={handleSubmit} variant="secondary" className="w-full sm:flex-1 h-12 sm:h-10" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Speichern...</>
-            ) : (
-              contracts.length > 1 ? `${contracts.length} Übergaben abschließen` : "Übergabe abschließen (ohne Vorschau)"
-            )}
-          </Button>
-        </div>
+        <Button variant="outline" onClick={onClose} className="w-full h-12 sm:h-10" disabled={isSubmitting}>
+          Abbrechen
+        </Button>
       </div>
     </div>
   );
