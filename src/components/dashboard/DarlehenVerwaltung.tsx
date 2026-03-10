@@ -345,20 +345,6 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const tilgungsQuote = totalDarlehensbetrag > 0 ? Math.min(100, Math.max(0, (totalGetilgt / totalDarlehensbetrag) * 100)) : 0;
   const anzahlKredite = darlehen?.length || 0;
 
-  // Circular progress helper
-  const CircularProgress = ({ percent, size = 120, strokeWidth = 10, color = "hsl(var(--primary))" }: { percent: number; size?: number; strokeWidth?: number; color?: string }) => {
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (Math.min(percent, 100) / 100) * circumference;
-    return (
-      <svg width={size} height={size} className="transform -rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={strokeWidth} />
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={strokeWidth}
-          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
-          className="transition-all duration-1000 ease-out" />
-      </svg>
-    );
-  };
 
   return (
     <div className="min-h-screen modern-dashboard-bg">
