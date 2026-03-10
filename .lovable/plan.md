@@ -1,43 +1,66 @@
 
 
-## Plan: Übergabe-Workflow radikal vereinfachen
+## Plan: Mahnungsprozess perfektionieren + Test-E-Mail
 
-### Kernidee
+Das bestehende Split-Screen-Layout (Form links, PDF-Preview rechts) ist bereits implementiert. Basierend auf den hochgeladenen Vorlagen und dem gewünschten Workflow gibt es folgende Aufgaben:
 
-Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
+---
 
-### Änderungen
+### 1. PDF-Layout exakt an Vorlage anpassen (`mahnungPdfGenerator.ts`)
 
-#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
+Das aktuelle PDF kommt dem Ziel schon nah, aber die Vorlage zeigt Details, die fehlen oder abweichen:
 
-- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
-- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
-- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
-  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
-  - Auszug: Gekündigte und bald auslaufende Verträge oben
-- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
-- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
+- **Blocksatz** für den Fließtext (jsPDF `text()` mit `{ align: 'justify' }`)
+- **Absenderzeile** oberhalb des Empfängers exakt wie in der Vorlage (unterstrichen, kleinere Schrift)
+- **Kontaktbox rechts**: Icons für Telefon/Fax/Mail besser positionieren (Unicode-Symbole ersetzen durch saubere Text-Labels: `☎`, `⌸`, `✉`)
+- **Betreff-Zeile**: Format `MV – [Adresse], [WE X]` + Untertitel je nach Mahnstufe -- bereits vorhanden, Formatierung prüfen
+- **Fließtext Stufe 3**: Exakter Wortlaut aus der Vorlage:
+  - "Sie haben seit Beginn des Mietverhältnisses am [Datum]..."
+  - Verzugszinsen-Aufstellung mit monatlichen Beträgen
+  - Kündigungstext + Räumungsfrist + Zahlungsfrist 7 Kalendertage
+  - "Sollten Sie die Rückstände nicht innerhalb dieser Frist begleichen, werde ich die fristlose Kündigung vollumfänglich durchsetzen und Räumungsklage erheben."
+- **Footer**: Registergericht, HRB-Nummer, IHK/Creditreform-Mitgliedschaft, Steuer-Nummer -- bereits vorhanden, Positionierung verbessern
+- **Seitenumbruch**: Bei langen Texten automatischen Seitenumbruch einbauen (aktuell fehlt `doc.addPage()` wenn `y > 240`)
 
-#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
+### 2. SMTP-Secrets konfigurieren
 
-- `showWarningContract`-State und Warning-Dialog-UI komplett raus
-- `handleContractClick` ruft direkt `proceedWithContracts` auf
-- Kein `meetsCriteria`-Check mehr
+Die Edge Function `send-mahnung` erwartet folgende Supabase-Secrets (Strato SMTP):
 
-#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
+| Secret | Wert |
+|--------|------|
+| `MAHNUNG_SMTP_HOST` | `smtp.strato.de` |
+| `MAHNUNG_SMTP_PORT` | `587` |
+| `MAHNUNG_SMTP_USER` | `mahnung@wohnungsbau.niimmo.de` |
+| `MAHNUNG_SMTP_PASS` | `W$dj2qMgSbO2XP4N` |
+| `MAHNUNG_SMTP_FROM_EMAIL` | `mahnung@wohnungsbau.niimmo.de` |
+| `MAHNUNG_SMTP_FROM_NAME` | `NilImmo Hausverwaltung` |
 
-- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
-- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
-- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
-- Bei Einzug: Kein `start_datum`-Update
-- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
-- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
+Diese werden als Supabase Edge Function Secrets gesetzt.
 
-#### 4. Betroffene Dateien
+### 3. Edge Function re-deployen
+
+`send-mahnung` muss nach dem Setzen der Secrets neu deployed werden, damit die SMTP-Konfiguration greift.
+
+### 4. Test-E-Mail senden
+
+Nach dem Deployment wird eine Test-Mahnung an `ayham.a@gmx.de` gesendet, um den kompletten Flow zu verifizieren:
+- PDF generieren (client-side)
+- PDF in Storage hochladen
+- Edge Function `send-mahnung` aufrufen mit Test-Daten
+- E-Mail mit PDF-Anhang an `ayham.a@gmx.de`
+
+### 5. Kleinere UX-Verbesserungen am Modal
+
+- **Automatische Befüllung** der Mieter-Adresse aus der DB (falls `neue_anschrift` am Mietvertrag hinterlegt ist)
+- **Einheit-Bezeichnung** automatisch aus `einheiten.etage` + Nummer ableiten statt nur "WE"
+
+---
+
+### Zusammenfassung der Dateiänderungen
 
 | Datei | Änderung |
 |-------|----------|
-| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
-| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
-| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
+| `src/utils/mahnungPdfGenerator.ts` | PDF-Layout pixelgenau an Vorlage anpassen, Seitenumbruch |
+| `src/components/dashboard/MahnungErstellungModal.tsx` | Kleinere UX-Fixes (Auto-Fill Adresse/Einheit) |
+| `supabase/functions/send-mahnung/index.ts` | Keine Codeänderung, nur Re-Deploy mit neuen Secrets |
 
