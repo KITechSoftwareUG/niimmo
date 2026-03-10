@@ -523,7 +523,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                             <Euro className="h-3 w-3" /> {formatCurrency(d.darlehensbetrag)}
                           </span>
                           <span className="flex items-center gap-1">
-                            <TrendingDown className="h-3 w-3" /> Rest: {formatCurrency(d.restschuld || 0)}
+                            <TrendingDown className="h-3 w-3" /> Rest: {formatCurrency(effectiveRestschuld)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Percent className="h-3 w-3" /> {formatPercent(d.zinssatz_prozent || 0)}
