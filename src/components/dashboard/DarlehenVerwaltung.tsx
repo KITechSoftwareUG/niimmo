@@ -384,9 +384,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         {/* Hero Portfolio Card */}
         <Card className="p-0 overflow-hidden mb-6">
           <div className="bg-gradient-to-br from-primary/5 via-card to-primary/3 p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left: Key Numbers */}
-              <div className="lg:col-span-2 space-y-5">
+            <div>
+              <div className="space-y-5">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {/* Immobilienwert */}
                   <div className="space-y-1">
