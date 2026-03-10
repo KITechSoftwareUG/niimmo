@@ -393,7 +393,7 @@ export function MahnungErstellungModal({
                 </Button>
                 <Button 
                   size="sm" 
-                  onClick={handleSaveAndUpload} 
+                  onClick={() => setShowConfirmSave(true)} 
                   disabled={isSubmitting || parsedRueckstand <= 0}
                   variant="destructive"
                 >
