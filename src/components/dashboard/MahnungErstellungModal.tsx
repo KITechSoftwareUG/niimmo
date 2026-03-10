@@ -49,6 +49,8 @@ export function MahnungErstellungModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [step, setStep] = useState<'edit' | 'email'>('edit');
+  const [showConfirmSave, setShowConfirmSave] = useState(false);
+  const [showConfirmSend, setShowConfirmSend] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [pdfPath, setPdfPath] = useState<string | null>(null);
