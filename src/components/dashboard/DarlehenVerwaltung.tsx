@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { 
   ArrowLeft, Plus, Pencil, Trash2, Building2, Landmark, 
   TrendingDown, Calendar, Euro, Percent, ChevronDown, ChevronUp,
-  PieChart, TrendingUp, Wallet, Home, Shield, ClipboardPaste, FileText, Loader2, Check, AlertTriangle
+  TrendingUp, Wallet, Home, ClipboardPaste, FileText, Loader2, Check, AlertTriangle
 } from "lucide-react";
 
 interface DarlehenVerwaltungProps {
