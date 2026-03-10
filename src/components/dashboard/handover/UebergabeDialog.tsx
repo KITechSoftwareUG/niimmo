@@ -119,6 +119,9 @@ export const UebergabeDialog = ({
   // Email dialog
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   
+  // Confirmation dialog
+  const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
+  
   // Tenant data
   const [mieterData, setMieterData] = useState<MieterData[]>([]);
   const [mieterEmails, setMieterEmails] = useState<{ [mieterId: string]: string }>({});
