@@ -76,10 +76,18 @@
      onPhotosChange(updatedPhotos);
    };
  
-   const getPublicUrl = (path: string) => {
-     const { data } = supabase.storage.from("dokumente").getPublicUrl(path);
-     return data.publicUrl;
-   };
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+
+  const getPhotoUrl = (path: string) => {
+    if (signedUrls[path]) return signedUrls[path];
+    // Generate signed URL asynchronously
+    supabase.storage.from("dokumente").createSignedUrl(path, 3600).then(({ data }) => {
+      if (data?.signedUrl) {
+        setSignedUrls(prev => ({ ...prev, [path]: data.signedUrl }));
+      }
+    });
+    return ''; // Return empty until signed URL is ready
+  };
  
    return (
      <div className="space-y-2">
