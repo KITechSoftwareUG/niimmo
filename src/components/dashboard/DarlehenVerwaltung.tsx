@@ -274,8 +274,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         notizen = notizen ? `${notizen}\nRestschuld zum Zinsbindungsende: ${formatted}` : `Restschuld zum Zinsbindungsende: ${formatted}`;
       }
       const darlehenInsert = {
-        bezeichnung: loanData.bezeichnung || 'Importiertes Darlehen',
-        bank: loanData.bank || null,
+        bezeichnung: loanData.bezeichnung || 'NiImmo Wohnungsbaugesellschaft',
+        bank: loanData.bank || 'Volksbank',
         kontonummer: loanData.kontonummer || null,
         darlehensbetrag: Math.abs(loanData.darlehensbetrag || 0),
         restschuld: Math.abs(loanData.restschuld || 0),
