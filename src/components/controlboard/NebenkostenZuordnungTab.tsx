@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { 
   Building2, Euro, Check, Calendar, Loader2, 
-  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X, EyeOff
+  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X, EyeOff, ArrowUpCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -320,6 +320,40 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
+  // Nichtmiete → Nebenkosten umwandeln
+  const promoteToNebenkostenMutation = useMutation({
+    mutationFn: async (zahlungId: string) => {
+      const { error } = await supabase
+        .from('zahlungen')
+        .update({ kategorie: 'Nebenkosten' as any })
+        .eq('id', zahlungId);
+      if (error) throw error;
+
+      // Klassifizierung zurücksetzen falls vorhanden
+      const { data: existing } = await supabase
+        .from('nebenkosten_klassifizierungen')
+        .select('id')
+        .eq('zahlung_id', zahlungId)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('nebenkosten_klassifizierungen')
+          .update({ uebersprungen: false, is_betriebskosten: true })
+          .eq('zahlung_id', zahlungId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-skipped'] });
+      toast.success("Zahlung als Nebenkosten markiert");
+    },
+    onError: () => {
+      toast.error("Fehler beim Umwandeln");
+    }
+  });
+
   const [dragOverNichtmiete, setDragOverNichtmiete] = useState(false);
 
   const handleDropNichtmiete = (e: React.DragEvent) => {
@@ -548,17 +582,30 @@ export function NebenkostenZuordnungTab() {
           )}
           
           {isNichtmiete ? (
-            /* Wegdrücken-Button für Nichtmiete */
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-shrink-0 gap-1 text-muted-foreground hover:bg-muted"
-              disabled={dismissNichtmieteMutation.isPending}
-              onClick={() => dismissNichtmieteMutation.mutate(zahlung.id)}
-            >
-              <EyeOff className="h-4 w-4" />
-              Ausblenden
-            </Button>
+            <div className="flex items-center gap-1.5">
+              {/* Als Nebenkosten markieren */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-shrink-0 gap-1 text-blue-600 border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                disabled={promoteToNebenkostenMutation.isPending}
+                onClick={() => promoteToNebenkostenMutation.mutate(zahlung.id)}
+              >
+                <ArrowUpCircle className="h-4 w-4" />
+                Nebenkosten
+              </Button>
+              {/* Wegdrücken-Button für Nichtmiete */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-shrink-0 gap-1 text-muted-foreground hover:bg-muted"
+                disabled={dismissNichtmieteMutation.isPending}
+                onClick={() => dismissNichtmieteMutation.mutate(zahlung.id)}
+              >
+                <EyeOff className="h-4 w-4" />
+                Ausblenden
+              </Button>
+            </div>
           ) : (
             /* Nichtmiete Button für Nebenkosten */
             <Button
