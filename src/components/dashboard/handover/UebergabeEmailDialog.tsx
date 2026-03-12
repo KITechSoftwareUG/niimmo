@@ -206,7 +206,7 @@ Ihre Hausverwaltung`
           body: emailBody,
           contractIds: contracts.map((c) => c.id),
           uebergabeDatum: format(uebergabeDatum, "yyyy-MM-dd"),
-          pdfFilePath,
+          pdfPath: pdfFilePath,
         },
       });
 
