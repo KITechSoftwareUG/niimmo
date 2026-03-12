@@ -213,6 +213,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     onError: (err: any) => toast.error("Fehler: " + err.message),
   });
 
+  const resetForm = () => {
     setForm(emptyForm);
     setEditId(null);
     setShowForm(false);
