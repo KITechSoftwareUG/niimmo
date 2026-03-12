@@ -283,36 +283,28 @@ export function NebenkostenZuordnungTab() {
     setDraggingZahlungId(null);
   };
 
-  // Gefilterte und klassifizierte Zahlungen
+  // Gefilterte Zahlungen — immer ALLE anzeigen, KI nur als Badge
   const displayedPayments = useMemo(() => {
-    // Wenn KI-Klassifizierung vorhanden, nur diese anzeigen
-    if (classifications.length > 0) {
-      const classifiedIds = new Set(classifications.map(c => c.zahlung_id));
-      let payments = (unzugeordneteZahlungen || []).filter(z => classifiedIds.has(z.id));
-      
-      if (searchTerm.trim()) {
-        const search = searchTerm.toLowerCase();
-        payments = payments.filter(z => 
-          z.verwendungszweck?.toLowerCase().includes(search) ||
-          z.empfaengername?.toLowerCase().includes(search) ||
-          z.iban?.toLowerCase().includes(search)
-        );
-      }
-      
-      return payments;
+    if (!unzugeordneteZahlungen) return [];
+    
+    let payments = [...unzugeordneteZahlungen];
+    
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      payments = payments.filter(z => 
+        z.verwendungszweck?.toLowerCase().includes(search) ||
+        z.empfaengername?.toLowerCase().includes(search) ||
+        z.iban?.toLowerCase().includes(search)
+      );
     }
     
-    // Ohne Klassifizierung: alle unzugeordneten
-    if (!unzugeordneteZahlungen) return [];
-    if (!searchTerm.trim()) return unzugeordneteZahlungen;
-    
-    const search = searchTerm.toLowerCase();
-    return unzugeordneteZahlungen.filter(z => 
-      z.verwendungszweck?.toLowerCase().includes(search) ||
-      z.empfaengername?.toLowerCase().includes(search) ||
-      z.iban?.toLowerCase().includes(search)
+    // Sortierung: buchungsdatum DESC (bereits aus DB, aber sicherstellen)
+    payments.sort((a, b) => 
+      new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime()
     );
-  }, [unzugeordneteZahlungen, searchTerm, classifications]);
+    
+    return payments;
+  }, [unzugeordneteZahlungen, searchTerm]);
 
   const getClassification = (zahlungId: string) => 
     classifications.find(c => c.zahlung_id === zahlungId);
