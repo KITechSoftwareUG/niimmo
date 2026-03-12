@@ -289,7 +289,7 @@ export function NebenkostenZuordnungTab() {
       const { data, error } = await supabase
         .from('zahlungen')
         .select('id, betrag, buchungsdatum, empfaengername, immobilie_id, immobilie:immobilie_id(id, name, adresse)')
-        .eq('kategorie', 'Nichtmiete')
+        .in('kategorie', ['Nichtmiete', 'Nebenkosten'])
         .not('immobilie_id', 'is', null)
         .order('buchungsdatum', { ascending: false });
       if (error) throw error;
