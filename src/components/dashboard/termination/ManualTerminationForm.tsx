@@ -4,10 +4,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertTriangle, Calendar, FileText } from "lucide-react";
+import { AlertTriangle, Calendar, FileText, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { terminationWebhookService } from "@/services/terminationWebhookService";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ManualTerminationFormProps {
   vertragId: string;
@@ -24,9 +34,10 @@ export const ManualTerminationForm = ({
   const [grund, setGrund] = useState("");
   const [bemerkungen, setBemerkungen] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!kuendigungsdatum) {
@@ -38,10 +49,15 @@ export const ManualTerminationForm = ({
       return;
     }
 
+    // Show confirmation dialog instead of executing directly
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmedSubmit = async () => {
+    setShowConfirmDialog(false);
     setIsLoading(true);
 
     try {
-      // Update contract status and termination date
       const { error: updateError } = await supabase
         .from('mietvertrag')
         .update({
@@ -55,7 +71,6 @@ export const ManualTerminationForm = ({
         throw new Error('Fehler beim Aktualisieren des Vertrags: ' + updateError.message);
       }
 
-      // Create document entry for manual termination
       const { error: docError } = await supabase
         .from('dokumente')
         .insert({
@@ -70,7 +85,6 @@ export const ManualTerminationForm = ({
         console.warn('Dokument konnte nicht erstellt werden:', docError);
       }
 
-      // Call webhook service
       try {
         await terminationWebhookService.notifyTermination({
           vertragId,
@@ -102,78 +116,124 @@ export const ManualTerminationForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Card className="border-l-4 border-l-destructive bg-destructive/5">
-        <CardContent className="pt-4">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-            <div>
-              <p className="font-medium text-destructive">Wichtiger Hinweis</p>
-              <p className="text-sm text-muted-foreground">
-                Diese Aktion ändert den Vertragsstatus auf "gekündigt". Dies kann nicht rückgängig gemacht werden.
-              </p>
+    <>
+      <form onSubmit={handleFormSubmit} className="space-y-4">
+        <Card className="border-l-4 border-l-destructive bg-destructive/5">
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+              <div>
+                <p className="font-medium text-destructive">Wichtiger Hinweis</p>
+                <p className="text-sm text-muted-foreground">
+                  Diese Aktion ändert den Vertragsstatus auf "gekündigt". Dies kann nicht rückgängig gemacht werden.
+                </p>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="kuendigungsdatum" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Kündigungsdatum *
+            </Label>
+            <Input
+              id="kuendigungsdatum"
+              type="date"
+              value={kuendigungsdatum}
+              onChange={(e) => setKuendigungsdatum(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              required
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      <div className="space-y-3">
-        <div>
-          <Label htmlFor="kuendigungsdatum" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Kündigungsdatum *
-          </Label>
-          <Input
-            id="kuendigungsdatum"
-            type="date"
-            value={kuendigungsdatum}
-            onChange={(e) => setKuendigungsdatum(e.target.value)}
-            min={new Date().toISOString().split('T')[0]}
-            required
-          />
+          <div>
+            <Label htmlFor="grund">Kündigungsgrund</Label>
+            <Input
+              id="grund"
+              value={grund}
+              onChange={(e) => setGrund(e.target.value)}
+              placeholder="z.B. Eigenbedarf, Modernisierung..."
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="bemerkungen">Bemerkungen</Label>
+            <Textarea
+              id="bemerkungen"
+              value={bemerkungen}
+              onChange={(e) => setBemerkungen(e.target.value)}
+              placeholder="Zusätzliche Informationen zur Kündigung..."
+              rows={3}
+            />
+          </div>
         </div>
 
-        <div>
-          <Label htmlFor="grund">Kündigungsgrund</Label>
-          <Input
-            id="grund"
-            value={grund}
-            onChange={(e) => setGrund(e.target.value)}
-            placeholder="z.B. Eigenbedarf, Modernisierung..."
-          />
+        <div className="flex gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
+            Abbrechen
+          </Button>
+          <Button
+            type="submit"
+            variant="destructive"
+            disabled={isLoading}
+            className="flex items-center gap-2"
+          >
+            <FileText className="h-4 w-4" />
+            {isLoading ? "Wird gekündigt..." : "Vertrag kündigen"}
+          </Button>
         </div>
+      </form>
 
-        <div>
-          <Label htmlFor="bemerkungen">Bemerkungen</Label>
-          <Textarea
-            id="bemerkungen"
-            value={bemerkungen}
-            onChange={(e) => setBemerkungen(e.target.value)}
-            placeholder="Zusätzliche Informationen zur Kündigung..."
-            rows={3}
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={isLoading}
-        >
-          Abbrechen
-        </Button>
-        <Button
-          type="submit"
-          variant="destructive"
-          disabled={isLoading}
-          className="flex items-center gap-2"
-        >
-          <FileText className="h-4 w-4" />
-          {isLoading ? "Wird gekündigt..." : "Vertrag kündigen"}
-        </Button>
-      </div>
-    </form>
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Kündigung bestätigen
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Sind Sie sicher, dass Sie diesen Mietvertrag zum{" "}
+                <strong>
+                  {kuendigungsdatum
+                    ? new Date(kuendigungsdatum).toLocaleDateString("de-DE", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : "—"}
+                </strong>{" "}
+                kündigen möchten?
+              </p>
+              {grund && (
+                <p>
+                  <strong>Grund:</strong> {grund}
+                </p>
+              )}
+              <p className="text-destructive font-medium">
+                Diese Aktion kann nicht rückgängig gemacht werden. Der Vertragsstatus wird auf „gekündigt" gesetzt.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmedSubmit}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <ShieldAlert className="h-4 w-4 mr-2" />
+              Ja, Vertrag kündigen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
