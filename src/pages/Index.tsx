@@ -36,7 +36,6 @@ const Index = () => {
   const showControlboard = navState.showControlboard;
   const showUebergabe = navState.showUebergabe;
   const showDarlehen = navState.showDarlehen;
-  const showDevBoard = navState.showDevBoard;
   const navigationSource = navState.navigationSource;
 
   // Setter wrappers
