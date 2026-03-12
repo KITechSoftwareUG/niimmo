@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { 
   Building2, Euro, Check, Calendar, Loader2, 
-  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X, EyeOff
+  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X, EyeOff, ArrowUpCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
