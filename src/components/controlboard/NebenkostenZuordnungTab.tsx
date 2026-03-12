@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { 
   Building2, Euro, Check, Calendar, Loader2, 
-  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X
+  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X, EyeOff
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -57,6 +57,7 @@ export function NebenkostenZuordnungTab() {
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
   const [draggingZahlungId, setDraggingZahlungId] = useState<string | null>(null);
   const [dragOverImmobilieId, setDragOverImmobilieId] = useState<string | null>(null);
+  const [nichtmieteOpen, setNichtmieteOpen] = useState(true);
 
   // Fetch alle Immobilien
   const { data: immobilien, isLoading: immobilienLoading } = useQuery({
@@ -104,7 +105,7 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // NEU: Lade gespeicherte Klassifizierungen direkt aus der DB (kein API-Call nötig!)
+  // Lade gespeicherte Klassifizierungen direkt aus der DB
   const { data: cachedClassifications, isLoading: classificationsLoading } = useQuery({
     queryKey: ['nebenkosten-klassifizierungen-cached'],
     queryFn: async () => {
@@ -127,7 +128,6 @@ export function NebenkostenZuordnungTab() {
       
       if (error) throw error;
       
-      // Transformiere zu ClassificationResult Format
       return (data || []).map(c => ({
         zahlung_id: c.zahlung_id,
         is_betriebskosten: c.is_betriebskosten,
@@ -138,10 +138,24 @@ export function NebenkostenZuordnungTab() {
         reasoning: c.reasoning || '',
       })) as ClassificationResult[];
     },
-    staleTime: 30000, // 30 Sekunden Cache
+    staleTime: 30000,
   });
 
-  // Klassifizierungen aus Cache oder API
+  // Lade ALLE übersprungenen Klassifizierungen um Nichtmiete-Zahlungen zu filtern
+  const { data: skippedClassifications } = useQuery({
+    queryKey: ['nebenkosten-klassifizierungen-skipped'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('nebenkosten_klassifizierungen')
+        .select('zahlung_id')
+        .eq('uebersprungen', true);
+      
+      if (error) throw error;
+      return new Set((data || []).map(c => c.zahlung_id));
+    },
+    staleTime: 30000,
+  });
+
   const classifications = cachedClassifications || [];
 
   // Gruppiere zugeordnete Zahlungen nach Immobilie
@@ -166,17 +180,16 @@ export function NebenkostenZuordnungTab() {
     return grouped;
   }, [zugeordneteZahlungen]);
 
-  // KI Klassifizierung aufrufen - nur für NEUE Zahlungen die noch nicht analysiert wurden
+  // KI Klassifizierung aufrufen
   const runClassification = async () => {
     setIsClassifying(true);
     try {
       const { data, error } = await supabase.functions.invoke('classify-nebenkosten', {
-        body: { force: false } // Nur neue analysieren
+        body: { force: false }
       });
       
       if (error) throw error;
       
-      // Cache invalidieren um neue Ergebnisse zu laden
       queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
       
       const newAnalyzed = data.ai_classified || 0;
@@ -199,14 +212,12 @@ export function NebenkostenZuordnungTab() {
   // Einfache Zuordnung (eine Immobilie)
   const assignMutation = useMutation({
     mutationFn: async ({ zahlungId, immobilieId }: { zahlungId: string; immobilieId: string }) => {
-      // 1. Zahlung zuordnen
       const { error } = await supabase
         .from('zahlungen')
         .update({ immobilie_id: immobilieId })
         .eq('id', zahlungId);
       if (error) throw error;
       
-      // 2. Klassifizierung als bestätigt markieren
       await supabase
         .from('nebenkosten_klassifizierungen')
         .update({ bestaetigt: true, bestaetigt_am: new Date().toISOString() })
@@ -247,14 +258,12 @@ export function NebenkostenZuordnungTab() {
   // Als Nichtmiete rekategorisieren (aus Nebenkosten entfernen)
   const recategorizeNichtmieteMutation = useMutation({
     mutationFn: async (zahlungId: string) => {
-      // Kategorie zurück auf Nichtmiete setzen und immobilie_id entfernen
       const { error } = await supabase
         .from('zahlungen')
         .update({ kategorie: 'Nichtmiete', immobilie_id: null })
         .eq('id', zahlungId);
       if (error) throw error;
 
-      // Klassifizierung als übersprungen markieren
       await supabase
         .from('nebenkosten_klassifizierungen')
         .update({ uebersprungen: true })
@@ -271,6 +280,46 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
+  // NEU: Nichtmiete-Zahlung wegdrücken (aus Liste entfernen, uebersprungen markieren)
+  const dismissNichtmieteMutation = useMutation({
+    mutationFn: async (zahlungId: string) => {
+      // Prüfe ob bereits ein Eintrag existiert
+      const { data: existing } = await supabase
+        .from('nebenkosten_klassifizierungen')
+        .select('id')
+        .eq('zahlung_id', zahlungId)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('nebenkosten_klassifizierungen')
+          .update({ uebersprungen: true })
+          .eq('zahlung_id', zahlungId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('nebenkosten_klassifizierungen')
+          .insert({
+            zahlung_id: zahlungId,
+            is_betriebskosten: false,
+            confidence: 'high',
+            category: 'Nichtmiete',
+            uebersprungen: true,
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-skipped'] });
+      toast.success("Zahlung ausgeblendet");
+    },
+    onError: () => {
+      toast.error("Fehler beim Ausblenden");
+    }
+  });
+
   const [dragOverNichtmiete, setDragOverNichtmiete] = useState(false);
 
   const handleDropNichtmiete = (e: React.DragEvent) => {
@@ -283,11 +332,13 @@ export function NebenkostenZuordnungTab() {
     setDraggingZahlungId(null);
   };
 
-  // Gefilterte Zahlungen — immer ALLE anzeigen, KI nur als Badge
-  const displayedPayments = useMemo(() => {
-    if (!unzugeordneteZahlungen) return [];
+  // Gefilterte und getrennte Zahlungen
+  const { nebenkostenPayments, nichtmietePayments } = useMemo(() => {
+    if (!unzugeordneteZahlungen) return { nebenkostenPayments: [], nichtmietePayments: [] };
     
-    let payments = [...unzugeordneteZahlungen];
+    const skipped = skippedClassifications || new Set<string>();
+    
+    let payments = unzugeordneteZahlungen.filter(z => !skipped.has(z.id));
     
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
@@ -298,13 +349,17 @@ export function NebenkostenZuordnungTab() {
       );
     }
     
-    // Sortierung: buchungsdatum DESC (bereits aus DB, aber sicherstellen)
     payments.sort((a, b) => 
       new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime()
     );
     
-    return payments;
-  }, [unzugeordneteZahlungen, searchTerm]);
+    const nebenkosten = payments.filter(z => z.kategorie === 'Nebenkosten');
+    const nichtmiete = payments.filter(z => z.kategorie === 'Nichtmiete');
+    
+    return { nebenkostenPayments: nebenkosten, nichtmietePayments: nichtmiete };
+  }, [unzugeordneteZahlungen, searchTerm, skippedClassifications]);
+
+  const totalDisplayed = nebenkostenPayments.length + nichtmietePayments.length;
 
   const getClassification = (zahlungId: string) => 
     classifications.find(c => c.zahlung_id === zahlungId);
@@ -374,6 +429,154 @@ export function NebenkostenZuordnungTab() {
     );
   }
 
+  // Render a single payment card
+  const renderPaymentCard = (zahlung: Zahlung, isNichtmiete: boolean) => {
+    const isSelected = selectedZahlung === zahlung.id;
+    const classification = getClassification(zahlung.id);
+    const isExpanded = expandedPayments.has(zahlung.id);
+    const suggestedImmobilie = classification?.suggested_immobilie_id;
+    const suggestedName = classification?.suggested_immobilie_name;
+    const isDragging = draggingZahlungId === zahlung.id;
+    
+    return (
+      <div 
+        key={zahlung.id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, zahlung.id)}
+        onDragEnd={handleDragEnd}
+        className={cn(
+          "p-4 border rounded-lg transition-all cursor-grab active:cursor-grabbing",
+          isNichtmiete 
+            ? "border-l-4 border-l-muted-foreground/30 opacity-80" 
+            : "border-l-4 border-l-blue-400",
+          isSelected 
+            ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
+            : 'hover:bg-accent/50',
+          isDragging && 'opacity-50 scale-95'
+        )}
+      >
+        {/* Kopfzeile mit Drag Handle */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              {format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy', { locale: de })}
+            </span>
+            {classification && (
+              <Badge className={`text-xs ${getConfidenceColor(classification.confidence)}`}>
+                {classification.category}
+              </Badge>
+            )}
+            {isNichtmiete && (
+              <Badge variant="outline" className="text-xs text-muted-foreground">
+                Nichtmiete
+              </Badge>
+            )}
+          </div>
+          <span className="font-bold text-lg text-destructive">
+            -{formatBetrag(zahlung.betrag)}
+          </span>
+        </div>
+
+        {/* Empfänger */}
+        {zahlung.empfaengername && (
+          <div className="mb-2">
+            <span className="text-xs text-muted-foreground">An: </span>
+            <span className="font-medium">{zahlung.empfaengername}</span>
+          </div>
+        )}
+
+        {/* Verwendungszweck - Kollabierbar */}
+        <Collapsible 
+          open={isExpanded} 
+          onOpenChange={() => setExpandedPayments(prev => {
+            const next = new Set(prev);
+            if (next.has(zahlung.id)) {
+              next.delete(zahlung.id);
+            } else {
+              next.add(zahlung.id);
+            }
+            return next;
+          })}
+        >
+          <div className="bg-muted/50 rounded p-3 mb-3">
+            <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
+              <p className="text-xs text-muted-foreground">Verwendungszweck:</p>
+              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <p className="text-sm whitespace-pre-wrap break-words mt-2">
+                {zahlung.verwendungszweck || '(kein Verwendungszweck)'}
+              </p>
+            </CollapsibleContent>
+            {!isExpanded && (
+              <p className="text-sm truncate mt-1">
+                {zahlung.verwendungszweck || '(kein Verwendungszweck)'}
+              </p>
+            )}
+          </div>
+        </Collapsible>
+
+        {/* Aktionsleiste */}
+        <div className="flex items-center justify-between gap-2">
+          {/* KI-Vorschlag: Direkt bestätigen wenn vorhanden */}
+          {suggestedImmobilie && (
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex-1">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground">KI-Vorschlag:</p>
+                    <p className="font-medium truncate">{suggestedName}</p>
+                  </div>
+                </div>
+                <Button 
+                  size="sm"
+                  className="flex-shrink-0 gap-1"
+                  disabled={assignMutation.isPending}
+                  onClick={() => assignMutation.mutate({ 
+                    zahlungId: zahlung.id, 
+                    immobilieId: suggestedImmobilie 
+                  })}
+                >
+                  <Check className="h-4 w-4" />
+                  Bestätigen
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {isNichtmiete ? (
+            /* Wegdrücken-Button für Nichtmiete */
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-shrink-0 gap-1 text-muted-foreground hover:bg-muted"
+              disabled={dismissNichtmieteMutation.isPending}
+              onClick={() => dismissNichtmieteMutation.mutate(zahlung.id)}
+            >
+              <EyeOff className="h-4 w-4" />
+              Ausblenden
+            </Button>
+          ) : (
+            /* Nichtmiete Button für Nebenkosten */
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-shrink-0 gap-1 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+              disabled={recategorizeNichtmieteMutation.isPending}
+              onClick={() => recategorizeNichtmieteMutation.mutate(zahlung.id)}
+            >
+              <X className="h-4 w-4" />
+              Nichtmiete
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -390,7 +593,7 @@ export function NebenkostenZuordnungTab() {
         
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="gap-1">
-            {unzugeordneteZahlungen?.length || 0} unzugeordnet
+            {totalDisplayed} unzugeordnet
           </Badge>
           {classifications.length > 0 && (
             <Badge variant="default" className="gap-1 bg-primary">
@@ -439,142 +642,52 @@ export function NebenkostenZuordnungTab() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Euro className="h-5 w-5" />
-              Nichtmiete / Nebenkosten ({displayedPayments.length})
+              Zahlungen ({totalDisplayed})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {displayedPayments.length === 0 ? (
+            {totalDisplayed === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <Check className="h-12 w-12 mx-auto mb-4 opacity-20" />
                 <p>Keine unzugeordneten Zahlungen</p>
               </div>
             ) : (
-              <ScrollArea className="h-[900px]">
+              <ScrollArea className="h-[calc(100vh-280px)]">
                 <div className="space-y-3 pr-2">
-                  {displayedPayments.map(zahlung => {
-                    const isSelected = selectedZahlung === zahlung.id;
-                    const classification = getClassification(zahlung.id);
-                    const isExpanded = expandedPayments.has(zahlung.id);
-                    const suggestedImmobilie = classification?.suggested_immobilie_id;
-                    const suggestedName = classification?.suggested_immobilie_name;
-                    const isDragging = draggingZahlungId === zahlung.id;
-                    
-                    return (
-                      <div 
-                        key={zahlung.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, zahlung.id)}
-                        onDragEnd={handleDragEnd}
-                        className={cn(
-                          "p-4 border rounded-lg transition-all cursor-grab active:cursor-grabbing",
-                          isSelected 
-                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
-                            : 'hover:bg-accent/50',
-                          isDragging && 'opacity-50 scale-95'
-                        )}
-                      >
-                        {/* Kopfzeile mit Drag Handle */}
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <GripVertical className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy', { locale: de })}
-                            </span>
-                            {classification && (
-                              <Badge className={`text-xs ${getConfidenceColor(classification.confidence)}`}>
-                                {classification.category}
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="font-bold text-lg text-destructive">
-                            -{formatBetrag(zahlung.betrag)}
-                          </span>
-                        </div>
-
-                        {/* Empfänger */}
-                        {zahlung.empfaengername && (
-                          <div className="mb-2">
-                            <span className="text-xs text-muted-foreground">An: </span>
-                            <span className="font-medium">{zahlung.empfaengername}</span>
-                          </div>
-                        )}
-
-                        {/* Verwendungszweck - Kollabierbar */}
-                        <Collapsible 
-                          open={isExpanded} 
-                          onOpenChange={() => setExpandedPayments(prev => {
-                            const next = new Set(prev);
-                            if (next.has(zahlung.id)) {
-                              next.delete(zahlung.id);
-                            } else {
-                              next.add(zahlung.id);
-                            }
-                            return next;
-                          })}
-                        >
-                          <div className="bg-muted/50 rounded p-3 mb-3">
-                            <CollapsibleTrigger className="flex items-center justify-between w-full text-left">
-                              <p className="text-xs text-muted-foreground">Verwendungszweck:</p>
-                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                              <p className="text-sm whitespace-pre-wrap break-words mt-2">
-                                {zahlung.verwendungszweck || '(kein Verwendungszweck)'}
-                              </p>
-                            </CollapsibleContent>
-                            {!isExpanded && (
-                              <p className="text-sm truncate mt-1">
-                                {zahlung.verwendungszweck || '(kein Verwendungszweck)'}
-                              </p>
-                            )}
-                          </div>
-                        </Collapsible>
-
-                        {/* Aktionsleiste */}
-                        <div className="flex items-center justify-between gap-2">
-                          {/* KI-Vorschlag: Direkt bestätigen wenn vorhanden */}
-                          {suggestedImmobilie && (
-                            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex-1">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <Sparkles className="h-4 w-4 text-primary flex-shrink-0" />
-                                  <div className="min-w-0">
-                                    <p className="text-xs text-muted-foreground">KI-Vorschlag:</p>
-                                    <p className="font-medium truncate">{suggestedName}</p>
-                                  </div>
-                                </div>
-                                <Button 
-                                  size="sm"
-                                  className="flex-shrink-0 gap-1"
-                                  disabled={assignMutation.isPending}
-                                  onClick={() => assignMutation.mutate({ 
-                                    zahlungId: zahlung.id, 
-                                    immobilieId: suggestedImmobilie 
-                                  })}
-                                >
-                                  <Check className="h-4 w-4" />
-                                  Bestätigen
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Nichtmiete Button */}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-shrink-0 gap-1 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                            disabled={recategorizeNichtmieteMutation.isPending}
-                            onClick={() => recategorizeNichtmieteMutation.mutate(zahlung.id)}
-                          >
-                            <X className="h-4 w-4" />
-                            Nichtmiete
-                          </Button>
-                        </div>
+                  {/* Nebenkosten-Sektion */}
+                  {nebenkostenPayments.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                        <div className="h-3 w-3 rounded-full bg-blue-400" />
+                        <h4 className="font-semibold text-sm text-foreground">
+                          Nebenkosten ({nebenkostenPayments.length})
+                        </h4>
                       </div>
-                    );
-                  })}
+                      <div className="space-y-3">
+                        {nebenkostenPayments.map(zahlung => renderPaymentCard(zahlung, false))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nichtmiete-Sektion (Collapsible) */}
+                  {nichtmietePayments.length > 0 && (
+                    <Collapsible open={nichtmieteOpen} onOpenChange={setNichtmieteOpen}>
+                      <div className="mt-4">
+                        <CollapsibleTrigger className="flex items-center gap-2 mb-3 pb-2 border-b w-full text-left hover:bg-accent/30 rounded px-1 -mx-1">
+                          <div className="h-3 w-3 rounded-full bg-muted-foreground/40" />
+                          <h4 className="font-semibold text-sm text-muted-foreground flex-1">
+                            Nichtmiete ({nichtmietePayments.length})
+                          </h4>
+                          {nichtmieteOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="space-y-3">
+                            {nichtmietePayments.map(zahlung => renderPaymentCard(zahlung, true))}
+                          </div>
+                        </CollapsibleContent>
+                      </div>
+                    </Collapsible>
+                  )}
                 </div>
               </ScrollArea>
             )}
