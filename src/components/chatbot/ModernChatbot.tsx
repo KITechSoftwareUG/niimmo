@@ -113,6 +113,15 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error("Sitzung abgelaufen oder nicht eingeloggt. Bitte neu anmelden.");
+        }
+        if (response.status === 429) {
+          throw new Error("Zu viele Anfragen. Bitte kurz warten und erneut versuchen.");
+        }
+        if (response.status === 402) {
+          throw new Error("AI-Kontingent aufgebraucht. Bitte Credits prüfen.");
+        }
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
