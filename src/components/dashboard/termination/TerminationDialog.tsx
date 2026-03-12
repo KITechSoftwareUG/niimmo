@@ -35,6 +35,12 @@ interface TerminationDialogProps {
   onTerminationSuccess?: () => void;
 }
 
+interface MieterInfo {
+  vorname: string;
+  nachname: string;
+  hauptmail?: string | null;
+}
+
 export const TerminationDialog = ({
   isOpen,
   onClose,
@@ -47,6 +53,10 @@ export const TerminationDialog = ({
   const [activeTab, setActiveTab] = useState<string>("manual");
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetched contract data
+  const [mieterList, setMieterList] = useState<MieterInfo[]>([]);
+  const [startDatum, setStartDatum] = useState<string | null>(null);
 
   // ====== Manual Tab State ======
   const [kuendigungsdatum, setKuendigungsdatum] = useState("");
@@ -74,6 +84,41 @@ export const TerminationDialog = ({
   const [showUploadConfirm, setShowUploadConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Fetch contract + mieter data on open
+  useEffect(() => {
+    if (!isOpen || !vertragId) return;
+
+    const fetchData = async () => {
+      try {
+        // Fetch contract
+        const { data: vertrag } = await supabase
+          .from('mietvertrag')
+          .select('start_datum')
+          .eq('id', vertragId)
+          .single();
+
+        setStartDatum(vertrag?.start_datum || null);
+
+        // Fetch mieter
+        const { data: mieterLinks } = await supabase
+          .from('mietvertrag_mieter')
+          .select('mieter_id, mieter:mieter_id(vorname, nachname, hauptmail)')
+          .eq('mietvertrag_id', vertragId);
+
+        const mieter: MieterInfo[] = (mieterLinks || []).map((link: any) => ({
+          vorname: link.mieter?.vorname || '',
+          nachname: link.mieter?.nachname || '',
+          hauptmail: link.mieter?.hauptmail || null,
+        }));
+        setMieterList(mieter);
+      } catch (err) {
+        console.error('Error fetching contract data:', err);
+      }
+    };
+
+    fetchData();
+  }, [isOpen, vertragId]);
+
   // Reset on open
   useEffect(() => {
     if (isOpen) {
@@ -90,25 +135,23 @@ export const TerminationDialog = ({
       setUploadKuendigungsdatum("");
       setUploadProgress(0);
 
-      const mieter = contractData?.mieter;
-      setAnrede(mieter && mieter.length > 0 ? "Herr" : "Herr");
+      setAnrede("Herr");
       setMieterAdresse(immobilie?.adresse?.split(',')[0]?.trim() || '');
       setMieterPlzOrt(immobilie?.adresse?.includes(',')
         ? immobilie.adresse.split(',').slice(1).join(',').trim()
         : '');
       setEinheitBezeichnung(einheit?.nummer ? `WE ${einheit.nummer}` : 'WE');
     }
-  }, [isOpen, contractData, immobilie, einheit]);
+  }, [isOpen, immobilie, einheit]);
 
   // Build PDF data
   const buildPdfData = useCallback((): KuendigungPdfData | null => {
-    const mieterList = contractData?.mieter || [];
     const fullName = mieterList.map(m => `${m.vorname} ${m.nachname}`).join(' & ');
     const nachname = mieterList[0]?.nachname || '';
     const heute = new Date();
     const datumStr = heute.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const vertragStart = contractData?.start_datum
-      ? new Date(contractData.start_datum).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const vertragStart = startDatum
+      ? new Date(startDatum).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
       : 'N/A';
 
     const kuendigungFormatted = kuendigungsdatum
@@ -135,7 +178,7 @@ export const TerminationDialog = ({
       freitext: useFreitext ? freitext : undefined,
       bemerkungen: bemerkungen || undefined,
     };
-  }, [contractData, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung,
+  }, [mieterList, startDatum, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung,
     immobilie, kuendigungsdatum, auszugsdatum, kuendigungsgrund, bemerkungen,
     useFreitext, freitext]);
 
@@ -167,7 +210,7 @@ export const TerminationDialog = ({
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, [isOpen, activeTab, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung,
-    kuendigungsdatum, auszugsdatum, kuendigungsgrund, bemerkungen, useFreitext, freitext]);
+    kuendigungsdatum, auszugsdatum, kuendigungsgrund, bemerkungen, useFreitext, freitext, mieterList, startDatum]);
 
   // Cleanup
   useEffect(() => {
@@ -199,8 +242,6 @@ export const TerminationDialog = ({
 
     setIsSubmitting(true);
     try {
-      // Upload PDF
-      const mieterList = contractData?.mieter || [];
       const vorname = mieterList[0]?.vorname || 'Mieter';
       const nachname = mieterList[0]?.nachname || '';
       const datum = new Date().toLocaleDateString('de-DE').replace(/\./g, '-');
@@ -216,7 +257,6 @@ export const TerminationDialog = ({
 
       if (uploadError) throw new Error('Upload fehlgeschlagen: ' + uploadError.message);
 
-      // Update contract
       const { error: updateError } = await supabase
         .from('mietvertrag')
         .update({
@@ -228,7 +268,6 @@ export const TerminationDialog = ({
 
       if (updateError) throw new Error('Vertragsaktualisierung fehlgeschlagen: ' + updateError.message);
 
-      // Create document entry
       await supabase.from('dokumente').insert({
         titel: `Kündigungsschreiben ${new Date().toLocaleDateString('de-DE')}`,
         pfad: filePath,
@@ -237,7 +276,6 @@ export const TerminationDialog = ({
         mietvertrag_id: vertragId,
       });
 
-      // Webhook
       try {
         await terminationWebhookService.notifyTermination({
           vertragId, kuendigungsdatum, grund: kuendigungsgrund, bemerkungen, method: 'manual'
@@ -383,8 +421,8 @@ export const TerminationDialog = ({
                       <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
                         <p><span className="text-muted-foreground">Objekt:</span> {immobilie?.name}</p>
                         <p><span className="text-muted-foreground">Adresse:</span> {immobilie?.adresse}</p>
-                        <p><span className="text-muted-foreground">Mieter:</span> {contractData?.mieter?.map(m => `${m.vorname} ${m.nachname}`).join(', ') || '–'}</p>
-                        <p><span className="text-muted-foreground">Vertragsbeginn:</span> {contractData?.start_datum ? new Date(contractData.start_datum).toLocaleDateString('de-DE') : 'N/A'}</p>
+                        <p><span className="text-muted-foreground">Mieter:</span> {mieterList.map(m => `${m.vorname} ${m.nachname}`).join(', ') || '–'}</p>
+                        <p><span className="text-muted-foreground">Vertragsbeginn:</span> {startDatum ? new Date(startDatum).toLocaleDateString('de-DE') : 'N/A'}</p>
                       </div>
                     </div>
 
