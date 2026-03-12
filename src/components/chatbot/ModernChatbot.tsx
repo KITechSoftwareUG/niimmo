@@ -13,6 +13,7 @@ import {
   User
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -26,7 +27,7 @@ interface ModernChatbotProps {
   onClose: () => void;
 }
 
-const CHAT_URL = `https://kmtgzrnpitlslivdvlyq.functions.supabase.co/functions/v1/chat`;
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
@@ -84,10 +85,17 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     let assistantContent = "";
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        throw new Error("Nicht eingeloggt. Bitte melde dich zuerst an.");
+      }
+
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({ messages: apiMessages }),
       });
