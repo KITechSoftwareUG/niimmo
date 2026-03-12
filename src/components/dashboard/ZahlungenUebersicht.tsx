@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AssignPaymentDialog } from "@/components/controlboard/AssignPaymentDialog";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PaymentKategorieEditor } from "@/components/controlboard/PaymentKategorieEditor";
 
 interface ZahlungenUebersichtProps {
   onBack?: () => void;
