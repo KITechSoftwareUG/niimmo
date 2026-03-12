@@ -445,17 +445,8 @@ export function NebenkostenZuordnungTab() {
           <CardContent>
             {displayedPayments.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                {classifications.length > 0 ? (
-                  <>
-                    <Check className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>Alle erkannten Nebenkosten zugeordnet</p>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>Keine unzugeordneten Zahlungen</p>
-                  </>
-                )}
+                <Check className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>Keine unzugeordneten Zahlungen</p>
               </div>
             ) : (
               <ScrollArea className="h-[900px]">
