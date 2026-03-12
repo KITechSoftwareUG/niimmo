@@ -1,11 +1,15 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, TrendingUp, ArrowLeft, RefreshCw, Download } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, TrendingUp, Download, Eye, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { generateMieterhoehungPdf, type MieterhoehungPdfData } from "@/utils/mieterhoehungPdfGenerator";
 
 interface RentIncreaseModalProps {
   isOpen: boolean;
@@ -34,353 +38,359 @@ interface RentIncreaseModalProps {
 export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreaseModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [step, setStep] = useState<'form' | 'preview'>('form');
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  
-  // Calculate suggested rent (4% increase)
-  const suggestedRent = contractData ? contractData.current_kaltmiete * 1.04 : 0;
-  
-  const [neueKaltmiete, setNeueKaltmiete] = useState(suggestedRent.toFixed(2));
-  const [neueBetriebskosten, setNeueBetriebskosten] = useState(
-    contractData?.current_betriebskosten.toFixed(2) || "0.00"
-  );
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [showConfirmSave, setShowConfirmSave] = useState(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset when modal closes or opens
+  // Editable fields
+  const [neueKaltmiete, setNeueKaltmiete] = useState("0.00");
+  const [neueBetriebskosten, setNeueBetriebskosten] = useState("0.00");
+  const [anrede, setAnrede] = useState("Herr");
+  const [mieterAdresse, setMieterAdresse] = useState("");
+  const [mieterPlzOrt, setMieterPlzOrt] = useState("");
+  const [einheitBezeichnung, setEinheitBezeichnung] = useState("WE");
+
+  // Reset when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setStep('form');
-      setPdfUrl(null);
-      if (contractData) {
-        setNeueKaltmiete((contractData.current_kaltmiete * 1.04).toFixed(2));
-        setNeueBetriebskosten(contractData.current_betriebskosten.toFixed(2));
-      }
+    if (isOpen && contractData) {
+      setNeueKaltmiete((contractData.current_kaltmiete * 1.04).toFixed(2));
+      setNeueBetriebskosten(contractData.current_betriebskosten.toFixed(2));
+      setAnrede("Herr");
+      setMieterAdresse(contractData.immobilie_adresse?.split(',')[0]?.trim() || '');
+      setMieterPlzOrt(contractData.immobilie_adresse?.includes(',')
+        ? contractData.immobilie_adresse.split(',').slice(1).join(',').trim()
+        : '');
+      setEinheitBezeichnung("WE");
     }
   }, [isOpen, contractData]);
 
+  // Build PDF data
+  const buildPdfData = useCallback((): MieterhoehungPdfData | null => {
+    if (!contractData) return null;
 
-  const handleSubmit = async () => {
-    if (!contractData) return;
+    const mieterList = contractData.mieter || [];
+    const fullName = mieterList.map(m => `${m.vorname} ${m.nachname}`).join(' & ');
+    const nachname = mieterList[0]?.nachname || '';
 
+    const heute = new Date();
+    const datumStr = heute.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    const wirksamDate = new Date();
+    wirksamDate.setMonth(wirksamDate.getMonth() + 3);
+    const wirksamStr = wirksamDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    return {
+      anrede,
+      mieterName: fullName,
+      mieterNachname: nachname,
+      mieterAdresse,
+      mieterPlzOrt,
+      immobilieName: contractData.immobilie_name || '',
+      immobilieAdresse: contractData.immobilie_adresse || '',
+      einheitBezeichnung,
+      aktuelleKaltmiete: contractData.current_kaltmiete,
+      aktuelleBetriebskosten: contractData.current_betriebskosten,
+      neueKaltmiete: parseFloat(neueKaltmiete) || 0,
+      neueBetriebskosten: parseFloat(neueBetriebskosten) || 0,
+      datum: datumStr,
+      wirksamDatum: wirksamStr,
+    };
+  }, [contractData, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung, neueKaltmiete, neueBetriebskosten]);
+
+  // Generate PDF preview with debounce
+  const regeneratePreview = useCallback(async () => {
+    const pdfData = buildPdfData();
+    if (!pdfData) return;
+
+    setIsGeneratingPreview(true);
+    try {
+      const blob = await generateMieterhoehungPdf(pdfData);
+      setPdfBlob(blob);
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+      setPdfBlobUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      console.error('PDF preview error:', err);
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  }, [buildPdfData, pdfBlobUrl]);
+
+  // Debounced preview regeneration
+  useEffect(() => {
+    if (!isOpen) return;
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      regeneratePreview();
+    }, 500);
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [isOpen, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung, neueKaltmiete, neueBetriebskosten]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    };
+  }, [pdfBlobUrl]);
+
+  const handleDownload = () => {
+    if (!pdfBlob) return;
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Mieterhoehung_${new Date().toLocaleDateString('de-DE').replace(/\./g, '-')}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Download erfolgreich", description: "Das Mieterhöhungsschreiben wurde heruntergeladen." });
+  };
+
+  const handleSaveAndUpload = async () => {
+    if (!contractData || !pdfBlob) return;
     setIsSubmitting(true);
     try {
-      console.log('📤 Erstelle Mieterhöhung via Edge Function');
-      
-      const { data, error } = await supabase.functions.invoke('generate-rent-increase-pdf', {
-        body: {
-          mietvertragId: contractData.mietvertrag_id,
-          neueKaltmiete: parseFloat(neueKaltmiete),
-          neueBetriebskosten: parseFloat(neueBetriebskosten),
-        }
-      });
+      const mieterList = contractData.mieter || [];
+      const vorname = mieterList[0]?.vorname || 'Mieter';
+      const nachname = mieterList[0]?.nachname || '';
+      const datum = new Date().toLocaleDateString('de-DE').replace(/\./g, '-');
+      const fileName = `Mieterhoehung_${vorname}_${nachname}_${datum}.pdf`;
+      const filePath = `mieterhoehungen/${contractData.mietvertrag_id}/${fileName}`;
 
-      if (error) {
-        console.error('❌ Edge Function Fehler:', error);
-        toast({
-          title: "Fehler",
-          description: "Fehler beim Erstellen der Mieterhöhung",
-          variant: "destructive",
-        });
-        return;
-      }
+      const arrayBuffer = await pdfBlob.arrayBuffer();
+      const uint8 = new Uint8Array(arrayBuffer);
 
-      console.log('✅ Mieterhöhung erfolgreich erstellt');
-      
-      // Fetch the newly created document from database
-      const { data: documentData, error: docError } = await supabase
+      const { error: uploadError } = await supabase.storage
         .from('dokumente')
-        .select('pfad, dateityp')
-        .eq('mietvertrag_id', contractData.mietvertrag_id)
-        .order('hochgeladen_am', { ascending: false })
-        .limit(1)
-        .single();
+        .upload(filePath, uint8, { contentType: 'application/pdf', upsert: true });
+      if (uploadError) throw uploadError;
 
-      if (docError || !documentData) {
-        console.error('❌ Dokument konnte nicht geladen werden:', docError);
-        toast({
-          title: "Fehler",
-          description: "Das Dokument wurde erstellt, konnte aber nicht geladen werden.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Get signed URL
-      const { data: signedUrlData, error: urlError } = await supabase.storage
-        .from('dokumente')
-        .createSignedUrl(documentData.pfad, 3600);
-
-      if (urlError || !signedUrlData) {
-        console.error('❌ URL konnte nicht erstellt werden:', urlError);
-        toast({
-          title: "Fehler",
-          description: "Das Dokument konnte nicht geladen werden.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setPdfUrl(signedUrlData.signedUrl);
-      setStep('preview');
-      
-      toast({
-        title: "Mieterhöhung erstellt",
-        description: "Das Mieterhöhungsschreiben wurde erfolgreich erstellt.",
+      await supabase.from('dokumente').insert({
+        titel: `Mieterhöhung ${new Date().toLocaleDateString('de-DE')}`,
+        pfad: filePath,
+        kategorie: 'Schriftverkehr',
+        dateityp: 'application/pdf',
+        mietvertrag_id: contractData.mietvertrag_id,
       });
-      
-    } catch (err) {
-      console.error('❌ Fehler beim Erstellen:', err);
-      toast({
-        title: "Fehler",
-        description: err instanceof Error ? err.message : 'Fehler beim Erstellen der Mieterhöhung',
-        variant: "destructive",
-      });
+
+      // Update contract with new rent values
+      await supabase.from('mietvertrag').update({
+        kaltmiete: parseFloat(neueKaltmiete) || contractData.current_kaltmiete,
+        betriebskosten: parseFloat(neueBetriebskosten) || contractData.current_betriebskosten,
+        letzte_mieterhoehung_am: new Date().toISOString().split('T')[0],
+      }).eq('id', contractData.mietvertrag_id);
+
+      toast({ title: "Gespeichert", description: "Mieterhöhung wurde gespeichert und Vertrag aktualisiert." });
+      onClose();
+    } catch (err: any) {
+      console.error('Save error:', err);
+      toast({ title: "Fehler", description: err.message || "Speichern fehlgeschlagen.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!pdfUrl) return;
-
-    setIsDownloading(true);
-    try {
-      const response = await fetch(pdfUrl);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Mieterhoehung_${new Date().toLocaleDateString('de-DE').replace(/\./g, '-')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: "Download erfolgreich",
-        description: "Das Mieterhöhungsschreiben wurde heruntergeladen.",
-      });
-    } catch (error) {
-      console.error('Download error:', error);
-      toast({
-        title: "Fehler",
-        description: "Download fehlgeschlagen.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  const handleBack = () => {
-    setStep('form');
-    if (pdfUrl) {
-      URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(null);
-    }
-  };
-
-  const handleRestart = () => {
-    setStep('form');
-    if (pdfUrl) {
-      URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(null);
-    }
-    if (contractData) {
-      setNeueKaltmiete((contractData.current_kaltmiete * 1.04).toFixed(2));
-      setNeueBetriebskosten(contractData.current_betriebskosten.toFixed(2));
     }
   };
 
   if (!contractData) return null;
 
   const currentTotal = contractData.current_kaltmiete + contractData.current_betriebskosten;
-  const newTotal = parseFloat(neueKaltmiete || "0") + parseFloat(neueBetriebskosten || "0");
+  const newTotal = (parseFloat(neueKaltmiete) || 0) + (parseFloat(neueBetriebskosten) || 0);
   const increase = newTotal - currentTotal;
-  const increasePercent = (increase / currentTotal) * 100;
+  const increasePercent = currentTotal > 0 ? (increase / currentTotal) * 100 : 0;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-        {step === 'form' ? (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center space-x-2">
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-[95vw] w-[1200px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-orange-600" />
                 <span>Mieterhöhung erstellen</span>
-              </DialogTitle>
-            </DialogHeader>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownload}
+                  disabled={!pdfBlob}
+                  className="gap-1.5"
+                >
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowConfirmSave(true)}
+                  disabled={!pdfBlob || isSubmitting}
+                  className="gap-1.5"
+                >
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Speichern & Vertrag aktualisieren
+                </Button>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
 
-            <div className="space-y-6 overflow-auto">
-              {/* Contract Info */}
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <div className="text-sm">
-                  <span className="font-medium">Objekt:</span> {contractData.immobilie_name || 'N/A'}
+          <div className="flex flex-1 overflow-hidden border-t">
+            {/* Left: Edit form */}
+            <ScrollArea className="w-[380px] shrink-0 border-r">
+              <div className="p-4 space-y-4">
+                {/* Contract info */}
+                <div className="p-3 bg-muted rounded-lg space-y-1 text-sm">
+                  <p><span className="font-medium">Objekt:</span> {contractData.immobilie_name || 'N/A'}</p>
+                  <p><span className="font-medium">Adresse:</span> {contractData.immobilie_adresse || 'N/A'}</p>
+                  {contractData.mieter && contractData.mieter.length > 0 && (
+                    <p><span className="font-medium">Mieter:</span> {contractData.mieter.map(m => `${m.vorname} ${m.nachname}`).join(', ')}</p>
+                  )}
                 </div>
-                <div className="text-sm">
-                  <span className="font-medium">Adresse:</span> {contractData.immobilie_adresse || 'N/A'}
-                </div>
-                {contractData.mieter && contractData.mieter.length > 0 && (
-                  <div className="text-sm">
-                    <span className="font-medium">Mieter:</span> {contractData.mieter.map(m => `${m.vorname} ${m.nachname}`).join(', ')}
+
+                <Separator />
+
+                {/* Recipient fields */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold">Empfänger</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Anrede</Label>
+                      <Input value={anrede} onChange={(e) => setAnrede(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Einheit</Label>
+                      <Input value={einheitBezeichnung} onChange={(e) => setEinheitBezeichnung(e.target.value)} className="h-8 text-sm" />
+                    </div>
                   </div>
-                )}
-              </div>
-
-              {/* Current Rent */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <label className="text-sm font-medium text-gray-600">Aktuelle Kaltmiete</label>
-                  <p className="text-xl font-bold text-gray-900 mt-1">
-                    {contractData.current_kaltmiete.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                  </p>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <label className="text-sm font-medium text-gray-600">Aktuelle Betriebskosten</label>
-                  <p className="text-xl font-bold text-gray-900 mt-1">
-                    {contractData.current_betriebskosten.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                  </p>
-                </div>
-              </div>
-
-              {/* New Rent - Editable */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Neue Miete festlegen</h3>
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="neue-kaltmiete">Neue Kaltmiete (€)</Label>
-                    <Input
-                      id="neue-kaltmiete"
-                      type="number"
-                      step="0.01"
-                      value={neueKaltmiete}
-                      onChange={(e) => setNeueKaltmiete(e.target.value)}
-                      className="mt-1"
-                    />
+                    <Label className="text-xs">Straße</Label>
+                    <Input value={mieterAdresse} onChange={(e) => setMieterAdresse(e.target.value)} className="h-8 text-sm" />
                   </div>
                   <div>
-                    <Label htmlFor="neue-betriebskosten">Neue Betriebskosten (€)</Label>
-                    <Input
-                      id="neue-betriebskosten"
-                      type="number"
-                      step="0.01"
-                      value={neueBetriebskosten}
-                      onChange={(e) => setNeueBetriebskosten(e.target.value)}
-                      className="mt-1"
-                    />
+                    <Label className="text-xs">PLZ / Ort</Label>
+                    <Input value={mieterPlzOrt} onChange={(e) => setMieterPlzOrt(e.target.value)} className="h-8 text-sm" />
                   </div>
                 </div>
-              </div>
 
-              {/* Summary */}
-              <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg border border-orange-200">
+                <Separator />
+
+                {/* Current rent (read-only) */}
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">Aktuelle Gesamtmiete:</span>
+                  <h3 className="text-sm font-semibold">Aktuelle Miete</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 bg-muted rounded text-center">
+                      <p className="text-[10px] text-muted-foreground">Kaltmiete</p>
+                      <p className="text-sm font-bold">{contractData.current_kaltmiete.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p>
+                    </div>
+                    <div className="p-2 bg-muted rounded text-center">
+                      <p className="text-[10px] text-muted-foreground">Betriebskosten</p>
+                      <p className="text-sm font-bold">{contractData.current_betriebskosten.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* New rent (editable) */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold">Neue Miete</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs">Neue Kaltmiete (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={neueKaltmiete}
+                        onChange={(e) => setNeueKaltmiete(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Neue BK (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={neueBetriebskosten}
+                        onChange={(e) => setNeueBetriebskosten(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <div className="p-3 rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950/20 space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span>Aktuelle Gesamtmiete:</span>
                     <span>{currentTotal.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">Neue Gesamtmiete:</span>
-                    <span className="font-bold">{newTotal.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+                  <div className="flex justify-between font-bold">
+                    <span>Neue Gesamtmiete:</span>
+                    <span>{newTotal.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
                   </div>
-                  <div className="flex justify-between text-sm pt-2 border-t border-orange-200">
-                    <span className="font-medium">Erhöhung:</span>
-                    <span className={increase >= 0 ? "text-orange-600 font-bold" : "text-red-600 font-bold"}>
-                      {increase >= 0 ? '+' : ''}{increase.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} 
+                  <Separator className="bg-orange-200" />
+                  <div className="flex justify-between font-bold">
+                    <span>Erhöhung:</span>
+                    <span className={increase >= 0 ? 'text-orange-600' : 'text-destructive'}>
+                      {increase >= 0 ? '+' : ''}{increase.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
                       {' '}({increasePercent.toFixed(2)}%)
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Legal Info */}
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-xs text-gray-700">
-                <p className="font-medium mb-1">Hinweise:</p>
-                <ul className="space-y-1">
-                  <li>• Die neue Miete wird 3 Monate nach Zugang des Schreibens wirksam</li>
-                  <li>• Mieterhöhungen sind frühestens 15 Monate nach Einzug oder der letzten Erhöhung möglich</li>
-                  <li>• Eine Erhöhung darf höchstens alle 12 Monate verlangt werden</li>
-                </ul>
+                {/* Legal info */}
+                <div className="p-2 rounded-lg border text-[10px] text-muted-foreground space-y-1">
+                  <p className="font-medium">Hinweise:</p>
+                  <p>• Neue Miete wird 3 Monate nach Zugang wirksam</p>
+                  <p>• Frühestens 15 Monate nach Einzug/letzter Erhöhung</p>
+                  <p>• Höchstens alle 12 Monate</p>
+                </div>
               </div>
-            </div>
+            </ScrollArea>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                Abbrechen
-              </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Wird gesendet...
-                  </>
+            {/* Right: PDF Preview */}
+            <div className="flex-1 bg-muted/50 p-4 flex flex-col min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">Live-Vorschau</span>
+                {isGeneratingPreview && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              </div>
+              <div className="flex-1 rounded-lg overflow-hidden shadow-lg bg-background">
+                {pdfBlobUrl ? (
+                  <iframe
+                    src={pdfBlobUrl}
+                    title="Mieterhöhungsschreiben Vorschau"
+                    className="w-full h-full min-h-[500px]"
+                  />
                 ) : (
-                  'Mieterhöhung erstellen'
+                  <div className="flex items-center justify-center h-full min-h-[500px]">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
                 )}
-              </Button>
-            </DialogFooter>
-          </>
-        ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle className="flex items-center justify-between">
-                <span>Mieterhöhungsschreiben</span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBack}
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Zurück
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRestart}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Neu starten
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownload}
-                    disabled={isDownloading}
-                  >
-                    {isDownloading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    <span className="ml-2">Download</span>
-                  </Button>
-                </div>
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="flex-1 overflow-auto bg-gray-100 rounded-lg p-4">
-              {pdfUrl ? (
-                <iframe 
-                  src={pdfUrl} 
-                  title="Mieterhöhungsschreiben"
-                  className="w-full h-full min-h-[600px] bg-white shadow-lg rounded"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                </div>
-              )}
+              </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-            <DialogFooter>
-              <Button onClick={onClose}>
-                Schließen
-              </Button>
-            </DialogFooter>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+      {/* Confirm save dialog */}
+      <AlertDialog open={showConfirmSave} onOpenChange={setShowConfirmSave}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mieterhöhung speichern?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Das PDF wird in den Dokumenten gespeichert und die Vertragsmiete wird auf die neuen Werte aktualisiert. 
+              Haben Sie die PDF-Vorschau geprüft?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveAndUpload}>
+              Ja, speichern & aktualisieren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
