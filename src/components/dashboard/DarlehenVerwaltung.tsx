@@ -499,7 +499,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
           <KpiCard icon={Home} label="Kaufpreis ges." value={formatCurrency(portfolioMetrics.totalKaufpreis)} />
           <KpiCard icon={TrendingUp} label="Marktwert ges." value={portfolioMetrics.totalMarktwert > 0 ? formatCurrency(portfolioMetrics.totalMarktwert) : '–'} variant={portfolioMetrics.wertsteigerung > 0 ? 'success' : portfolioMetrics.wertsteigerung < 0 ? 'destructive' : undefined} />
           <KpiCard icon={Landmark} label="Gesamtschulden" value={formatCurrency(portfolioMetrics.totalRestschuld)} variant="destructive" />
