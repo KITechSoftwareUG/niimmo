@@ -445,6 +445,7 @@ export type Database = {
           id: string
           kaufpreis: number | null
           "Kontonr.": string | null
+          marktwert: number | null
           name: string
           objekttyp: Database["public"]["Enums"]["objekttyp"] | null
           restschuld: number | null
@@ -487,6 +488,7 @@ export type Database = {
           id?: string
           kaufpreis?: number | null
           "Kontonr."?: string | null
+          marktwert?: number | null
           name: string
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
           restschuld?: number | null
@@ -529,6 +531,7 @@ export type Database = {
           id?: string
           kaufpreis?: number | null
           "Kontonr."?: string | null
+          marktwert?: number | null
           name?: string
           objekttyp?: Database["public"]["Enums"]["objekttyp"] | null
           restschuld?: number | null
