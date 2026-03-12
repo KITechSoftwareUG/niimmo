@@ -14,13 +14,13 @@ import { PaymentManagement } from "@/components/controlboard/PaymentManagement";
 import { Uebergabe } from "@/pages/Uebergabe";
 import { DarlehenVerwaltung } from "@/components/dashboard/DarlehenVerwaltung";
 import { HausmeisterDashboard } from "@/components/dashboard/HausmeisterDashboard";
-import { DevStatusBoard } from "@/components/devboard/DevStatusBoard";
+
 import { ZaehlerVerwaltung } from "@/components/dashboard/ZaehlerVerwaltung";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
 
 import { useState, useMemo, useCallback } from "react";
-import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties, Gauge, Landmark, Code } from "lucide-react";
+import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties, Gauge, Landmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 import { useNavigationState } from "@/hooks/useNavigationState";
@@ -36,7 +36,6 @@ const Index = () => {
   const showControlboard = navState.showControlboard;
   const showUebergabe = navState.showUebergabe;
   const showDarlehen = navState.showDarlehen;
-  const showDevBoard = navState.showDevBoard;
   const navigationSource = navState.navigationSource;
 
   // Setter wrappers
@@ -47,7 +46,6 @@ const Index = () => {
   const setShowControlboard = useCallback((v: boolean) => updateNav({ showControlboard: v }), [updateNav]);
   const setShowUebergabe = useCallback((v: boolean) => updateNav({ showUebergabe: v }), [updateNav]);
   const setShowDarlehen = useCallback((v: boolean) => updateNav({ showDarlehen: v }), [updateNav]);
-  const setShowDevBoard = useCallback((v: boolean) => updateNav({ showDevBoard: v }), [updateNav]);
   const setNavigationSource = useCallback((v: 'dashboard' | 'immobilie' | 'search') => updateNav({ navigationSource: v }), [updateNav]);
 
   const [showStammdaten, setShowStammdaten] = useState<boolean>(false);
@@ -276,9 +274,6 @@ const Index = () => {
     return <Analytics onBack={() => setShowAnalytics(false)} />;
   }
 
-  if (showDevBoard) {
-    return <DevStatusBoard onBack={() => setShowDevBoard(false)} />;
-  }
 
 
   // Controlboard-Ansicht anzeigen
@@ -405,15 +400,6 @@ const Index = () => {
                   >
                     <Landmark className="h-4 w-4 mr-1.5 shrink-0" />
                     <span className="truncate">Darlehen</span>
-                  </Button>
-                  <Button 
-                    onClick={() => setShowDevBoard(true)} 
-                    variant="ghost"
-                    size="sm"
-                    className="bg-white/60 hover:bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 hover:text-gray-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
-                  >
-                    <Code className="h-4 w-4 mr-1.5 shrink-0" />
-                    <span className="truncate">Entwicklung</span>
                   </Button>
                 </div>
               )}
