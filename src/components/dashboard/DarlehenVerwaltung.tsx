@@ -205,6 +205,30 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     onError: (err: any) => toast.error("Fehler: " + err.message),
   });
 
+  // Immobilien-Preise inline bearbeiten
+  const updateImmobilieMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: 'kaufpreis' | 'marktwert'; value: number | null }) => {
+      const { error } = await supabase.from("immobilien").update({ [field]: value }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["immobilien-portfolio"] });
+      setEditingImmoField(null);
+      toast.success("Wert gespeichert");
+    },
+    onError: (err: any) => toast.error("Fehler: " + err.message),
+  });
+
+  const startEditImmoField = (id: string, field: 'kaufpreis' | 'marktwert', currentValue: number | null) => {
+    setEditingImmoField({ id, field });
+    setEditingImmoValue(currentValue ? currentValue.toString() : "");
+  };
+
+  const saveEditImmoField = () => {
+    if (!editingImmoField) return;
+    const parsed = editingImmoValue.trim() === "" ? null : parseFloat(editingImmoValue.replace(/,/g, '.'));
+    updateImmobilieMutation.mutate({ id: editingImmoField.id, field: editingImmoField.field, value: parsed });
+  };
 
   const resetForm = () => {
     setForm(emptyForm);
