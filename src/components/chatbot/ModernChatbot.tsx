@@ -85,10 +85,17 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     let assistantContent = "";
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        throw new Error("Nicht eingeloggt. Bitte melde dich zuerst an.");
+      }
+
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({ messages: apiMessages }),
       });
