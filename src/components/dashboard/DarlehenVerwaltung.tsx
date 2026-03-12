@@ -647,7 +647,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                           )}
                           <h4 className="text-xs font-semibold mb-2">Zahlungen ({zahlungen.length})</h4>
                           {zahlungen.length > 0 ? (
-                            <div className="rounded-md border overflow-auto max-h-60">
+                            <div className="rounded-md border overflow-auto max-h-[600px]">
                               <Table>
                                 <TableHeader>
                                   <TableRow>
