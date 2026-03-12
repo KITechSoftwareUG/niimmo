@@ -62,6 +62,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [form, setForm] = useState<DarlehenForm>(emptyForm);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("kredite");
+  const [editingKaufpreis, setEditingKaufpreis] = useState<string | null>(null);
+  const [kaufpreisValue, setKaufpreisValue] = useState<string>("");
 
   // Text Import state
   const [showTextImport, setShowTextImport] = useState(false);
@@ -534,19 +536,43 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                               <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{p.adresse}</p>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right p-1">
-                            <Input
-                              type="number"
-                              defaultValue={p.kaufpreis || 0}
-                              className="h-7 text-xs text-right w-28 ml-auto"
-                              onBlur={(e) => {
-                                const val = parseFloat(e.target.value) || 0;
-                                if (val !== (p.kaufpreis || 0)) {
-                                  updateImmobilieMutation.mutate({ id: p.id, field: 'kaufpreis', value: val });
-                                }
-                              }}
-                              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                            />
+                          <TableCell className="text-right">
+                            {editingKaufpreis === p.id ? (
+                              <Input
+                                type="number"
+                                autoFocus
+                                value={kaufpreisValue}
+                                onChange={(e) => setKaufpreisValue(e.target.value)}
+                                className="h-7 text-xs text-right w-28 ml-auto"
+                                onBlur={() => {
+                                  const val = parseFloat(kaufpreisValue) || 0;
+                                  if (val !== (p.kaufpreis || 0)) {
+                                    updateImmobilieMutation.mutate({ id: p.id, field: 'kaufpreis', value: val });
+                                  }
+                                  setEditingKaufpreis(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                  if (e.key === 'Escape') setEditingKaufpreis(null);
+                                }}
+                              />
+                            ) : (
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="text-xs">{formatCurrency(p.kaufpreis || 0)}</span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingKaufpreis(p.id);
+                                    setKaufpreisValue(String(p.kaufpreis || 0));
+                                  }}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs text-right text-destructive font-medium">{formatCurrency(p.schulden)}</TableCell>
                           <TableCell className={`text-xs text-right font-bold ${p.eigenkapital >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
