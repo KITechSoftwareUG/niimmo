@@ -1,43 +1,29 @@
 
 
-## Plan: Übergabe-Workflow radikal vereinfachen
+## Problem Analysis
 
-### Kernidee
+Two issues in the "Alle Zahlungen" tab:
 
-Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
+1. **Display Bug**: When a "Nebenkosten" payment is selected, the right-side detail panel doesn't properly reflect the category context. The `AssignPaymentDialog` gets opened but may show "Mietvertrag" as default assignment type despite the payment being "Nebenkosten".
 
-### Änderungen
+2. **Missing Feature**: No way to assign Nebenkosten payments directly to an Immobilie from the detail panel. The Zuordnung section doesn't adapt its UI based on category.
 
-#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
+**Root cause of category display issue**: The detail panel (lines 728-734 of `ZahlungenUebersicht.tsx`) shows a static Badge with `selectedZahlung.kategorie`, but there's no `PaymentKategorieEditor` allowing inline category changes. Additionally, the Zuordnung section doesn't distinguish between Nebenkosten and Miete workflows.
 
-- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
-- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
-- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
-  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
-  - Auszug: Gekündigte und bald auslaufende Verträge oben
-- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
-- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
+## Plan
 
-#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
+### 1. `ZahlungenUebersicht.tsx` — Enhance detail panel
 
-- `showWarningContract`-State und Warning-Dialog-UI komplett raus
-- `handleContractClick` ruft direkt `proceedWithContracts` auf
-- Kein `meetsCriteria`-Check mehr
+- **Add `PaymentKategorieEditor`** to the detail panel (replacing static Badge) so users can change categories inline
+- **Adapt Zuordnung section**: When `kategorie === 'Nebenkosten'`, show "Immobilie zuordnen" button instead of generic "Zuordnen". Change the assignment prompt text to match
+- **Pass correct `kategorie`** to `AssignPaymentDialog` so it defaults to the right assignment type
 
-#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
+### 2. `AssignPaymentDialog.tsx` — Improve Nebenkosten handling
 
-- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
-- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
-- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
-- Bei Einzug: Kein `start_datum`-Update
-- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
-- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
+- Ensure `assignmentType` correctly initializes to `'property'` when `kategorie === 'Nebenkosten'` (the `useEffect` already does this, but verify it fires correctly)
+- After assigning a Nebenkosten payment to a property, also invalidate `unzugeordnete-nebenkosten` and `zugeordnete-nebenkosten` query keys for cross-tab consistency
 
-#### 4. Betroffene Dateien
+### 3. Query invalidation
 
-| Datei | Änderung |
-|-------|----------|
-| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
-| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
-| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
+- In `AssignPaymentDialog`, add invalidation of Nebenkosten-related query keys (`unzugeordnete-nebenkosten`, `zugeordnete-nebenkosten`) after any assignment change, ensuring the Nebenkosten tab stays in sync
 
