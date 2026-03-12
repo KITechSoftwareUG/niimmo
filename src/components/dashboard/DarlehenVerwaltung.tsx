@@ -357,12 +357,9 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   // ── Portfolio Calculations ──
 
   const portfolioMetrics = useMemo(() => {
-    const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
     const totalRestschuld = darlehen?.reduce((s, d) => s + getEffectiveRestschuld(d.id, d.restschuld), 0) || 0;
     const totalDarlehensbetrag = darlehen?.reduce((s, d) => s + (d.darlehensbetrag || 0), 0) || 0;
     const totalMonatlicheRate = darlehen?.reduce((s, d) => s + (d.monatliche_rate || 0), 0) || 0;
-    const eigenkapital = totalKaufpreis - totalRestschuld;
-    const ltv = totalKaufpreis > 0 ? (totalRestschuld / totalKaufpreis) * 100 : 0;
     const totalGetilgt = Math.max(0, totalDarlehensbetrag - totalRestschuld);
     const tilgungsQuote = totalDarlehensbetrag > 0 ? Math.min(100, Math.max(0, (totalGetilgt / totalDarlehensbetrag) * 100)) : 0;
 
@@ -373,65 +370,11 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
     // Monthly rental income from active contracts
     const totalMieteinnahmen = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0) || 0;
-    const totalKaltmiete = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0), 0) || 0;
-
     const cashflow = totalMieteinnahmen - totalMonatlicheRate;
 
-    // Per-property breakdown
-    const propertyBreakdown = immobilien?.map(immo => {
-      // Loans assigned to this property
-      const assignedDarlehenIds = darlehenImmobilien
-        ?.filter(di => di.immobilie_id === immo.id)
-        .map(di => di.darlehen_id) || [];
-      
-      const assignedDarlehen = darlehen?.filter(d => assignedDarlehenIds.includes(d.id)) || [];
-      
-      // For each loan, check how many properties share it
-      let propertyDebt = 0;
-      let propertyMonthlyRate = 0;
-      assignedDarlehen.forEach(d => {
-        const allImmoCount = darlehenImmobilien?.filter(di => di.darlehen_id === d.id).length || 1;
-        const effectiveRest = getEffectiveRestschuld(d.id, d.restschuld);
-        propertyDebt += effectiveRest / allImmoCount;
-        propertyMonthlyRate += (d.monatliche_rate || 0) / allImmoCount;
-      });
-
-      // Rental income for this property
-      const propertyEinheiten = einheiten?.filter(e => e.immobilie_id === immo.id).map(e => e.id) || [];
-      const propertyMietvertraege = mietvertraege?.filter(mv => propertyEinheiten.includes(mv.einheit_id)) || [];
-      const propertyMieteinnahmen = propertyMietvertraege.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0);
-      const propertyKaltmiete = propertyMietvertraege.reduce((s, mv) => s + (mv.kaltmiete || 0), 0);
-
-      const propertyEigenkapital = (immo.kaufpreis || 0) - propertyDebt;
-      const propertyLtv = (immo.kaufpreis || 0) > 0 ? (propertyDebt / (immo.kaufpreis || 1)) * 100 : 0;
-      const propertyCashflow = propertyMieteinnahmen - propertyMonthlyRate;
-
-      // Gross yield: (annual rent / purchase price) * 100
-      const bruttoRendite = (immo.kaufpreis || 0) > 0 ? ((propertyKaltmiete * 12) / (immo.kaufpreis || 1)) * 100 : 0;
-
-      return {
-        ...immo,
-        schulden: propertyDebt,
-        eigenkapital: propertyEigenkapital,
-        ltv: propertyLtv,
-        monatlicheRate: propertyMonthlyRate,
-        mieteinnahmen: propertyMieteinnahmen,
-        kaltmiete: propertyKaltmiete,
-        cashflow: propertyCashflow,
-        bruttoRendite,
-        darlehen: assignedDarlehen,
-      };
-    }) || [];
-
     // Risk warnings
-    const warnings: { type: 'high' | 'medium'; message: string; immobilie?: string }[] = [];
-    if (ltv > 80) warnings.push({ type: 'high', message: `Beleihungsquote des Portfolios liegt bei ${ltv.toFixed(1)}% (über 80%)` });
+    const warnings: { type: 'high' | 'medium'; message: string }[] = [];
     if (cashflow < 0) warnings.push({ type: 'high', message: `Negativer Cashflow: ${formatCurrency(cashflow)}/Monat` });
-    
-    propertyBreakdown.forEach(p => {
-      if (p.ltv > 90) warnings.push({ type: 'high', message: `Hohe Beleihung: ${p.name} bei ${p.ltv.toFixed(0)}%`, immobilie: p.name });
-      if (p.cashflow < 0) warnings.push({ type: 'medium', message: `Negativer Cashflow bei ${p.name}: ${formatCurrency(p.cashflow)}`, immobilie: p.name });
-    });
 
     darlehen?.forEach(d => {
       if (d.ende_datum) {
@@ -444,22 +387,18 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     });
 
     return {
-      totalKaufpreis,
       totalRestschuld,
       totalDarlehensbetrag,
       totalMonatlicheRate,
-      eigenkapital,
-      ltv,
       totalGetilgt,
       tilgungsQuote,
       avgZinssatz,
       totalMieteinnahmen,
-      totalKaltmiete,
       cashflow,
-      propertyBreakdown,
       warnings,
       anzahlKredite: darlehen?.length || 0,
     };
+  }, [darlehen, darlehenZahlungen, mietvertraege]);
   }, [darlehen, immobilien, darlehenImmobilien, darlehenZahlungen, mietvertraege, einheiten]);
 
   // ── RENDER ──
