@@ -72,14 +72,14 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // Fetch unzugeordnete Nichtmiete-Zahlungen
+  // Fetch unzugeordnete Nichtmiete-Zahlungen (Nichtmiete + Nebenkosten ohne Immobilie)
   const { data: unzugeordneteZahlungen, isLoading: unzugeordneteLoading } = useQuery({
     queryKey: ['unzugeordnete-nebenkosten'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('zahlungen')
         .select('*')
-        .eq('kategorie', 'Nichtmiete')
+        .in('kategorie', ['Nichtmiete', 'Nebenkosten'])
         .is('immobilie_id', null)
         .order('buchungsdatum', { ascending: false });
       
