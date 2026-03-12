@@ -617,12 +617,16 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   // Try to get enriched version for the detail panel
   const selectedZahlung = useMemo(() => {
     if (!selectedZahlungBase) return undefined;
-    // Search across all enriched months
+
     for (const monthData of Object.values(enrichedPayments)) {
-      if (monthData[selectedZahlungBase.id]) return monthData[selectedZahlungBase.id];
+      const enriched = monthData[selectedZahlungBase.id];
+      if (enriched) {
+        return mergeWithEnrichedDetails(selectedZahlungBase, enriched);
+      }
     }
+
     return selectedZahlungBase;
-  }, [selectedZahlungBase, enrichedPayments]);
+  }, [selectedZahlungBase, enrichedPayments, mergeWithEnrichedDetails]);
 
   const formatBetrag = (betrag: number) => {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(betrag);
