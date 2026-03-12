@@ -53,6 +53,7 @@ export const UebergabeEmailDialog = ({
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [emailsSent, setEmailsSent] = useState(false);
+  const [pdfAlreadyUploaded, setPdfAlreadyUploaded] = useState(false);
 
   // Initialize email addresses from mieter data
   const [emailAddresses, setEmailAddresses] = useState<{ [mieterId: string]: string }>(
