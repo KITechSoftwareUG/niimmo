@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AssignPaymentDialog } from "@/components/controlboard/AssignPaymentDialog";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PaymentKategorieEditor } from "@/components/controlboard/PaymentKategorieEditor";
 
 interface ZahlungenUebersichtProps {
   onBack?: () => void;
@@ -725,14 +726,18 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                             </span>
                           </div>
                         )}
-                        {selectedZahlung.kategorie && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Kategorie:</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {selectedZahlung.kategorie}
-                            </Badge>
-                          </div>
-                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Kategorie:</span>
+                          <PaymentKategorieEditor
+                            paymentId={selectedZahlung.id}
+                            currentKategorie={selectedZahlung.kategorie}
+                            currentImmobilieId={selectedZahlung.immobilie_id}
+                            compact
+                            onUpdate={() => {
+                              queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+                            }}
+                          />
+                        </div>
                         {selectedZahlung.empfaengername && (
                           <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Empfänger:</span>
@@ -765,7 +770,11 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                           className="gap-2"
                         >
                           <Edit2 className="h-4 w-4" />
-                          {selectedZahlung.mietvertrag_id || selectedZahlung.immobilie_id ? 'Ändern' : 'Zuordnen'}
+                          {selectedZahlung.mietvertrag_id || selectedZahlung.immobilie_id 
+                            ? 'Ändern' 
+                            : selectedZahlung.kategorie === 'Nebenkosten' 
+                              ? 'Immobilie zuordnen' 
+                              : 'Zuordnen'}
                         </Button>
                       </div>
 
