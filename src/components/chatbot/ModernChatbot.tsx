@@ -206,11 +206,15 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     } catch (error) {
       console.error('Error sending message:', error);
       
+      const errorText = error instanceof Error ? error.message : "Konnte nicht mit dem KI-Service verbinden.";
+      const isFetchError = errorText.toLowerCase().includes("failed to fetch");
+
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content: "Entschuldigung, es gab einen Fehler beim Verarbeiten deiner Nachricht. Bitte versuche es erneut.",
-        timestamp: new Date(),
+        content: isFetchError
+          ? "Verbindung zur Chat-Funktion fehlgeschlagen. Bitte Seite neu laden und erneut versuchen."
+          : errorText,
       };
 
       setMessages(prev => {
