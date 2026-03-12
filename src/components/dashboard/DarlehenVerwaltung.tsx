@@ -399,7 +399,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
       anzahlKredite: darlehen?.length || 0,
     };
   }, [darlehen, darlehenZahlungen, mietvertraege]);
-  }, [darlehen, immobilien, darlehenImmobilien, darlehenZahlungen, mietvertraege, einheiten]);
+  
 
   // ── RENDER ──
 
