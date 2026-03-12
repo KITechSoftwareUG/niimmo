@@ -1,43 +1,42 @@
 
 
-## Plan: Übergabe-Workflow radikal vereinfachen
+## Bug: "XX% getilgt" zeigt falsche Werte
 
-### Kernidee
+### Ursache
 
-Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
+Die Funktion `getEffectiveRestschuld` (Zeile 332-340) holt den letzten Eintrag aus `darlehen_zahlungen` sortiert nach `buchungsdatum DESC`. Das Problem: Der Tilgungsplan-Import speichert **zukünftige projizierte Zahlungen** (bis z.B. 2055). Die letzte projizierte Zahlung hat `restschuld_danach: 0` — das Darlehen wäre dann theoretisch abbezahlt.
 
-### Änderungen
+Beispiel aus der DB:
+- Darlehen 400.000€, echte Restschuld 398.037€
+- Aber letzter Tilgungsplan-Eintrag (01.01.2055): `restschuld_danach: 0`
+- → Code berechnet: (400.000 - 0) / 400.000 = **100% getilgt** ← FALSCH
 
-#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
+### Fix
 
-- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
-- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
-- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
-  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
-  - Auszug: Gekündigte und bald auslaufende Verträge oben
-- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
-- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
+**Datei: `src/components/dashboard/DarlehenVerwaltung.tsx`**
 
-#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
+In `getEffectiveRestschuld` nur Zahlungen berücksichtigen, deren `buchungsdatum <= heute` liegt:
 
-- `showWarningContract`-State und Warning-Dialog-UI komplett raus
-- `handleContractClick` ruft direkt `proceedWithContracts` auf
-- Kein `meetsCriteria`-Check mehr
+```typescript
+const getEffectiveRestschuld = (darlehenId: string, staticRestschuld: number | null): number => {
+  const today = new Date().toISOString().split('T')[0]; // "2026-03-12"
+  const zahlungen = darlehenZahlungen
+    ?.filter((z) => z.darlehen_id === darlehenId 
+      && z.restschuld_danach != null 
+      && z.buchungsdatum <= today)  // ← NUR vergangene/heutige Zahlungen
+    ?.sort((a, b) => new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime());
+  if (zahlungen && zahlungen.length > 0) {
+    return Math.abs(zahlungen[0].restschuld_danach!);
+  }
+  return Math.abs(staticRestschuld || 0);
+};
+```
 
-#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
+Eine Zeile Änderung — der Datumsfilter `&& z.buchungsdatum <= today` stellt sicher, dass nur tatsächlich vergangene Zahlungen für die Restschuld-Berechnung herangezogen werden. Zukünftige Tilgungsplan-Projektionen werden ignoriert.
 
-- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
-- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
-- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
-- Bei Einzug: Kein `start_datum`-Update
-- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
-- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
+### Auswirkung
 
-#### 4. Betroffene Dateien
-
-| Datei | Änderung |
-|-------|----------|
-| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
-| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
-| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
+- Darlehen mit 400.000€ und Restschuld 398.037€ → ca. **0,5% getilgt** (korrekt)
+- Darlehen mit 300.000€ und Restschuld 227.119€ → ca. **24,3% getilgt** (korrekt, da `restschuld_danach` aus vergangenen Zahlungen)
+- Darlehen ohne vergangene Zahlungen → Fallback auf `darlehen.restschuld`
 
