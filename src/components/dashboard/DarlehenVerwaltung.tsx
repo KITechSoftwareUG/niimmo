@@ -201,6 +201,18 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     onError: (err: any) => toast.error("Fehler: " + err.message),
   });
 
+  const updateImmobilieMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: string; value: number }) => {
+      const { error } = await supabase.from("immobilien").update({ [field]: value }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["immobilien"] });
+      toast.success("Immobilie aktualisiert");
+    },
+    onError: (err: any) => toast.error("Fehler: " + err.message),
+  });
+
   const resetForm = () => {
     setForm(emptyForm);
     setEditId(null);
@@ -522,7 +534,20 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                               <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{p.adresse}</p>
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs text-right font-medium">{formatCurrency(p.kaufpreis || 0)}</TableCell>
+                          <TableCell className="text-right p-1">
+                            <Input
+                              type="number"
+                              defaultValue={p.kaufpreis || 0}
+                              className="h-7 text-xs text-right w-28 ml-auto"
+                              onBlur={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                if (val !== (p.kaufpreis || 0)) {
+                                  updateImmobilieMutation.mutate({ id: p.id, field: 'kaufpreis', value: val });
+                                }
+                              }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                            />
+                          </TableCell>
                           <TableCell className="text-xs text-right text-destructive font-medium">{formatCurrency(p.schulden)}</TableCell>
                           <TableCell className={`text-xs text-right font-bold ${p.eigenkapital >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
                             {formatCurrency(p.eigenkapital)}
