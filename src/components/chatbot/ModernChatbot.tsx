@@ -215,6 +215,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
         content: isFetchError
           ? "Verbindung zur Chat-Funktion fehlgeschlagen. Bitte Seite neu laden und erneut versuchen."
           : errorText,
+        timestamp: new Date(),
       };
 
       setMessages(prev => {
