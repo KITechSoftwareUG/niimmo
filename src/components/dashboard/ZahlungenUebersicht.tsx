@@ -726,14 +726,18 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                             </span>
                           </div>
                         )}
-                        {selectedZahlung.kategorie && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Kategorie:</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {selectedZahlung.kategorie}
-                            </Badge>
-                          </div>
-                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Kategorie:</span>
+                          <PaymentKategorieEditor
+                            paymentId={selectedZahlung.id}
+                            currentKategorie={selectedZahlung.kategorie}
+                            currentImmobilieId={selectedZahlung.immobilie_id}
+                            compact
+                            onUpdate={() => {
+                              queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+                            }}
+                          />
+                        </div>
                         {selectedZahlung.empfaengername && (
                           <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Empfänger:</span>
