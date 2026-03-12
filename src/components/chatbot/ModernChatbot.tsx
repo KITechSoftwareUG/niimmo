@@ -13,6 +13,7 @@ import {
   User
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -26,7 +27,7 @@ interface ModernChatbotProps {
   onClose: () => void;
 }
 
-const CHAT_URL = `https://kmtgzrnpitlslivdvlyq.functions.supabase.co/functions/v1/chat`;
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
