@@ -1,48 +1,43 @@
 
 
-## Nebenkosten-Tab: Liste verlängern + Nichtmiete/Nebenkosten trennen + "Wegdrücken"
+## Plan: Übergabe-Workflow radikal vereinfachen
 
-### Ist-Zustand
-- Die linke Zahlungsliste hat eine feste ScrollArea-Höhe von `h-[900px]` (Zeile 452)
-- Alle Zahlungen (Nichtmiete + Nebenkosten) werden gemischt in einer Liste angezeigt
-- "Nichtmiete"-Button existiert bereits pro Zahlung, aber es fehlt ein umgekehrter "Ist keine Nebenkosten"-Dismiss-Button für reine Nichtmiete-Zahlungen
-- Keine visuelle Trennung zwischen Kategorie "Nebenkosten" und "Nichtmiete"
+### Kernidee
 
-### Geplante Änderungen
+Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
 
-**Datei: `src/components/controlboard/NebenkostenZuordnungTab.tsx`**
+### Änderungen
 
-1. **Liste viel länger machen**: ScrollArea-Höhe von `h-[900px]` auf `h-[calc(100vh-280px)]` ändern, damit sie den verfügbaren Viewport ausfüllt.
+#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
 
-2. **Zahlungen in zwei Gruppen trennen**:
-   - `displayedPayments` in zwei Gruppen aufteilen via `useMemo`:
-     - **"Nebenkosten"** (kategorie === 'Nebenkosten') — oben, prominent
-     - **"Nichtmiete"** (kategorie === 'Nichtmiete') — darunter, etwas abgesetzt
-   - Jede Gruppe bekommt einen eigenen Abschnitts-Header mit Zähler
+- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
+- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
+- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
+  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
+  - Auszug: Gekündigte und bald auslaufende Verträge oben
+- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
+- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
 
-3. **"Wegdrücken" für Nichtmiete-Zahlungen**:
-   - Bei Nichtmiete-Zahlungen: Dismiss-Button ("Kein Nebenkosten" / X), der die Klassifizierung als `uebersprungen` markiert und die Zahlung aus der Liste entfernt (gleiche Logik wie `recategorizeNichtmieteMutation`, aber ohne Kategorie-Änderung — nur `uebersprungen: true` in `nebenkosten_klassifizierungen`)
-   - Neue Mutation `dismissNichtmieteMutation`: setzt in `nebenkosten_klassifizierungen` `uebersprungen: true` für die Zahlung. Falls kein Eintrag existiert, wird einer erstellt mit `is_betriebskosten: false, uebersprungen: true`.
-   - Danach Zahlung aus der lokalen Anzeige filtern (Zahlungen mit `uebersprungen`-Klassifizierung werden nicht mehr angezeigt)
+#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
 
-4. **Visuelle Unterscheidung**:
-   - Nebenkosten-Zahlungen: leichter farbiger Rand (z.B. `border-l-4 border-l-blue-400`)
-   - Nichtmiete-Zahlungen: dezenter Stil, etwas blasser
-   - Collapsible Nichtmiete-Sektion (standardmäßig offen, zusammenklappbar)
+- `showWarningContract`-State und Warning-Dialog-UI komplett raus
+- `handleContractClick` ruft direkt `proceedWithContracts` auf
+- Kein `meetsCriteria`-Check mehr
 
-### Technisches Detail
+#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
 
-```text
-displayedPayments
-  ├── nebenkostenPayments  (kategorie === 'Nebenkosten')
-  │     → Header: "Nebenkosten (X)"
-  │     → Jede Karte: [Drag] [KI-Vorschlag] [Nichtmiete-Button]
-  │
-  └── nichtmietePayments   (kategorie === 'Nichtmiete')
-        → Collapsible Header: "Nichtmiete (Y)" 
-        → Jede Karte: [Drag] [KI-Vorschlag] [Wegdrücken-Button ✕]
-        → Wegdrücken = aus Ansicht entfernen (uebersprungen)
-```
+- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
+- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
+- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
+- Bei Einzug: Kein `start_datum`-Update
+- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
+- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
 
-Filterung: Bereits übersprungene Zahlungen werden über einen Join/Check gegen `nebenkosten_klassifizierungen` (wo `uebersprungen = true`) aus der Anzeige gefiltert — entweder client-seitig (anhand der geladenen `cachedClassifications`) oder durch Erweiterung der DB-Query.
+#### 4. Betroffene Dateien
+
+| Datei | Änderung |
+|-------|----------|
+| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
+| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
+| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
 
