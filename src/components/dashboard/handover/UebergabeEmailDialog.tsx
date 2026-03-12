@@ -114,6 +114,34 @@ Ihre Hausverwaltung`
   );
 
   // Upload PDF to Supabase and save document reference
+  const uploadPdfAndSaveRef = async (): Promise<string | undefined> => {
+    if (!pdfBlob || !pdfFileName) return undefined;
+    if (pdfAlreadyUploaded) {
+      return `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;
+    }
+
+    const filePath = `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;
+    const { error: uploadError } = await supabase.storage
+      .from('dokumente')
+      .upload(filePath, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    // Save document reference for each contract
+    for (const contract of contracts) {
+      await supabase.from('dokumente').insert({
+        titel: `Übergabeprotokoll ${format(uebergabeDatum, "dd.MM.yyyy")}`,
+        pfad: filePath,
+        kategorie: 'Übergabeprotokoll',
+        dateityp: 'application/pdf',
+        mietvertrag_id: contract.id,
+      });
+    }
+
+    setPdfAlreadyUploaded(true);
+    return filePath;
+  };
+
   const handleUploadPdf = async () => {
     if (!pdfBlob || !pdfFileName) {
       toast({ title: "Kein PDF vorhanden", description: "Bitte erstellen Sie zuerst die Vorschau.", variant: "destructive" });
@@ -121,24 +149,7 @@ Ihre Hausverwaltung`
     }
     setIsUploading(true);
     try {
-      const filePath = `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;
-      const { error: uploadError } = await supabase.storage
-        .from('dokumente')
-        .upload(filePath, pdfBlob, { contentType: 'application/pdf', upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Save document reference for each contract
-      for (const contract of contracts) {
-        await supabase.from('dokumente').insert({
-          titel: `Übergabeprotokoll ${format(uebergabeDatum, "dd.MM.yyyy")}`,
-          pfad: filePath,
-          kategorie: 'Übergabeprotokoll',
-          dateityp: 'application/pdf',
-          mietvertrag_id: contract.id,
-        });
-      }
-
+      await uploadPdfAndSaveRef();
       toast({ title: "PDF hochgeladen", description: "Das Protokoll wurde in den Dokumenten gespeichert." });
     } catch (error) {
       console.error("Upload error:", error);
