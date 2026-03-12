@@ -396,9 +396,26 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     }
   };
 
+  const mergeWithEnrichedDetails = useCallback((
+    base: ZahlungWithDetails,
+    enriched?: ZahlungWithDetails
+  ): ZahlungWithDetails => {
+    if (!enriched) return base;
+
+    return {
+      ...base,
+      mieter_name: enriched.mieter_name ?? base.mieter_name,
+      immobilie_name: enriched.immobilie_name ?? base.immobilie_name,
+      immobilie_adresse: enriched.immobilie_adresse ?? base.immobilie_adresse,
+      einheit_id: enriched.einheit_id ?? base.einheit_id,
+      einheit_typ: enriched.einheit_typ ?? base.einheit_typ,
+    };
+  }, []);
+
   // Helper to get a payment with details (enriched if available)
   const getEnrichedPayment = (zahlung: ZahlungWithDetails, monthKey: string): ZahlungWithDetails => {
-    return enrichedPayments[monthKey]?.[zahlung.id] || zahlung;
+    const enriched = enrichedPayments[monthKey]?.[zahlung.id];
+    return mergeWithEnrichedDetails(zahlung, enriched);
   };
 
   // Filter for unassigned payments (simple table)
@@ -600,12 +617,16 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   // Try to get enriched version for the detail panel
   const selectedZahlung = useMemo(() => {
     if (!selectedZahlungBase) return undefined;
-    // Search across all enriched months
+
     for (const monthData of Object.values(enrichedPayments)) {
-      if (monthData[selectedZahlungBase.id]) return monthData[selectedZahlungBase.id];
+      const enriched = monthData[selectedZahlungBase.id];
+      if (enriched) {
+        return mergeWithEnrichedDetails(selectedZahlungBase, enriched);
+      }
     }
+
     return selectedZahlungBase;
-  }, [selectedZahlungBase, enrichedPayments]);
+  }, [selectedZahlungBase, enrichedPayments, mergeWithEnrichedDetails]);
 
   const formatBetrag = (betrag: number) => {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(betrag);
@@ -1510,6 +1531,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         onOpenChange={(open) => {
           setAssignDialogOpen(open);
           if (!open) {
+            setEnrichedPayments({});
             queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
             queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
           }
