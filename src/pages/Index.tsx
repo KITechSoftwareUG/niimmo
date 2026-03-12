@@ -46,7 +46,6 @@ const Index = () => {
   const setShowControlboard = useCallback((v: boolean) => updateNav({ showControlboard: v }), [updateNav]);
   const setShowUebergabe = useCallback((v: boolean) => updateNav({ showUebergabe: v }), [updateNav]);
   const setShowDarlehen = useCallback((v: boolean) => updateNav({ showDarlehen: v }), [updateNav]);
-  const setShowDevBoard = useCallback((v: boolean) => updateNav({ showDevBoard: v }), [updateNav]);
   const setNavigationSource = useCallback((v: 'dashboard' | 'immobilie' | 'search') => updateNav({ navigationSource: v }), [updateNav]);
 
   const [showStammdaten, setShowStammdaten] = useState<boolean>(false);
