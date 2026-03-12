@@ -62,8 +62,6 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [form, setForm] = useState<DarlehenForm>(emptyForm);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("kredite");
-  const [editingKaufpreis, setEditingKaufpreis] = useState<string | null>(null);
-  const [kaufpreisValue, setKaufpreisValue] = useState<string>("");
 
   // Text Import state
   const [showTextImport, setShowTextImport] = useState(false);
@@ -203,17 +201,6 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     onError: (err: any) => toast.error("Fehler: " + err.message),
   });
 
-  const updateImmobilieMutation = useMutation({
-    mutationFn: async ({ id, field, value }: { id: string; field: string; value: number }) => {
-      const { error } = await supabase.from("immobilien").update({ [field]: value }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["immobilien"] });
-      toast.success("Immobilie aktualisiert");
-    },
-    onError: (err: any) => toast.error("Fehler: " + err.message),
-  });
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -357,12 +344,9 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   // ── Portfolio Calculations ──
 
   const portfolioMetrics = useMemo(() => {
-    const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
     const totalRestschuld = darlehen?.reduce((s, d) => s + getEffectiveRestschuld(d.id, d.restschuld), 0) || 0;
     const totalDarlehensbetrag = darlehen?.reduce((s, d) => s + (d.darlehensbetrag || 0), 0) || 0;
     const totalMonatlicheRate = darlehen?.reduce((s, d) => s + (d.monatliche_rate || 0), 0) || 0;
-    const eigenkapital = totalKaufpreis - totalRestschuld;
-    const ltv = totalKaufpreis > 0 ? (totalRestschuld / totalKaufpreis) * 100 : 0;
     const totalGetilgt = Math.max(0, totalDarlehensbetrag - totalRestschuld);
     const tilgungsQuote = totalDarlehensbetrag > 0 ? Math.min(100, Math.max(0, (totalGetilgt / totalDarlehensbetrag) * 100)) : 0;
 
@@ -373,65 +357,11 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
     // Monthly rental income from active contracts
     const totalMieteinnahmen = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0) || 0;
-    const totalKaltmiete = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0), 0) || 0;
-
     const cashflow = totalMieteinnahmen - totalMonatlicheRate;
 
-    // Per-property breakdown
-    const propertyBreakdown = immobilien?.map(immo => {
-      // Loans assigned to this property
-      const assignedDarlehenIds = darlehenImmobilien
-        ?.filter(di => di.immobilie_id === immo.id)
-        .map(di => di.darlehen_id) || [];
-      
-      const assignedDarlehen = darlehen?.filter(d => assignedDarlehenIds.includes(d.id)) || [];
-      
-      // For each loan, check how many properties share it
-      let propertyDebt = 0;
-      let propertyMonthlyRate = 0;
-      assignedDarlehen.forEach(d => {
-        const allImmoCount = darlehenImmobilien?.filter(di => di.darlehen_id === d.id).length || 1;
-        const effectiveRest = getEffectiveRestschuld(d.id, d.restschuld);
-        propertyDebt += effectiveRest / allImmoCount;
-        propertyMonthlyRate += (d.monatliche_rate || 0) / allImmoCount;
-      });
-
-      // Rental income for this property
-      const propertyEinheiten = einheiten?.filter(e => e.immobilie_id === immo.id).map(e => e.id) || [];
-      const propertyMietvertraege = mietvertraege?.filter(mv => propertyEinheiten.includes(mv.einheit_id)) || [];
-      const propertyMieteinnahmen = propertyMietvertraege.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0);
-      const propertyKaltmiete = propertyMietvertraege.reduce((s, mv) => s + (mv.kaltmiete || 0), 0);
-
-      const propertyEigenkapital = (immo.kaufpreis || 0) - propertyDebt;
-      const propertyLtv = (immo.kaufpreis || 0) > 0 ? (propertyDebt / (immo.kaufpreis || 1)) * 100 : 0;
-      const propertyCashflow = propertyMieteinnahmen - propertyMonthlyRate;
-
-      // Gross yield: (annual rent / purchase price) * 100
-      const bruttoRendite = (immo.kaufpreis || 0) > 0 ? ((propertyKaltmiete * 12) / (immo.kaufpreis || 1)) * 100 : 0;
-
-      return {
-        ...immo,
-        schulden: propertyDebt,
-        eigenkapital: propertyEigenkapital,
-        ltv: propertyLtv,
-        monatlicheRate: propertyMonthlyRate,
-        mieteinnahmen: propertyMieteinnahmen,
-        kaltmiete: propertyKaltmiete,
-        cashflow: propertyCashflow,
-        bruttoRendite,
-        darlehen: assignedDarlehen,
-      };
-    }) || [];
-
     // Risk warnings
-    const warnings: { type: 'high' | 'medium'; message: string; immobilie?: string }[] = [];
-    if (ltv > 80) warnings.push({ type: 'high', message: `Beleihungsquote des Portfolios liegt bei ${ltv.toFixed(1)}% (über 80%)` });
+    const warnings: { type: 'high' | 'medium'; message: string }[] = [];
     if (cashflow < 0) warnings.push({ type: 'high', message: `Negativer Cashflow: ${formatCurrency(cashflow)}/Monat` });
-    
-    propertyBreakdown.forEach(p => {
-      if (p.ltv > 90) warnings.push({ type: 'high', message: `Hohe Beleihung: ${p.name} bei ${p.ltv.toFixed(0)}%`, immobilie: p.name });
-      if (p.cashflow < 0) warnings.push({ type: 'medium', message: `Negativer Cashflow bei ${p.name}: ${formatCurrency(p.cashflow)}`, immobilie: p.name });
-    });
 
     darlehen?.forEach(d => {
       if (d.ende_datum) {
@@ -444,23 +374,19 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     });
 
     return {
-      totalKaufpreis,
       totalRestschuld,
       totalDarlehensbetrag,
       totalMonatlicheRate,
-      eigenkapital,
-      ltv,
       totalGetilgt,
       tilgungsQuote,
       avgZinssatz,
       totalMieteinnahmen,
-      totalKaltmiete,
       cashflow,
-      propertyBreakdown,
       warnings,
       anzahlKredite: darlehen?.length || 0,
     };
-  }, [darlehen, immobilien, darlehenImmobilien, darlehenZahlungen, mietvertraege, einheiten]);
+  }, [darlehen, darlehenZahlungen, mietvertraege]);
+  
 
   // ── RENDER ──
 
@@ -503,118 +429,9 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
             <TabsTrigger value="kredite" className="gap-1.5"><Landmark className="h-3.5 w-3.5" /> Kredite</TabsTrigger>
-            <TabsTrigger value="uebersicht" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Immobilien</TabsTrigger>
           </TabsList>
 
-          {/* ── Tab: Immobilienübersicht ── */}
-          <TabsContent value="uebersicht">
-            <div className="space-y-3">
-              {portfolioMetrics.propertyBreakdown.length === 0 ? (
-                <Card className="p-8 text-center text-muted-foreground">Keine Immobilien vorhanden.</Card>
-              ) : (
-                <div className="rounded-lg border overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs font-semibold">Immobilie</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Kaufpreis</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Schulden</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Eigenkapital</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">LTV</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Miete/Monat</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Rate/Monat</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Cashflow</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Rendite</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {portfolioMetrics.propertyBreakdown.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell>
-                            <div>
-                              <p className="text-sm font-medium">{p.name}</p>
-                              <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{p.adresse}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingKaufpreis === p.id ? (
-                              <Input
-                                type="number"
-                                autoFocus
-                                value={kaufpreisValue}
-                                onChange={(e) => setKaufpreisValue(e.target.value)}
-                                className="h-7 text-xs text-right w-28 ml-auto"
-                                onBlur={() => {
-                                  const val = parseFloat(kaufpreisValue) || 0;
-                                  if (val !== (p.kaufpreis || 0)) {
-                                    updateImmobilieMutation.mutate({ id: p.id, field: 'kaufpreis', value: val });
-                                  }
-                                  setEditingKaufpreis(null);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                                  if (e.key === 'Escape') setEditingKaufpreis(null);
-                                }}
-                              />
-                            ) : (
-                              <div className="flex items-center justify-end gap-1">
-                                <span className="text-xs">{formatCurrency(p.kaufpreis || 0)}</span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingKaufpreis(p.id);
-                                    setKaufpreisValue(String(p.kaufpreis || 0));
-                                  }}
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-right text-destructive font-medium">{formatCurrency(p.schulden)}</TableCell>
-                          <TableCell className={`text-xs text-right font-bold ${p.eigenkapital >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                            {formatCurrency(p.eigenkapital)}
-                          </TableCell>
-                          <TableCell className="text-xs text-right">
-                            <Badge variant={p.ltv > 80 ? "destructive" : p.ltv > 60 ? "outline" : "secondary"} className="text-[10px]">
-                              {p.ltv.toFixed(0)}%
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs text-right">{formatCurrency(p.mieteinnahmen)}</TableCell>
-                          <TableCell className="text-xs text-right">{formatCurrency(p.monatlicheRate)}</TableCell>
-                          <TableCell className={`text-xs text-right font-bold ${p.cashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                            {formatCurrency(p.cashflow)}
-                          </TableCell>
-                          <TableCell className="text-xs text-right">{p.bruttoRendite.toFixed(1)}%</TableCell>
-                        </TableRow>
-                      ))}
-                      {/* Totals row */}
-                      <TableRow className="bg-muted/50 font-bold">
-                        <TableCell className="text-xs">Gesamt ({portfolioMetrics.propertyBreakdown.length})</TableCell>
-                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalKaufpreis)}</TableCell>
-                        <TableCell className="text-xs text-right text-destructive">{formatCurrency(portfolioMetrics.totalRestschuld)}</TableCell>
-                        <TableCell className={`text-xs text-right ${portfolioMetrics.eigenkapital >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                          {formatCurrency(portfolioMetrics.eigenkapital)}
-                        </TableCell>
-                        <TableCell className="text-xs text-right">{portfolioMetrics.ltv.toFixed(0)}%</TableCell>
-                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalMieteinnahmen)}</TableCell>
-                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalMonatlicheRate)}</TableCell>
-                        <TableCell className={`text-xs text-right ${portfolioMetrics.cashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                          {formatCurrency(portfolioMetrics.cashflow)}
-                        </TableCell>
-                        <TableCell className="text-xs text-right">
-                          {portfolioMetrics.totalKaufpreis > 0 ? ((portfolioMetrics.totalKaltmiete * 12 / portfolioMetrics.totalKaufpreis) * 100).toFixed(1) : '0.0'}%
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          </TabsContent>
+
 
           {/* ── Tab: Kreditübersicht ── */}
           <TabsContent value="kredite">
