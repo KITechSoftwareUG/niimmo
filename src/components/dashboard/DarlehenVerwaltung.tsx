@@ -499,7 +499,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
           <KpiCard icon={Home} label="Kaufpreis ges." value={formatCurrency(portfolioMetrics.totalKaufpreis)} />
           <KpiCard icon={TrendingUp} label="Marktwert ges." value={portfolioMetrics.totalMarktwert > 0 ? formatCurrency(portfolioMetrics.totalMarktwert) : '–'} variant={portfolioMetrics.wertsteigerung > 0 ? 'success' : portfolioMetrics.wertsteigerung < 0 ? 'destructive' : undefined} />
           <KpiCard icon={Landmark} label="Gesamtschulden" value={formatCurrency(portfolioMetrics.totalRestschuld)} variant="destructive" />
@@ -792,6 +792,15 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* ── Prognose Section ── */}
+        {darlehen && darlehen.length > 0 && (
+          <PrognoseSection
+            darlehen={darlehen}
+            portfolioMetrics={portfolioMetrics}
+            formatCurrency={formatCurrency}
+          />
+        )}
       </div>
 
       {/* ── Dialogs (Create/Edit, Import, Review) ── */}
@@ -1081,6 +1090,133 @@ function KpiCard({ icon: Icon, label, value, variant }: {
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
       </div>
       <p className={`text-lg sm:text-xl font-bold ${colorClass}`}>{value}</p>
+    </Card>
+  );
+}
+
+// ── Prognose Section Component ──
+
+function PrognoseSection({ darlehen, portfolioMetrics, formatCurrency }: {
+  darlehen: any[];
+  portfolioMetrics: any;
+  formatCurrency: (v: number) => string;
+}) {
+  const prognoseData = useMemo(() => {
+    const months: { label: string; restschuld: number; getilgt: number; zinsenGesamt: number }[] = [];
+    
+    // Simulate future payments for each loan
+    type LoanState = { restschuld: number; rate: number; zins: number; endeDatum: string | null };
+    const loanStates: LoanState[] = darlehen.map(d => ({
+      restschuld: d.restschuld || 0,
+      rate: d.monatliche_rate || 0,
+      zins: (d.zinssatz_prozent || 0) / 100,
+      endeDatum: d.ende_datum,
+    }));
+
+    const now = new Date();
+    let totalZinsen = 0;
+
+    // Project 20 years (240 months), sample yearly
+    for (let month = 0; month <= 240; month++) {
+      const date = new Date(now.getFullYear(), now.getMonth() + month, 1);
+      
+      if (month > 0) {
+        loanStates.forEach(loan => {
+          if (loan.restschuld <= 0) return;
+          const monatszins = (loan.restschuld * loan.zins) / 12;
+          const tilgung = Math.min(loan.restschuld, Math.max(0, loan.rate - monatszins));
+          totalZinsen += monatszins;
+          loan.restschuld = Math.max(0, loan.restschuld - tilgung);
+        });
+      }
+
+      // Sample at year boundaries (every 12 months) + month 0
+      if (month % 12 === 0) {
+        const gesamtRestschuld = loanStates.reduce((s, l) => s + l.restschuld, 0);
+        const gesamtGetilgt = portfolioMetrics.totalRestschuld - gesamtRestschuld;
+        months.push({
+          label: date.getFullYear().toString(),
+          restschuld: gesamtRestschuld,
+          getilgt: gesamtGetilgt,
+          zinsenGesamt: totalZinsen,
+        });
+        // Stop if fully paid
+        if (gesamtRestschuld <= 0) break;
+      }
+    }
+
+    // Find schuldenfreiheit year
+    const schuldenfrei = months.find(m => m.restschuld <= 0);
+    const jahreSchuldenfrei = schuldenfrei 
+      ? parseInt(schuldenfrei.label) - now.getFullYear()
+      : null;
+
+    return { months, totalZinsen, jahreSchuldenfrei };
+  }, [darlehen, portfolioMetrics]);
+
+  if (prognoseData.months.length < 2) return null;
+
+  const maxRestschuld = prognoseData.months[0]?.restschuld || 1;
+
+  return (
+    <Card className="mt-6">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <TrendingDown className="h-4 w-4 text-primary" />
+          Schuldenprognose
+          <Badge variant="outline" className="text-[10px] ml-auto font-normal">
+            Basierend auf aktuellen Raten & Zinsen
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {/* Summary */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+          <div className="bg-muted/50 rounded-lg p-3">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Gesamtzinsen (Prognose)</p>
+            <p className="text-lg font-bold text-destructive">{formatCurrency(prognoseData.totalZinsen)}</p>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Schuldenfrei in</p>
+            <p className="text-lg font-bold text-foreground">
+              {prognoseData.jahreSchuldenfrei 
+                ? `~${prognoseData.jahreSchuldenfrei} Jahren` 
+                : '> 20 Jahre'}
+            </p>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Monatl. Tilgung ges.</p>
+            <p className="text-lg font-bold text-foreground">
+              {formatCurrency(portfolioMetrics.totalMonatlicheRate)}
+            </p>
+          </div>
+        </div>
+
+        {/* Visual Bar Chart */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+            <span>Jahr</span>
+            <span>Restschuld</span>
+          </div>
+          {prognoseData.months.map((m, i) => {
+            const pct = maxRestschuld > 0 ? (m.restschuld / maxRestschuld) * 100 : 0;
+            return (
+              <div key={i} className="flex items-center gap-3">
+                <span className="text-xs font-mono w-10 shrink-0 text-muted-foreground">{m.label}</span>
+                <div className="flex-1 h-5 bg-muted/30 rounded-full overflow-hidden relative">
+                  <div 
+                    className="h-full rounded-full transition-all bg-primary/70"
+                    style={{ width: `${Math.max(pct, 0.5)}%` }}
+                  />
+                </div>
+                <span className={`text-xs font-medium w-28 text-right shrink-0 ${m.restschuld <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
+                  {m.restschuld <= 0 ? '✓ Schuldenfrei' : formatCurrency(m.restschuld)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
     </Card>
   );
 }
