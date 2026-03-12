@@ -61,7 +61,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<DarlehenForm>(emptyForm);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("uebersicht");
+  const [activeTab, setActiveTab] = useState("kredite");
 
   // Text Import state
   const [showTextImport, setShowTextImport] = useState(false);
@@ -482,59 +482,13 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
           </div>
         </div>
 
-        {/* Risk Warnings */}
-        {portfolioMetrics.warnings.length > 0 && (
-          <div className="mb-6 space-y-2">
-            {portfolioMetrics.warnings.map((w, i) => (
-              <div key={i} className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm ${
-                w.type === 'high' 
-                  ? 'bg-destructive/5 border-destructive/20 text-destructive' 
-                  : 'bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400'
-              }`}>
-                <ShieldAlert className="h-4 w-4 shrink-0" />
-                {w.message}
-              </div>
-            ))}
-          </div>
-        )}
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          <KpiCard icon={Home} label="Immobilienwert" value={formatCurrency(portfolioMetrics.totalKaufpreis)} />
-          <KpiCard icon={CreditCard} label="Gesamtschulden" value={formatCurrency(portfolioMetrics.totalRestschuld)} variant="destructive" />
-          <KpiCard icon={PiggyBank} label="Eigenkapital" value={formatCurrency(portfolioMetrics.eigenkapital)} variant={portfolioMetrics.eigenkapital >= 0 ? "success" : "destructive"} />
-          <KpiCard icon={Percent} label="Beleihungsquote" value={`${portfolioMetrics.ltv.toFixed(1)}%`} variant={portfolioMetrics.ltv > 80 ? "destructive" : portfolioMetrics.ltv > 60 ? "warning" : "success"} />
-          <KpiCard icon={Euro} label="Monatl. Belastung" value={formatCurrency(portfolioMetrics.totalMonatlicheRate)} />
-          <KpiCard icon={Activity} label="Monatl. Cashflow" value={formatCurrency(portfolioMetrics.cashflow)} variant={portfolioMetrics.cashflow >= 0 ? "success" : "destructive"} />
-        </div>
-
-        {/* Sub-KPIs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <Card className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Mieteinnahmen (brutto)</p>
-            <p className="text-lg font-bold text-foreground">{formatCurrency(portfolioMetrics.totalMieteinnahmen)}<span className="text-xs font-normal text-muted-foreground">/Monat</span></p>
-          </Card>
-          <Card className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Ø Zinssatz (gewichtet)</p>
-            <p className="text-lg font-bold text-foreground">{formatPercent(portfolioMetrics.avgZinssatz)}</p>
-          </Card>
-          <Card className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Bereits getilgt</p>
-            <p className="text-lg font-bold text-foreground">{formatCurrency(portfolioMetrics.totalGetilgt)}</p>
-            <Progress value={portfolioMetrics.tilgungsQuote} className="h-1.5 mt-1" />
-            <p className="text-[10px] text-muted-foreground mt-0.5">{portfolioMetrics.tilgungsQuote.toFixed(1)}% von {formatCurrency(portfolioMetrics.totalDarlehensbetrag)}</p>
-          </Card>
-          <Card className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Jährl. Belastung</p>
-            <p className="text-lg font-bold text-foreground">{formatCurrency(portfolioMetrics.totalMonatlicheRate * 12)}</p>
-          </Card>
-        </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
-            <TabsTrigger value="uebersicht" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Immobilien</TabsTrigger>
             <TabsTrigger value="kredite" className="gap-1.5"><Landmark className="h-3.5 w-3.5" /> Kredite</TabsTrigger>
+            <TabsTrigger value="uebersicht" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Immobilien</TabsTrigger>
           </TabsList>
 
           {/* ── Tab: Immobilienübersicht ── */}
