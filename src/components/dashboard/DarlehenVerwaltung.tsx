@@ -792,6 +792,15 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* ── Prognose Section ── */}
+        {darlehen && darlehen.length > 0 && (
+          <PrognoseSection
+            darlehen={darlehen}
+            portfolioMetrics={portfolioMetrics}
+            formatCurrency={formatCurrency}
+          />
+        )}
       </div>
 
       {/* ── Dialogs (Create/Edit, Import, Review) ── */}
