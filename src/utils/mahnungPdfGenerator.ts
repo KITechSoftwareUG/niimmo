@@ -71,7 +71,7 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   const marginLeft = 25;
   const marginRight = 25;
   const contentWidth = pageWidth - marginLeft - marginRight;
-  const maxY = 252; // page break threshold (leave room for footer)
+  const maxY = 240; // page break threshold (leave generous room for footer at y=258)
   
   const logo = await loadLogo();
 
