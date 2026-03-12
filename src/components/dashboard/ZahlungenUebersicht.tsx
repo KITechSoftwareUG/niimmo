@@ -56,102 +56,92 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
     queryFn: async () => {
-      // First get all payments
+      // Fetch all payments in one query
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('zahlungen')
         .select('*')
         .order('buchungsdatum', { ascending: false });
 
       if (paymentsError) throw paymentsError;
+      if (!paymentsData?.length) return [];
 
-      // Transform data by fetching related information
-      const transformed: ZahlungWithDetails[] = await Promise.all(
-        (paymentsData || []).map(async (zahlung: any) => {
-          let immobilie_name = null;
-          let immobilie_adresse = null;
-          let einheit_id = null;
-          let einheit_typ = null;
-          let mieter_name = null;
+      // Collect unique IDs for bulk fetching
+      const mietvertragIds = [...new Set(paymentsData.filter(z => z.mietvertrag_id).map(z => z.mietvertrag_id!))];
+      const immobilieIds = [...new Set(paymentsData.filter(z => z.immobilie_id && !z.mietvertrag_id).map(z => z.immobilie_id!))];
 
-          if (zahlung.mietvertrag_id) {
-            // Get contract details
-            const { data: contractData } = await supabase
-              .from('mietvertrag')
-              .select(`
-                einheit_id,
-                einheiten:einheit_id (
-                  id,
-                  einheitentyp,
-                  immobilie_id,
-                  immobilien:immobilie_id (
-                    name,
-                    adresse
-                  )
-                )
-              `)
-              .eq('id', zahlung.mietvertrag_id)
-              .single();
+      // Bulk fetch contracts with nested joins
+      const contractMap = new Map<string, { einheit_id: string | null; einheit_typ: string | null; immobilie_name: string | null; immobilie_adresse: string | null }>();
+      if (mietvertragIds.length > 0) {
+        const { data: contracts } = await supabase
+          .from('mietvertrag')
+          .select('id, einheit_id, einheiten:einheit_id (id, einheitentyp, immobilie_id, immobilien:immobilie_id (name, adresse))')
+          .in('id', mietvertragIds);
+        
+        (contracts || []).forEach((c: any) => {
+          const einheit = c.einheiten;
+          const immo = einheit?.immobilien;
+          contractMap.set(c.id, {
+            einheit_id: einheit?.id || null,
+            einheit_typ: einheit?.einheitentyp || null,
+            immobilie_name: immo?.name || null,
+            immobilie_adresse: immo?.adresse || null,
+          });
+        });
+      }
 
-            if (contractData) {
-              const einheit = contractData.einheiten;
-              const immobilie = einheit?.immobilien;
-              
-              einheit_id = einheit?.id || null;
-              einheit_typ = einheit?.einheitentyp || null;
-              immobilie_name = immobilie?.name || null;
-              immobilie_adresse = immobilie?.adresse || null;
+      // Bulk fetch tenant names
+      const mieterMap = new Map<string, string>();
+      if (mietvertragIds.length > 0) {
+        const { data: mieterLinks } = await supabase
+          .from('mietvertrag_mieter')
+          .select('mietvertrag_id, mieter:mieter_id (vorname, nachname)')
+          .in('mietvertrag_id', mietvertragIds);
 
-              // Get tenant names
-              const { data: mieterData } = await supabase
-                .from('mietvertrag_mieter')
-                .select(`
-                  mieter:mieter_id (
-                    vorname,
-                    nachname
-                  )
-                `)
-                .eq('mietvertrag_id', zahlung.mietvertrag_id);
-
-              if (mieterData && mieterData.length > 0) {
-                const mieter = mieterData[0].mieter;
-                mieter_name = mieter ? `${mieter.vorname} ${mieter.nachname}` : null;
-              }
-            }
-          } else if (zahlung.immobilie_id) {
-            // Get property details directly
-            const { data: propertyData } = await supabase
-              .from('immobilien')
-              .select('name, adresse')
-              .eq('id', zahlung.immobilie_id)
-              .single();
-
-            if (propertyData) {
-              immobilie_name = propertyData.name;
-              immobilie_adresse = propertyData.adresse;
-            }
+        const seen = new Set<string>();
+        (mieterLinks || []).forEach((link: any) => {
+          if (!seen.has(link.mietvertrag_id) && link.mieter) {
+            seen.add(link.mietvertrag_id);
+            mieterMap.set(link.mietvertrag_id, `${link.mieter.vorname} ${link.mieter.nachname}`);
           }
+        });
+      }
 
-          return {
-            id: zahlung.id,
-            betrag: zahlung.betrag,
-            buchungsdatum: zahlung.buchungsdatum,
-            verwendungszweck: zahlung.verwendungszweck,
-            empfaengername: zahlung.empfaengername,
-            iban: zahlung.iban,
-            zugeordneter_monat: zahlung.zugeordneter_monat,
-            kategorie: zahlung.kategorie,
-            mietvertrag_id: zahlung.mietvertrag_id,
-            immobilie_id: zahlung.immobilie_id,
-            immobilie_name,
-            immobilie_adresse,
-            einheit_id,
-            einheit_typ,
-            mieter_name,
-          };
-        })
-      );
+      // Bulk fetch properties for payments without contract
+      const propertyMap = new Map<string, { name: string; adresse: string }>();
+      if (immobilieIds.length > 0) {
+        const { data: properties } = await supabase
+          .from('immobilien')
+          .select('id, name, adresse')
+          .in('id', immobilieIds);
 
-      return transformed;
+        (properties || []).forEach((p: any) => {
+          propertyMap.set(p.id, { name: p.name, adresse: p.adresse });
+        });
+      }
+
+      // Map everything in memory
+      return paymentsData.map((zahlung: any): ZahlungWithDetails => {
+        const contract = zahlung.mietvertrag_id ? contractMap.get(zahlung.mietvertrag_id) : null;
+        const directProperty = zahlung.immobilie_id && !zahlung.mietvertrag_id ? propertyMap.get(zahlung.immobilie_id) : null;
+
+        return {
+          id: zahlung.id,
+          betrag: zahlung.betrag,
+          buchungsdatum: zahlung.buchungsdatum,
+          verwendungszweck: zahlung.verwendungszweck,
+          empfaengername: zahlung.empfaengername,
+          iban: zahlung.iban,
+          zugeordneter_monat: zahlung.zugeordneter_monat,
+          kategorie: zahlung.kategorie,
+          mietvertrag_id: zahlung.mietvertrag_id,
+          immobilie_id: zahlung.immobilie_id,
+          immobilie_name: contract?.immobilie_name || directProperty?.name || null,
+          immobilie_adresse: contract?.immobilie_adresse || directProperty?.adresse || null,
+          einheit_id: contract?.einheit_id || null,
+          einheit_typ: contract?.einheit_typ || null,
+          mieter_name: zahlung.mietvertrag_id ? mieterMap.get(zahlung.mietvertrag_id) || null : null,
+        };
+      });
     },
   });
 
