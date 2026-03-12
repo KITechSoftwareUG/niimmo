@@ -1531,6 +1531,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         onOpenChange={(open) => {
           setAssignDialogOpen(open);
           if (!open) {
+            setEnrichedPayments({});
             queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
             queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
           }
