@@ -4,11 +4,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, Calendar, Upload, X, FileText, Check } from "lucide-react";
+import { AlertTriangle, Calendar, Upload, X, FileText, Check, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { terminationWebhookService } from "@/services/terminationWebhookService";
 import { DocumentDragDropZone } from "../DocumentDragDropZone";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface DocumentUploadTerminationProps {
   vertragId: string;
@@ -27,6 +37,7 @@ export const DocumentUploadTermination = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -42,7 +53,6 @@ export const DocumentUploadTermination = ({
   };
 
   const validateAndSetFile = (file: File) => {
-    // Validate file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
     if (!allowedTypes.includes(file.type)) {
       toast({
@@ -53,7 +63,6 @@ export const DocumentUploadTermination = ({
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({
         title: "Datei zu groß",
@@ -91,7 +100,7 @@ export const DocumentUploadTermination = ({
     return data.path;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!kuendigungsdatum) {
@@ -112,20 +121,22 @@ export const DocumentUploadTermination = ({
       return;
     }
 
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmedSubmit = async () => {
+    setShowConfirmDialog(false);
     setIsLoading(true);
     setUploadProgress(0);
 
     try {
-      // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 80));
       }, 100);
 
-      // Upload document
-      const documentPath = await uploadDocument(selectedFile);
+      const documentPath = await uploadDocument(selectedFile!);
       setUploadProgress(90);
 
-      // Update contract status
       const { error: updateError } = await supabase
         .from('mietvertrag')
         .update({
@@ -139,17 +150,16 @@ export const DocumentUploadTermination = ({
         throw new Error('Fehler beim Aktualisieren des Vertrags: ' + updateError.message);
       }
 
-      // Create document entry
       const { error: docError } = await supabase
         .from('dokumente')
         .insert({
           mietvertrag_id: vertragId,
           immobilie_id: einheitId,
           kategorie: 'Kündigung',
-          titel: `Kündigungsschreiben - ${selectedFile.name}`,
+          titel: `Kündigungsschreiben - ${selectedFile!.name}`,
           pfad: documentPath,
-          dateityp: selectedFile.type,
-          groesse_bytes: selectedFile.size,
+          dateityp: selectedFile!.type,
+          groesse_bytes: selectedFile!.size,
           erstellt_von: 'Upload',
           hochgeladen_am: new Date().toISOString()
         });
@@ -161,13 +171,12 @@ export const DocumentUploadTermination = ({
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      // Call webhook service
       try {
         await terminationWebhookService.notifyTermination({
           vertragId,
           kuendigungsdatum,
           documentPath,
-          fileName: selectedFile.name,
+          fileName: selectedFile!.name,
           method: 'document_upload'
         });
       } catch (webhookError) {
@@ -194,127 +203,173 @@ export const DocumentUploadTermination = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Card className="border-l-4 border-l-destructive bg-destructive/5">
-        <CardContent className="pt-4">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-            <div>
-              <p className="font-medium text-destructive">Dokumenten-Upload</p>
-              <p className="text-sm text-muted-foreground">
-                Laden Sie das offizielle Kündigungsschreiben hoch. Unterstützt: PDF, JPG, PNG (max. 10MB)
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-3">
-        <div>
-          <Label htmlFor="kuendigungsdatum-upload" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Kündigungsdatum *
-          </Label>
-          <Input
-            id="kuendigungsdatum-upload"
-            type="date"
-            value={kuendigungsdatum}
-            onChange={(e) => setKuendigungsdatum(e.target.value)}
-            min={new Date().toISOString().split('T')[0]}
-            required
-          />
-        </div>
-
-        <div>
-          <Label className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Kündigungsdokument *
-          </Label>
-          
-          <DocumentDragDropZone 
-            onFileSelect={handleFileDrop}
-            accept=".pdf,.jpg,.jpeg,.png"
-            showOverlay={!selectedFile}
-          >
-            {!selectedFile ? (
-              <div
-                className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+    <>
+      <form onSubmit={handleFormSubmit} className="space-y-4">
+        <Card className="border-l-4 border-l-destructive bg-destructive/5">
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+              <div>
+                <p className="font-medium text-destructive">Dokumenten-Upload</p>
                 <p className="text-sm text-muted-foreground">
-                  Klicken Sie hier oder ziehen Sie eine Datei hinein
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  PDF, JPG oder PNG - maximal 10MB
+                  Laden Sie das offizielle Kündigungsschreiben hoch. Unterstützt: PDF, JPG, PNG (max. 10MB)
                 </p>
               </div>
-            ) : (
-              <Card className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">{selectedFile.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={removeFile}
-                    disabled={isLoading}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {uploadProgress > 0 && (
-                  <div className="mt-2">
-                    <Progress value={uploadProgress} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {uploadProgress === 100 ? 'Upload abgeschlossen' : `Upload: ${uploadProgress}%`}
-                    </p>
-                  </div>
-                )}
-              </Card>
-            )}
-          </DocumentDragDropZone>
-          
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-        </div>
-      </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      <div className="flex gap-2 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          disabled={isLoading}
-        >
-          Abbrechen
-        </Button>
-        <Button
-          type="submit"
-          variant="destructive"
-          disabled={isLoading || !selectedFile}
-          className="flex items-center gap-2"
-        >
-          {uploadProgress === 100 ? (
-            <Check className="h-4 w-4" />
-          ) : (
-            <FileText className="h-4 w-4" />
-          )}
-          {isLoading ? "Wird verarbeitet..." : "Kündigung einreichen"}
-        </Button>
-      </div>
-    </form>
+        <div className="space-y-3">
+          <div>
+            <Label htmlFor="kuendigungsdatum-upload" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Kündigungsdatum *
+            </Label>
+            <Input
+              id="kuendigungsdatum-upload"
+              type="date"
+              value={kuendigungsdatum}
+              onChange={(e) => setKuendigungsdatum(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              required
+            />
+          </div>
+
+          <div>
+            <Label className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Kündigungsdokument *
+            </Label>
+            
+            <DocumentDragDropZone 
+              onFileSelect={handleFileDrop}
+              accept=".pdf,.jpg,.jpeg,.png"
+              showOverlay={!selectedFile}
+            >
+              {!selectedFile ? (
+                <div
+                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Klicken Sie hier oder ziehen Sie eine Datei hinein
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    PDF, JPG oder PNG - maximal 10MB
+                  </p>
+                </div>
+              ) : (
+                <Card className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">{selectedFile.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={removeFile}
+                      disabled={isLoading}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {uploadProgress > 0 && (
+                    <div className="mt-2">
+                      <Progress value={uploadProgress} className="h-2" />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {uploadProgress === 100 ? 'Upload abgeschlossen' : `Upload: ${uploadProgress}%`}
+                      </p>
+                    </div>
+                  )}
+                </Card>
+              )}
+            </DocumentDragDropZone>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
+            Abbrechen
+          </Button>
+          <Button
+            type="submit"
+            variant="destructive"
+            disabled={isLoading || !selectedFile}
+            className="flex items-center gap-2"
+          >
+            {uploadProgress === 100 ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <FileText className="h-4 w-4" />
+            )}
+            {isLoading ? "Wird verarbeitet..." : "Kündigung einreichen"}
+          </Button>
+        </div>
+      </form>
+
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Kündigung bestätigen
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Sind Sie sicher, dass Sie diesen Mietvertrag zum{" "}
+                <strong>
+                  {kuendigungsdatum
+                    ? new Date(kuendigungsdatum).toLocaleDateString("de-DE", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : "—"}
+                </strong>{" "}
+                kündigen möchten?
+              </p>
+              {selectedFile && (
+                <p>
+                  <strong>Dokument:</strong> {selectedFile.name}
+                </p>
+              )}
+              <p className="text-destructive font-medium">
+                Diese Aktion kann nicht rückgängig gemacht werden. Der Vertragsstatus wird auf „gekündigt" gesetzt und das Dokument hochgeladen.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmedSubmit}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <ShieldAlert className="h-4 w-4 mr-2" />
+              Ja, Kündigung einreichen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
