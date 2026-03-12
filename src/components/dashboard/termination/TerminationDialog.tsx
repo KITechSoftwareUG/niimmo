@@ -32,14 +32,6 @@ interface TerminationDialogProps {
     name: string;
     adresse: string;
   };
-  contractData?: {
-    start_datum?: string;
-    mieter?: Array<{
-      vorname: string;
-      nachname: string;
-      hauptmail?: string | null;
-    }>;
-  };
   onTerminationSuccess?: () => void;
 }
 
@@ -49,7 +41,6 @@ export const TerminationDialog = ({
   vertragId,
   einheit,
   immobilie,
-  contractData,
   onTerminationSuccess
 }: TerminationDialogProps) => {
   const { toast } = useToast();
