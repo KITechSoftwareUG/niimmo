@@ -729,6 +729,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Kategorie:</span>
                           <PaymentKategorieEditor
+                            key={selectedZahlung.id}
                             paymentId={selectedZahlung.id}
                             currentKategorie={selectedZahlung.kategorie}
                             currentImmobilieId={selectedZahlung.immobilie_id}
