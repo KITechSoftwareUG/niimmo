@@ -582,17 +582,30 @@ export function NebenkostenZuordnungTab() {
           )}
           
           {isNichtmiete ? (
-            /* Wegdrücken-Button für Nichtmiete */
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-shrink-0 gap-1 text-muted-foreground hover:bg-muted"
-              disabled={dismissNichtmieteMutation.isPending}
-              onClick={() => dismissNichtmieteMutation.mutate(zahlung.id)}
-            >
-              <EyeOff className="h-4 w-4" />
-              Ausblenden
-            </Button>
+            <div className="flex items-center gap-1.5">
+              {/* Als Nebenkosten markieren */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-shrink-0 gap-1 text-blue-600 border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                disabled={promoteToNebenkostenMutation.isPending}
+                onClick={() => promoteToNebenkostenMutation.mutate(zahlung.id)}
+              >
+                <ArrowUpCircle className="h-4 w-4" />
+                Nebenkosten
+              </Button>
+              {/* Wegdrücken-Button für Nichtmiete */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-shrink-0 gap-1 text-muted-foreground hover:bg-muted"
+                disabled={dismissNichtmieteMutation.isPending}
+                onClick={() => dismissNichtmieteMutation.mutate(zahlung.id)}
+              >
+                <EyeOff className="h-4 w-4" />
+                Ausblenden
+              </Button>
+            </div>
           ) : (
             /* Nichtmiete Button für Nebenkosten */
             <Button
