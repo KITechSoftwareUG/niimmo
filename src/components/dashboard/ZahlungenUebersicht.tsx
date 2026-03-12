@@ -770,7 +770,11 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                           className="gap-2"
                         >
                           <Edit2 className="h-4 w-4" />
-                          {selectedZahlung.mietvertrag_id || selectedZahlung.immobilie_id ? 'Ändern' : 'Zuordnen'}
+                          {selectedZahlung.mietvertrag_id || selectedZahlung.immobilie_id 
+                            ? 'Ändern' 
+                            : selectedZahlung.kategorie === 'Nebenkosten' 
+                              ? 'Immobilie zuordnen' 
+                              : 'Zuordnen'}
                         </Button>
                       </div>
 

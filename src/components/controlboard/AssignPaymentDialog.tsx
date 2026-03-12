@@ -169,6 +169,8 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
       await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
       await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
       await queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] });
+      await queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+      await queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
       
       onOpenChange(false);
     } catch (error: any) {
@@ -207,6 +209,8 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
       await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
       await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
       await queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] });
+      await queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+      await queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
       
       onOpenChange(false);
     } catch (error: any) {
