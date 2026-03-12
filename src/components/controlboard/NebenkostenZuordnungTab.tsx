@@ -320,6 +320,40 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
+  // Nichtmiete → Nebenkosten umwandeln
+  const promoteToNebenkostenMutation = useMutation({
+    mutationFn: async (zahlungId: string) => {
+      const { error } = await supabase
+        .from('zahlungen')
+        .update({ kategorie: 'Nebenkosten' as any })
+        .eq('id', zahlungId);
+      if (error) throw error;
+
+      // Klassifizierung zurücksetzen falls vorhanden
+      const { data: existing } = await supabase
+        .from('nebenkosten_klassifizierungen')
+        .select('id')
+        .eq('zahlung_id', zahlungId)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('nebenkosten_klassifizierungen')
+          .update({ uebersprungen: false, is_betriebskosten: true })
+          .eq('zahlung_id', zahlungId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-skipped'] });
+      toast.success("Zahlung als Nebenkosten markiert");
+    },
+    onError: () => {
+      toast.error("Fehler beim Umwandeln");
+    }
+  });
+
   const [dragOverNichtmiete, setDragOverNichtmiete] = useState(false);
 
   const handleDropNichtmiete = (e: React.DragEvent) => {
