@@ -72,6 +72,10 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [importedZahlungen, setImportedZahlungen] = useState<any[]>([]);
   const [importImmobilienIds, setImportImmobilienIds] = useState<string[]>([]);
 
+  // Inline editing state for immobilien prices
+  const [editingImmoField, setEditingImmoField] = useState<{ id: string; field: 'kaufpreis' | 'marktwert' } | null>(null);
+  const [editingImmoValue, setEditingImmoValue] = useState("");
+
   // Fetch all Darlehen
   const { data: darlehen, isLoading } = useQuery({
     queryKey: ["darlehen"],
