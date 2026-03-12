@@ -53,6 +53,7 @@ export const UebergabeEmailDialog = ({
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [emailsSent, setEmailsSent] = useState(false);
+  const [pdfAlreadyUploaded, setPdfAlreadyUploaded] = useState(false);
 
   // Initialize email addresses from mieter data
   const [emailAddresses, setEmailAddresses] = useState<{ [mieterId: string]: string }>(
@@ -113,6 +114,34 @@ Ihre Hausverwaltung`
   );
 
   // Upload PDF to Supabase and save document reference
+  const uploadPdfAndSaveRef = async (): Promise<string | undefined> => {
+    if (!pdfBlob || !pdfFileName) return undefined;
+    if (pdfAlreadyUploaded) {
+      return `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;
+    }
+
+    const filePath = `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;
+    const { error: uploadError } = await supabase.storage
+      .from('dokumente')
+      .upload(filePath, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    // Save document reference for each contract
+    for (const contract of contracts) {
+      await supabase.from('dokumente').insert({
+        titel: `Übergabeprotokoll ${format(uebergabeDatum, "dd.MM.yyyy")}`,
+        pfad: filePath,
+        kategorie: 'Übergabeprotokoll',
+        dateityp: 'application/pdf',
+        mietvertrag_id: contract.id,
+      });
+    }
+
+    setPdfAlreadyUploaded(true);
+    return filePath;
+  };
+
   const handleUploadPdf = async () => {
     if (!pdfBlob || !pdfFileName) {
       toast({ title: "Kein PDF vorhanden", description: "Bitte erstellen Sie zuerst die Vorschau.", variant: "destructive" });
@@ -120,24 +149,7 @@ Ihre Hausverwaltung`
     }
     setIsUploading(true);
     try {
-      const filePath = `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;
-      const { error: uploadError } = await supabase.storage
-        .from('dokumente')
-        .upload(filePath, pdfBlob, { contentType: 'application/pdf', upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // Save document reference for each contract
-      for (const contract of contracts) {
-        await supabase.from('dokumente').insert({
-          titel: `Übergabeprotokoll ${format(uebergabeDatum, "dd.MM.yyyy")}`,
-          pfad: filePath,
-          kategorie: 'Übergabeprotokoll',
-          dateityp: 'application/pdf',
-          mietvertrag_id: contract.id,
-        });
-      }
-
+      await uploadPdfAndSaveRef();
       toast({ title: "PDF hochgeladen", description: "Das Protokoll wurde in den Dokumenten gespeichert." });
     } catch (error) {
       console.error("Upload error:", error);
@@ -177,26 +189,12 @@ Ihre Hausverwaltung`
     setIsSending(true);
 
     try {
-      // If we have a PDF blob, upload it first so the edge function can attach it
+      // Upload PDF if available (reuses existing upload if already done)
       let pdfFilePath: string | undefined;
-      if (pdfBlob && pdfFileName) {
-        const filePath = `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;
-        const { error: uploadError } = await supabase.storage
-          .from('dokumente')
-          .upload(filePath, pdfBlob, { contentType: 'application/pdf', upsert: true });
-        if (!uploadError) {
-          pdfFilePath = filePath;
-          // Save document reference
-          for (const contract of contracts) {
-            await supabase.from('dokumente').insert({
-              titel: `Übergabeprotokoll ${format(uebergabeDatum, "dd.MM.yyyy")}`,
-              pfad: filePath,
-              kategorie: 'Übergabeprotokoll',
-              dateityp: 'application/pdf',
-              mietvertrag_id: contract.id,
-            });
-          }
-        }
+      try {
+        pdfFilePath = await uploadPdfAndSaveRef();
+      } catch (uploadErr) {
+        console.error("PDF upload failed, sending without attachment:", uploadErr);
       }
 
       const response = await supabase.functions.invoke("send-uebergabe-email", {
@@ -206,7 +204,7 @@ Ihre Hausverwaltung`
           body: emailBody,
           contractIds: contracts.map((c) => c.id),
           uebergabeDatum: format(uebergabeDatum, "yyyy-MM-dd"),
-          pdfFilePath,
+          pdfPath: pdfFilePath,
         },
       });
 

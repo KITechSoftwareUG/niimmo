@@ -49,11 +49,11 @@ export const MeterPhotoUpload = ({
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = await supabase.storage
         .from("dokumente")
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 3600);
 
-      setPhotoUrl(urlData.publicUrl);
+      setPhotoUrl(urlData?.signedUrl || null);
       onPhotoUploaded(filePath);
 
       toast({
