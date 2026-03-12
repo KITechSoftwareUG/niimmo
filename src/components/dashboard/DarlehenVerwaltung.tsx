@@ -462,13 +462,94 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
           </div>
         </div>
 
-
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          <KpiCard icon={Home} label="Immobilienwert" value={formatCurrency(portfolioMetrics.totalKaufpreis)} />
+          <KpiCard icon={Landmark} label="Gesamtschulden" value={formatCurrency(portfolioMetrics.totalRestschuld)} variant="destructive" />
+          <KpiCard icon={PiggyBank} label="Eigenkapital" value={formatCurrency(portfolioMetrics.eigenkapital)} variant={portfolioMetrics.eigenkapital >= 0 ? 'success' : 'destructive'} />
+          <KpiCard icon={Percent} label="LTV" value={`${portfolioMetrics.ltv.toFixed(1)}%`} variant={portfolioMetrics.ltv > 80 ? 'destructive' : portfolioMetrics.ltv > 60 ? 'warning' : 'success'} />
+          <KpiCard icon={CreditCard} label="Rate/Monat" value={formatCurrency(portfolioMetrics.totalMonatlicheRate)} />
+          <KpiCard icon={Activity} label="Cashflow/Monat" value={formatCurrency(portfolioMetrics.cashflow)} variant={portfolioMetrics.cashflow >= 0 ? 'success' : 'destructive'} />
+        </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
             <TabsTrigger value="kredite" className="gap-1.5"><Landmark className="h-3.5 w-3.5" /> Kredite</TabsTrigger>
+            <TabsTrigger value="immobilien" className="gap-1.5"><Building2 className="h-3.5 w-3.5" /> Immobilien</TabsTrigger>
           </TabsList>
+
+          {/* ── Tab: Immobilienübersicht ── */}
+          <TabsContent value="immobilien">
+            <div className="space-y-3">
+              {portfolioMetrics.propertyBreakdown.length === 0 ? (
+                <Card className="p-8 text-center text-muted-foreground">Keine Immobilien vorhanden.</Card>
+              ) : (
+                <div className="rounded-lg border overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs font-semibold">Immobilie</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Kaufpreis</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Schulden</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Miete/Monat</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Rate/Monat</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Cashflow</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Rendite</TableHead>
+                        <TableHead className="text-xs font-semibold">Zugeordnete Kredite</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {portfolioMetrics.propertyBreakdown.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell>
+                            <div>
+                              <p className="text-sm font-medium">{p.name}</p>
+                              <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{p.adresse}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-right">{formatCurrency(p.kaufpreis || 0)}</TableCell>
+                          <TableCell className="text-xs text-right text-destructive font-medium">{formatCurrency(p.schulden)}</TableCell>
+                          <TableCell className="text-xs text-right">{formatCurrency(p.mieteinnahmen)}</TableCell>
+                          <TableCell className="text-xs text-right">{formatCurrency(p.monatlicheRate)}</TableCell>
+                          <TableCell className={`text-xs text-right font-bold ${p.cashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                            {formatCurrency(p.cashflow)}
+                          </TableCell>
+                          <TableCell className="text-xs text-right">{p.bruttoRendite.toFixed(1)}%</TableCell>
+                          <TableCell>
+                            {p.anzahlKredite > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {p.kreditNamen.map((name, i) => (
+                                  <Badge key={i} variant="secondary" className="text-[10px]">{name}</Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">Keine</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {/* Totals */}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell className="text-xs">Gesamt ({portfolioMetrics.propertyBreakdown.length})</TableCell>
+                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalKaufpreis)}</TableCell>
+                        <TableCell className="text-xs text-right text-destructive">{formatCurrency(portfolioMetrics.totalRestschuld)}</TableCell>
+                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalMieteinnahmen)}</TableCell>
+                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalMonatlicheRate)}</TableCell>
+                        <TableCell className={`text-xs text-right ${portfolioMetrics.cashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                          {formatCurrency(portfolioMetrics.cashflow)}
+                        </TableCell>
+                        <TableCell className="text-xs text-right">
+                          {portfolioMetrics.totalKaufpreis > 0 ? ((portfolioMetrics.totalKaltmiete * 12 / portfolioMetrics.totalKaufpreis) * 100).toFixed(1) : '0.0'}%
+                        </TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
 
 
