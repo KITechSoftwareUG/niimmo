@@ -27,7 +27,9 @@ interface ModernChatbotProps {
   onClose: () => void;
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "https://kmtgzrnpitlslivdvlyq.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttdGd6cm5waXRsc2xpdmR2bHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3OTQxNTgsImV4cCI6MjA2MjM3MDE1OH0.CG2MB4Wcb6Dex8cT75fd0CBspHF55eC11tAjgkmxfKA";
+const CHAT_URL = `${SUPABASE_URL}/functions/v1/chat`;
 
 export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
   const [messages, setMessages] = useState<Message[]>([
@@ -96,6 +98,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ messages: apiMessages }),
       });

@@ -1,17 +1,34 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const ALLOWED_ORIGINS = [
+const STATIC_ALLOWED_ORIGINS = [
   'https://immobilien-blick-dashboard.lovable.app',
   'https://id-preview--8e9e2f9b-7950-413f-adfd-90b0d2663ae1.lovable.app',
   'https://dashboard.niimmo.de',
 ];
 
+const ALLOWED_ORIGIN_SUFFIXES = [
+  '.lovable.app',
+  '.lovableproject.com',
+];
+
+function isAllowedOrigin(origin: string): boolean {
+  if (!origin) return false;
+  return (
+    STATIC_ALLOWED_ORIGINS.includes(origin) ||
+    ALLOWED_ORIGIN_SUFFIXES.some((suffix) => origin.endsWith(suffix))
+  );
+}
+
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get('Origin') || '';
+  const allowedOrigin = isAllowedOrigin(origin) ? origin : STATIC_ALLOWED_ORIGINS[0];
+
   return {
-    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
   };
 }
 
@@ -27,9 +44,15 @@ serve(async (req) => {
   if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
-  const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
-  const { error: authError } = await authClient.auth.getUser();
-  if (authError) {
+
+  const token = authHeader.replace('Bearer ', '');
+  const authClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+  const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+  if (claimsError || !claimsData?.claims?.sub) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
