@@ -41,8 +41,8 @@ interface DarlehenForm {
 }
 
 const emptyForm: DarlehenForm = {
-  bezeichnung: "",
-  bank: "",
+  bezeichnung: "NiImmo Wohnungsbaugesellschaft",
+  bank: "Volksbank",
   kontonummer: "",
   darlehensbetrag: 0,
   restschuld: 0,
