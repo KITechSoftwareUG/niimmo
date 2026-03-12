@@ -344,25 +344,59 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   // ── Portfolio Calculations ──
 
   const portfolioMetrics = useMemo(() => {
+    const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
     const totalRestschuld = darlehen?.reduce((s, d) => s + getEffectiveRestschuld(d.id, d.restschuld), 0) || 0;
     const totalDarlehensbetrag = darlehen?.reduce((s, d) => s + (d.darlehensbetrag || 0), 0) || 0;
     const totalMonatlicheRate = darlehen?.reduce((s, d) => s + (d.monatliche_rate || 0), 0) || 0;
+    const eigenkapital = totalKaufpreis - totalRestschuld;
+    const ltv = totalKaufpreis > 0 ? (totalRestschuld / totalKaufpreis) * 100 : 0;
     const totalGetilgt = Math.max(0, totalDarlehensbetrag - totalRestschuld);
     const tilgungsQuote = totalDarlehensbetrag > 0 ? Math.min(100, Math.max(0, (totalGetilgt / totalDarlehensbetrag) * 100)) : 0;
 
-    // Weighted average interest rate
     const avgZinssatz = totalDarlehensbetrag > 0
       ? (darlehen?.reduce((s, d) => s + (d.zinssatz_prozent || 0) * (d.darlehensbetrag || 0), 0) || 0) / totalDarlehensbetrag
       : 0;
 
-    // Monthly rental income from active contracts
     const totalMieteinnahmen = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0) || 0;
+    const totalKaltmiete = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0), 0) || 0;
     const cashflow = totalMieteinnahmen - totalMonatlicheRate;
 
-    // Risk warnings
+    // Per-property breakdown
+    const propertyBreakdown = immobilien?.map(immo => {
+      const assignedDarlehenIds = darlehenImmobilien
+        ?.filter(di => di.immobilie_id === immo.id)
+        .map(di => di.darlehen_id) || [];
+      const assignedDarlehen = darlehen?.filter(d => assignedDarlehenIds.includes(d.id)) || [];
+      
+      let propertyDebt = 0;
+      let propertyMonthlyRate = 0;
+      assignedDarlehen.forEach(d => {
+        const allImmoCount = darlehenImmobilien?.filter(di => di.darlehen_id === d.id).length || 1;
+        propertyDebt += getEffectiveRestschuld(d.id, d.restschuld) / allImmoCount;
+        propertyMonthlyRate += (d.monatliche_rate || 0) / allImmoCount;
+      });
+
+      const propertyEinheiten = einheiten?.filter(e => e.immobilie_id === immo.id).map(e => e.id) || [];
+      const propertyMietvertraege = mietvertraege?.filter(mv => propertyEinheiten.includes(mv.einheit_id)) || [];
+      const propertyMieteinnahmen = propertyMietvertraege.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0);
+      const propertyKaltmiete = propertyMietvertraege.reduce((s, mv) => s + (mv.kaltmiete || 0), 0);
+      const propertyCashflow = propertyMieteinnahmen - propertyMonthlyRate;
+      const bruttoRendite = (immo.kaufpreis || 0) > 0 ? ((propertyKaltmiete * 12) / (immo.kaufpreis || 1)) * 100 : 0;
+
+      return {
+        ...immo,
+        schulden: propertyDebt,
+        monatlicheRate: propertyMonthlyRate,
+        mieteinnahmen: propertyMieteinnahmen,
+        cashflow: propertyCashflow,
+        bruttoRendite,
+        anzahlKredite: assignedDarlehen.length,
+        kreditNamen: assignedDarlehen.map(d => d.bezeichnung),
+      };
+    }) || [];
+
     const warnings: { type: 'high' | 'medium'; message: string }[] = [];
     if (cashflow < 0) warnings.push({ type: 'high', message: `Negativer Cashflow: ${formatCurrency(cashflow)}/Monat` });
-
     darlehen?.forEach(d => {
       if (d.ende_datum) {
         const endeDate = new Date(d.ende_datum);
@@ -374,18 +408,23 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     });
 
     return {
+      totalKaufpreis,
       totalRestschuld,
       totalDarlehensbetrag,
       totalMonatlicheRate,
+      eigenkapital,
+      ltv,
       totalGetilgt,
       tilgungsQuote,
       avgZinssatz,
       totalMieteinnahmen,
+      totalKaltmiete,
       cashflow,
+      propertyBreakdown,
       warnings,
       anzahlKredite: darlehen?.length || 0,
     };
-  }, [darlehen, darlehenZahlungen, mietvertraege]);
+  }, [darlehen, immobilien, darlehenImmobilien, darlehenZahlungen, mietvertraege, einheiten]);
   
 
   // ── RENDER ──
