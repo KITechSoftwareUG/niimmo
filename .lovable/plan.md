@@ -1,43 +1,14 @@
 
 
-## Plan: Übergabe-Workflow radikal vereinfachen
+## Problem
 
-### Kernidee
+The `zugeordnete-nebenkosten` query (line 292) only fetches payments where `kategorie = 'Nichtmiete'`. When a payment with `kategorie = 'Nebenkosten'` is assigned to a property, it disappears from the left (unassigned) list but never appears in the right-side property cards because the query excludes it.
 
-Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
+## Fix
 
-### Änderungen
+**File: `src/components/controlboard/NebenkostenZuordnungTab.tsx`** (line 292)
 
-#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
+Change the filter from `.eq('kategorie', 'Nichtmiete')` to `.in('kategorie', ['Nichtmiete', 'Nebenkosten'])` so that assigned payments of both categories show up under their respective property cards on the right side.
 
-- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
-- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
-- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
-  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
-  - Auszug: Gekündigte und bald auslaufende Verträge oben
-- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
-- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
-
-#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
-
-- `showWarningContract`-State und Warning-Dialog-UI komplett raus
-- `handleContractClick` ruft direkt `proceedWithContracts` auf
-- Kein `meetsCriteria`-Check mehr
-
-#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
-
-- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
-- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
-- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
-- Bei Einzug: Kein `start_datum`-Update
-- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
-- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
-
-#### 4. Betroffene Dateien
-
-| Datei | Änderung |
-|-------|----------|
-| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
-| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
-| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
+This is a one-line fix.
 
