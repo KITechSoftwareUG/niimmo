@@ -62,6 +62,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [form, setForm] = useState<DarlehenForm>(emptyForm);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("kredite");
+  const [editingKaufpreis, setEditingKaufpreis] = useState<string | null>(null);
+  const [kaufpreisValue, setKaufpreisValue] = useState<string>("");
 
   // Text Import state
   const [showTextImport, setShowTextImport] = useState(false);
