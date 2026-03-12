@@ -396,9 +396,26 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     }
   };
 
+  const mergeWithEnrichedDetails = useCallback((
+    base: ZahlungWithDetails,
+    enriched?: ZahlungWithDetails
+  ): ZahlungWithDetails => {
+    if (!enriched) return base;
+
+    return {
+      ...base,
+      mieter_name: enriched.mieter_name ?? base.mieter_name,
+      immobilie_name: enriched.immobilie_name ?? base.immobilie_name,
+      immobilie_adresse: enriched.immobilie_adresse ?? base.immobilie_adresse,
+      einheit_id: enriched.einheit_id ?? base.einheit_id,
+      einheit_typ: enriched.einheit_typ ?? base.einheit_typ,
+    };
+  }, []);
+
   // Helper to get a payment with details (enriched if available)
   const getEnrichedPayment = (zahlung: ZahlungWithDetails, monthKey: string): ZahlungWithDetails => {
-    return enrichedPayments[monthKey]?.[zahlung.id] || zahlung;
+    const enriched = enrichedPayments[monthKey]?.[zahlung.id];
+    return mergeWithEnrichedDetails(zahlung, enriched);
   };
 
   // Filter for unassigned payments (simple table)
