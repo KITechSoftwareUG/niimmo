@@ -87,17 +87,25 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     let assistantContent = "";
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
         throw new Error("Nicht eingeloggt. Bitte melde dich zuerst an.");
+      }
+
+      const nowInSeconds = Math.floor(Date.now() / 1000);
+      if ((session.expires_at ?? 0) <= nowInSeconds + 30) {
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshed.session?.access_token) {
+          throw new Error("Sitzung abgelaufen. Bitte neu einloggen.");
+        }
+        session = refreshed.session;
       }
 
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          "Authorization": `Bearer ${session.access_token}`,
           "apikey": SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ messages: apiMessages }),
