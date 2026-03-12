@@ -87,17 +87,25 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     let assistantContent = "";
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (!token) {
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
         throw new Error("Nicht eingeloggt. Bitte melde dich zuerst an.");
+      }
+
+      const nowInSeconds = Math.floor(Date.now() / 1000);
+      if ((session.expires_at ?? 0) <= nowInSeconds + 30) {
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshed.session?.access_token) {
+          throw new Error("Sitzung abgelaufen. Bitte neu einloggen.");
+        }
+        session = refreshed.session;
       }
 
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          "Authorization": `Bearer ${session.access_token}`,
           "apikey": SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ messages: apiMessages }),
@@ -105,6 +113,15 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error("Sitzung abgelaufen oder nicht eingeloggt. Bitte neu anmelden.");
+        }
+        if (response.status === 429) {
+          throw new Error("Zu viele Anfragen. Bitte kurz warten und erneut versuchen.");
+        }
+        if (response.status === 402) {
+          throw new Error("AI-Kontingent aufgebraucht. Bitte Credits prüfen.");
+        }
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
@@ -189,10 +206,15 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
     } catch (error) {
       console.error('Error sending message:', error);
       
+      const errorText = error instanceof Error ? error.message : "Konnte nicht mit dem KI-Service verbinden.";
+      const isFetchError = errorText.toLowerCase().includes("failed to fetch");
+
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content: "Entschuldigung, es gab einen Fehler beim Verarbeiten deiner Nachricht. Bitte versuche es erneut.",
+        content: isFetchError
+          ? "Verbindung zur Chat-Funktion fehlgeschlagen. Bitte Seite neu laden und erneut versuchen."
+          : errorText,
         timestamp: new Date(),
       };
 
