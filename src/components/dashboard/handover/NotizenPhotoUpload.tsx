@@ -108,9 +108,9 @@
                key={index}
                className="relative aspect-square rounded-lg overflow-hidden bg-gray-100"
              >
-               <img
-                 src={getPublicUrl(photoPath)}
-                 alt={`Übergabe Foto ${index + 1}`}
+              <img
+                  src={getPhotoUrl(photoPath)}
+                  alt={`Übergabe Foto ${index + 1}`}
                  className="w-full h-full object-cover"
                />
                <button

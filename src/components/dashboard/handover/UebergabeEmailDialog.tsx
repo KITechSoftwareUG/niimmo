@@ -189,26 +189,12 @@ Ihre Hausverwaltung`
     setIsSending(true);
 
     try {
-      // If we have a PDF blob, upload it first so the edge function can attach it
+      // Upload PDF if available (reuses existing upload if already done)
       let pdfFilePath: string | undefined;
-      if (pdfBlob && pdfFileName) {
-        const filePath = `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;
-        const { error: uploadError } = await supabase.storage
-          .from('dokumente')
-          .upload(filePath, pdfBlob, { contentType: 'application/pdf', upsert: true });
-        if (!uploadError) {
-          pdfFilePath = filePath;
-          // Save document reference
-          for (const contract of contracts) {
-            await supabase.from('dokumente').insert({
-              titel: `Übergabeprotokoll ${format(uebergabeDatum, "dd.MM.yyyy")}`,
-              pfad: filePath,
-              kategorie: 'Übergabeprotokoll',
-              dateityp: 'application/pdf',
-              mietvertrag_id: contract.id,
-            });
-          }
-        }
+      try {
+        pdfFilePath = await uploadPdfAndSaveRef();
+      } catch (uploadErr) {
+        console.error("PDF upload failed, sending without attachment:", uploadErr);
       }
 
       const response = await supabase.functions.invoke("send-uebergabe-email", {
