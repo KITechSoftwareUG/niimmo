@@ -274,9 +274,6 @@ const Index = () => {
     return <Analytics onBack={() => setShowAnalytics(false)} />;
   }
 
-  if (showDevBoard) {
-    return <DevStatusBoard onBack={() => setShowDevBoard(false)} />;
-  }
 
 
   // Controlboard-Ansicht anzeigen
