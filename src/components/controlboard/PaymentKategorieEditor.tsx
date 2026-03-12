@@ -54,6 +54,9 @@ export function PaymentKategorieEditor({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
       queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
+      queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
+      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
       onUpdate?.();
     },
     onError: (error) => {

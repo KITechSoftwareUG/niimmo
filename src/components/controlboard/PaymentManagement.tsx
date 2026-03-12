@@ -914,6 +914,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
     queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
     queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
+    queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+    queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
+    queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
   };
 
   const handleAssignPayment = (payment: any) => {

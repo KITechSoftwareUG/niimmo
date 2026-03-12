@@ -72,14 +72,14 @@ export function NebenkostenZuordnungTab() {
     }
   });
 
-  // Fetch unzugeordnete Nichtmiete-Zahlungen
+  // Fetch unzugeordnete Nichtmiete-Zahlungen (Nichtmiete + Nebenkosten ohne Immobilie)
   const { data: unzugeordneteZahlungen, isLoading: unzugeordneteLoading } = useQuery({
     queryKey: ['unzugeordnete-nebenkosten'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('zahlungen')
         .select('*')
-        .eq('kategorie', 'Nichtmiete')
+        .in('kategorie', ['Nichtmiete', 'Nebenkosten'])
         .is('immobilie_id', null)
         .order('buchungsdatum', { ascending: false });
       
@@ -283,36 +283,28 @@ export function NebenkostenZuordnungTab() {
     setDraggingZahlungId(null);
   };
 
-  // Gefilterte und klassifizierte Zahlungen
+  // Gefilterte Zahlungen — immer ALLE anzeigen, KI nur als Badge
   const displayedPayments = useMemo(() => {
-    // Wenn KI-Klassifizierung vorhanden, nur diese anzeigen
-    if (classifications.length > 0) {
-      const classifiedIds = new Set(classifications.map(c => c.zahlung_id));
-      let payments = (unzugeordneteZahlungen || []).filter(z => classifiedIds.has(z.id));
-      
-      if (searchTerm.trim()) {
-        const search = searchTerm.toLowerCase();
-        payments = payments.filter(z => 
-          z.verwendungszweck?.toLowerCase().includes(search) ||
-          z.empfaengername?.toLowerCase().includes(search) ||
-          z.iban?.toLowerCase().includes(search)
-        );
-      }
-      
-      return payments;
+    if (!unzugeordneteZahlungen) return [];
+    
+    let payments = [...unzugeordneteZahlungen];
+    
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      payments = payments.filter(z => 
+        z.verwendungszweck?.toLowerCase().includes(search) ||
+        z.empfaengername?.toLowerCase().includes(search) ||
+        z.iban?.toLowerCase().includes(search)
+      );
     }
     
-    // Ohne Klassifizierung: alle unzugeordneten
-    if (!unzugeordneteZahlungen) return [];
-    if (!searchTerm.trim()) return unzugeordneteZahlungen;
-    
-    const search = searchTerm.toLowerCase();
-    return unzugeordneteZahlungen.filter(z => 
-      z.verwendungszweck?.toLowerCase().includes(search) ||
-      z.empfaengername?.toLowerCase().includes(search) ||
-      z.iban?.toLowerCase().includes(search)
+    // Sortierung: buchungsdatum DESC (bereits aus DB, aber sicherstellen)
+    payments.sort((a, b) => 
+      new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime()
     );
-  }, [unzugeordneteZahlungen, searchTerm, classifications]);
+    
+    return payments;
+  }, [unzugeordneteZahlungen, searchTerm]);
 
   const getClassification = (zahlungId: string) => 
     classifications.find(c => c.zahlung_id === zahlungId);
@@ -447,23 +439,14 @@ export function NebenkostenZuordnungTab() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Euro className="h-5 w-5" />
-              {classifications.length > 0 ? 'Erkannte Nebenkosten' : 'Alle Nichtmiete-Zahlungen'} ({displayedPayments.length})
+              Nichtmiete / Nebenkosten ({displayedPayments.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             {displayedPayments.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                {classifications.length > 0 ? (
-                  <>
-                    <Check className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>Alle erkannten Nebenkosten zugeordnet</p>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                    <p>Keine unzugeordneten Zahlungen</p>
-                  </>
-                )}
+                <Check className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p>Keine unzugeordneten Zahlungen</p>
               </div>
             ) : (
               <ScrollArea className="h-[900px]">
