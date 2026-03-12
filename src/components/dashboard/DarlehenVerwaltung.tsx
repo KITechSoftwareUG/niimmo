@@ -533,8 +533,8 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
-            <TabsTrigger value="uebersicht" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Immobilien</TabsTrigger>
             <TabsTrigger value="kredite" className="gap-1.5"><Landmark className="h-3.5 w-3.5" /> Kredite</TabsTrigger>
+            <TabsTrigger value="uebersicht" className="gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Immobilien</TabsTrigger>
           </TabsList>
 
           {/* ── Tab: Immobilienübersicht ── */}
