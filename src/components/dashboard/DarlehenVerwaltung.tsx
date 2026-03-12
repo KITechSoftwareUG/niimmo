@@ -201,17 +201,6 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     onError: (err: any) => toast.error("Fehler: " + err.message),
   });
 
-  const updateImmobilieMutation = useMutation({
-    mutationFn: async ({ id, field, value }: { id: string; field: string; value: number }) => {
-      const { error } = await supabase.from("immobilien").update({ [field]: value }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["immobilien"] });
-      toast.success("Immobilie aktualisiert");
-    },
-    onError: (err: any) => toast.error("Fehler: " + err.message),
-  });
 
   const resetForm = () => {
     setForm(emptyForm);
