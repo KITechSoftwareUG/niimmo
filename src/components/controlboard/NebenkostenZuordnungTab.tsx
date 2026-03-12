@@ -439,7 +439,7 @@ export function NebenkostenZuordnungTab() {
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Euro className="h-5 w-5" />
-              {classifications.length > 0 ? 'Erkannte Nebenkosten' : 'Alle Nichtmiete-Zahlungen'} ({displayedPayments.length})
+              Nichtmiete / Nebenkosten ({displayedPayments.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
