@@ -373,6 +373,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
   const portfolioMetrics = useMemo(() => {
     const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
+    const totalMarktwert = immobilien?.reduce((s, i) => s + (i.marktwert || 0), 0) || 0;
     const totalRestschuld = darlehen?.reduce((s, d) => s + getEffectiveRestschuld(d.id, d.restschuld), 0) || 0;
     const totalDarlehensbetrag = darlehen?.reduce((s, d) => s + (d.darlehensbetrag || 0), 0) || 0;
     const totalMonatlicheRate = darlehen?.reduce((s, d) => s + (d.monatliche_rate || 0), 0) || 0;
@@ -388,6 +389,11 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     const totalMieteinnahmen = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0) || 0;
     const totalKaltmiete = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0), 0) || 0;
     const cashflow = totalMieteinnahmen - totalMonatlicheRate;
+
+    // Wertsteigerung: Marktwert vs Kaufpreis
+    const wertsteigerung = totalMarktwert > 0 && totalKaufpreis > 0 
+      ? ((totalMarktwert - totalKaufpreis) / totalKaufpreis) * 100 
+      : 0;
 
     // Per-property breakdown
     const propertyBreakdown = immobilien?.map(immo => {
@@ -437,6 +443,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
     return {
       totalKaufpreis,
+      totalMarktwert,
       totalRestschuld,
       totalDarlehensbetrag,
       totalMonatlicheRate,
@@ -448,6 +455,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
       totalMieteinnahmen,
       totalKaltmiete,
       cashflow,
+      wertsteigerung,
       propertyBreakdown,
       warnings,
       anzahlKredite: darlehen?.length || 0,
