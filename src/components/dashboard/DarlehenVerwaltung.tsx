@@ -93,7 +93,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const { data: immobilien } = useQuery({
     queryKey: ["immobilien-portfolio"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("immobilien").select("id, name, adresse, kaufpreis").order("name");
+      const { data, error } = await supabase.from("immobilien").select("id, name, adresse, kaufpreis, marktwert").order("name");
       if (error) throw error;
       return data;
     },
