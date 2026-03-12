@@ -736,7 +736,7 @@ export function NebenkostenZuordnungTab() {
                     </Collapsible>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             )}
           </CardContent>
         </Card>
