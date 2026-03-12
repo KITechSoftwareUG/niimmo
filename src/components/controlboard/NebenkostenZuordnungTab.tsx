@@ -699,7 +699,7 @@ export function NebenkostenZuordnungTab() {
                 <p>Keine unzugeordneten Zahlungen</p>
               </div>
             ) : (
-              <ScrollArea className="h-[calc(100vh-280px)]">
+              <ScrollArea className="h-[calc(100vh-160px)]">
                 <div className="space-y-3 pr-2">
                   {/* Nebenkosten-Sektion */}
                   {nebenkostenPayments.length > 0 && (
