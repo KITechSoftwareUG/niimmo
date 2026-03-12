@@ -72,6 +72,10 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [importedZahlungen, setImportedZahlungen] = useState<any[]>([]);
   const [importImmobilienIds, setImportImmobilienIds] = useState<string[]>([]);
 
+  // Inline editing state for immobilien prices
+  const [editingImmoField, setEditingImmoField] = useState<{ id: string; field: 'kaufpreis' | 'marktwert' } | null>(null);
+  const [editingImmoValue, setEditingImmoValue] = useState("");
+
   // Fetch all Darlehen
   const { data: darlehen, isLoading } = useQuery({
     queryKey: ["darlehen"],
@@ -89,7 +93,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const { data: immobilien } = useQuery({
     queryKey: ["immobilien-portfolio"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("immobilien").select("id, name, adresse, kaufpreis").order("name");
+      const { data, error } = await supabase.from("immobilien").select("id, name, adresse, kaufpreis, marktwert").order("name");
       if (error) throw error;
       return data;
     },
@@ -201,6 +205,30 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     onError: (err: any) => toast.error("Fehler: " + err.message),
   });
 
+  // Immobilien-Preise inline bearbeiten
+  const updateImmobilieMutation = useMutation({
+    mutationFn: async ({ id, field, value }: { id: string; field: 'kaufpreis' | 'marktwert'; value: number | null }) => {
+      const { error } = await supabase.from("immobilien").update({ [field]: value }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["immobilien-portfolio"] });
+      setEditingImmoField(null);
+      toast.success("Wert gespeichert");
+    },
+    onError: (err: any) => toast.error("Fehler: " + err.message),
+  });
+
+  const startEditImmoField = (id: string, field: 'kaufpreis' | 'marktwert', currentValue: number | null) => {
+    setEditingImmoField({ id, field });
+    setEditingImmoValue(currentValue ? currentValue.toString() : "");
+  };
+
+  const saveEditImmoField = () => {
+    if (!editingImmoField) return;
+    const parsed = editingImmoValue.trim() === "" ? null : parseFloat(editingImmoValue.replace(/,/g, '.'));
+    updateImmobilieMutation.mutate({ id: editingImmoField.id, field: editingImmoField.field, value: parsed });
+  };
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -345,6 +373,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
   const portfolioMetrics = useMemo(() => {
     const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
+    const totalMarktwert = immobilien?.reduce((s, i) => s + (i.marktwert || 0), 0) || 0;
     const totalRestschuld = darlehen?.reduce((s, d) => s + getEffectiveRestschuld(d.id, d.restschuld), 0) || 0;
     const totalDarlehensbetrag = darlehen?.reduce((s, d) => s + (d.darlehensbetrag || 0), 0) || 0;
     const totalMonatlicheRate = darlehen?.reduce((s, d) => s + (d.monatliche_rate || 0), 0) || 0;
@@ -360,6 +389,11 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     const totalMieteinnahmen = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0) || 0;
     const totalKaltmiete = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0), 0) || 0;
     const cashflow = totalMieteinnahmen - totalMonatlicheRate;
+
+    // Wertsteigerung: Marktwert vs Kaufpreis
+    const wertsteigerung = totalMarktwert > 0 && totalKaufpreis > 0 
+      ? ((totalMarktwert - totalKaufpreis) / totalKaufpreis) * 100 
+      : 0;
 
     // Per-property breakdown
     const propertyBreakdown = immobilien?.map(immo => {
@@ -409,6 +443,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
 
     return {
       totalKaufpreis,
+      totalMarktwert,
       totalRestschuld,
       totalDarlehensbetrag,
       totalMonatlicheRate,
@@ -420,6 +455,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
       totalMieteinnahmen,
       totalKaltmiete,
       cashflow,
+      wertsteigerung,
       propertyBreakdown,
       warnings,
       anzahlKredite: darlehen?.length || 0,
@@ -463,13 +499,17 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          <KpiCard icon={Home} label="Immobilienwert" value={formatCurrency(portfolioMetrics.totalKaufpreis)} />
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+          <KpiCard icon={Home} label="Kaufpreis ges." value={formatCurrency(portfolioMetrics.totalKaufpreis)} />
+          <KpiCard icon={TrendingUp} label="Marktwert ges." value={portfolioMetrics.totalMarktwert > 0 ? formatCurrency(portfolioMetrics.totalMarktwert) : '–'} variant={portfolioMetrics.wertsteigerung > 0 ? 'success' : portfolioMetrics.wertsteigerung < 0 ? 'destructive' : undefined} />
           <KpiCard icon={Landmark} label="Gesamtschulden" value={formatCurrency(portfolioMetrics.totalRestschuld)} variant="destructive" />
           <KpiCard icon={PiggyBank} label="Eigenkapital" value={formatCurrency(portfolioMetrics.eigenkapital)} variant={portfolioMetrics.eigenkapital >= 0 ? 'success' : 'destructive'} />
           <KpiCard icon={Percent} label="LTV" value={`${portfolioMetrics.ltv.toFixed(1)}%`} variant={portfolioMetrics.ltv > 80 ? 'destructive' : portfolioMetrics.ltv > 60 ? 'warning' : 'success'} />
           <KpiCard icon={CreditCard} label="Rate/Monat" value={formatCurrency(portfolioMetrics.totalMonatlicheRate)} />
           <KpiCard icon={Activity} label="Cashflow/Monat" value={formatCurrency(portfolioMetrics.cashflow)} variant={portfolioMetrics.cashflow >= 0 ? 'success' : 'destructive'} />
+          {portfolioMetrics.totalMarktwert > 0 && (
+            <KpiCard icon={BarChart3} label="Wertsteigerung" value={`${portfolioMetrics.wertsteigerung >= 0 ? '+' : ''}${portfolioMetrics.wertsteigerung.toFixed(1)}%`} variant={portfolioMetrics.wertsteigerung >= 0 ? 'success' : 'destructive'} />
+          )}
         </div>
 
         {/* Tabs */}
@@ -491,48 +531,108 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                       <TableRow>
                         <TableHead className="text-xs font-semibold">Immobilie</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Kaufpreis</TableHead>
+                        <TableHead className="text-xs font-semibold text-right">Marktwert</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Schulden</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Miete/Monat</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Rate/Monat</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Cashflow</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Rendite</TableHead>
-                        <TableHead className="text-xs font-semibold">Zugeordnete Kredite</TableHead>
+                        <TableHead className="text-xs font-semibold">Kredite</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {portfolioMetrics.propertyBreakdown.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell>
-                            <div>
-                              <p className="text-sm font-medium">{p.name}</p>
-                              <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{p.adresse}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-right">{formatCurrency(p.kaufpreis || 0)}</TableCell>
-                          <TableCell className="text-xs text-right text-destructive font-medium">{formatCurrency(p.schulden)}</TableCell>
-                          <TableCell className="text-xs text-right">{formatCurrency(p.mieteinnahmen)}</TableCell>
-                          <TableCell className="text-xs text-right">{formatCurrency(p.monatlicheRate)}</TableCell>
-                          <TableCell className={`text-xs text-right font-bold ${p.cashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                            {formatCurrency(p.cashflow)}
-                          </TableCell>
-                          <TableCell className="text-xs text-right">{p.bruttoRendite.toFixed(1)}%</TableCell>
-                          <TableCell>
-                            {p.anzahlKredite > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {p.kreditNamen.map((name, i) => (
-                                  <Badge key={i} variant="secondary" className="text-[10px]">{name}</Badge>
-                                ))}
+                      {portfolioMetrics.propertyBreakdown.map((p) => {
+                        const isEditingKaufpreis = editingImmoField?.id === p.id && editingImmoField?.field === 'kaufpreis';
+                        const isEditingMarktwert = editingImmoField?.id === p.id && editingImmoField?.field === 'marktwert';
+
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell>
+                              <div>
+                                <p className="text-sm font-medium">{p.name}</p>
+                                <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{p.adresse}</p>
                               </div>
-                            ) : (
-                              <span className="text-[10px] text-muted-foreground">Keine</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            {/* Kaufpreis - editable */}
+                            <TableCell className="text-right">
+                              {isEditingKaufpreis ? (
+                                <div className="flex items-center gap-1 justify-end">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={editingImmoValue}
+                                    onChange={(e) => setEditingImmoValue(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') saveEditImmoField(); if (e.key === 'Escape') setEditingImmoField(null); }}
+                                    className="h-7 w-28 text-xs text-right"
+                                    autoFocus
+                                  />
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={saveEditImmoField} disabled={updateImmobilieMutation.isPending}>
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <button
+                                  className="text-xs hover:underline cursor-pointer inline-flex items-center gap-1 ml-auto"
+                                  onClick={() => startEditImmoField(p.id, 'kaufpreis', p.kaufpreis)}
+                                >
+                                  {formatCurrency(p.kaufpreis || 0)}
+                                  <Pencil className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                                </button>
+                              )}
+                            </TableCell>
+                            {/* Marktwert - editable */}
+                            <TableCell className="text-right">
+                              {isEditingMarktwert ? (
+                                <div className="flex items-center gap-1 justify-end">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={editingImmoValue}
+                                    onChange={(e) => setEditingImmoValue(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') saveEditImmoField(); if (e.key === 'Escape') setEditingImmoField(null); }}
+                                    className="h-7 w-28 text-xs text-right"
+                                    autoFocus
+                                  />
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={saveEditImmoField} disabled={updateImmobilieMutation.isPending}>
+                                    <Check className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <button
+                                  className="text-xs hover:underline cursor-pointer inline-flex items-center gap-1 ml-auto"
+                                  onClick={() => startEditImmoField(p.id, 'marktwert', p.marktwert)}
+                                >
+                                  {p.marktwert ? formatCurrency(p.marktwert) : <span className="text-muted-foreground italic">–</span>}
+                                  <Pencil className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
+                                </button>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-right text-destructive font-medium">{formatCurrency(p.schulden)}</TableCell>
+                            <TableCell className="text-xs text-right">{formatCurrency(p.mieteinnahmen)}</TableCell>
+                            <TableCell className="text-xs text-right">{formatCurrency(p.monatlicheRate)}</TableCell>
+                            <TableCell className={`text-xs text-right font-bold ${p.cashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+                              {formatCurrency(p.cashflow)}
+                            </TableCell>
+                            <TableCell className="text-xs text-right">{p.bruttoRendite.toFixed(1)}%</TableCell>
+                            <TableCell>
+                              {p.anzahlKredite > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {p.kreditNamen.map((name, i) => (
+                                    <Badge key={i} variant="secondary" className="text-[10px]">{name}</Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground">Keine</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                       {/* Totals */}
                       <TableRow className="bg-muted/50 font-bold">
                         <TableCell className="text-xs">Gesamt ({portfolioMetrics.propertyBreakdown.length})</TableCell>
                         <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalKaufpreis)}</TableCell>
+                        <TableCell className="text-xs text-right">{portfolioMetrics.totalMarktwert > 0 ? formatCurrency(portfolioMetrics.totalMarktwert) : '–'}</TableCell>
                         <TableCell className="text-xs text-right text-destructive">{formatCurrency(portfolioMetrics.totalRestschuld)}</TableCell>
                         <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalMieteinnahmen)}</TableCell>
                         <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalMonatlicheRate)}</TableCell>
