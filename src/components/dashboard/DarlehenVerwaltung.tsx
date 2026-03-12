@@ -330,8 +330,9 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const formatPercent = (val: number) => `${val.toFixed(2)}%`;
 
   const getEffectiveRestschuld = (darlehenId: string, staticRestschuld: number | null): number => {
+    const today = new Date().toISOString().split('T')[0];
     const zahlungen = darlehenZahlungen
-      ?.filter((z) => z.darlehen_id === darlehenId && z.restschuld_danach != null)
+      ?.filter((z) => z.darlehen_id === darlehenId && z.restschuld_danach != null && z.buchungsdatum <= today)
       ?.sort((a, b) => new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime());
     if (zahlungen && zahlungen.length > 0) {
       return Math.abs(zahlungen[0].restschuld_danach!);
