@@ -253,19 +253,34 @@ export async function generateMieterhoehungPdf(data: MieterhoehungPdfData): Prom
   y += 12;
   
   // ============ CONTINUATION TEXT ============
+  const maxY = 240; // Leave space for footer (footer at 258)
+  
+  const checkPageBreak = (needed: number) => {
+    if (y + needed > maxY) {
+      addFooter(doc);
+      doc.addPage();
+      y = 30;
+    }
+  };
+  
   doc.setFont('helvetica', 'normal');
+  
+  checkPageBreak(20);
   const continuationText = `Die erhöhte Miete wird zum ${data.wirksamDatum} fällig. Wir bitten Sie, Ihre Zahlungen entsprechend anzupassen.`;
   y = drawJustifiedText(continuationText, marginLeft, y, contentWidth, lineHeight);
   y += 4;
   
+  checkPageBreak(25);
   const legalText = 'Gemäß § 558b BGB haben Sie das Recht, der Mieterhöhung bis zum Ende des zweiten Kalendermonats nach dem Zugang dieses Erhöhungsverlangens zu widersprechen. Sofern Sie nicht widersprechen, gilt Ihre Zustimmung als erteilt.';
   y = drawJustifiedText(legalText, marginLeft, y, contentWidth, lineHeight);
   y += 4;
   
+  checkPageBreak(10);
   doc.text('Für Rückfragen stehen wir Ihnen gerne unter den oben genannten Kontaktdaten zur Verfügung.', marginLeft, y);
   y += 8;
   
   // ============ SIGNATURE ============
+  checkPageBreak(25);
   doc.text('Mit freundlichem Gruß', marginLeft, y);
   y += 14;
   doc.setFont('helvetica', 'bold');
