@@ -98,6 +98,7 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
         },
         body: JSON.stringify({ messages: apiMessages }),
       });
