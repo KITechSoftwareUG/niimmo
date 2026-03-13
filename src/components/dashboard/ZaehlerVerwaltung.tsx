@@ -17,9 +17,7 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
-  Gauge,
-  History,
-  Clock
+  Gauge
 } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
