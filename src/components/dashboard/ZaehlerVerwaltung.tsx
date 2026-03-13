@@ -274,6 +274,29 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
 
       await updatePropertyMeterMutation.mutateAsync({ immobilieId, updates });
 
+      // Insert history entries for meter readings
+      for (const change of propChanges) {
+        if (change.type.startsWith('versorger_')) continue;
+        if (change.stand === undefined) continue;
+        const standValue = change.stand ? parseFloat(change.stand) : null;
+        if (standValue === null) continue;
+        const baseType = change.type.replace('_2', '');
+        const suffix = change.type.endsWith('_2') ? '_2' : '';
+        const zaehlerKey = `allgemein_${baseType}_zaehler${suffix}` as keyof typeof updates;
+        const datumKey = `allgemein_${baseType}_datum${suffix}` as keyof typeof updates;
+        const zaehlerNr = (updates[zaehlerKey] as string) ?? change.zaehlerNummer ?? null;
+        const datum = (updates[datumKey] as string) ?? format(new Date(), 'yyyy-MM-dd');
+        await supabase.from('zaehlerstand_historie').insert({
+          immobilie_id: immobilieId,
+          zaehler_typ: change.type,
+          zaehler_nummer: zaehlerNr,
+          stand: standValue,
+          datum,
+          quelle: 'manuell',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['zaehlerstand-historie'] });
+
       setEditedPropertyReadings(prev => {
         const next = { ...prev };
         Object.keys(next).filter(key => key.startsWith(`${immobilieId}-`)).forEach(key => delete next[key]);
