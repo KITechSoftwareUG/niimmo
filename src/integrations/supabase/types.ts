@@ -1380,6 +1380,60 @@ export type Database = {
           },
         ]
       }
+      zaehlerstand_historie: {
+        Row: {
+          datum: string
+          einheit_id: string | null
+          erstellt_am: string | null
+          erstellt_von: string | null
+          id: string
+          immobilie_id: string | null
+          quelle: string | null
+          stand: number | null
+          zaehler_nummer: string | null
+          zaehler_typ: string
+        }
+        Insert: {
+          datum: string
+          einheit_id?: string | null
+          erstellt_am?: string | null
+          erstellt_von?: string | null
+          id?: string
+          immobilie_id?: string | null
+          quelle?: string | null
+          stand?: number | null
+          zaehler_nummer?: string | null
+          zaehler_typ: string
+        }
+        Update: {
+          datum?: string
+          einheit_id?: string | null
+          erstellt_am?: string | null
+          erstellt_von?: string | null
+          id?: string
+          immobilie_id?: string | null
+          quelle?: string | null
+          stand?: number | null
+          zaehler_nummer?: string | null
+          zaehler_typ?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zaehlerstand_historie_einheit_id_fkey"
+            columns: ["einheit_id"]
+            isOneToOne: false
+            referencedRelation: "einheiten"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zaehlerstand_historie_immobilie_id_fkey"
+            columns: ["immobilie_id"]
+            isOneToOne: false
+            referencedRelation: "immobilien"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zahlungen: {
         Row: {
           betrag: number
