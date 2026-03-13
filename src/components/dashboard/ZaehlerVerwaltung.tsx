@@ -346,6 +346,24 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
 
       await updateMeterMutation.mutateAsync({ einheitId, updates });
 
+      // Insert history entries for meter readings
+      for (const change of unitChanges) {
+        if (change.stand === undefined) continue;
+        const standValue = change.stand ? parseFloat(change.stand) : null;
+        if (standValue === null) continue;
+        const zaehlerNr = (updates[`${change.type}_zaehler`] as string) ?? change.zaehlerNummer ?? null;
+        const datum = (updates[`${change.type}_stand_datum`] as string) ?? format(new Date(), 'yyyy-MM-dd');
+        await supabase.from('zaehlerstand_historie').insert({
+          einheit_id: einheitId,
+          zaehler_typ: change.type,
+          zaehler_nummer: zaehlerNr,
+          stand: standValue,
+          datum,
+          quelle: 'manuell',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['zaehlerstand-historie'] });
+
       setEditedReadings(prev => {
         const next = { ...prev };
         Object.keys(next).filter(key => key.startsWith(`${einheitId}-`)).forEach(key => delete next[key]);
