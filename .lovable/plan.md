@@ -1,43 +1,76 @@
 
 
-## Plan: Übergabe-Workflow radikal vereinfachen
+## Problem
+Currently, the Zählerverwaltung only stores the **current** meter reading per unit/property (e.g., `kaltwasser_stand_aktuell`, `kaltwasser_stand_datum` on `einheiten`). When a new reading is saved, the old one is overwritten. There is no history.
 
-### Kernidee
+## Solution
 
-Die Übergabe wird zu einem einfachen Dokumentations-Tool: Mietvertrag auswählen → Protokoll ausfüllen → PDF generieren & speichern → fertig. Kein Status-Tracking, keine "Erledigt"-Sektion, keine Statusänderungen am Mietvertrag.
+### 1. New Supabase table: `zaehlerstand_historie`
 
-### Änderungen
+Create a history table that logs every meter reading change:
 
-#### 1. `UebergabeContractList.tsx` — Massiv vereinfachen
+```sql
+CREATE TABLE public.zaehlerstand_historie (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  einheit_id uuid REFERENCES einheiten(id) ON DELETE CASCADE,
+  immobilie_id uuid REFERENCES immobilien(id) ON DELETE CASCADE,
+  zaehler_typ text NOT NULL, -- 'kaltwasser', 'warmwasser', 'strom', 'gas', 'wasser', 'strom_2', 'gas_2', 'wasser_2'
+  zaehler_nummer text,
+  stand numeric,
+  datum date NOT NULL,
+  quelle text DEFAULT 'manuell', -- 'manuell', 'einzug', 'auszug'
+  erstellt_am timestamptz DEFAULT now(),
+  erstellt_von uuid
+);
 
-- **Komplette "Erledigt"-Sektion entfernen** (`checkContractIsCompleted`, `completedGroups`)
-- **Keine `beendet`-Verträge mehr anzeigen** — nur `aktiv` und `gekuendigt`
-- **Prioritäts-Logik beibehalten** (Vorschläge), aber stark vereinfacht:
-  - Einzug: Frisch eingezogene Verträge (aktiv, kürzlich gestartet) oben
-  - Auszug: Gekündigte und bald auslaufende Verträge oben
-- **Suche bleibt stark** — bei Suche werden alle aktiven/gekündigten Verträge durchsucht, keine Warnung-Dialoge mehr
-- **Warning-System entfernen** — jeder Vertrag ist direkt anklickbar, keine "meetsCriteria"-Logik
+ALTER TABLE public.zaehlerstand_historie ENABLE ROW LEVEL SECURITY;
 
-#### 2. `Uebergabe.tsx` — Warning-Dialog entfernen
+-- Admin + Hausmeister can read/write
+CREATE POLICY "Admin or Hausmeister can access zaehlerstand_historie"
+  ON public.zaehlerstand_historie FOR ALL TO public
+  USING (is_admin(auth.uid()) OR is_hausmeister(auth.uid()))
+  WITH CHECK (is_admin(auth.uid()) OR is_hausmeister(auth.uid()));
 
-- `showWarningContract`-State und Warning-Dialog-UI komplett raus
-- `handleContractClick` ruft direkt `proceedWithContracts` auf
-- Kein `meetsCriteria`-Check mehr
+-- Authenticated can read
+CREATE POLICY "Authenticated can read zaehlerstand_historie"
+  ON public.zaehlerstand_historie FOR SELECT TO authenticated
+  USING (true);
+```
 
-#### 3. `UebergabeDialog.tsx` — Keine Statusänderungen mehr
+- `einheit_id` is set for unit-level readings, `immobilie_id` for property-level (Hausanschluss) readings.
+- `quelle` tracks whether it came from manual entry, Einzug, or Auszug.
 
-- **`finalizeAuszugStatus()` entfernen** — Vertragsstatus wird NICHT auf "beendet" gesetzt
-- **`handleSubmit`**: Speichert nur noch Zählerstände + generiert PDF + speichert PDF als Dokument zum Mietvertrag
-- Bei Auszug: Kein automatisches "beendet"-Setzen, keine `ende_datum`-Änderung
-- Bei Einzug: Kein `start_datum`-Update
-- Die E-Mail-Funktion (Protokoll versenden) bleibt erhalten
-- Man kann den Dialog mehrfach für denselben Vertrag nutzen → es entstehen einfach mehrere PDFs
+### 2. Update save logic in `ZaehlerVerwaltung.tsx`
 
-#### 4. Betroffene Dateien
+In `saveUnitChanges` and `savePropertyChanges`, after updating `einheiten`/`immobilien`, also **insert** into `zaehlerstand_historie` with the new stand, datum, zaehler_nummer, and type.
 
-| Datei | Änderung |
-|-------|----------|
-| `src/components/dashboard/handover/UebergabeContractList.tsx` | Erledigt-Sektion raus, keine beendet-Verträge, Warning-System raus, nur Vorschläge + starke Suche |
-| `src/pages/Uebergabe.tsx` | Warning-Dialog entfernen, direkter Klick auf Vertrag |
-| `src/components/dashboard/handover/UebergabeDialog.tsx` | `finalizeAuszugStatus` entfernen, kein `start_datum`/`ende_datum`/Status-Update, nur Zählerstände + PDF |
+### 3. Display history in the Zählerverwaltung UI
+
+Add a collapsible "Historie" section per unit row (or per property meter). When expanded, it fetches from `zaehlerstand_historie` filtered by `einheit_id` or `immobilie_id`, ordered by `datum DESC`. Display as a small table:
+
+```
+Datum       | Typ   | Zähler-Nr | Stand   | Quelle
+12.03.2026  | Strom | 12345     | 4521.3  | manuell
+01.01.2026  | Strom | 12345     | 4200.0  | einzug
+```
+
+Use a `Collapsible` with a small "Historie" button/icon per unit row. Fetch data lazily (only when expanded) using `useQuery` with `enabled` flag.
+
+### 4. Backfill existing data (optional, on migration)
+
+Insert current readings from `einheiten` and `immobilien` into the history table so existing data appears immediately:
+
+```sql
+INSERT INTO zaehlerstand_historie (einheit_id, zaehler_typ, zaehler_nummer, stand, datum, quelle)
+SELECT id, 'kaltwasser', kaltwasser_zaehler, kaltwasser_stand_aktuell, 
+       COALESCE(kaltwasser_stand_datum, CURRENT_DATE), 'manuell'
+FROM einheiten WHERE kaltwasser_stand_aktuell IS NOT NULL;
+-- Repeat for warmwasser, strom, gas...
+-- Same pattern for immobilien Hausanschluss readings
+```
+
+### Files to modify
+- **New migration**: Create `zaehlerstand_historie` table + backfill
+- **`src/components/dashboard/ZaehlerVerwaltung.tsx`**: Insert history on save, add collapsible history display per unit/property
+- **`src/integrations/supabase/types.ts`**: Will auto-update after migration
 
