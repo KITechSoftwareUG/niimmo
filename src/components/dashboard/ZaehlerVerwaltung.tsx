@@ -765,6 +765,9 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                           </div>
                         </>
                       )}
+                      <div className="mt-2">
+                        <ZaehlerHistorie immobilieId={immobilie.id} label="Hausanschluss-Historie" />
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                       <Table>
