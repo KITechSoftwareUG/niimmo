@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ZaehlerHistorie } from "@/components/dashboard/ZaehlerHistorie";
 
 interface MeterReading {
   einheitId: string;
@@ -272,6 +273,29 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
 
       await updatePropertyMeterMutation.mutateAsync({ immobilieId, updates });
 
+      // Insert history entries for meter readings
+      for (const change of propChanges) {
+        if (change.type.startsWith('versorger_')) continue;
+        if (change.stand === undefined) continue;
+        const standValue = change.stand ? parseFloat(change.stand) : null;
+        if (standValue === null) continue;
+        const baseType = change.type.replace('_2', '');
+        const suffix = change.type.endsWith('_2') ? '_2' : '';
+        const zaehlerKey = `allgemein_${baseType}_zaehler${suffix}` as keyof typeof updates;
+        const datumKey = `allgemein_${baseType}_datum${suffix}` as keyof typeof updates;
+        const zaehlerNr = (updates[zaehlerKey] as string) ?? change.zaehlerNummer ?? null;
+        const datum = (updates[datumKey] as string) ?? format(new Date(), 'yyyy-MM-dd');
+        await supabase.from('zaehlerstand_historie').insert({
+          immobilie_id: immobilieId,
+          zaehler_typ: change.type,
+          zaehler_nummer: zaehlerNr,
+          stand: standValue,
+          datum,
+          quelle: 'manuell',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['zaehlerstand-historie'] });
+
       setEditedPropertyReadings(prev => {
         const next = { ...prev };
         Object.keys(next).filter(key => key.startsWith(`${immobilieId}-`)).forEach(key => delete next[key]);
@@ -320,6 +344,24 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
       }
 
       await updateMeterMutation.mutateAsync({ einheitId, updates });
+
+      // Insert history entries for meter readings
+      for (const change of unitChanges) {
+        if (change.stand === undefined) continue;
+        const standValue = change.stand ? parseFloat(change.stand) : null;
+        if (standValue === null) continue;
+        const zaehlerNr = (updates[`${change.type}_zaehler`] as string) ?? change.zaehlerNummer ?? null;
+        const datum = (updates[`${change.type}_stand_datum`] as string) ?? format(new Date(), 'yyyy-MM-dd');
+        await supabase.from('zaehlerstand_historie').insert({
+          einheit_id: einheitId,
+          zaehler_typ: change.type,
+          zaehler_nummer: zaehlerNr,
+          stand: standValue,
+          datum,
+          quelle: 'manuell',
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['zaehlerstand-historie'] });
 
       setEditedReadings(prev => {
         const next = { ...prev };
@@ -721,6 +763,9 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                           </div>
                         </>
                       )}
+                      <div className="mt-2">
+                        <ZaehlerHistorie immobilieId={immobilie.id} label="Hausanschluss-Historie" />
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                       <Table>
@@ -746,75 +791,79 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                               : '-';
 
                             return (
-                              <TableRow key={einheit.id} className="text-xs">
-                                <TableCell className="py-1.5 font-medium">
-                                  <div>
-                                    <span>{einheit.zaehler}</span>
-                                    {einheit.etage && (
-                                      <span className="text-muted-foreground ml-1">({einheit.etage})</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="py-1.5 text-muted-foreground hidden sm:table-cell truncate max-w-[120px]">
-                                  {tenantName}
-                                </TableCell>
-                                {getUnitMeterTypes(immobilie).map((type) => {
-                                  const zaehlerKey = `${type}_zaehler` as keyof typeof einheit;
-                                  const standKey = `${type}_stand_aktuell` as keyof typeof einheit;
-                                  const datumKey = `${type}_stand_datum` as keyof typeof einheit;
-
-                                  const currentZaehler = einheit[zaehlerKey] as string | null;
-                                  const currentStand = einheit[standKey] as number | null;
-                                  const standDatum = einheit[datumKey] as string | null;
-
-                                  const editedZaehler = getEditedValue(einheit.id, type, 'zaehler');
-                                  const editedStand = getEditedValue(einheit.id, type, 'stand');
-
-                                  return (
-                                    <TableCell key={type} className="py-1.5">
-                                      <div className="flex flex-col gap-0.5">
-                                        <Input
-                                          placeholder="Nr."
-                                          value={editedZaehler ?? currentZaehler ?? ''}
-                                          onChange={(e) => handleInputChange(einheit.id, type, 'zaehler', e.target.value)}
-                                          className="h-6 text-xs px-1.5"
-                                        />
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          placeholder="Stand"
-                                          value={editedStand ?? currentStand ?? ''}
-                                          onChange={(e) => handleInputChange(einheit.id, type, 'stand', e.target.value)}
-                                          className="h-6 text-xs px-1.5"
-                                        />
-                                        <Input
-                                          type="date"
-                                          placeholder="Datum"
-                                          value={getEditedValue(einheit.id, type, 'datum') ?? standDatum ?? ''}
-                                          onChange={(e) => handleInputChange(einheit.id, type, 'datum', e.target.value)}
-                                          className="h-6 text-xs px-1.5"
-                                        />
-                                      </div>
-                                    </TableCell>
-                                  );
-                                })}
-                                <TableCell className="py-1.5">
-                                  {hasUnsavedChanges(einheit.id) && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => saveUnitChanges(einheit.id)}
-                                      disabled={savingUnits.has(einheit.id)}
-                                      className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700"
-                                    >
-                                      {savingUnits.has(einheit.id) ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <Save className="h-3 w-3" />
+                              <React.Fragment key={einheit.id}>
+                                <TableRow className="text-xs">
+                                  <TableCell className="py-1.5 font-medium">
+                                    <div>
+                                      <span>{einheit.zaehler}</span>
+                                      {einheit.etage && (
+                                        <span className="text-muted-foreground ml-1">({einheit.etage})</span>
                                       )}
-                                    </Button>
-                                  )}
-                                </TableCell>
-                              </TableRow>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-1.5 text-muted-foreground hidden sm:table-cell truncate max-w-[120px]">
+                                    {tenantName}
+                                  </TableCell>
+                                  {getUnitMeterTypes(immobilie).map((type) => {
+                                    const zaehlerKey = `${type}_zaehler` as keyof typeof einheit;
+                                    const standKey = `${type}_stand_aktuell` as keyof typeof einheit;
+                                    const datumKey = `${type}_stand_datum` as keyof typeof einheit;
+                                    const currentZaehler = einheit[zaehlerKey] as string | null;
+                                    const currentStand = einheit[standKey] as number | null;
+                                    const standDatum = einheit[datumKey] as string | null;
+                                    const editedZaehler = getEditedValue(einheit.id, type, 'zaehler');
+                                    const editedStand = getEditedValue(einheit.id, type, 'stand');
+                                    return (
+                                      <TableCell key={type} className="py-1.5">
+                                        <div className="flex flex-col gap-0.5">
+                                          <Input
+                                            placeholder="Nr."
+                                            value={editedZaehler ?? currentZaehler ?? ''}
+                                            onChange={(e) => handleInputChange(einheit.id, type, 'zaehler', e.target.value)}
+                                            className="h-6 text-xs px-1.5"
+                                          />
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="Stand"
+                                            value={editedStand ?? currentStand ?? ''}
+                                            onChange={(e) => handleInputChange(einheit.id, type, 'stand', e.target.value)}
+                                            className="h-6 text-xs px-1.5"
+                                          />
+                                          <Input
+                                            type="date"
+                                            placeholder="Datum"
+                                            value={getEditedValue(einheit.id, type, 'datum') ?? standDatum ?? ''}
+                                            onChange={(e) => handleInputChange(einheit.id, type, 'datum', e.target.value)}
+                                            className="h-6 text-xs px-1.5"
+                                          />
+                                        </div>
+                                      </TableCell>
+                                    );
+                                  })}
+                                  <TableCell className="py-1.5">
+                                    {hasUnsavedChanges(einheit.id) && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => saveUnitChanges(einheit.id)}
+                                        disabled={savingUnits.has(einheit.id)}
+                                        className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700"
+                                      >
+                                        {savingUnits.has(einheit.id) ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <Save className="h-3 w-3" />
+                                        )}
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                                <TableRow className="border-0 hover:bg-transparent">
+                                  <TableCell colSpan={getUnitMeterTypes(immobilie).length + 3} className="py-0 px-2">
+                                    <ZaehlerHistorie einheitId={einheit.id} />
+                                  </TableCell>
+                                </TableRow>
+                              </React.Fragment>
                             );
                           })}
                         </TableBody>
