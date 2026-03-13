@@ -862,6 +862,11 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
                                   )}
                                 </TableCell>
                               </TableRow>
+                              <TableRow className="border-0 hover:bg-transparent">
+                                <TableCell colSpan={getUnitMeterTypes(immobilie).length + 3} className="py-0 px-2">
+                                  <ZaehlerHistorie einheitId={einheit.id} />
+                                </TableCell>
+                              </TableRow>
                             );
                           })}
                         </TableBody>
