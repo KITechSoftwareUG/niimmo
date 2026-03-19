@@ -472,7 +472,7 @@ export function PaymentAssignmentResultsModal({
         {/* Results Table - Scrollable */}
         <div className="flex-1 min-h-0 overflow-hidden">
           <ScrollArea className="h-full">
-            <Table>
+            <Table className="min-w-[1050px]">
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
                   <TableHead className="w-[40px]">
