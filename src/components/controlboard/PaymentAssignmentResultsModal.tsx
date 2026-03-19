@@ -624,6 +624,7 @@ export function PaymentAssignmentResultsModal({
                 })}
               </TableBody>
             </Table>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
 
