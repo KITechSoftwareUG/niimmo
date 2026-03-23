@@ -14,6 +14,7 @@ import { Loader2, AlertTriangle, Download, Mail, Send, ArrowLeft, FileText, Eye,
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateMahnungPdf, type MahnungPdfData } from "@/utils/mahnungPdfGenerator";
+import { berechneAlleVerzugszinsen } from "@/utils/verzugszinsen";
 
 interface MahnungErstellungModalProps {
   isOpen: boolean;
@@ -86,6 +87,7 @@ export function MahnungErstellungModal({
   // Zahlungsfrist
   const [zahlungsfristTage, setZahlungsfristTage] = useState<string>("7");
   const [raeumungsfristTage, setRaeumungsfristTage] = useState<string>("14");
+  const [uebergabeDatum, setUebergabeDatum] = useState<string>("");
   
   // Freitext
   const [useFreitext, setUseFreitext] = useState(false);
@@ -120,6 +122,7 @@ export function MahnungErstellungModal({
       setVerzugszinsenDetails([]);
       setZahlungsfristTage("7");
       setRaeumungsfristTage("14");
+      setUebergabeDatum("");
       setUseFreitext(false);
       setFreitext("");
     }
@@ -176,12 +179,15 @@ export function MahnungErstellungModal({
       mahnkostenGesamt: parseFloat(mahnkostenGesamt) || 0,
       zahlungsfristDatum: zahlungsfristStr,
       raeumungsfristDatum: raeumungsfristStr,
+      uebergabeDatum: uebergabeDatum
+        ? new Date(uebergabeDatum).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : undefined,
       freitext: useFreitext ? freitext : undefined,
     };
-  }, [contractData, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung, 
+  }, [contractData, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung,
       gesamtRueckstand, anzahlMonatsmieten, verzugszinsenDetails, verzugszinsenGesamt,
       mahnkostenProSchreiben, anzahlMahnschreiben, mahnkostenGesamt,
-      zahlungsfristTage, raeumungsfristTage, mahnstufe, useFreitext, freitext]);
+      zahlungsfristTage, raeumungsfristTage, uebergabeDatum, mahnstufe, useFreitext, freitext]);
 
   // Generate PDF preview with debounce
   const regeneratePreview = useCallback(async () => {
@@ -220,7 +226,7 @@ export function MahnungErstellungModal({
   }, [isOpen, step, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung,
       gesamtRueckstand, anzahlMonatsmieten, verzugszinsenGesamt,
       mahnkostenProSchreiben, anzahlMahnschreiben, mahnkostenGesamt,
-      zahlungsfristTage, raeumungsfristTage, useFreitext, freitext, verzugszinsenDetails]);
+      zahlungsfristTage, raeumungsfristTage, uebergabeDatum, useFreitext, freitext, verzugszinsenDetails]);
 
   // Cleanup blob URL on unmount
   useEffect(() => {
@@ -344,6 +350,30 @@ export function MahnungErstellungModal({
       setIsSendingEmail(false);
     }
   };
+
+  const autoBerechneVerzugszinsen = useCallback(() => {
+    // Erstelle Posten aus den offenen Forderungen - approximiere Faelligkeitsdaten
+    // Nehme den Rueckstand und verteile ihn auf die Anzahl Monate
+    const parsedBetrag = parseFloat(gesamtRueckstand) || 0;
+    const monate = parseInt(anzahlMonatsmieten) || 1;
+    const monatsBetrag = parsedBetrag / monate;
+    const heute = new Date();
+
+    const posten: Array<{ betrag: number; faelligAb: string }> = [];
+    for (let i = 0; i < monate; i++) {
+      // Faelligkeit: i+1 Monate zurueck, jeweils am 4. (3 Tage Kulanz nach Monatsersten)
+      const faellig = new Date(heute.getFullYear(), heute.getMonth() - (monate - i), 4);
+      posten.push({ betrag: monatsBetrag, faelligAb: faellig.toISOString().split('T')[0] });
+    }
+
+    const ergebnis = berechneAlleVerzugszinsen(posten, heute);
+
+    setVerzugszinsenDetails(ergebnis.details.map(d => ({
+      monat: `${d.monat} (${d.tage} Tage, ${d.verzugszinssatz.toFixed(2)}%)`,
+      betrag: d.zinsbetrag,
+    })));
+    setVerzugszinsenGesamt(ergebnis.gesamt.toFixed(2));
+  }, [gesamtRueckstand, anzahlMonatsmieten]);
 
   const addVerzugszinsenDetail = () => {
     setVerzugszinsenDetails(prev => [...prev, { monat: '', betrag: 0 }]);
@@ -489,7 +519,19 @@ export function MahnungErstellungModal({
 
                   {/* Verzugszinsen */}
                   <div>
-                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Verzugszinsen</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Verzugszinsen</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={autoBerechneVerzugszinsen}
+                        disabled={parseFloat(gesamtRueckstand) <= 0}
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" />
+                        Auto berechnen
+                      </Button>
+                    </div>
                     <div className="space-y-3">
                       {verzugszinsenDetails.map((detail, i) => (
                         <div key={i} className="flex gap-2 items-end">
@@ -570,24 +612,36 @@ export function MahnungErstellungModal({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label className="text-xs">Zahlungsfrist (Tage)</Label>
-                        <Input 
-                          type="number" 
-                          value={zahlungsfristTage} 
-                          onChange={(e) => setZahlungsfristTage(e.target.value)} 
+                        <Input
+                          type="number"
+                          value={zahlungsfristTage}
+                          onChange={(e) => setZahlungsfristTage(e.target.value)}
                           className="mt-1 h-9"
                         />
                       </div>
                       {mahnstufe >= 3 && (
                         <div>
                           <Label className="text-xs">Räumungsfrist (Tage)</Label>
-                          <Input 
-                            type="number" 
-                            value={raeumungsfristTage} 
-                            onChange={(e) => setRaeumungsfristTage(e.target.value)} 
+                          <Input
+                            type="number"
+                            value={raeumungsfristTage}
+                            onChange={(e) => setRaeumungsfristTage(e.target.value)}
                             className="mt-1 h-9"
                           />
                         </div>
                       )}
+                    </div>
+                    <div className="mt-3">
+                      <Label className="text-xs">Übergabedatum (optional)</Label>
+                      <Input
+                        type="date"
+                        value={uebergabeDatum}
+                        onChange={(e) => setUebergabeDatum(e.target.value)}
+                        className="mt-1 h-9"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Wird im Brief als Termin für die Wohnungsübergabe angegeben.
+                      </p>
                     </div>
                   </div>
 

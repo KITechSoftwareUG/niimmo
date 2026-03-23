@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, AlertTriangle, Download, FileText, Eye, RefreshCw, Upload, X, Calendar, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { generateKuendigungPdf, type KuendigungPdfData } from "@/utils/kuendigungPdfGenerator";
+import { generateKuendigungPdf, type KuendigungPdfData, type KuendigungsTyp } from "@/utils/kuendigungPdfGenerator";
 import { terminationWebhookService } from "@/services/terminationWebhookService";
 import { DocumentDragDropZone } from "../DocumentDragDropZone";
 import { Progress } from "@/components/ui/progress";
@@ -59,6 +59,7 @@ export const TerminationDialog = ({
   const [startDatum, setStartDatum] = useState<string | null>(null);
 
   // ====== Manual Tab State ======
+  const [kuendigungstyp, setKuendigungstyp] = useState<KuendigungsTyp>("ordentlich");
   const [kuendigungsdatum, setKuendigungsdatum] = useState("");
   const [auszugsdatum, setAuszugsdatum] = useState("");
   const [kuendigungsgrund, setKuendigungsgrund] = useState("");
@@ -125,6 +126,7 @@ export const TerminationDialog = ({
       setActiveTab("manual");
       setShowConfirm(false);
       setShowUploadConfirm(false);
+      setKuendigungstyp("ordentlich");
       setKuendigungsdatum("");
       setAuszugsdatum("");
       setKuendigungsgrund("");
@@ -173,13 +175,14 @@ export const TerminationDialog = ({
       vertragStart,
       kuendigungsdatum: kuendigungFormatted,
       kuendigungsgrund,
+      kuendigungstyp,
       datum: datumStr,
       auszugsdatum: auszugFormatted,
       freitext: useFreitext ? freitext : undefined,
       bemerkungen: bemerkungen || undefined,
     };
   }, [mieterList, startDatum, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung,
-    immobilie, kuendigungsdatum, auszugsdatum, kuendigungsgrund, bemerkungen,
+    immobilie, kuendigungsdatum, auszugsdatum, kuendigungsgrund, kuendigungstyp, bemerkungen,
     useFreitext, freitext]);
 
   // Generate PDF preview
@@ -210,7 +213,7 @@ export const TerminationDialog = ({
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
   }, [isOpen, activeTab, anrede, mieterAdresse, mieterPlzOrt, einheitBezeichnung,
-    kuendigungsdatum, auszugsdatum, kuendigungsgrund, bemerkungen, useFreitext, freitext, mieterList, startDatum]);
+    kuendigungsdatum, auszugsdatum, kuendigungsgrund, kuendigungstyp, bemerkungen, useFreitext, freitext, mieterList, startDatum]);
 
   // Cleanup
   useEffect(() => {
@@ -465,9 +468,22 @@ export const TerminationDialog = ({
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Kündigungsdetails</h3>
                       <div className="space-y-3">
                         <div>
+                          <Label className="text-xs">Kündigungsart</Label>
+                          <Select value={kuendigungstyp} onValueChange={(v) => setKuendigungstyp(v as KuendigungsTyp)}>
+                            <SelectTrigger className="mt-1 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ordentlich">Ordentliche Kündigung</SelectItem>
+                              <SelectItem value="ausserordentlich_fristlos">Außerordentlich (fristlos)</SelectItem>
+                              <SelectItem value="ausserordentlich_mit_frist">Außerordentlich (mit Frist)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
                           <Label className="text-xs flex items-center gap-1.5">
                             <Calendar className="h-3.5 w-3.5" />
-                            Kündigungsdatum *
+                            {kuendigungstyp === 'ausserordentlich_fristlos' ? 'Kündigungsdatum *' : 'Kündigungsdatum / Zum-Datum *'}
                           </Label>
                           <Input
                             type="date"
@@ -480,7 +496,9 @@ export const TerminationDialog = ({
                           />
                         </div>
                         <div>
-                          <Label className="text-xs">Auszugsdatum</Label>
+                          <Label className="text-xs">
+                            {kuendigungstyp === 'ausserordentlich_fristlos' ? 'Räumungsfrist bis' : 'Auszugsdatum'}
+                          </Label>
                           <Input
                             type="date"
                             value={auszugsdatum}
@@ -490,23 +508,43 @@ export const TerminationDialog = ({
                         </div>
                         <div>
                           <Label className="text-xs">Kündigungsgrund</Label>
-                          <Input
+                          <Select
                             value={kuendigungsgrund}
-                            onChange={(e) => setKuendigungsgrund(e.target.value)}
-                            placeholder="z.B. Eigenbedarf, Modernisierung..."
-                            className="mt-1 h-9"
-                          />
+                            onValueChange={setKuendigungsgrund}
+                          >
+                            <SelectTrigger className="mt-1 h-9">
+                              <SelectValue placeholder="Grund auswählen..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Zahlungsverzug">Zahlungsverzug</SelectItem>
+                              <SelectItem value="Eigenbedarf">Eigenbedarf</SelectItem>
+                              <SelectItem value="Vertragsverletzung">Vertragsverletzung</SelectItem>
+                              <SelectItem value="Wirtschaftliche Verwertung">Wirtschaftliche Verwertung</SelectItem>
+                              <SelectItem value="Modernisierung">Modernisierung</SelectItem>
+                              <SelectItem value="Sonstiges">Sonstiges</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {kuendigungsgrund === 'Sonstiges' && (
+                            <Input
+                              value={bemerkungen}
+                              onChange={(e) => setBemerkungen(e.target.value)}
+                              placeholder="Grund beschreiben..."
+                              className="mt-2 h-9"
+                            />
+                          )}
                         </div>
-                        <div>
-                          <Label className="text-xs">Bemerkungen</Label>
-                          <Textarea
-                            value={bemerkungen}
-                            onChange={(e) => setBemerkungen(e.target.value)}
-                            placeholder="Zusätzliche Informationen..."
-                            rows={2}
-                            className="mt-1"
-                          />
-                        </div>
+                        {kuendigungsgrund !== 'Sonstiges' && (
+                          <div>
+                            <Label className="text-xs">Bemerkungen</Label>
+                            <Textarea
+                              value={bemerkungen}
+                              onChange={(e) => setBemerkungen(e.target.value)}
+                              placeholder="Zusätzliche Informationen..."
+                              rows={2}
+                              className="mt-1"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 

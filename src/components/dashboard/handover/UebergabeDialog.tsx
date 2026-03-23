@@ -13,12 +13,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check, RotateCcw, Mail, Eye, Send } from "lucide-react";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check, RotateCcw, Mail, Eye, Send, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SignatureCanvas } from "./SignatureCanvas";
 import { MeterPhotoUpload } from "./MeterPhotoUpload";
 import { NotizenPhotoUpload } from "./NotizenPhotoUpload";
 import { UebergabeEmailDialog } from "./UebergabeEmailDialog";
+import { VersorgerBenachrichtigungDialog } from "./VersorgerBenachrichtigungDialog";
 import { generateUebergabePdf, type UebergabePdfData } from "@/utils/uebergabePdfGenerator";
 
 interface ContractInfo {
@@ -27,7 +28,9 @@ interface ContractInfo {
     id: string;
     nummer?: string;
     etage?: string;
+    immobilie_id?: string;
     immobilie: {
+      id?: string;
       name: string;
       adresse: string;
     };
@@ -118,6 +121,7 @@ export const UebergabeDialog = ({
   
   // Email dialog
   const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [showVersorgerDialog, setShowVersorgerDialog] = useState(false);
   
   // Confirmation dialog
   const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
@@ -507,6 +511,10 @@ export const UebergabeDialog = ({
             <FileDown className="mr-1 h-4 w-4" />
             Download
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowVersorgerDialog(true)}>
+            <Zap className="mr-1 h-4 w-4" />
+            Versorger
+          </Button>
           <Button size="sm" onClick={() => setShowConfirmFinalize(true)} disabled={isSubmitting}>
             <Send className="mr-1 h-4 w-4" />
             Abschließen & Senden
@@ -544,6 +552,26 @@ export const UebergabeDialog = ({
     />
   );
 
+  // Versorger dialog
+  const firstContract = contracts[0];
+  const versorgerDialogComponent = showVersorgerDialog && uebergabeDatum && firstContract && (
+    <VersorgerBenachrichtigungDialog
+      isOpen={showVersorgerDialog}
+      onClose={() => setShowVersorgerDialog(false)}
+      immobilieId={firstContract.einheit.immobilie_id || firstContract.einheit.immobilie?.id || ''}
+      mieterName={mieterName || ""}
+      uebergabeDatum={uebergabeDatum}
+      zaehlerstaende={{
+        strom: zaehlerstaendePerContract[firstContract.id]?.strom,
+        gas: zaehlerstaendePerContract[firstContract.id]?.gas,
+        wasser: zaehlerstaendePerContract[firstContract.id]?.wasser,
+      }}
+      adresse={firstContract.einheit.immobilie.adresse}
+      einheitBezeichnung={firstContract.einheit.nummer ? `WE ${firstContract.einheit.nummer}` : undefined}
+      isEinzug={isEinzug}
+    />
+  );
+
   const confirmDialog = (
     <AlertDialog open={showConfirmFinalize} onOpenChange={setShowConfirmFinalize}>
       <AlertDialogContent>
@@ -569,6 +597,7 @@ export const UebergabeDialog = ({
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
         {confirmDialog}
         {emailDialogComponent}
+        {versorgerDialogComponent}
         <DrawerContent className="max-h-[95vh]">
           <DrawerHeader className="pb-2">
             <DrawerTitle className="flex items-center gap-2 text-lg">
@@ -588,6 +617,7 @@ export const UebergabeDialog = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       {confirmDialog}
       {emailDialogComponent}
+      {versorgerDialogComponent}
       <DialogContent className={cn(
         "max-h-[90vh] overflow-y-auto",
         showPreview ? "sm:max-w-[1100px]" : "sm:max-w-[900px]"

@@ -1,29 +1,32 @@
 import { jsPDF } from 'jspdf';
 
+export type KuendigungsTyp = 'ordentlich' | 'ausserordentlich_fristlos' | 'ausserordentlich_mit_frist';
+
 export interface KuendigungPdfData {
-  // Empfänger
+  // Empfaenger
   anrede: string;
   mieterName: string;
   mieterNachname: string;
   mieterAdresse: string;
   mieterPlzOrt: string;
-  
+
   // Vertrag
   einheitBezeichnung: string;
   immobilieAdresse: string;
   vertragStart: string;
-  
-  // Kündigung
+
+  // Kuendigung
   kuendigungsdatum: string;
   kuendigungsgrund: string;
+  kuendigungstyp: KuendigungsTyp;
   datum: string;
-  
+
   // Fristen
   auszugsdatum: string;
-  
+
   // Freitext
   freitext?: string;
-  
+
   // Bemerkungen
   bemerkungen?: string;
 }
@@ -180,7 +183,13 @@ export async function generateKuendigungPdf(data: KuendigungPdfData): Promise<Bl
   const subjectLine1 = `MV – ${data.immobilieAdresse}, ${data.einheitBezeichnung}`;
   doc.text(subjectLine1, marginLeft, y);
   y += 6;
-  doc.text('Kündigung des Mietvertrages', marginLeft, y);
+  const typ = data.kuendigungstyp || 'ordentlich';
+  const subjectLine2 = typ === 'ausserordentlich_fristlos'
+    ? 'Außerordentliche fristlose Kündigung des Mietvertrages'
+    : typ === 'ausserordentlich_mit_frist'
+      ? 'Außerordentliche Kündigung des Mietvertrages'
+      : 'Kündigung des Mietvertrages';
+  doc.text(subjectLine2, marginLeft, y);
   
   // ============ BODY TEXT ============
   y += 12;
@@ -197,8 +206,17 @@ export async function generateKuendigungPdf(data: KuendigungPdfData): Promise<Bl
     y = drawJustifiedText(data.freitext, marginLeft, y, contentWidth, lineHeight);
     y += 4;
   } else {
-    // Standard-Kündigungstext
-    const introText = `hiermit kündigen wir das bestehende Mietverhältnis über die Wohnung in der ${data.immobilieAdresse}, ${data.einheitBezeichnung}, begründet durch den Mietvertrag vom ${data.vertragStart}, ordentlich zum ${data.kuendigungsdatum}.`;
+    // Standardtext je nach Kuendigungstyp
+    let introText: string;
+
+    if (typ === 'ausserordentlich_fristlos') {
+      introText = `hiermit kündigen wir das bestehende Mietverhältnis über die Wohnung in der ${data.immobilieAdresse}, ${data.einheitBezeichnung}, begründet durch den Mietvertrag vom ${data.vertragStart}, außerordentlich fristlos.`;
+    } else if (typ === 'ausserordentlich_mit_frist') {
+      introText = `hiermit kündigen wir das bestehende Mietverhältnis über die Wohnung in der ${data.immobilieAdresse}, ${data.einheitBezeichnung}, begründet durch den Mietvertrag vom ${data.vertragStart}, außerordentlich zum ${data.kuendigungsdatum}.`;
+    } else {
+      introText = `hiermit kündigen wir das bestehende Mietverhältnis über die Wohnung in der ${data.immobilieAdresse}, ${data.einheitBezeichnung}, begründet durch den Mietvertrag vom ${data.vertragStart}, ordentlich zum ${data.kuendigungsdatum}.`;
+    }
+
     y = drawJustifiedText(introText, marginLeft, y, contentWidth, lineHeight);
     y += 4;
 
@@ -208,9 +226,19 @@ export async function generateKuendigungPdf(data: KuendigungPdfData): Promise<Bl
       y += 4;
     }
 
-    const auszugText = `Wir bitten Sie, die Wohnung bis zum ${data.auszugsdatum} geräumt und in ordnungsgemäßem Zustand zu übergeben. Bitte vereinbaren Sie rechtzeitig einen Übergabetermin mit uns.`;
-    y = drawJustifiedText(auszugText, marginLeft, y, contentWidth, lineHeight);
-    y += 4;
+    if (typ === 'ausserordentlich_fristlos') {
+      const fristlosText = `Wir fordern Sie auf, die Wohnung unverzüglich, spätestens jedoch bis zum ${data.auszugsdatum}, zu räumen und in ordnungsgemäßem Zustand zu übergeben.`;
+      y = drawJustifiedText(fristlosText, marginLeft, y, contentWidth, lineHeight);
+      y += 4;
+
+      const widerspruchText = 'Der Kündigung kann gemäß § 574 BGB innerhalb von zwei Monaten vor Beendigung des Mietverhältnisses schriftlich widersprochen werden, sofern die Beendigung eine unzumutbare Härte darstellen würde.';
+      y = drawJustifiedText(widerspruchText, marginLeft, y, contentWidth, lineHeight);
+      y += 4;
+    } else {
+      const auszugText = `Wir bitten Sie, die Wohnung bis zum ${data.auszugsdatum} geräumt und in ordnungsgemäßem Zustand zu übergeben. Bitte vereinbaren Sie rechtzeitig einen Übergabetermin mit uns.`;
+      y = drawJustifiedText(auszugText, marginLeft, y, contentWidth, lineHeight);
+      y += 4;
+    }
 
     const kautionText = 'Die Abrechnung der Mietkaution erfolgt nach Beendigung des Mietverhältnisses und Prüfung des Wohnungszustandes gemäß den gesetzlichen Bestimmungen.';
     y = drawJustifiedText(kautionText, marginLeft, y, contentWidth, lineHeight);

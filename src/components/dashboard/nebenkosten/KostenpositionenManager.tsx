@@ -69,6 +69,7 @@ export function KostenpositionenManager({
   const [editingPosition, setEditingPosition] = useState<Kostenposition | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showAllZahlungen, setShowAllZahlungen] = useState(false);
 
   // Fetch kostenpositionen
   const { data: kostenpositionen, isLoading } = useQuery({
@@ -198,9 +199,9 @@ export function KostenpositionenManager({
               <p className="text-xs text-amber-700 mb-3">
                 Diese Zahlungen sollten in Kostenpositionen umgewandelt werden, um sie korrekt in der Abrechnung zu berücksichtigen.
               </p>
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {zahlungenOhnePosition.slice(0, 5).map((zahlung) => (
-                  <div 
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {(showAllZahlungen ? zahlungenOhnePosition : zahlungenOhnePosition.slice(0, 5)).map((zahlung) => (
+                  <div
                     key={zahlung.id}
                     className="flex items-center justify-between p-2 bg-white rounded border"
                   >
@@ -211,6 +212,11 @@ export function KostenpositionenManager({
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy', { locale: de })} • {Math.abs(zahlung.betrag).toFixed(2)} €
                       </p>
+                      {zahlung.verwendungszweck && (
+                        <p className="text-xs text-muted-foreground truncate" title={zahlung.verwendungszweck}>
+                          {zahlung.verwendungszweck}
+                        </p>
+                      )}
                     </div>
                     <Button
                       size="sm"
@@ -224,9 +230,15 @@ export function KostenpositionenManager({
                   </div>
                 ))}
                 {zahlungenOhnePosition.length > 5 && (
-                  <p className="text-xs text-center text-amber-700">
-                    + {zahlungenOhnePosition.length - 5} weitere
-                  </p>
+                  <button
+                    type="button"
+                    className="w-full text-xs text-amber-700 hover:text-amber-900 hover:underline text-center py-1"
+                    onClick={() => setShowAllZahlungen(!showAllZahlungen)}
+                  >
+                    {showAllZahlungen
+                      ? 'Weniger anzeigen'
+                      : `+ ${zahlungenOhnePosition.length - 5} weitere anzeigen`}
+                  </button>
                 )}
               </div>
             </div>

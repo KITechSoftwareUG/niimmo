@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, TrendingUp, Download, Eye, Save } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, TrendingUp, Download, Eye, Save, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateMieterhoehungPdf, type MieterhoehungPdfData } from "@/utils/mieterhoehungPdfGenerator";
@@ -51,6 +52,32 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
   const [mieterAdresse, setMieterAdresse] = useState("");
   const [mieterPlzOrt, setMieterPlzOrt] = useState("");
   const [einheitBezeichnung, setEinheitBezeichnung] = useState("WE");
+  const [istAngespannt, setIstAngespannt] = useState(false);
+  const [erhoehungsModus, setErhoehungsModus] = useState<'standard' | 'indexmiete'>('standard');
+  const [vpiAlt, setVpiAlt] = useState("");
+  const [vpiNeu, setVpiNeu] = useState("");
+
+  // Kappungsgrenze: 15% (angespannt) oder 20% (normal) in 36 Monaten
+  const kappungsgrenze = istAngespannt ? 15 : 20;
+  const maxKaltmiete = contractData ? contractData.current_kaltmiete * (1 + kappungsgrenze / 100) : 0;
+  const erhoehungProzent = contractData && contractData.current_kaltmiete > 0
+    ? ((parseFloat(neueKaltmiete) - contractData.current_kaltmiete) / contractData.current_kaltmiete * 100)
+    : 0;
+  const ueberKappung = erhoehungProzent > kappungsgrenze;
+
+  // Fetch ist_angespannt from immobilien
+  useEffect(() => {
+    if (!isOpen || !contractData?.immobilie_id) return;
+    const fetchAngespannt = async () => {
+      const { data } = await supabase
+        .from('immobilien')
+        .select('ist_angespannt')
+        .eq('id', contractData.immobilie_id)
+        .single();
+      setIstAngespannt(data?.ist_angespannt ?? false);
+    };
+    fetchAngespannt();
+  }, [isOpen, contractData?.immobilie_id]);
 
   // Reset when modal opens
   useEffect(() => {
@@ -63,8 +90,24 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
         ? contractData.immobilie_adresse.split(',').slice(1).join(',').trim()
         : '');
       setEinheitBezeichnung("WE");
+      setErhoehungsModus('standard');
+      setVpiAlt("");
+      setVpiNeu("");
     }
   }, [isOpen, contractData]);
+
+  // VPI Berechnung: neue Kaltmiete aus Index ableiten
+  useEffect(() => {
+    if (erhoehungsModus !== 'indexmiete' || !contractData) return;
+    const alt = parseFloat(vpiAlt);
+    const neu = parseFloat(vpiNeu);
+    if (!alt || !neu || alt <= 0) return;
+    const prozent = ((neu - alt) / alt) * 100;
+    if (prozent > 0) {
+      const neuerBetrag = contractData.current_kaltmiete * (1 + prozent / 100);
+      setNeueKaltmiete(neuerBetrag.toFixed(2));
+    }
+  }, [erhoehungsModus, vpiAlt, vpiNeu, contractData]);
 
   // Build PDF data
   const buildPdfData = useCallback((): MieterhoehungPdfData | null => {
@@ -293,6 +336,65 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
 
                 {/* New rent (editable) */}
                 <div className="space-y-3">
+                  <h3 className="text-sm font-semibold">Berechnungsmodus</h3>
+                  <Select value={erhoehungsModus} onValueChange={(v) => setErhoehungsModus(v as 'standard' | 'indexmiete')}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard (manuelle Eingabe)</SelectItem>
+                      <SelectItem value="indexmiete">Indexmiete (VPI)</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {erhoehungsModus === 'indexmiete' && (
+                    <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/20 space-y-2">
+                      <p className="text-xs font-medium text-blue-800 dark:text-blue-200 flex items-center gap-1">
+                        <Calculator className="h-3.5 w-3.5" />
+                        Verbraucherpreisindex (Statistisches Bundesamt)
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Alter Index</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={vpiAlt}
+                            onChange={(e) => setVpiAlt(e.target.value)}
+                            placeholder="z.B. 117.4"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Neuer Index</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={vpiNeu}
+                            onChange={(e) => setVpiNeu(e.target.value)}
+                            placeholder="z.B. 121.1"
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                      </div>
+                      {vpiAlt && vpiNeu && parseFloat(vpiAlt) > 0 && (
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          Erhöhung: {(((parseFloat(vpiNeu) - parseFloat(vpiAlt)) / parseFloat(vpiAlt)) * 100).toFixed(2)}%
+                        </p>
+                      )}
+                      <a
+                        href="https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Aktuellen VPI beim Statistischen Bundesamt abrufen
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
                   <h3 className="text-sm font-semibold">Neue Miete</h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -315,6 +417,18 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
                         className="h-8 text-sm"
                       />
                     </div>
+                  </div>
+
+                  {/* Kappungsgrenze Hinweis */}
+                  <div className={`p-2 rounded text-xs ${ueberKappung ? 'bg-destructive/10 border border-destructive/30 text-destructive' : 'bg-muted text-muted-foreground'}`}>
+                    <p className="font-medium">
+                      Kappungsgrenze: {kappungsgrenze}% in 36 Monaten
+                      {istAngespannt && ' (angespannter Markt)'}
+                    </p>
+                    <p>
+                      Max. Kaltmiete: {maxKaltmiete.toFixed(2)} € | Erhöhung: {erhoehungProzent.toFixed(1)}%
+                      {ueberKappung && ' — Überschreitung!'}
+                    </p>
                   </div>
                 </div>
 

@@ -39,7 +39,8 @@ export interface MahnungPdfData {
   // Zahlungsfrist
   zahlungsfristDatum: string;
   raeumungsfristDatum?: string;
-  
+  uebergabeDatum?: string;
+
   // Freitext
   freitext?: string;
 }
@@ -289,7 +290,14 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
     const kuendigungText = `Hiermit kündige ich daher das bestehende Mietverhältnis über die Wohnung in der ${data.immobilieAdresse}, ${data.einheitBezeichnung} außerordentlich fristlos. Wir fordern Sie auf die Wohnung unverzüglich, spätestens jedoch bis zum ${data.raeumungsfristDatum || data.zahlungsfristDatum} zu räumen.`;
     y = drawJustifiedText(kuendigungText, marginLeft, y, contentWidth, lineHeight);
     y += 4;
-    
+
+    if (data.uebergabeDatum) {
+      y = checkPageBreak(y, 15);
+      const uebergabeText = `Die Wohnungsübergabe findet am ${data.uebergabeDatum} statt. Bitte stellen Sie sicher, dass die Wohnung zu diesem Zeitpunkt vollständig geräumt und besenrein übergeben wird.`;
+      y = drawJustifiedText(uebergabeText, marginLeft, y, contentWidth, lineHeight);
+      y += 4;
+    }
+
     y = checkPageBreak(y, 20);
     const fristText = `Unabhängig hiervon setze ich Ihnen – ohne Anerkennung einer Rechtspflicht – eine Frist von 7 Kalendertagen, spätestens bis zum ${data.zahlungsfristDatum}, um sämtliche Mietrückstände nebst Zinsen vollständig auszugleichen. Sollten Sie die Rückstände nicht innerhalb dieser Frist begleichen, werde ich die fristlose Kündigung vollumfänglich durchsetzen und Räumungsklage erheben.`;
     y = drawJustifiedText(fristText, marginLeft, y, contentWidth, lineHeight);
@@ -299,7 +307,14 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
     const zahlungsText = `Wir bitten Sie, den Gesamtbetrag bis zum ${data.zahlungsfristDatum} auf unser Konto zu überweisen.`;
     y = drawJustifiedText(zahlungsText, marginLeft, y, contentWidth, lineHeight);
     y += 4;
-    
+
+    if (data.uebergabeDatum) {
+      y = checkPageBreak(y, 15);
+      const uebergabeText = `Die Wohnungsübergabe findet am ${data.uebergabeDatum} statt. Bitte stellen Sie sicher, dass die Wohnung zu diesem Zeitpunkt vollständig geräumt und besenrein übergeben wird.`;
+      y = drawJustifiedText(uebergabeText, marginLeft, y, contentWidth, lineHeight);
+      y += 4;
+    }
+
     if (data.mahnstufe === 2) {
       y = checkPageBreak(y, lineHeight + 4);
       doc.text('Bei ausbleibender Zahlung behalten wir uns rechtliche Schritte vor.', marginLeft, y);

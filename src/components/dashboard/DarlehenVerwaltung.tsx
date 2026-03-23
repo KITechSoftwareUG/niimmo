@@ -76,6 +76,17 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   const [editingImmoField, setEditingImmoField] = useState<{ id: string; field: 'kaufpreis' | 'marktwert' } | null>(null);
   const [editingImmoValue, setEditingImmoValue] = useState("");
 
+  // Auto-Matching state
+  const [isMatching, setIsMatching] = useState(false);
+  const [matchResults, setMatchResults] = useState<Array<{
+    zahlung_id: string;
+    darlehen_id: string;
+    betrag: number;
+    buchungsdatum: string;
+    verwendungszweck: string;
+    bank_name: string;
+  }> | null>(null);
+
   // Fetch all Darlehen
   const { data: darlehen, isLoading } = useQuery({
     queryKey: ["darlehen"],
@@ -322,6 +333,98 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     onError: (err: any) => toast.error('Fehler beim Speichern: ' + err.message),
   });
 
+  // Auto-Matching: Bankzahlungen mit Darlehen ueber Kontonummer/IBAN abgleichen
+  const handleAutoMatch = async () => {
+    if (!darlehen || darlehen.length === 0) return;
+    setIsMatching(true);
+    setMatchResults(null);
+
+    try {
+      // Sammle alle Kontonummern der Darlehen
+      const kontoMap = new Map<string, string>(); // kontonummer -> darlehen_id
+      for (const d of darlehen) {
+        if (d.kontonummer) {
+          kontoMap.set(d.kontonummer.trim(), d.id);
+        }
+      }
+
+      if (kontoMap.size === 0) {
+        toast.info('Keine Kontonummern bei Darlehen hinterlegt.');
+        setIsMatching(false);
+        return;
+      }
+
+      // Bereits zugeordnete Zahlungs-IDs ermitteln
+      const existingIds = new Set(
+        (darlehenZahlungen || []).map((dz: any) => dz.zahlung_ref_id).filter(Boolean)
+      );
+
+      // Zahlungen laden die potenziell zu Darlehen gehoeren
+      const { data: zahlungen, error } = await supabase
+        .from('zahlungen')
+        .select('id, betrag, buchungsdatum, verwendungszweck, empfaengername, iban')
+        .or(Array.from(kontoMap.keys()).map(k => `iban.ilike.%${k}%`).join(','))
+        .order('buchungsdatum', { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+
+      // Matche Zahlungen zu Darlehen
+      const matches: typeof matchResults = [];
+      for (const z of (zahlungen || [])) {
+        if (existingIds.has(z.id)) continue;
+
+        for (const [konto, darlehenId] of kontoMap.entries()) {
+          if (z.iban && z.iban.includes(konto)) {
+            const d = darlehen.find(x => x.id === darlehenId);
+            matches.push({
+              zahlung_id: z.id,
+              darlehen_id: darlehenId,
+              betrag: Math.abs(z.betrag),
+              buchungsdatum: z.buchungsdatum,
+              verwendungszweck: z.verwendungszweck || '',
+              bank_name: d?.bank || '',
+            });
+            break;
+          }
+        }
+      }
+
+      setMatchResults(matches);
+      if (matches.length === 0) {
+        toast.info('Keine neuen Zahlungen gefunden, die zu Darlehen passen.');
+      } else {
+        toast.success(`${matches.length} passende Zahlungen gefunden!`);
+      }
+    } catch (err: any) {
+      toast.error('Fehler beim Abgleich: ' + err.message);
+    } finally {
+      setIsMatching(false);
+    }
+  };
+
+  // Gefundene Matches als darlehen_zahlungen speichern
+  const saveMatchesMutation = useMutation({
+    mutationFn: async (matches: NonNullable<typeof matchResults>) => {
+      const inserts = matches.map(m => ({
+        darlehen_id: m.darlehen_id,
+        buchungsdatum: m.buchungsdatum,
+        betrag: m.betrag,
+        zinsanteil: 0,
+        tilgungsanteil: m.betrag,
+        zahlung_ref_id: m.zahlung_id,
+      }));
+      const { error } = await supabase.from('darlehen_zahlungen').insert(inserts);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['darlehen-zahlungen'] });
+      toast.success('Zahlungen erfolgreich zugeordnet!');
+      setMatchResults(null);
+    },
+    onError: (err: any) => toast.error('Fehler: ' + err.message),
+  });
+
   const openEdit = (d: any) => {
     const assignedIds = darlehenImmobilien?.filter((di) => di.darlehen_id === d.id).map((di) => di.immobilie_id) || [];
     setForm({
@@ -491,6 +594,10 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                 <ClipboardPaste className="h-4 w-4" />
                 <span className="hidden sm:inline">Tilgungsplan einfügen</span>
               </Button>
+              <Button onClick={handleAutoMatch} size="sm" variant="outline" className="gap-1.5" disabled={isMatching}>
+                {isMatching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpDown className="h-4 w-4" />}
+                <span className="hidden sm:inline">Zahlungen abgleichen</span>
+              </Button>
               <Button onClick={() => { resetForm(); setShowForm(true); }} size="sm" className="gap-1.5">
                 <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Neues Darlehen</span>
               </Button>
@@ -511,6 +618,55 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
             <KpiCard icon={BarChart3} label="Wertsteigerung" value={`${portfolioMetrics.wertsteigerung >= 0 ? '+' : ''}${portfolioMetrics.wertsteigerung.toFixed(1)}%`} variant={portfolioMetrics.wertsteigerung >= 0 ? 'success' : 'destructive'} />
           )}
         </div>
+
+        {/* Auto-Matching Ergebnisse */}
+        {matchResults && matchResults.length > 0 && (
+          <Card className="mb-4 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+            <CardHeader className="py-3 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4" />
+                  {matchResults.length} Zahlungen gefunden
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setMatchResults(null)}
+                  >
+                    Verwerfen
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveMatchesMutation.mutate(matchResults)}
+                    disabled={saveMatchesMutation.isPending}
+                  >
+                    {saveMatchesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />}
+                    Alle zuordnen
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0 px-4 pb-3">
+              <div className="max-h-[200px] overflow-y-auto space-y-1.5">
+                {matchResults.map((m, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs p-2 bg-white dark:bg-background rounded border">
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium">{m.bank_name}</span>
+                      <span className="text-muted-foreground ml-2">{m.buchungsdatum}</span>
+                      {m.verwendungszweck && (
+                        <p className="text-muted-foreground truncate">{m.verwendungszweck}</p>
+                      )}
+                    </div>
+                    <span className="font-bold whitespace-nowrap ml-2">
+                      {m.betrag.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>

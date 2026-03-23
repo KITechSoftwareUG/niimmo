@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { 
-  Building2, Euro, Check, Calendar, Loader2, 
-  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X, EyeOff, ArrowUpCircle
+import {
+  Building2, Euro, Check, Calendar, Loader2,
+  Search, Undo2, Sparkles, ChevronDown, ChevronUp, GripVertical, X, EyeOff, ArrowUpCircle, ExternalLink
 } from "lucide-react";
+import { useNavigationState } from "@/hooks/useNavigationState";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import {
@@ -241,16 +242,35 @@ const PaymentCard = memo(function PaymentCard({
 
 export function NebenkostenZuordnungTab() {
   const queryClient = useQueryClient();
+  const { updateNav } = useNavigationState();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedZahlung, setSelectedZahlung] = useState<string | null>(null);
   const [selectedImmobilie, setSelectedImmobilie] = useState<string | null>(null);
   const [isClassifying, setIsClassifying] = useState(false);
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
+  const [expandedImmobilien, setExpandedImmobilien] = useState<Set<string>>(new Set());
   const [draggingZahlungId, setDraggingZahlungId] = useState<string | null>(null);
   const [dragOverImmobilieId, setDragOverImmobilieId] = useState<string | null>(null);
   const [nichtmieteOpen, setNichtmieteOpen] = useState(true);
   const [nebenkostenPage, setNebenkostenPage] = useState(1);
   const [nichtmietePage, setNichtmietePage] = useState(1);
+
+  const toggleImmobilieExpanded = useCallback((immoId: string) => {
+    setExpandedImmobilien(prev => {
+      const next = new Set(prev);
+      if (next.has(immoId)) next.delete(immoId);
+      else next.add(immoId);
+      return next;
+    });
+  }, []);
+
+  const navigateToImmobilie = useCallback((immoId: string) => {
+    updateNav({
+      selectedImmobilie: immoId,
+      showControlboard: false,
+      navigationSource: "dashboard",
+    });
+  }, [updateNav]);
 
   // Fetch alle Immobilien
   const { data: immobilien, isLoading: immobilienLoading } = useQuery({
@@ -793,9 +813,20 @@ export function NebenkostenZuordnungTab() {
                           <p className="text-xs text-muted-foreground truncate">{immo.adresse}</p>
                         </div>
                       </div>
-                      {hasPayments && (
-                        <Badge variant="secondary" className="text-xs">{zahlungen.length}</Badge>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {hasPayments && (
+                          <Badge variant="secondary" className="text-xs">{zahlungen.length}</Badge>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          title="Zur Immobilie (Nebenkosten-Tab)"
+                          onClick={() => navigateToImmobilie(immo.id)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
 
@@ -808,40 +839,58 @@ export function NebenkostenZuordnungTab() {
                   {hasPayments && !isDropTarget && (
                     <CardContent className="pt-0 px-3 pb-3">
                       <div className="space-y-1.5">
-                        {zahlungen.slice(0, 3).map((z: any) => (
+                        {(expandedImmobilien.has(immo.id) ? zahlungen : zahlungen.slice(0, 3)).map((z: any) => (
                           <div
                             key={z.id}
                             draggable
                             onDragStart={(e) => handleDragStart(e, z.id)}
                             onDragEnd={handleDragEnd}
                             className={cn(
-                              "p-1.5 rounded border bg-card text-xs flex items-center justify-between gap-1 cursor-grab active:cursor-grabbing group",
+                              "p-1.5 rounded border bg-card text-xs cursor-grab active:cursor-grabbing group",
                               draggingZahlungId === z.id && "opacity-50"
                             )}
                           >
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                              <span className="truncate">{z.empfaengername || 'Unbekannt'}</span>
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">{z.empfaengername || 'Unbekannt'}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="font-bold text-destructive whitespace-nowrap">
+                                  -{formatBetrag(z.betrag)}
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
+                                  onClick={() => unassignMutation.mutate(z.id)}
+                                >
+                                  <Undo2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <span className="font-bold text-destructive whitespace-nowrap">
-                                -{formatBetrag(z.betrag)}
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100"
-                                onClick={() => unassignMutation.mutate(z.id)}
-                              >
-                                <Undo2 className="h-3 w-3" />
-                              </Button>
-                            </div>
+                            {expandedImmobilien.has(immo.id) && (
+                              <div className="mt-1 pl-5 text-[11px] text-muted-foreground space-y-0.5">
+                                <p>{format(new Date(z.buchungsdatum), 'dd.MM.yyyy', { locale: de })}</p>
+                                {z.verwendungszweck && (
+                                  <p className="truncate" title={z.verwendungszweck}>{z.verwendungszweck}</p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
                         {zahlungen.length > 3 && (
-                          <p className="text-xs text-muted-foreground text-center">
-                            +{zahlungen.length - 3} weitere
-                          </p>
+                          <button
+                            type="button"
+                            className="w-full text-xs text-primary hover:underline text-center py-1 flex items-center justify-center gap-1"
+                            onClick={() => toggleImmobilieExpanded(immo.id)}
+                          >
+                            {expandedImmobilien.has(immo.id) ? (
+                              <><ChevronUp className="h-3 w-3" /> Weniger anzeigen</>
+                            ) : (
+                              <><ChevronDown className="h-3 w-3" /> +{zahlungen.length - 3} weitere anzeigen</>
+                            )}
+                          </button>
                         )}
                       </div>
                     </CardContent>
