@@ -13,13 +13,14 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check, RotateCcw, Mail, Eye, Send, Zap } from "lucide-react";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check, RotateCcw, Mail, Eye, Send, Zap, Flame, Droplets, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { SignatureCanvas } from "./SignatureCanvas";
 import { MeterPhotoUpload } from "./MeterPhotoUpload";
 import { NotizenPhotoUpload } from "./NotizenPhotoUpload";
 import { UebergabeEmailDialog } from "./UebergabeEmailDialog";
-import { VersorgerBenachrichtigungDialog } from "./VersorgerBenachrichtigungDialog";
 import { generateUebergabePdf, type UebergabePdfData } from "@/utils/uebergabePdfGenerator";
 
 interface ContractInfo {
@@ -121,10 +122,14 @@ export const UebergabeDialog = ({
   
   // Email dialog
   const [showEmailDialog, setShowEmailDialog] = useState(false);
-  const [showVersorgerDialog, setShowVersorgerDialog] = useState(false);
-  
+
   // Confirmation dialog
   const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
+
+  // Inline Versorger state
+  const [versorgerData, setVersorgerData] = useState<Array<{ typ: 'strom' | 'gas' | 'wasser'; label: string; name: string; email: string }>>([]);
+  const [versorgerSelected, setVersorgerSelected] = useState<Set<string>>(new Set());
+  const [versorgerCopied, setVersorgerCopied] = useState<string | null>(null);
   
   // Tenant data
   const [mieterData, setMieterData] = useState<MieterData[]>([]);
@@ -156,6 +161,58 @@ export const UebergabeDialog = ({
     };
     fetchMieterData();
   }, [vertragIds]);
+
+  // Fetch Versorger-Daten
+  useEffect(() => {
+    const immobilieId = contracts[0]?.einheit?.immobilie_id || contracts[0]?.einheit?.immobilie?.id;
+    if (!immobilieId) return;
+    const fetchVersorger = async () => {
+      const { data } = await supabase
+        .from('immobilien')
+        .select('versorger_strom_name, versorger_strom_email, versorger_gas_name, versorger_gas_email, versorger_wasser_name, versorger_wasser_email')
+        .eq('id', immobilieId)
+        .single();
+      if (!data) return;
+      const liste: typeof versorgerData = [];
+      if (data.versorger_strom_name || data.versorger_strom_email)
+        liste.push({ typ: 'strom', label: 'Strom', name: data.versorger_strom_name || '', email: data.versorger_strom_email || '' });
+      if (data.versorger_gas_name || data.versorger_gas_email)
+        liste.push({ typ: 'gas', label: 'Gas', name: data.versorger_gas_name || '', email: data.versorger_gas_email || '' });
+      if (data.versorger_wasser_name || data.versorger_wasser_email)
+        liste.push({ typ: 'wasser', label: 'Wasser', name: data.versorger_wasser_name || '', email: data.versorger_wasser_email || '' });
+      setVersorgerData(liste);
+    };
+    fetchVersorger();
+  }, [contracts]);
+
+  const buildVersorgerEmail = useCallback((typ: 'strom' | 'gas' | 'wasser', label: string) => {
+    const firstContract = contracts[0];
+    const zaehlerstand = zaehlerstaendePerContract[firstContract?.id]?.[typ === 'wasser' ? 'wasser' : typ] || 'nicht erfasst';
+    const adresse = firstContract?.einheit?.immobilie?.adresse || '';
+    const datumStr = uebergabeDatum ? format(uebergabeDatum, "dd.MM.yyyy", { locale: de }) : '';
+    const aktion = isEinzug ? 'Einzug' : 'Auszug';
+    return `Sehr geehrte Damen und Herren,\n\nhiermit teilen wir Ihnen mit, dass am ${datumStr} ein ${aktion} in folgender Wohnung stattgefunden hat:\n\nAdresse: ${adresse}\nMieter: ${mieterName || ''}\nDatum: ${datumStr}\nZählerstand ${label}: ${zaehlerstand}\n\nBitte nehmen Sie die ${isEinzug ? 'Anmeldung' : 'Abmeldung'} entsprechend vor.\n\nMit freundlichen Grüßen\nNiImmo Wohnungsbaugesellschaft\nEgestorffstraße 11, 31319 Sehnde\nTel. 05138 – 600 72 72`;
+  }, [contracts, zaehlerstaendePerContract, uebergabeDatum, isEinzug, mieterName]);
+
+  const copyVersorgerEmail = async (v: typeof versorgerData[0]) => {
+    const body = buildVersorgerEmail(v.typ, v.label);
+    const aktion = isEinzug ? 'Einzug' : 'Auszug';
+    const adresse = contracts[0]?.einheit?.immobilie?.adresse || '';
+    const text = `An: ${v.email}\nBetreff: ${aktion}smeldung - ${adresse}, ${mieterName}\n\n${body}`;
+    await navigator.clipboard.writeText(text);
+    setVersorgerCopied(v.typ);
+    setTimeout(() => setVersorgerCopied(null), 2000);
+    toast({ title: "Kopiert", description: `E-Mail-Entwurf für ${v.label} kopiert.` });
+  };
+
+  const openVersorgerMailClient = (v: typeof versorgerData[0]) => {
+    if (!v.email) return;
+    const body = buildVersorgerEmail(v.typ, v.label);
+    const aktion = isEinzug ? 'Einzug' : 'Auszug';
+    const adresse = contracts[0]?.einheit?.immobilie?.adresse || '';
+    const subject = encodeURIComponent(`${aktion}smeldung - ${adresse}, ${mieterName}`);
+    window.open(`mailto:${v.email}?subject=${subject}&body=${encodeURIComponent(body)}`, '_blank');
+  };
 
   // Cleanup blob URL
   useEffect(() => {
@@ -466,6 +523,64 @@ export const UebergabeDialog = ({
         </div>
       )}
 
+      {/* Versorger benachrichtigen */}
+      {versorgerData.length > 0 && (
+        <div className="space-y-3 border-t pt-4">
+          <Label className="text-sm font-medium flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Versorger benachrichtigen
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Versorger ueber {isEinzug ? 'Einzug' : 'Auszug'} informieren. Ankreuzen und E-Mail kopieren oder im Mail-Client oeffnen.
+          </p>
+          <div className="space-y-2">
+            {versorgerData.map(v => {
+              const Icon = v.typ === 'strom' ? Zap : v.typ === 'gas' ? Flame : Droplets;
+              const isChecked = versorgerSelected.has(v.typ);
+              return (
+                <div key={v.typ} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Checkbox
+                        id={`versorger-${v.typ}`}
+                        checked={isChecked}
+                        onCheckedChange={() => {
+                          setVersorgerSelected(prev => {
+                            const next = new Set(prev);
+                            if (next.has(v.typ)) next.delete(v.typ); else next.add(v.typ);
+                            return next;
+                          });
+                        }}
+                      />
+                      <Label htmlFor={`versorger-${v.typ}`} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                        <Icon className="h-3.5 w-3.5" />
+                        {v.label}
+                        {v.name && <span className="text-muted-foreground text-xs">({v.name})</span>}
+                      </Label>
+                    </div>
+                    {v.email && <span className="text-xs text-muted-foreground">{v.email}</span>}
+                  </div>
+                  {isChecked && (
+                    <div className="flex gap-2 pl-7">
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => copyVersorgerEmail(v)}>
+                        {versorgerCopied === v.typ ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        {versorgerCopied === v.typ ? 'Kopiert' : 'E-Mail kopieren'}
+                      </Button>
+                      {v.email && (
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => openVersorgerMailClient(v)}>
+                          <Mail className="h-3 w-3" />
+                          Mail-Client
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Signatures */}
       <div className="space-y-4 border-t pt-4">
         <h4 className="text-sm font-semibold">Digitale Unterschriften</h4>
@@ -477,58 +592,34 @@ export const UebergabeDialog = ({
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-3 pt-4 border-t">
-        {/* Preview Button - only way to proceed */}
         <Button onClick={handleGeneratePreview} className="w-full h-12 sm:h-10" disabled={isGeneratingPreview || isSubmitting}>
           {isGeneratingPreview ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Vorschau wird erstellt...</>
+          ) : showPreview ? (
+            <><Eye className="mr-2 h-4 w-4" />Vorschau aktualisieren</>
           ) : (
-            <><Eye className="mr-2 h-4 w-4" />Vorschau & Prüfen</>
+            <><Eye className="mr-2 h-4 w-4" />Vorschau erstellen</>
           )}
         </Button>
+
+        {showPreview && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleDownloadPdf} disabled={!pdfBlobUrl} className="flex-1 h-10">
+              <FileDown className="mr-2 h-4 w-4" />
+              Download
+            </Button>
+            <Button onClick={() => setShowConfirmFinalize(true)} disabled={isSubmitting} className="flex-1 h-10">
+              <Send className="mr-2 h-4 w-4" />
+              Abschliessen & Senden
+            </Button>
+          </div>
+        )}
 
         <Button variant="ghost" onClick={resetForm} className="w-full h-10 text-muted-foreground" disabled={isSubmitting || isGeneratingPreview}>
           <RotateCcw className="mr-2 h-4 w-4" />
           Formular zurücksetzen
         </Button>
-
-        <Button variant="outline" onClick={onClose} className="w-full h-12 sm:h-10" disabled={isSubmitting}>
-          Abbrechen
-        </Button>
       </div>
-    </div>
-  );
-
-  // ============ PREVIEW CONTENT ============
-  const previewContent = (
-    <div className="flex flex-col h-full">
-      {/* Preview toolbar */}
-      <div className="flex items-center justify-between gap-2 pb-3 border-b mb-3 flex-wrap">
-        <Button variant="outline" size="sm" onClick={() => setShowPreview(false)}>
-          ← Zurück zur Bearbeitung
-        </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleDownloadPdf} disabled={!pdfBlobUrl}>
-            <FileDown className="mr-1 h-4 w-4" />
-            Download
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowVersorgerDialog(true)}>
-            <Zap className="mr-1 h-4 w-4" />
-            Versorger
-          </Button>
-          <Button size="sm" onClick={() => setShowConfirmFinalize(true)} disabled={isSubmitting}>
-            <Send className="mr-1 h-4 w-4" />
-            Abschließen & Senden
-          </Button>
-        </div>
-      </div>
-      {/* PDF Preview */}
-      {pdfBlobUrl && (
-        <iframe
-          src={pdfBlobUrl}
-          className="w-full flex-1 min-h-[500px] rounded-lg border"
-          title="Übergabeprotokoll Vorschau"
-        />
-      )}
     </div>
   );
 
@@ -549,26 +640,6 @@ export const UebergabeDialog = ({
       mieterName={mieterName || ""}
       pdfBlob={pdfBlob}
       pdfFileName={getPdfFileName()}
-    />
-  );
-
-  // Versorger dialog
-  const firstContract = contracts[0];
-  const versorgerDialogComponent = showVersorgerDialog && uebergabeDatum && firstContract && (
-    <VersorgerBenachrichtigungDialog
-      isOpen={showVersorgerDialog}
-      onClose={() => setShowVersorgerDialog(false)}
-      immobilieId={firstContract.einheit.immobilie_id || firstContract.einheit.immobilie?.id || ''}
-      mieterName={mieterName || ""}
-      uebergabeDatum={uebergabeDatum}
-      zaehlerstaende={{
-        strom: zaehlerstaendePerContract[firstContract.id]?.strom,
-        gas: zaehlerstaendePerContract[firstContract.id]?.gas,
-        wasser: zaehlerstaendePerContract[firstContract.id]?.wasser,
-      }}
-      adresse={firstContract.einheit.immobilie.adresse}
-      einheitBezeichnung={firstContract.einheit.nummer ? `WE ${firstContract.einheit.nummer}` : undefined}
-      isEinzug={isEinzug}
     />
   );
 
@@ -597,7 +668,6 @@ export const UebergabeDialog = ({
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
         {confirmDialog}
         {emailDialogComponent}
-        {versorgerDialogComponent}
         <DrawerContent className="max-h-[95vh]">
           <DrawerHeader className="pb-2">
             <DrawerTitle className="flex items-center gap-2 text-lg">
@@ -606,7 +676,12 @@ export const UebergabeDialog = ({
             </DrawerTitle>
           </DrawerHeader>
           <div className="overflow-y-auto px-4 pb-6">
-            {showPreview ? previewContent : formContent}
+            {formContent}
+            {showPreview && pdfBlobUrl && (
+              <div className="mt-4 border-t pt-4">
+                <iframe src={pdfBlobUrl} className="w-full min-h-[500px] rounded-lg border" title="Vorschau" />
+              </div>
+            )}
           </div>
         </DrawerContent>
       </Drawer>
@@ -617,19 +692,43 @@ export const UebergabeDialog = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       {confirmDialog}
       {emailDialogComponent}
-      {versorgerDialogComponent}
       <DialogContent className={cn(
-        "max-h-[90vh] overflow-y-auto",
-        showPreview ? "sm:max-w-[1100px]" : "sm:max-w-[900px]"
+        "max-h-[90vh] overflow-hidden flex flex-col",
+        showPreview ? "sm:max-w-[1200px]" : "sm:max-w-[900px]"
       )}>
-        <DialogHeader>
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <DialogIcon className={cn("h-5 w-5", isEinzug ? "text-green-600" : "text-orange-600")} />
             {dialogTitle}
-            {showPreview && <span className="text-xs font-normal text-muted-foreground ml-2">— Vorschau</span>}
           </DialogTitle>
         </DialogHeader>
-        {showPreview ? previewContent : formContent}
+        <div className={cn("flex-1 overflow-hidden", showPreview ? "flex gap-0" : "")}>
+          {/* Left: Form (always visible) */}
+          <ScrollArea className={cn(
+            showPreview ? "w-[480px] flex-shrink-0 border-r pr-1" : "w-full",
+            "max-h-[calc(90vh-80px)]"
+          )}>
+            {formContent}
+          </ScrollArea>
+
+          {/* Right: PDF Preview (shown when generated) */}
+          {showPreview && pdfBlobUrl && (
+            <div className="flex-1 flex flex-col min-w-0 pl-4">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b flex-shrink-0">
+                <span className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Eye className="h-4 w-4" />
+                  PDF-Vorschau
+                </span>
+                {isGeneratingPreview && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              </div>
+              <iframe
+                src={pdfBlobUrl}
+                className="w-full flex-1 min-h-[500px] rounded-lg border bg-white"
+                title="Übergabeprotokoll Vorschau"
+              />
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

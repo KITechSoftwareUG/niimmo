@@ -109,14 +109,14 @@ serve(async (req) => {
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 102, 153); // Blue color for branding
-    doc.text('NilImmo Gruppe', 20, yPos);
+    doc.text('NiImmo Wohnungsbaugesellschaft', 20, yPos);
     yPos += 10;
     
     // Company header info
     doc.setFontSize(9);
     doc.setFont(undefined, 'normal');
     doc.setTextColor(100);
-    doc.text('NilImmo Projektentwicklung & Bau GmbH · Egonstraße 11 · 31319 Sehnde', 20, yPos);
+    doc.text('NiImmo Wohnungsbaugesellschaft · Egestorffstraße 11 · 31319 Sehnde', 20, yPos);
     yPos += 10;
     
     // Contact box on the right
@@ -124,14 +124,12 @@ serve(async (req) => {
     const contactY = 25;
     doc.setFontSize(8);
     doc.setTextColor(100);
-    doc.text('Rückfragen richten Sie bitte an:', contactX, contactY);
-    doc.setFont(undefined, 'bold');
-    doc.text('Denis Baris Mikyas', contactX, contactY + 5);
+    doc.text('Kontakt:', contactX, contactY);
     doc.setFont(undefined, 'normal');
-    doc.text('📱 01583 - 600 72 72', contactX, contactY + 10);
-    doc.text('☎ 05138 - 600 72 79', contactX, contactY + 15);
-    doc.text('✉ mikyas@nilimmo.de', contactX, contactY + 20);
-    doc.text('📍 Egestorffstraße 11, 31319 Sehnde', contactX, contactY + 25);
+    doc.text('Tel. 05138 - 600 72 72', contactX, contactY + 5);
+    doc.text('Fax 05138 - 600 72 79', contactX, contactY + 10);
+    doc.text('info@niimmo.de', contactX, contactY + 15);
+    doc.text('Egestorffstraße 11, 31319 Sehnde', contactX, contactY + 20);
     
     yPos += 10;
     

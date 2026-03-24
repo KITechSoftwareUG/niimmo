@@ -82,7 +82,7 @@ export async function generateUebergabePdf(data: UebergabePdfData): Promise<Blob
   doc.setFontSize(7.5);
   doc.setTextColor(100, 100, 100);
   doc.setFont('helvetica', 'normal');
-  const senderLine = 'Nilmmo Projektentwicklung & Bau GmbH, Egestorffstraße 11, 31319 Sehnde';
+  const senderLine = 'NiImmo Wohnungsbaugesellschaft, Egestorffstraße 11, 31319 Sehnde';
   doc.text(senderLine, marginLeft, y);
   const senderWidth = doc.getTextWidth(senderLine);
   doc.setDrawColor(100, 100, 100);

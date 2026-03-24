@@ -123,7 +123,7 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   doc.setFontSize(7.5);
   doc.setTextColor(100, 100, 100);
   doc.setFont('helvetica', 'normal');
-  const senderLine = 'Nilmmo Projektentwicklung & Bau GmbH, Egestorffstraße 11, 31319 Sehnde';
+  const senderLine = 'NiImmo Wohnungsbaugesellschaft, Egestorffstraße 11, 31319 Sehnde';
   doc.text(senderLine, marginLeft, y);
   const senderWidth = doc.getTextWidth(senderLine);
   doc.setDrawColor(100, 100, 100);
@@ -160,14 +160,10 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
   doc.setFont('helvetica', 'normal');
-  doc.text('Rückfragen richten Sie bitte an:', contactX, contactY);
+  doc.text('Kontakt:', contactX, contactY);
   contactY += 5;
-  doc.setTextColor(40, 40, 40);
-  doc.setFontSize(7.5);
-  doc.text('Denis Baris Mikyas', contactX, contactY);
-  contactY += 5;
-  doc.setFontSize(7);
   doc.setTextColor(80, 80, 80);
+  doc.setFontSize(7);
   // Phone + number
   doc.text('Tel.', contactX, contactY);
   doc.text('05138 – 600 72 72', contactX + 8, contactY);
@@ -181,7 +177,7 @@ export async function generateMahnungPdf(data: MahnungPdfData): Promise<Blob> {
   contactY += 4;
   // Email
   doc.text('E-Mail', contactX, contactY);
-  doc.text('mikyas@niimmo.de', contactX + 12, contactY);
+  doc.text('info@niimmo.de', contactX + 12, contactY);
   
   // ============ DATE ============
   y = 105;

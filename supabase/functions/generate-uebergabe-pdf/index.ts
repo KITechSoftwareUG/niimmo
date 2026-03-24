@@ -124,14 +124,14 @@ serve(async (req) => {
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(0, 102, 153);
-    doc.text('NilImmo Gruppe', 20, yPos);
+    doc.text('NiImmo Wohnungsbaugesellschaft', 20, yPos);
     yPos += 10;
     
     // Company header info
     doc.setFontSize(9);
     doc.setFont(undefined, 'normal');
     doc.setTextColor(100);
-    doc.text('NilImmo Projektentwicklung & Bau GmbH · Egonstraße 11 · 31319 Sehnde', 20, yPos);
+    doc.text('NiImmo Wohnungsbaugesellschaft · Egestorffstraße 11 · 31319 Sehnde', 20, yPos);
     yPos += 15;
     
     // Title
@@ -328,9 +328,9 @@ serve(async (req) => {
     doc.line(20, footerY, 190, footerY);
     
     doc.setFont(undefined, 'bold');
-    doc.text('NilImmo Projektentwicklung & Bau GmbH', 20, footerY + 5);
+    doc.text('NiImmo Wohnungsbaugesellschaft', 20, footerY + 5);
     doc.setFont(undefined, 'normal');
-    doc.text('Egonstraße 11, 31319 Sehnde | Tel: 05138 - 600 72 79 | www.nilimmo.de', 20, footerY + 9);
+    doc.text('Egestorffstraße 11, 31319 Sehnde | Tel: 05138 - 600 72 72 | info@niimmo.de', 20, footerY + 9);
     
     // Generate PDF as ArrayBuffer
     const pdfArrayBuffer = doc.output('arraybuffer');

@@ -267,8 +267,10 @@ export function NebenkostenZuordnungTab() {
   const navigateToImmobilie = useCallback((immoId: string) => {
     updateNav({
       selectedImmobilie: immoId,
+      selectedEinheit: null,
+      selectedMietvertrag: null,
       showControlboard: false,
-      navigationSource: "dashboard",
+      navigationSource: "immobilie",
     });
   }, [updateNav]);
 
