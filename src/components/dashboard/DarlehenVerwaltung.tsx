@@ -473,24 +473,16 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
   };
 
   // Automatische Tilgungsplan-Berechnung
+  // Berechnet nur das voraussichtliche Schuldfrei-Datum
   const berechneTilgungsplan = (
     restschuld: number,
     zinssatzProzent: number,
     monatlicheRate: number,
-    startDatum?: string | null,
-    monate = 24
+    startDatum?: string | null
   ) => {
-    if (monatlicheRate <= 0 || zinssatzProzent < 0) return { zeilen: [], laufzeitEnde: null };
+    if (monatlicheRate <= 0 || zinssatzProzent < 0) return { laufzeitEnde: null };
     const monatszins = zinssatzProzent / 12 / 100;
     let rs = restschuld;
-    const zeilen: Array<{
-      datum: Date;
-      zinsanteil: number;
-      tilgungsanteil: number;
-      rate: number;
-      restschuld: number;
-    }> = [];
-    // Startmonat: naechster Monat nach startDatum oder jetzt
     const start = startDatum ? new Date(startDatum) : new Date();
     let current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
     let laufzeitEnde: Date | null = null;
@@ -498,17 +490,13 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     while (rs > 0.01) {
       const zinsanteil = rs * monatszins;
       const tilgungsanteil = Math.min(monatlicheRate - zinsanteil, rs);
-      const rate = Math.min(monatlicheRate, rs + zinsanteil);
       rs = Math.max(0, rs - tilgungsanteil);
-      if (monat < monate) {
-        zeilen.push({ datum: new Date(current), zinsanteil, tilgungsanteil, rate, restschuld: rs });
-      }
       current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
       monat++;
-      if (monat > 600) { laufzeitEnde = null; break; } // Sicherheitsabbruch
+      if (monat > 600) break; // Sicherheitsabbruch
     }
     if (rs <= 0.01) laufzeitEnde = current;
-    return { zeilen, laufzeitEnde };
+    return { laufzeitEnde };
   };
 
   // ── Portfolio Calculations ──
@@ -922,8 +910,7 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                           effectiveRestschuld,
                           d.zinssatz_prozent || 0,
                           d.monatliche_rate || 0,
-                          d.start_datum,
-                          24
+                          d.start_datum
                         );
                         const aktuellerZinsanteil = effectiveRestschuld * (d.zinssatz_prozent || 0) / 12 / 100;
                         const aktuellerTilgungsanteil = Math.max(0, (d.monatliche_rate || 0) - aktuellerZinsanteil);
@@ -1029,36 +1016,6 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                             )}
                           </div>
 
-                          {/* Auto-Tilgungsplan Prognose */}
-                          {prognose.zeilen.length > 0 && (
-                            <div>
-                              <h4 className="text-xs font-semibold mb-2">Prognose nächste 24 Monate <span className="font-normal text-muted-foreground">(automatisch berechnet aus Restschuld + Zinssatz + Rate)</span></h4>
-                              <div className="rounded-md border overflow-auto max-h-[300px]">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="text-xs">Monat</TableHead>
-                                      <TableHead className="text-xs">Rate</TableHead>
-                                      <TableHead className="text-xs text-destructive/80">Zinsen</TableHead>
-                                      <TableHead className="text-xs text-primary/80">Tilgung</TableHead>
-                                      <TableHead className="text-xs">Restschuld</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {prognose.zeilen.map((z, idx) => (
-                                      <TableRow key={idx} className={idx % 2 === 0 ? "" : "bg-muted/30"}>
-                                        <TableCell className="text-xs">{z.datum.toLocaleDateString("de-DE", { month: "2-digit", year: "numeric" })}</TableCell>
-                                        <TableCell className="text-xs font-medium">{formatCurrency(z.rate)}</TableCell>
-                                        <TableCell className="text-xs text-destructive/80">{formatCurrency(z.zinsanteil)}</TableCell>
-                                        <TableCell className="text-xs text-primary/80">{formatCurrency(z.tilgungsanteil)}</TableCell>
-                                        <TableCell className="text-xs">{formatCurrency(z.restschuld)}</TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </div>
-                            </div>
-                          )}
                         </div>
                         );
                       })()}
