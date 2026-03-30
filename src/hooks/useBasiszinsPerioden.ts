@@ -10,7 +10,7 @@ export function useBasiszinsPerioden() {
   const { data, isLoading } = useQuery({
     queryKey: ["basiszins-perioden"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("marktdaten")
         .select("stichtag, wert")
         .eq("typ", "basiszinssatz")
