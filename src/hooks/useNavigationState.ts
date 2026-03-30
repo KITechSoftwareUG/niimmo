@@ -13,6 +13,7 @@ interface NavigationState {
   showDarlehen: boolean;
   showDevBoard: boolean;
   navigationSource: "dashboard" | "immobilie" | "search";
+  selectedTab: string | null;
 }
 
 const defaultState: NavigationState = {
@@ -25,6 +26,7 @@ const defaultState: NavigationState = {
   showDarlehen: false,
   showDevBoard: false,
   navigationSource: "dashboard",
+  selectedTab: null,
 };
 
 function loadState(): NavigationState {

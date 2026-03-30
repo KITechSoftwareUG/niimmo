@@ -124,9 +124,7 @@ const Index = () => {
     return sortPropertiesByName(immobilien);
   }, [immobilien]);
   const handleImmobilieClick = (immobilieId: string, einheitId?: string) => {
-    setSelectedImmobilie(immobilieId);
-    setSelectedEinheit(einheitId || null);
-    setSelectedMietvertrag(null);
+    updateNav({ selectedImmobilie: immobilieId, selectedEinheit: einheitId || null, selectedMietvertrag: null, selectedTab: null });
     setNavigationSource('immobilie');
   };
   const handleBackClick = () => {
@@ -302,16 +300,16 @@ const Index = () => {
   }
 
   if (selectedImmobilie) {
-    return <ImmobilienDetail 
-      immobilieId={selectedImmobilie} 
-      onBack={handleBackClick} 
+    return <ImmobilienDetail
+      immobilieId={selectedImmobilie}
+      onBack={handleBackClick}
       filters={{
         mietstatus: "all",
         zahlungsstatus: "all",
         vertragsart: "all"
-      }} 
-      scrollToEinheitId={selectedEinheit} 
-      openMietvertragId={selectedMietvertrag} 
+      }}
+      scrollToEinheitId={selectedEinheit}
+      openMietvertragId={selectedMietvertrag}
       onContractModalClose={() => {
         // If user came from a dashboard list (Rückstände or Mieterhöhungen), go back to that list
         if (listSource) {
@@ -321,6 +319,7 @@ const Index = () => {
         }
       }}
       isHausmeister={isHausmeister}
+      initialTab={navState.selectedTab ?? undefined}
     />;
   }
   return <div className="min-h-screen modern-dashboard-bg">

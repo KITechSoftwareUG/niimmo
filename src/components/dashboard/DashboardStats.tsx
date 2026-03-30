@@ -1,7 +1,9 @@
 
-import { Building2, Users, AlertTriangle, Euro, Home, TrendingDown } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Building2, Euro, Home, TrendingDown, TrendingUp, Percent, Pencil, Check, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface DashboardStatsProps {
   immobilien: any[] | undefined;
@@ -9,6 +11,10 @@ interface DashboardStatsProps {
 }
 
 export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardStatsProps) => {
+  const queryClient = useQueryClient();
+  const { isAdmin } = useUserRole();
+  const [editingTyp, setEditingTyp] = useState<'basiszinssatz' | 'vpi' | null>(null);
+  const [editWert, setEditWert] = useState("");
   const { data: gesamtEinheiten } = useQuery({
     queryKey: ['gesamt-einheiten'],
     queryFn: async () => {
@@ -61,6 +67,33 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
       return zahlungen?.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0) || 0;
     }
   });
+
+  const { data: marktdaten } = useQuery({
+    queryKey: ['aktuelle-marktdaten'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('aktuelle_marktdaten')
+        .select('*');
+      if (error) throw error;
+      const basiszins = data?.find(d => d.typ === 'basiszinssatz');
+      const vpi = data?.find(d => d.typ === 'vpi');
+      return { basiszins, vpi };
+    },
+    staleTime: 300000,
+  });
+
+  const saveMarktdaten = async (typ: 'basiszinssatz' | 'vpi', wert: number) => {
+    const heute = new Date().toISOString().split('T')[0];
+    await supabase.from('marktdaten').upsert({
+      typ,
+      wert,
+      stichtag: heute,
+      quelle: 'Manuelle Korrektur',
+      abgerufen_am: new Date().toISOString(),
+    }, { onConflict: 'typ,stichtag' });
+    queryClient.invalidateQueries({ queryKey: ['aktuelle-marktdaten'] });
+    setEditingTyp(null);
+  };
 
   const aktiveMietvertraege = mietvertraege?.filter(mv => mv.status === 'aktiv') || [];
   const gekuendigteMietvertraege = mietvertraege?.filter(mv => mv.status === 'gekuendigt') || [];
@@ -157,7 +190,7 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
             <span className="text-[10px] sm:text-xs text-gray-500">Gekündigt</span>
             <span className="text-sm sm:text-base font-bold text-red-600">{gekuendigteMietvertraege.length}</span>
           </div>
-          <div 
+          <div
             className="hidden sm:flex items-center gap-1.5 cursor-pointer hover:bg-gray-100 rounded px-1.5 py-0.5 -mx-1.5 transition-colors"
             onClick={() => {
               if (naechsterVertrag && onNavigateToContract) {
@@ -173,6 +206,97 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
             <span className="text-[10px] sm:text-xs text-gray-500">Nächstes Ende</span>
             <span className="text-[10px] sm:text-xs font-medium text-gray-700">{formatDatum(naechstesDatum)}</span>
           </div>
+        </div>
+
+        <div className="w-px h-6 bg-gray-200 hidden lg:block" />
+
+        {/* Basiszinssatz */}
+        <div className="hidden lg:flex items-center gap-2 group">
+          <div className="p-1.5 rounded-lg bg-orange-100 border border-orange-200 flex-shrink-0">
+            <Percent className="h-3.5 w-3.5 text-orange-600" />
+          </div>
+          {editingTyp === 'basiszinssatz' ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                step="0.01"
+                value={editWert}
+                onChange={e => setEditWert(e.target.value)}
+                className="w-16 text-xs border rounded px-1 py-0.5 h-6"
+                autoFocus
+              />
+              <button onClick={() => saveMarktdaten('basiszinssatz', parseFloat(editWert))} className="text-green-600 hover:text-green-700">
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={() => setEditingTyp(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-baseline gap-1">
+              <div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-bold text-gray-900">
+                    {marktdaten?.basiszins ? `${marktdaten.basiszins.wert}%` : '–'}
+                  </span>
+                  <span className="text-[10px] text-gray-400">→ {marktdaten?.basiszins ? `${(marktdaten.basiszins.wert + 5).toFixed(2)}%` : '–'}</span>
+                  {isAdmin && (
+                    <button
+                      onClick={() => { setEditingTyp('basiszinssatz'); setEditWert(String(marktdaten?.basiszins?.wert ?? '')); }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5"
+                    >
+                      <Pencil className="h-2.5 w-2.5 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+                <span className="text-[10px] text-gray-400">Basis / Verzug</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="w-px h-6 bg-gray-200 hidden lg:block" />
+
+        {/* VPI */}
+        <div className="hidden lg:flex items-center gap-2 group">
+          <div className="p-1.5 rounded-lg bg-teal-100 border border-teal-200 flex-shrink-0">
+            <TrendingUp className="h-3.5 w-3.5 text-teal-600" />
+          </div>
+          {editingTyp === 'vpi' ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                step="0.1"
+                value={editWert}
+                onChange={e => setEditWert(e.target.value)}
+                className="w-16 text-xs border rounded px-1 py-0.5 h-6"
+                autoFocus
+              />
+              <button onClick={() => saveMarktdaten('vpi', parseFloat(editWert))} className="text-green-600 hover:text-green-700">
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={() => setEditingTyp(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-bold text-gray-900">
+                  {marktdaten?.vpi ? marktdaten.vpi.wert.toFixed(1) : '–'}
+                </span>
+                {isAdmin && (
+                  <button
+                    onClick={() => { setEditingTyp('vpi'); setEditWert(String(marktdaten?.vpi?.wert ?? '')); }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Pencil className="h-2.5 w-2.5 text-gray-400" />
+                  </button>
+                )}
+              </div>
+              <span className="text-[10px] text-gray-400">VPI 2020=100</span>
+            </div>
+          )}
         </div>
       </div>
 

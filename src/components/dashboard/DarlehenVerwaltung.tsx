@@ -472,6 +472,45 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
     return Math.abs(staticRestschuld || 0);
   };
 
+  // Automatische Tilgungsplan-Berechnung
+  const berechneTilgungsplan = (
+    restschuld: number,
+    zinssatzProzent: number,
+    monatlicheRate: number,
+    startDatum?: string | null,
+    monate = 24
+  ) => {
+    if (monatlicheRate <= 0 || zinssatzProzent < 0) return { zeilen: [], laufzeitEnde: null };
+    const monatszins = zinssatzProzent / 12 / 100;
+    let rs = restschuld;
+    const zeilen: Array<{
+      datum: Date;
+      zinsanteil: number;
+      tilgungsanteil: number;
+      rate: number;
+      restschuld: number;
+    }> = [];
+    // Startmonat: naechster Monat nach startDatum oder jetzt
+    const start = startDatum ? new Date(startDatum) : new Date();
+    let current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    let laufzeitEnde: Date | null = null;
+    let monat = 0;
+    while (rs > 0.01) {
+      const zinsanteil = rs * monatszins;
+      const tilgungsanteil = Math.min(monatlicheRate - zinsanteil, rs);
+      const rate = Math.min(monatlicheRate, rs + zinsanteil);
+      rs = Math.max(0, rs - tilgungsanteil);
+      if (monat < monate) {
+        zeilen.push({ datum: new Date(current), zinsanteil, tilgungsanteil, rate, restschuld: rs });
+      }
+      current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+      monat++;
+      if (monat > 600) { laufzeitEnde = null; break; } // Sicherheitsabbruch
+    }
+    if (rs <= 0.01) laufzeitEnde = current;
+    return { zeilen, laufzeitEnde };
+  };
+
   // ── Portfolio Calculations ──
 
   const portfolioMetrics = useMemo(() => {
@@ -878,9 +917,23 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                         </div>
                       </div>
 
-                      {isExpanded && (
-                        <div className="border-t bg-muted/20 p-4">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                      {isExpanded && (() => {
+                        const prognose = berechneTilgungsplan(
+                          effectiveRestschuld,
+                          d.zinssatz_prozent || 0,
+                          d.monatliche_rate || 0,
+                          d.start_datum,
+                          24
+                        );
+                        const aktuellerZinsanteil = effectiveRestschuld * (d.zinssatz_prozent || 0) / 12 / 100;
+                        const aktuellerTilgungsanteil = Math.max(0, (d.monatliche_rate || 0) - aktuellerZinsanteil);
+                        const zinsProzent = (d.monatliche_rate || 0) > 0 ? (aktuellerZinsanteil / (d.monatliche_rate || 1)) * 100 : 0;
+                        const assignedMarktwert = assignedImmos.reduce((s, i) => s + (i.marktwert || 0), 0);
+                        const eigenkapitalDarlehen = assignedMarktwert > 0 ? assignedMarktwert - effectiveRestschuld : null;
+                        return (
+                        <div className="border-t bg-muted/20 p-4 space-y-4">
+                          {/* Meta */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                             <div>
                               <p className="text-[10px] text-muted-foreground">Kontonr.</p>
                               <p className="text-xs font-medium">{d.kontonummer || "–"}</p>
@@ -894,44 +947,121 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
                               <p className="text-xs font-medium">{d.start_datum ? new Date(d.start_datum).toLocaleDateString("de-DE") : "–"}</p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-muted-foreground">Laufzeit bis</p>
+                              <p className="text-[10px] text-muted-foreground">Laufzeit bis (Zinsbindung)</p>
                               <p className="text-xs font-medium">{d.ende_datum ? new Date(d.ende_datum).toLocaleDateString("de-DE") : "–"}</p>
                             </div>
                           </div>
                           {d.notizen && (
-                            <p className="text-xs text-muted-foreground mb-3 italic">{d.notizen}</p>
+                            <p className="text-xs text-muted-foreground italic">{d.notizen}</p>
                           )}
-                          <h4 className="text-xs font-semibold mb-2">Zahlungen ({zahlungen.length})</h4>
-                          {zahlungen.length > 0 ? (
-                            <div className="rounded-md border overflow-auto max-h-[600px]">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="text-xs">Datum</TableHead>
-                                    <TableHead className="text-xs">Betrag</TableHead>
-                                    <TableHead className="text-xs">Zinsanteil</TableHead>
-                                    <TableHead className="text-xs">Tilgung</TableHead>
-                                    <TableHead className="text-xs">Restschuld</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {zahlungen.map((z) => (
-                                    <TableRow key={z.id}>
-                                      <TableCell className="text-xs">{new Date(z.buchungsdatum).toLocaleDateString("de-DE")}</TableCell>
-                                      <TableCell className="text-xs font-medium">{formatCurrency(z.betrag)}</TableCell>
-                                      <TableCell className="text-xs text-destructive">{formatCurrency(z.zinsanteil || 0)}</TableCell>
-                                      <TableCell className="text-xs text-primary">{formatCurrency(z.tilgungsanteil || 0)}</TableCell>
-                                      <TableCell className="text-xs">{z.restschuld_danach != null ? formatCurrency(z.restschuld_danach) : "–"}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
+
+                          {/* Finanz-Übersicht */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <div className="p-2.5 rounded-lg bg-background border text-center">
+                              <p className="text-[10px] text-muted-foreground mb-0.5">Restschuld</p>
+                              <p className="text-sm font-bold text-destructive">{formatCurrency(effectiveRestschuld)}</p>
                             </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Noch keine Zahlungen zugeordnet.</p>
+                            {assignedMarktwert > 0 && (
+                              <div className="p-2.5 rounded-lg bg-background border text-center">
+                                <p className="text-[10px] text-muted-foreground mb-0.5">Marktwert</p>
+                                <p className="text-sm font-bold">{formatCurrency(assignedMarktwert)}</p>
+                              </div>
+                            )}
+                            {eigenkapitalDarlehen !== null && (
+                              <div className="p-2.5 rounded-lg bg-background border text-center">
+                                <p className="text-[10px] text-muted-foreground mb-0.5">Eigenkapital</p>
+                                <p className={`text-sm font-bold ${eigenkapitalDarlehen >= 0 ? 'text-green-600' : 'text-destructive'}`}>{formatCurrency(eigenkapitalDarlehen)}</p>
+                              </div>
+                            )}
+                            {prognose.laufzeitEnde && (
+                              <div className="p-2.5 rounded-lg bg-background border text-center">
+                                <p className="text-[10px] text-muted-foreground mb-0.5">Schuldfrei ab</p>
+                                <p className="text-sm font-bold">{prognose.laufzeitEnde.toLocaleDateString("de-DE", { month: "2-digit", year: "numeric" })}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Rate-Split */}
+                          {(d.monatliche_rate || 0) > 0 && (
+                            <div className="p-3 rounded-lg bg-background border">
+                              <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-2">Aktuelle Rate ({formatCurrency(d.monatliche_rate || 0)}/Monat)</p>
+                              <div className="flex h-3 rounded-full overflow-hidden mb-1.5">
+                                <div className="bg-destructive/60" style={{ width: `${zinsProzent}%` }} />
+                                <div className="bg-primary/60 flex-1" />
+                              </div>
+                              <div className="flex justify-between text-[10px]">
+                                <span className="text-destructive">Zinsen: {formatCurrency(aktuellerZinsanteil)} ({zinsProzent.toFixed(0)}%)</span>
+                                <span className="text-primary">Tilgung: {formatCurrency(aktuellerTilgungsanteil)} ({(100 - zinsProzent).toFixed(0)}%)</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Zahlungshistorie */}
+                          <div>
+                            <h4 className="text-xs font-semibold mb-2">Zahlungshistorie ({zahlungen.length})</h4>
+                            {zahlungen.length > 0 ? (
+                              <div className="rounded-md border overflow-auto max-h-[300px]">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="text-xs">Datum</TableHead>
+                                      <TableHead className="text-xs">Betrag</TableHead>
+                                      <TableHead className="text-xs">Zinsanteil</TableHead>
+                                      <TableHead className="text-xs">Tilgung</TableHead>
+                                      <TableHead className="text-xs">Restschuld</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {zahlungen.map((z) => (
+                                      <TableRow key={z.id}>
+                                        <TableCell className="text-xs">{new Date(z.buchungsdatum).toLocaleDateString("de-DE")}</TableCell>
+                                        <TableCell className="text-xs font-medium">{formatCurrency(z.betrag)}</TableCell>
+                                        <TableCell className="text-xs text-destructive">{formatCurrency(z.zinsanteil || 0)}</TableCell>
+                                        <TableCell className="text-xs text-primary">{formatCurrency(z.tilgungsanteil || 0)}</TableCell>
+                                        <TableCell className="text-xs">{z.restschuld_danach != null ? formatCurrency(z.restschuld_danach) : "–"}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Noch keine Zahlungen zugeordnet.</p>
+                            )}
+                          </div>
+
+                          {/* Auto-Tilgungsplan Prognose */}
+                          {prognose.zeilen.length > 0 && (
+                            <div>
+                              <h4 className="text-xs font-semibold mb-2">Prognose nächste 24 Monate <span className="font-normal text-muted-foreground">(automatisch berechnet aus Restschuld + Zinssatz + Rate)</span></h4>
+                              <div className="rounded-md border overflow-auto max-h-[300px]">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="text-xs">Monat</TableHead>
+                                      <TableHead className="text-xs">Rate</TableHead>
+                                      <TableHead className="text-xs text-destructive/80">Zinsen</TableHead>
+                                      <TableHead className="text-xs text-primary/80">Tilgung</TableHead>
+                                      <TableHead className="text-xs">Restschuld</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {prognose.zeilen.map((z, idx) => (
+                                      <TableRow key={idx} className={idx % 2 === 0 ? "" : "bg-muted/30"}>
+                                        <TableCell className="text-xs">{z.datum.toLocaleDateString("de-DE", { month: "2-digit", year: "numeric" })}</TableCell>
+                                        <TableCell className="text-xs font-medium">{formatCurrency(z.rate)}</TableCell>
+                                        <TableCell className="text-xs text-destructive/80">{formatCurrency(z.zinsanteil)}</TableCell>
+                                        <TableCell className="text-xs text-primary/80">{formatCurrency(z.tilgungsanteil)}</TableCell>
+                                        <TableCell className="text-xs">{formatCurrency(z.restschuld)}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
                           )}
                         </div>
-                      )}
+                        );
+                      })()}
                     </Card>
                   );
                 })}

@@ -271,6 +271,7 @@ export function NebenkostenZuordnungTab() {
       selectedMietvertrag: null,
       showControlboard: false,
       navigationSource: "immobilie",
+      selectedTab: "zahlungen",
     });
   }, [updateNav]);
 
@@ -678,7 +679,7 @@ export function NebenkostenZuordnungTab() {
                 <p>Keine unzugeordneten Zahlungen</p>
               </div>
             ) : (
-              <div className="max-h-[calc(100vh-100px)] overflow-y-auto">
+              <div className="max-h-[calc(100vh-40px)] overflow-y-auto">
                 <div className="space-y-3 pr-2">
                   {/* Nebenkosten section */}
                   {nebenkostenPayments.length > 0 && (

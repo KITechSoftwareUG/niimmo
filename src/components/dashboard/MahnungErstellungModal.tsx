@@ -14,7 +14,8 @@ import { Loader2, AlertTriangle, Download, Mail, Send, ArrowLeft, FileText, Eye,
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateMahnungPdf, type MahnungPdfData } from "@/utils/mahnungPdfGenerator";
-import { berechneAlleVerzugszinsen } from "@/utils/verzugszinsen";
+import { berechneAlleVerzugszinsen, berechneVerzugsbeginn, getVerzugszinssatz, toLocalIso } from "@/utils/verzugszinsen";
+import { useBasiszinsPerioden } from "@/hooks/useBasiszinsPerioden";
 
 interface MahnungErstellungModalProps {
   isOpen: boolean;
@@ -40,13 +41,14 @@ interface MahnungErstellungModalProps {
   rueckstand?: number;
 }
 
-export function MahnungErstellungModal({ 
-  isOpen, 
-  onClose, 
+export function MahnungErstellungModal({
+  isOpen,
+  onClose,
   contractData,
   rueckstand = 0
 }: MahnungErstellungModalProps) {
   const { toast } = useToast();
+  const { perioden, fromDB } = useBasiszinsPerioden();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [step, setStep] = useState<'edit' | 'email'>('edit');
@@ -352,28 +354,28 @@ export function MahnungErstellungModal({
   };
 
   const autoBerechneVerzugszinsen = useCallback(() => {
-    // Erstelle Posten aus den offenen Forderungen - approximiere Faelligkeitsdaten
-    // Nehme den Rueckstand und verteile ihn auf die Anzahl Monate
     const parsedBetrag = parseFloat(gesamtRueckstand) || 0;
     const monate = parseInt(anzahlMonatsmieten) || 1;
     const monatsBetrag = parsedBetrag / monate;
     const heute = new Date();
 
+    // Verzugsbeginn: 4. Werktag des Folgemonats (§ 556b Abs. 1 BGB)
     const posten: Array<{ betrag: number; faelligAb: string }> = [];
     for (let i = 0; i < monate; i++) {
-      // Faelligkeit: i+1 Monate zurueck, jeweils am 4. (3 Tage Kulanz nach Monatsersten)
-      const faellig = new Date(heute.getFullYear(), heute.getMonth() - (monate - i), 4);
-      posten.push({ betrag: monatsBetrag, faelligAb: faellig.toISOString().split('T')[0] });
+      // Faelligkeitsmonat: monate - i Monate zurueck (Miete fuer diesen Monat war faellig)
+      const faelligkeitsMonat = new Date(heute.getFullYear(), heute.getMonth() - (monate - i), 1);
+      const verzugsbeginn = berechneVerzugsbeginn(faelligkeitsMonat);
+      posten.push({ betrag: monatsBetrag, faelligAb: toLocalIso(verzugsbeginn) });
     }
 
-    const ergebnis = berechneAlleVerzugszinsen(posten, heute);
+    const ergebnis = berechneAlleVerzugszinsen(posten, heute, perioden);
 
     setVerzugszinsenDetails(ergebnis.details.map(d => ({
       monat: `${d.monat} (${d.tage} Tage, ${d.verzugszinssatz.toFixed(2)}%)`,
       betrag: d.zinsbetrag,
     })));
     setVerzugszinsenGesamt(ergebnis.gesamt.toFixed(2));
-  }, [gesamtRueckstand, anzahlMonatsmieten]);
+  }, [gesamtRueckstand, anzahlMonatsmieten, perioden]);
 
   const addVerzugszinsenDetail = () => {
     setVerzugszinsenDetails(prev => [...prev, { monat: '', betrag: 0 }]);
@@ -519,7 +521,7 @@ export function MahnungErstellungModal({
 
                   {/* Verzugszinsen */}
                   <div>
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-2">
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Verzugszinsen</h3>
                       <Button
                         variant="outline"
@@ -531,6 +533,11 @@ export function MahnungErstellungModal({
                         <RefreshCw className="h-3 w-3 mr-1" />
                         Auto berechnen
                       </Button>
+                    </div>
+                    <div className="mb-3 px-2 py-1.5 rounded bg-muted/60 text-xs text-muted-foreground flex items-center gap-1.5">
+                      <span>§ 288 BGB:</span>
+                      <span className="font-medium text-foreground">{perioden[0]?.satz.toFixed(2)}% Basiszins + 5% = {getVerzugszinssatz(new Date(), perioden).toFixed(2)}% Verzugszins</span>
+                      {fromDB && <span className="ml-auto text-green-600">● DB</span>}
                     </div>
                     <div className="space-y-3">
                       {verzugszinsenDetails.map((detail, i) => (

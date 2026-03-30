@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, TrendingUp, Download, Eye, Save, Calculator } from "lucide-react";
+import { Loader2, TrendingUp, Download, Eye, Save, Calculator, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateMieterhoehungPdf, type MieterhoehungPdfData } from "@/utils/mieterhoehungPdfGenerator";
+import { useAktuellerVpi } from "@/hooks/useBasiszinsPerioden";
 
 interface RentIncreaseModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ interface RentIncreaseModalProps {
 
 export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreaseModalProps) {
   const { toast } = useToast();
+  const { vpi: aktuellerVpi } = useAktuellerVpi();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
@@ -92,9 +94,10 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
       setEinheitBezeichnung("WE");
       setErhoehungsModus('standard');
       setVpiAlt("");
-      setVpiNeu("");
+      // Aktuellen VPI aus DB vorausfuellen falls verfuegbar
+      setVpiNeu(aktuellerVpi ? String(aktuellerVpi.wert) : "");
     }
-  }, [isOpen, contractData]);
+  }, [isOpen, contractData, aktuellerVpi]);
 
   // VPI Berechnung: neue Kaltmiete aus Index ableiten
   useEffect(() => {
@@ -353,9 +356,15 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
                         <Calculator className="h-3.5 w-3.5" />
                         Verbraucherpreisindex (Statistisches Bundesamt)
                       </p>
+                      {aktuellerVpi && (
+                        <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 rounded px-2 py-1">
+                          <Info className="h-3 w-3 shrink-0" />
+                          <span>Aktueller VPI laut DB: <strong>{aktuellerVpi.wert}</strong> (Stand {new Date(aktuellerVpi.stichtag).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })})</span>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <Label className="text-xs">Alter Index</Label>
+                          <Label className="text-xs">Alter Index (Vertragsbeginn)</Label>
                           <Input
                             type="number"
                             step="0.1"
@@ -366,7 +375,7 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
                           />
                         </div>
                         <div>
-                          <Label className="text-xs">Neuer Index</Label>
+                          <Label className="text-xs">Neuer Index {aktuellerVpi ? "(aus DB)" : ""}</Label>
                           <Input
                             type="number"
                             step="0.1"
@@ -378,9 +387,14 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
                         </div>
                       </div>
                       {vpiAlt && vpiNeu && parseFloat(vpiAlt) > 0 && (
-                        <p className="text-xs text-blue-700 dark:text-blue-300">
-                          Erhöhung: {(((parseFloat(vpiNeu) - parseFloat(vpiAlt)) / parseFloat(vpiAlt)) * 100).toFixed(2)}%
-                        </p>
+                        <div className="space-y-0.5">
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
+                            Erhöhung: {(((parseFloat(vpiNeu) - parseFloat(vpiAlt)) / parseFloat(vpiAlt)) * 100).toFixed(2)}%
+                          </p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400">
+                            Kappungsgrenze: {kappungsgrenze}% ({istAngespannt ? "angespannter Markt" : "normaler Markt"})
+                          </p>
+                        </div>
                       )}
                       <a
                         href="https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html"

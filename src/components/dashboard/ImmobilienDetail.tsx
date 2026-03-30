@@ -27,6 +27,7 @@ interface ImmobilienDetailProps {
   openMietvertragId?: string | null;
   onContractModalClose?: () => void;
   isHausmeister?: boolean;
+  initialTab?: string | null;
 }
 export const ImmobilienDetail = ({
   immobilieId,
@@ -34,13 +35,15 @@ export const ImmobilienDetail = ({
   scrollToEinheitId,
   openMietvertragId,
   onContractModalClose,
-  isHausmeister = false
+  isHausmeister = false,
+  initialTab,
 }: ImmobilienDetailProps) => {
   const queryClient = useQueryClient();
   const einheitRefs = useRef<{
     [key: string]: HTMLDivElement | null;
   }>({});
-  
+  const [activeTab, setActiveTab] = useState(initialTab ?? "einheiten");
+
   // State for editable meter fields
   const [editingMeter, setEditingMeter] = useState<string | null>(null);
   const [meterValues, setMeterValues] = useState<Record<string, string>>({});
@@ -257,13 +260,29 @@ export const ImmobilienDetail = ({
                   </div>
                 </div>
                 
-                <div className="text-right space-y-1">
+                <div className="text-right space-y-2">
                   <Badge variant="outline" className="text-sm px-3 py-1">
                     {einheiten?.length || 0} von {immobilie?.einheiten_anzahl} Einheiten
                   </Badge>
                   {immobilie?.objekttyp && <div className="text-xs text-muted-foreground">
                       {immobilie.objekttyp}
                     </div>}
+                  <div
+                    className="flex items-center gap-2 justify-end cursor-pointer group"
+                    title="Kappungsgrenze: 15% in 36 Monaten (angespannt) vs. 20% (normal)"
+                    onClick={async () => {
+                      const neuerWert = !immobilie?.ist_angespannt;
+                      await supabase.from('immobilien').update({ ist_angespannt: neuerWert }).eq('id', immobilieId);
+                      queryClient.invalidateQueries({ queryKey: ['immobilie', immobilieId] });
+                    }}
+                  >
+                    <span className={`text-xs font-medium ${immobilie?.ist_angespannt ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                      Angespannter Markt
+                    </span>
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${immobilie?.ist_angespannt ? 'bg-orange-500 border-orange-500' : 'border-gray-300 group-hover:border-orange-400'}`}>
+                      {immobilie?.ist_angespannt && <Check className="h-3 w-3 text-white" />}
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -428,7 +447,7 @@ export const ImmobilienDetail = ({
         </div>
 
         {/* Tabs für Einheiten, Dokumente und Zahlungen */}
-        <Tabs defaultValue="einheiten" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="einheiten">Einheiten</TabsTrigger>
             <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
