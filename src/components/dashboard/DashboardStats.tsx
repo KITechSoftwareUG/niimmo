@@ -84,7 +84,7 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
 
   const saveMarktdaten = async (typ: 'basiszinssatz' | 'vpi', wert: number) => {
     const heute = new Date().toISOString().split('T')[0];
-    await supabase.from('marktdaten').upsert({
+    await (supabase as any).from('marktdaten').upsert({
       typ,
       wert,
       stichtag: heute,

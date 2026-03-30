@@ -276,11 +276,11 @@ export const ImmobilienDetail = ({
                       queryClient.invalidateQueries({ queryKey: ['immobilie', immobilieId] });
                     }}
                   >
-                    <span className={`text-xs font-medium ${immobilie?.ist_angespannt ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                    <span className={`text-xs font-medium ${(immobilie as any)?.ist_angespannt ? 'text-orange-600' : 'text-muted-foreground'}`}>
                       Angespannter Markt
                     </span>
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${immobilie?.ist_angespannt ? 'bg-orange-500 border-orange-500' : 'border-gray-300 group-hover:border-orange-400'}`}>
-                      {immobilie?.ist_angespannt && <Check className="h-3 w-3 text-white" />}
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${(immobilie as any)?.ist_angespannt ? 'bg-orange-500 border-orange-500' : 'border-gray-300 group-hover:border-orange-400'}`}>
+                      {(immobilie as any)?.ist_angespannt && <Check className="h-3 w-3 text-white" />}
                     </div>
                   </div>
                 </div>

@@ -137,12 +137,6 @@ export function MahnungErstellungModal({
     setMahnkostenGesamt((preis * anzahl).toFixed(2));
   }, [mahnkostenProSchreiben, anzahlMahnschreiben]);
 
-  // Verzugszinsen automatisch berechnen wenn Rückstand oder Monatsmieten ändert
-  useEffect(() => {
-    if (!isOpen || parseFloat(gesamtRueckstand) <= 0) return;
-    autoBerechneVerzugszinsen();
-  }, [isOpen, autoBerechneVerzugszinsen]);
-
   // Build PDF data from state
   const buildPdfData = useCallback((): MahnungPdfData | null => {
     if (!contractData) return null;

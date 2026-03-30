@@ -40,7 +40,7 @@ export function useAktuellerVpi() {
   const { data, isLoading } = useQuery({
     queryKey: ["aktueller-vpi"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("aktuelle_marktdaten")
         .select("wert, stichtag")
         .eq("typ", "vpi")
