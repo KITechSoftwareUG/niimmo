@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      angespannte_maerkte: {
+        Row: {
+          bundesland: string
+          created_at: string
+          gemeinde: string
+          gueltig_bis: string | null
+          id: string
+          kappungsgrenze_prozent: number
+          updated_at: string
+          verordnung: string | null
+        }
+        Insert: {
+          bundesland: string
+          created_at?: string
+          gemeinde: string
+          gueltig_bis?: string | null
+          id?: string
+          kappungsgrenze_prozent?: number
+          updated_at?: string
+          verordnung?: string | null
+        }
+        Update: {
+          bundesland?: string
+          created_at?: string
+          gemeinde?: string
+          gueltig_bis?: string | null
+          id?: string
+          kappungsgrenze_prozent?: number
+          updated_at?: string
+          verordnung?: string | null
+        }
+        Relationships: []
+      }
       csv_uploads: {
         Row: {
           anzahl_datensaetze: number | null
@@ -443,6 +476,7 @@ export type Database = {
           hat_strom: boolean
           hat_wasser: boolean
           id: string
+          ist_angespannt: boolean
           kaufpreis: number | null
           "Kontonr.": string | null
           marktwert: number | null
@@ -486,6 +520,7 @@ export type Database = {
           hat_strom?: boolean
           hat_wasser?: boolean
           id?: string
+          ist_angespannt?: boolean
           kaufpreis?: number | null
           "Kontonr."?: string | null
           marktwert?: number | null
@@ -529,6 +564,7 @@ export type Database = {
           hat_strom?: boolean
           hat_wasser?: boolean
           id?: string
+          ist_angespannt?: boolean
           kaufpreis?: number | null
           "Kontonr."?: string | null
           marktwert?: number | null
@@ -673,6 +709,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      marktdaten: {
+        Row: {
+          abgerufen_am: string
+          created_at: string
+          id: string
+          quelle: string
+          stichtag: string
+          typ: string
+          wert: number
+        }
+        Insert: {
+          abgerufen_am?: string
+          created_at?: string
+          id?: string
+          quelle: string
+          stichtag: string
+          typ: string
+          wert: number
+        }
+        Update: {
+          abgerufen_am?: string
+          created_at?: string
+          id?: string
+          quelle?: string
+          stichtag?: string
+          typ?: string
+          wert?: number
+        }
+        Relationships: []
       }
       mieter: {
         Row: {
@@ -1499,7 +1565,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      aktuelle_marktdaten: {
+        Row: {
+          abgerufen_am: string | null
+          quelle: string | null
+          stichtag: string | null
+          typ: string | null
+          wert: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       calculate_zeitanteil: {

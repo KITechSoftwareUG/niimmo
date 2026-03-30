@@ -71,7 +71,7 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
   useEffect(() => {
     if (!isOpen || !contractData?.immobilie_id) return;
     const fetchAngespannt = async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('immobilien')
         .select('ist_angespannt')
         .eq('id', contractData.immobilie_id)

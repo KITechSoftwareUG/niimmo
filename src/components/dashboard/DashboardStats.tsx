@@ -71,12 +71,12 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
   const { data: marktdaten } = useQuery({
     queryKey: ['aktuelle-marktdaten'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('aktuelle_marktdaten')
         .select('*');
       if (error) throw error;
-      const basiszins = data?.find(d => d.typ === 'basiszinssatz');
-      const vpi = data?.find(d => d.typ === 'vpi');
+      const basiszins = data?.find((d: any) => d.typ === 'basiszinssatz');
+      const vpi = data?.find((d: any) => d.typ === 'vpi');
       return { basiszins, vpi };
     },
     staleTime: 300000,
@@ -84,7 +84,7 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
 
   const saveMarktdaten = async (typ: 'basiszinssatz' | 'vpi', wert: number) => {
     const heute = new Date().toISOString().split('T')[0];
-    await supabase.from('marktdaten').upsert({
+    await (supabase as any).from('marktdaten').upsert({
       typ,
       wert,
       stichtag: heute,
