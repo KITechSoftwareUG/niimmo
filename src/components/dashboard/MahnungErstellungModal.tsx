@@ -377,6 +377,12 @@ export function MahnungErstellungModal({
     setVerzugszinsenGesamt(ergebnis.gesamt.toFixed(2));
   }, [gesamtRueckstand, anzahlMonatsmieten, perioden]);
 
+  // Verzugszinsen automatisch berechnen wenn Rückstand oder Monatsmieten ändert
+  useEffect(() => {
+    if (!isOpen || parseFloat(gesamtRueckstand) <= 0) return;
+    autoBerechneVerzugszinsen();
+  }, [isOpen, autoBerechneVerzugszinsen]);
+
   const addVerzugszinsenDetail = () => {
     setVerzugszinsenDetails(prev => [...prev, { monat: '', betrag: 0 }]);
   };
