@@ -350,18 +350,19 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
                     </SelectContent>
                   </Select>
 
+                  {aktuellerVpi && (
+                    <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded px-2 py-1.5">
+                      <Info className="h-3 w-3 shrink-0" />
+                      <span>Aktueller VPI (DB): <strong>{aktuellerVpi.wert}</strong> · Stand {new Date(aktuellerVpi.stichtag).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })} · Basis 2020=100</span>
+                    </div>
+                  )}
+
                   {erhoehungsModus === 'indexmiete' && (
                     <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/20 space-y-2">
                       <p className="text-xs font-medium text-blue-800 dark:text-blue-200 flex items-center gap-1">
                         <Calculator className="h-3.5 w-3.5" />
-                        Verbraucherpreisindex (Statistisches Bundesamt)
+                        VPI-Berechnung
                       </p>
-                      {aktuellerVpi && (
-                        <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 rounded px-2 py-1">
-                          <Info className="h-3 w-3 shrink-0" />
-                          <span>Aktueller VPI laut DB: <strong>{aktuellerVpi.wert}</strong> (Stand {new Date(aktuellerVpi.stichtag).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })})</span>
-                        </div>
-                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs">Alter Index (Vertragsbeginn)</Label>
