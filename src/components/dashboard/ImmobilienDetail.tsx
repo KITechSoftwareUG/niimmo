@@ -271,8 +271,8 @@ export const ImmobilienDetail = ({
                     className="flex items-center gap-2 justify-end cursor-pointer group"
                     title="Kappungsgrenze: 15% in 36 Monaten (angespannt) vs. 20% (normal)"
                     onClick={async () => {
-                      const neuerWert = !immobilie?.ist_angespannt;
-                      await supabase.from('immobilien').update({ ist_angespannt: neuerWert }).eq('id', immobilieId);
+                      const neuerWert = !(immobilie as any)?.ist_angespannt;
+                      await (supabase as any).from('immobilien').update({ ist_angespannt: neuerWert }).eq('id', immobilieId);
                       queryClient.invalidateQueries({ queryKey: ['immobilie', immobilieId] });
                     }}
                   >
