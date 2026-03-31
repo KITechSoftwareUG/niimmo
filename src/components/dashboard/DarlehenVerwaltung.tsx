@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import {
   ArrowLeft, Plus, Pencil, Trash2, Building2, CreditCard,
-  X, Euro, Percent, ChevronDown, ChevronUp, AlertCircle,
+  X, Percent, ChevronDown, ChevronUp, AlertCircle, Euro,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ interface Darlehen {
   id: string;
   bezeichnung: string;
   bank: string | null;
-  kontonummer: string | null; // stores IBAN
+  kontonummer: string | null;
   darlehensbetrag: number;
   restschuld: number | null;
   zinssatz_prozent: number | null;
@@ -66,7 +66,6 @@ interface TilgungsplanEintrag {
   rate: number;
   zinsanteil: number;
   tilgungsanteil: number;
-  restschuld_davor: number;
   restschuld_danach: number;
 }
 
@@ -135,11 +134,9 @@ function berechneTilgungsplan(
   let rs = restschuld;
   const zinsMtl = zinssatz / 100 / 12;
 
-  // Start next month
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  // Max months: until Ende or 360 (30 Jahre)
   let maxMonate = 360;
   if (endDatum) {
     const end = new Date(endDatum);
@@ -151,7 +148,7 @@ function berechneTilgungsplan(
     const date = new Date(start.getFullYear(), start.getMonth() + i, 1);
     const zinsanteil = rs * zinsMtl;
     const tilgungsanteil = Math.min(rate - zinsanteil, rs);
-    if (tilgungsanteil <= 0) break; // Rate doesn't cover interest — avoid infinite loop
+    if (tilgungsanteil <= 0) break;
     const rs_nach = Math.max(0, rs - tilgungsanteil);
 
     plan.push({
@@ -160,7 +157,6 @@ function berechneTilgungsplan(
       rate: zinsanteil + tilgungsanteil,
       zinsanteil,
       tilgungsanteil,
-      restschuld_davor: rs,
       restschuld_danach: rs_nach,
     });
 
@@ -180,11 +176,9 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState("tilgungsplan");
   const [showAllMonate, setShowAllMonate] = useState(false);
-
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<DarlehenForm>(FORM_EMPTY);
-
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
@@ -276,7 +270,6 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
         darlehenId = created.id;
       }
 
-      // Sync immobilien links
       await supabase.from("darlehen_immobilien").delete().eq("darlehen_id", darlehenId!);
       if (data.immobilien_ids.length > 0) {
         await supabase.from("darlehen_immobilien").insert(
@@ -323,7 +316,6 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
     const immoIds = darlehenImmobilien
       .filter((di) => di.darlehen_id === d.id)
       .map((di) => di.immobilie_id);
-
     setEditId(d.id);
     setForm({
       bezeichnung: d.bezeichnung,
@@ -388,6 +380,10 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
 
   const gesamtschuld = darlehen.reduce((sum, d) => sum + (d.restschuld ?? 0), 0);
   const gesamtrate = darlehen.reduce((sum, d) => sum + (d.monatliche_rate ?? 0), 0);
+  const gesamtzins = darlehen.reduce((sum, d) => {
+    if (!d.restschuld || !d.zinssatz_prozent) return sum;
+    return sum + d.restschuld * (d.zinssatz_prozent / 100 / 12);
+  }, 0);
 
   const tilgungsplan = useMemo(() => {
     if (!selectedDarlehen) return [];
@@ -404,87 +400,97 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 text-white">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onBack}
-          className="h-8 w-8 text-zinc-400 hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <h1 className="text-base font-semibold">Darlehenskonten</h1>
-        <div className="flex-1" />
-        <Button
-          size="sm"
-          onClick={openCreate}
-          className="bg-blue-600 hover:bg-blue-500 h-8 text-xs"
-        >
-          <Plus className="h-3.5 w-3.5 mr-1" />
-          Neues Konto
-        </Button>
-      </div>
+    <div className="min-h-screen modern-dashboard-bg">
+      <div className="container mx-auto px-3 py-3 sm:p-4 lg:p-6">
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-3 px-4 py-3 border-b border-zinc-800 shrink-0">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-          <div className="text-xs text-zinc-500 mb-1">Gesamtschuld</div>
-          <div className="text-lg font-mono font-semibold text-red-400">
-            {formatEuro(gesamtschuld)}
-          </div>
-          <div className="text-xs text-zinc-600 mt-0.5">{darlehen.length} Konten</div>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-          <div className="text-xs text-zinc-500 mb-1">Rate gesamt / Monat</div>
-          <div className="text-lg font-mono font-semibold text-orange-400">
-            {formatEuro(gesamtrate)}
-          </div>
-          <div className="text-xs text-zinc-600 mt-0.5">Annuität</div>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
-          <div className="text-xs text-zinc-500 mb-1">Zinsanteil / Monat</div>
-          <div className="text-lg font-mono font-semibold text-yellow-400">
-            {formatEuro(
-              darlehen.reduce((sum, d) => {
-                if (!d.restschuld || !d.zinssatz_prozent) return sum;
-                return sum + d.restschuld * (d.zinssatz_prozent / 100 / 12);
-              }, 0),
-            )}
-          </div>
-          <div className="text-xs text-zinc-600 mt-0.5">aktueller Zins</div>
-        </div>
-      </div>
-
-      {/* Main */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Account list */}
-        <div
-          className={`flex flex-col overflow-y-auto border-r border-zinc-800 transition-all ${
-            selectedId ? "w-80 min-w-80 shrink-0" : "flex-1"
-          }`}
-        >
-          {isLoading ? (
-            <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
-              Lädt…
-            </div>
-          ) : darlehen.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500">
-              <CreditCard className="h-10 w-10 opacity-30" />
-              <div className="text-sm">Noch keine Darlehenskonten</div>
+        {/* Header */}
+        <div className="glass-card p-3 sm:p-4 rounded-xl mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={openCreate}
-                className="border-zinc-700 text-zinc-300"
+                onClick={onBack}
+                className="h-8 w-8 p-0"
               >
-                Erstes Konto anlegen
+                <ArrowLeft className="h-4 w-4" />
               </Button>
+              <CreditCard className="h-5 w-5 text-primary" />
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold text-gray-800">Darlehenskonten</h1>
+                <p className="text-xs text-gray-500 hidden sm:block">
+                  {darlehen.length} Konten · {formatEuro(gesamtschuld)} Gesamtschuld
+                </p>
+              </div>
             </div>
-          ) : (
-            <div className="divide-y divide-zinc-800/60">
-              {darlehen.map((d) => {
+            <Button
+              size="sm"
+              onClick={openCreate}
+              className="accent-red h-8 text-xs text-white"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Neues Konto
+            </Button>
+          </div>
+        </div>
+
+        {/* Summary KPIs */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="metric-card rounded-xl p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Euro className="h-3.5 w-3.5 text-red-500" />
+              <span className="text-xs text-gray-500 font-medium">Gesamtschuld</span>
+            </div>
+            <div className="text-base sm:text-lg font-bold text-red-600 font-mono">
+              {formatEuro(gesamtschuld)}
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">{darlehen.length} Konten</div>
+          </div>
+          <div className="metric-card rounded-xl p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Euro className="h-3.5 w-3.5 text-orange-500" />
+              <span className="text-xs text-gray-500 font-medium">Rate / Monat</span>
+            </div>
+            <div className="text-base sm:text-lg font-bold text-orange-600 font-mono">
+              {formatEuro(gesamtrate)}
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">Annuität gesamt</div>
+          </div>
+          <div className="metric-card rounded-xl p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Percent className="h-3.5 w-3.5 text-yellow-600" />
+              <span className="text-xs text-gray-500 font-medium">Zinsen / Monat</span>
+            </div>
+            <div className="text-base sm:text-lg font-bold text-yellow-700 font-mono">
+              {formatEuro(gesamtzins)}
+            </div>
+            <div className="text-xs text-gray-400 mt-0.5">aktuell</div>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className={`flex gap-4 ${selectedId ? "items-start" : ""}`}>
+
+          {/* Account list */}
+          <div className={`${selectedId ? "w-80 shrink-0" : "w-full"} space-y-2`}>
+            {isLoading ? (
+              <div className="glass-card rounded-xl p-8 text-center text-gray-400 text-sm">
+                Lädt…
+              </div>
+            ) : darlehen.length === 0 ? (
+              <div className="glass-card rounded-xl p-10 flex flex-col items-center gap-3 text-gray-400">
+                <CreditCard className="h-10 w-10 opacity-30" />
+                <div className="text-sm">Noch keine Darlehenskonten</div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openCreate}
+                >
+                  Erstes Konto anlegen
+                </Button>
+              </div>
+            ) : (
+              darlehen.map((d) => {
                 const linked = getLinkedImmobilien(d.id);
                 const isSelected = selectedId === d.id;
                 const zinsProMonat =
@@ -503,24 +509,29 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                       setSelectedId(isSelected ? null : d.id);
                       setShowAllMonate(false);
                     }}
-                    className={`p-4 cursor-pointer transition-colors border-l-2 ${
+                    className={`glass-card rounded-xl p-3 sm:p-4 cursor-pointer transition-all border-l-4 ${
                       isSelected
-                        ? "bg-blue-950/30 border-blue-500"
-                        : "hover:bg-zinc-800/40 border-transparent"
+                        ? "border-l-primary shadow-md"
+                        : "border-l-transparent hover:shadow-sm"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         {/* Name */}
-                        <div className="font-medium text-sm text-white truncate mb-0.5">
+                        <div className="font-semibold text-sm text-gray-800 truncate mb-0.5">
                           {d.bezeichnung}
                         </div>
 
-                        {/* Immobilien */}
+                        {/* Bank */}
+                        {d.bank && (
+                          <div className="text-xs text-gray-500 mb-1">{d.bank}</div>
+                        )}
+
+                        {/* Linked Immobilien */}
                         {linked.length > 0 && (
                           <div className="flex items-center gap-1 mb-1.5">
-                            <Building2 className="h-3 w-3 text-zinc-600 shrink-0" />
-                            <span className="text-xs text-zinc-400 truncate">
+                            <Building2 className="h-3 w-3 text-gray-400 shrink-0" />
+                            <span className="text-xs text-gray-500 truncate">
                               {linked.map((i) => i.name).join(", ")}
                             </span>
                           </div>
@@ -528,48 +539,42 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
 
                         {/* IBAN */}
                         {d.kontonummer && (
-                          <div className="font-mono text-xs text-zinc-600 mb-2">
+                          <div className="font-mono text-xs text-gray-400 mb-2 tracking-wider">
                             {formatIBAN(d.kontonummer)}
                           </div>
                         )}
 
                         {/* Restschuld + Rate */}
-                        <div className="flex items-baseline gap-2 mb-1.5">
-                          <span className="font-mono text-sm font-semibold text-red-400">
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="font-mono text-sm font-bold text-red-600">
                             {formatEuro(d.restschuld)}
                           </span>
                           {d.monatliche_rate && (
                             <>
-                              <span className="text-zinc-700 text-xs">·</span>
-                              <span className="font-mono text-xs text-zinc-400">
-                                {formatEuro(d.monatliche_rate)}/Monat
+                              <span className="text-gray-300 text-xs">·</span>
+                              <span className="font-mono text-xs text-gray-500">
+                                {formatEuro(d.monatliche_rate)}/Mon.
                               </span>
                             </>
                           )}
                         </div>
 
-                        {/* Zinssatz / Tilgungssatz badges */}
+                        {/* Badges */}
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {d.zinssatz_prozent !== null && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs px-1.5 py-0 h-4 border-zinc-700 text-zinc-500 font-mono"
-                            >
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                               {formatProzent(d.zinssatz_prozent)} Zins
                             </Badge>
                           )}
                           {d.tilgungssatz_prozent !== null && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs px-1.5 py-0 h-4 border-zinc-700 text-zinc-500 font-mono"
-                            >
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                               {formatProzent(d.tilgungssatz_prozent)} Tilgung
                             </Badge>
                           )}
                           {zinsProMonat !== null && (
                             <Badge
                               variant="outline"
-                              className="text-xs px-1.5 py-0 h-4 border-yellow-900 text-yellow-600 font-mono"
+                              className="text-[10px] px-1.5 py-0 h-4 border-yellow-200 text-yellow-700 bg-yellow-50"
                             >
                               {formatEuro(zinsProMonat)} Zinsen
                             </Badge>
@@ -577,7 +582,7 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                           {tilgungProMonat !== null && tilgungProMonat > 0 && (
                             <Badge
                               variant="outline"
-                              className="text-xs px-1.5 py-0 h-4 border-green-900 text-green-600 font-mono"
+                              className="text-[10px] px-1.5 py-0 h-4 border-green-200 text-green-700 bg-green-50"
                             >
                               {formatEuro(tilgungProMonat)} Tilgung
                             </Badge>
@@ -593,7 +598,7 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-zinc-500 hover:text-white"
+                          className="h-7 w-7 text-gray-400 hover:text-gray-700"
                           onClick={() => openEdit(d)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -601,7 +606,7 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-zinc-500 hover:text-red-400"
+                          className="h-7 w-7 text-gray-400 hover:text-red-500"
                           onClick={() => setDeleteConfirmId(d.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -610,297 +615,274 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
-        </div>
+              })
+            )}
+          </div>
 
-        {/* Detail panel */}
-        {selectedDarlehen && (
-          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            {/* Detail header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
-              <div>
-                <div className="font-semibold text-sm text-white">
-                  {selectedDarlehen.bezeichnung}
-                </div>
-                {selectedDarlehen.bank && (
-                  <div className="text-xs text-zinc-500">{selectedDarlehen.bank}</div>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-zinc-500 hover:text-white"
-                onClick={() => setSelectedId(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <Tabs
-              value={detailTab}
-              onValueChange={setDetailTab}
-              className="flex flex-col flex-1 overflow-hidden"
-            >
-              <TabsList className="mx-4 mt-3 bg-zinc-900 border border-zinc-800 w-fit shrink-0">
-                <TabsTrigger value="tilgungsplan" className="text-xs">
-                  Tilgungsplan
-                </TabsTrigger>
-                <TabsTrigger value="zahlungen" className="text-xs">
-                  Zahlungen
-                </TabsTrigger>
-                <TabsTrigger value="details" className="text-xs">
-                  Details
-                </TabsTrigger>
-              </TabsList>
-
-              {/* ── Tilgungsplan ── */}
-              <TabsContent
-                value="tilgungsplan"
-                className="flex-1 overflow-auto px-4 pb-4 mt-3 data-[state=inactive]:hidden"
-              >
-                {!selectedDarlehen.restschuld ||
-                !selectedDarlehen.zinssatz_prozent ||
-                !selectedDarlehen.monatliche_rate ? (
-                  <div className="flex flex-col items-center gap-2 py-12 text-zinc-500">
-                    <AlertCircle className="h-8 w-8 opacity-40" />
-                    <div className="text-sm text-center">
-                      Zinssatz, Rate und Restschuld hinterlegen,
-                      <br />
-                      um den Tilgungsplan zu berechnen.
+          {/* Detail panel */}
+          {selectedDarlehen && (
+            <div className="flex-1 min-w-0">
+              <div className="glass-card rounded-xl overflow-hidden">
+                {/* Detail header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <div>
+                    <div className="font-semibold text-sm text-gray-800">
+                      {selectedDarlehen.bezeichnung}
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-zinc-700 text-zinc-300 mt-1"
-                      onClick={() => openEdit(selectedDarlehen)}
-                    >
-                      Jetzt bearbeiten
-                    </Button>
+                    {selectedDarlehen.bank && (
+                      <div className="text-xs text-gray-500">{selectedDarlehen.bank}</div>
+                    )}
                   </div>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="text-xs text-zinc-500">
-                        Ab {format(new Date(), "MMMM yyyy", { locale: de })} ·{" "}
-                        {tilgungsplan.length} Raten bis Laufzeitende
-                        {selectedDarlehen.ende_datum &&
-                          ` (${selectedDarlehen.ende_datum})`}
-                      </div>
-                      {tilgungsplan.length > 24 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-gray-400 hover:text-gray-700"
+                    onClick={() => setSelectedId(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <Tabs
+                  value={detailTab}
+                  onValueChange={setDetailTab}
+                  className="w-full"
+                >
+                  <div className="px-4 pt-3">
+                    <TabsList className="bg-gray-100 h-8">
+                      <TabsTrigger value="tilgungsplan" className="text-xs h-7">
+                        Tilgungsplan
+                      </TabsTrigger>
+                      <TabsTrigger value="zahlungen" className="text-xs h-7">
+                        Zahlungen
+                      </TabsTrigger>
+                      <TabsTrigger value="details" className="text-xs h-7">
+                        Details
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  {/* ── Tilgungsplan ── */}
+                  <TabsContent value="tilgungsplan" className="px-4 pb-4 mt-3">
+                    {!selectedDarlehen.restschuld ||
+                    !selectedDarlehen.zinssatz_prozent ||
+                    !selectedDarlehen.monatliche_rate ? (
+                      <div className="flex flex-col items-center gap-2 py-10 text-gray-400">
+                        <AlertCircle className="h-8 w-8 opacity-40" />
+                        <div className="text-sm text-center">
+                          Zinssatz, Rate und Restschuld hinterlegen,
+                          <br />
+                          um den Tilgungsplan zu berechnen.
+                        </div>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="h-6 text-xs text-zinc-400 hover:text-white px-2"
-                          onClick={() => setShowAllMonate((v) => !v)}
+                          className="mt-1"
+                          onClick={() => openEdit(selectedDarlehen)}
                         >
-                          {showAllMonate ? (
-                            <>
-                              <ChevronUp className="h-3 w-3 mr-1" />
-                              Weniger
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-3 w-3 mr-1" />
-                              Alle {tilgungsplan.length} anzeigen
-                            </>
-                          )}
+                          Jetzt bearbeiten
                         </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="text-xs text-gray-500">
+                            Ab {format(new Date(), "MMMM yyyy", { locale: de })} ·{" "}
+                            {tilgungsplan.length} Raten
+                            {selectedDarlehen.ende_datum &&
+                              ` bis ${selectedDarlehen.ende_datum}`}
+                          </div>
+                          {tilgungsplan.length > 24 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs px-2 text-gray-500"
+                              onClick={() => setShowAllMonate((v) => !v)}
+                            >
+                              {showAllMonate ? (
+                                <>
+                                  <ChevronUp className="h-3 w-3 mr-1" />
+                                  Weniger
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-3 w-3 mr-1" />
+                                  Alle {tilgungsplan.length}
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-gray-100 hover:bg-transparent">
+                              <TableHead className="text-xs text-gray-500 py-2 font-medium">Monat</TableHead>
+                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Rate</TableHead>
+                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Zinsen</TableHead>
+                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Tilgung</TableHead>
+                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Restschuld</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {angezeigterPlan.map((e) => (
+                              <TableRow
+                                key={e.monat}
+                                className="border-gray-50 hover:bg-gray-50/50"
+                              >
+                                <TableCell className="text-xs text-gray-700 py-1.5">
+                                  {format(e.datum, "MMM yyyy", { locale: de })}
+                                </TableCell>
+                                <TableCell className="text-xs font-mono text-gray-800 py-1.5 text-right">
+                                  {formatEuro(e.rate)}
+                                </TableCell>
+                                <TableCell className="text-xs font-mono text-yellow-700 py-1.5 text-right">
+                                  {formatEuro(e.zinsanteil)}
+                                </TableCell>
+                                <TableCell className="text-xs font-mono text-green-700 py-1.5 text-right">
+                                  {formatEuro(e.tilgungsanteil)}
+                                </TableCell>
+                                <TableCell className="text-xs font-mono text-red-600 py-1.5 text-right">
+                                  {formatEuro(e.restschuld_danach)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+
+                        {!showAllMonate && tilgungsplan.length > 24 && (
+                          <div className="text-center text-xs text-gray-400 py-3">
+                            + {tilgungsplan.length - 24} weitere Monate
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </TabsContent>
+
+                  {/* ── Zahlungen ── */}
+                  <TabsContent value="zahlungen" className="px-4 pb-4 mt-3">
+                    {!selectedDarlehen.kontonummer ? (
+                      <div className="flex flex-col items-center gap-2 py-10 text-gray-400">
+                        <AlertCircle className="h-8 w-8 opacity-40" />
+                        <div className="text-sm">Keine IBAN hinterlegt.</div>
+                      </div>
+                    ) : zahlungen.length === 0 ? (
+                      <div className="flex flex-col items-center gap-2 py-10 text-gray-400">
+                        <CreditCard className="h-8 w-8 opacity-40" />
+                        <div className="text-sm text-center">
+                          Keine Zahlungen mit IBAN
+                          <br />
+                          <span className="font-mono text-xs tracking-wider">
+                            {formatIBAN(selectedDarlehen.kontonummer)}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-xs text-gray-500 mb-3">
+                          {zahlungen.length} Zahlungen ·{" "}
+                          <span className="font-mono tracking-wider">
+                            {formatIBAN(selectedDarlehen.kontonummer)}
+                          </span>
+                        </div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-gray-100 hover:bg-transparent">
+                              <TableHead className="text-xs text-gray-500 py-2 font-medium">Datum</TableHead>
+                              <TableHead className="text-xs text-gray-500 py-2 font-medium">Empfänger</TableHead>
+                              <TableHead className="text-xs text-gray-500 py-2 font-medium">Verwendungszweck</TableHead>
+                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Betrag</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {zahlungen.map((z) => (
+                              <TableRow key={z.id} className="border-gray-50 hover:bg-gray-50/50">
+                                <TableCell className="text-xs text-gray-700 py-1.5 whitespace-nowrap">
+                                  {z.buchungsdatum}
+                                </TableCell>
+                                <TableCell className="text-xs text-gray-700 py-1.5 max-w-32 truncate">
+                                  {z.empfaengername || "–"}
+                                </TableCell>
+                                <TableCell className="text-xs text-gray-400 py-1.5 max-w-48 truncate">
+                                  {z.verwendungszweck || "–"}
+                                </TableCell>
+                                <TableCell
+                                  className={`text-xs font-mono py-1.5 text-right ${
+                                    z.betrag < 0 ? "text-red-600" : "text-green-700"
+                                  }`}
+                                >
+                                  {formatEuro(z.betrag)}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </>
+                    )}
+                  </TabsContent>
+
+                  {/* ── Details ── */}
+                  <TabsContent value="details" className="px-4 pb-4 mt-3">
+                    <div className="max-w-sm divide-y divide-gray-100">
+                      {(
+                        [
+                          ["Darlehensbetrag", formatEuro(selectedDarlehen.darlehensbetrag)],
+                          ["Aktuelle Restschuld", formatEuro(selectedDarlehen.restschuld)],
+                          ["Monatliche Rate", formatEuro(selectedDarlehen.monatliche_rate)],
+                          ["Zinssatz p.a.", formatProzent(selectedDarlehen.zinssatz_prozent)],
+                          ["Tilgungssatz p.a.", formatProzent(selectedDarlehen.tilgungssatz_prozent)],
+                          [
+                            "Zinsanteil / Monat",
+                            selectedDarlehen.restschuld && selectedDarlehen.zinssatz_prozent
+                              ? formatEuro(
+                                  selectedDarlehen.restschuld *
+                                    (selectedDarlehen.zinssatz_prozent / 100 / 12),
+                                )
+                              : "–",
+                          ],
+                          ["IBAN", formatIBAN(selectedDarlehen.kontonummer)],
+                          ["Bank", selectedDarlehen.bank || "–"],
+                          ["Laufzeit ab", selectedDarlehen.start_datum || "–"],
+                          ["Laufzeit bis", selectedDarlehen.ende_datum || "–"],
+                        ] as [string, string][]
+                      ).map(([label, value]) => (
+                        <div key={label} className="flex items-center justify-between py-2.5">
+                          <span className="text-xs text-gray-500">{label}</span>
+                          <span className="text-xs font-mono text-gray-800">{value}</span>
+                        </div>
+                      ))}
+                      {selectedDarlehen.notizen && (
+                        <div className="py-2.5">
+                          <div className="text-xs text-gray-500 mb-1">Notizen</div>
+                          <div className="text-xs text-gray-700 leading-relaxed">
+                            {selectedDarlehen.notizen}
+                          </div>
+                        </div>
                       )}
                     </div>
 
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-zinc-800 hover:bg-transparent">
-                          <TableHead className="text-zinc-500 text-xs py-2">Monat</TableHead>
-                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
-                            Rate
-                          </TableHead>
-                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
-                            Zinsen
-                          </TableHead>
-                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
-                            Tilgung
-                          </TableHead>
-                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
-                            Restschuld
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {angezeigterPlan.map((e) => (
-                          <TableRow
-                            key={e.monat}
-                            className="border-zinc-800/50 hover:bg-zinc-800/30"
-                          >
-                            <TableCell className="text-xs text-zinc-300 py-1.5">
-                              {format(e.datum, "MMM yyyy", { locale: de })}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono text-white py-1.5 text-right">
-                              {formatEuro(e.rate)}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono text-yellow-500 py-1.5 text-right">
-                              {formatEuro(e.zinsanteil)}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono text-green-500 py-1.5 text-right">
-                              {formatEuro(e.tilgungsanteil)}
-                            </TableCell>
-                            <TableCell className="text-xs font-mono text-red-400 py-1.5 text-right">
-                              {formatEuro(e.restschuld_danach)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-
-                    {!showAllMonate && tilgungsplan.length > 24 && (
-                      <div className="text-center text-xs text-zinc-600 py-3">
-                        + {tilgungsplan.length - 24} weitere Monate
-                      </div>
-                    )}
-                  </>
-                )}
-              </TabsContent>
-
-              {/* ── Zahlungen ── */}
-              <TabsContent
-                value="zahlungen"
-                className="flex-1 overflow-auto px-4 pb-4 mt-3 data-[state=inactive]:hidden"
-              >
-                {!selectedDarlehen.kontonummer ? (
-                  <div className="flex flex-col items-center gap-2 py-12 text-zinc-500">
-                    <AlertCircle className="h-8 w-8 opacity-40" />
-                    <div className="text-sm">Keine IBAN hinterlegt.</div>
-                  </div>
-                ) : zahlungen.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 py-12 text-zinc-500">
-                    <CreditCard className="h-8 w-8 opacity-40" />
-                    <div className="text-sm text-center">
-                      Keine Zahlungen mit IBAN
-                      <br />
-                      <span className="font-mono text-xs">
-                        {formatIBAN(selectedDarlehen.kontonummer)}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-xs text-zinc-500 mb-3">
-                      {zahlungen.length} Zahlungen gefunden ·{" "}
-                      <span className="font-mono">{formatIBAN(selectedDarlehen.kontonummer)}</span>
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-zinc-800 hover:bg-transparent">
-                          <TableHead className="text-zinc-500 text-xs py-2">Datum</TableHead>
-                          <TableHead className="text-zinc-500 text-xs py-2">Empfänger</TableHead>
-                          <TableHead className="text-zinc-500 text-xs py-2">
-                            Verwendungszweck
-                          </TableHead>
-                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
-                            Betrag
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {zahlungen.map((z) => (
-                          <TableRow
-                            key={z.id}
-                            className="border-zinc-800/50 hover:bg-zinc-800/30"
-                          >
-                            <TableCell className="text-xs text-zinc-300 py-1.5 whitespace-nowrap">
-                              {z.buchungsdatum}
-                            </TableCell>
-                            <TableCell className="text-xs text-zinc-300 py-1.5 max-w-32 truncate">
-                              {z.empfaengername || "–"}
-                            </TableCell>
-                            <TableCell className="text-xs text-zinc-500 py-1.5 max-w-48 truncate">
-                              {z.verwendungszweck || "–"}
-                            </TableCell>
-                            <TableCell
-                              className={`text-xs font-mono py-1.5 text-right ${
-                                z.betrag < 0 ? "text-red-400" : "text-green-400"
-                              }`}
-                            >
-                              {formatEuro(z.betrag)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </>
-                )}
-              </TabsContent>
-
-              {/* ── Details ── */}
-              <TabsContent
-                value="details"
-                className="flex-1 overflow-auto px-4 pb-4 mt-3 data-[state=inactive]:hidden"
-              >
-                <div className="max-w-sm space-y-0 divide-y divide-zinc-800/60">
-                  {(
-                    [
-                      ["Darlehensbetrag", formatEuro(selectedDarlehen.darlehensbetrag)],
-                      ["Aktuelle Restschuld", formatEuro(selectedDarlehen.restschuld)],
-                      ["Monatliche Rate", formatEuro(selectedDarlehen.monatliche_rate)],
-                      ["Zinssatz p.a.", formatProzent(selectedDarlehen.zinssatz_prozent)],
-                      ["Tilgungssatz p.a.", formatProzent(selectedDarlehen.tilgungssatz_prozent)],
-                      [
-                        "Zinsanteil / Monat",
-                        selectedDarlehen.restschuld && selectedDarlehen.zinssatz_prozent
-                          ? formatEuro(
-                              selectedDarlehen.restschuld *
-                                (selectedDarlehen.zinssatz_prozent / 100 / 12),
-                            )
-                          : "–",
-                      ],
-                      ["IBAN", formatIBAN(selectedDarlehen.kontonummer)],
-                      ["Bank", selectedDarlehen.bank || "–"],
-                      ["Laufzeit ab", selectedDarlehen.start_datum || "–"],
-                      ["Laufzeit bis", selectedDarlehen.ende_datum || "–"],
-                    ] as [string, string][]
-                  ).map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between py-2.5">
-                      <span className="text-xs text-zinc-500">{label}</span>
-                      <span className="text-xs font-mono text-white">{value}</span>
-                    </div>
-                  ))}
-                  {selectedDarlehen.notizen && (
-                    <div className="py-2.5">
-                      <div className="text-xs text-zinc-500 mb-1">Notizen</div>
-                      <div className="text-xs text-zinc-300 leading-relaxed">
-                        {selectedDarlehen.notizen}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4 border-zinc-700 text-zinc-300"
-                  onClick={() => openEdit(selectedDarlehen)}
-                >
-                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                  Bearbeiten
-                </Button>
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-4"
+                      onClick={() => openEdit(selectedDarlehen)}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                      Bearbeiten
+                    </Button>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ── Create / Edit Dialog ───────────────────────────────────────────── */}
-      <Dialog
-        open={showDialog}
-        onOpenChange={(open) => {
-          if (!open) closeDialog();
-        }}
-      >
-        <DialogContent className="max-w-lg bg-zinc-950 border-zinc-800 max-h-[90vh] overflow-y-auto">
+      {/* ── Create / Edit Dialog ──────────────────────────────────────────── */}
+      <Dialog open={showDialog} onOpenChange={(open) => { if (!open) closeDialog(); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white text-base">
+            <DialogTitle>
               {editId ? "Darlehenskonto bearbeiten" : "Neues Darlehenskonto"}
             </DialogTitle>
           </DialogHeader>
@@ -908,88 +890,84 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
           <div className="space-y-4 py-1">
             {/* Bezeichnung */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Bezeichnung *</Label>
+              <Label className="text-xs text-gray-600">Bezeichnung *</Label>
               <Input
                 value={form.bezeichnung}
                 onChange={(e) => setForm((f) => ({ ...f, bezeichnung: e.target.value }))}
                 placeholder="z. B. Obj. 01 AV MFH Saarstr."
-                className="bg-zinc-900 border-zinc-700 text-white"
               />
             </div>
 
             {/* Bank + IBAN */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-400">Bank</Label>
+                <Label className="text-xs text-gray-600">Bank</Label>
                 <Input
                   value={form.bank}
                   onChange={(e) => setForm((f) => ({ ...f, bank: e.target.value }))}
                   placeholder="z. B. Sparkasse"
-                  className="bg-zinc-900 border-zinc-700 text-white"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-400">IBAN</Label>
+                <Label className="text-xs text-gray-600">IBAN</Label>
                 <Input
                   value={form.kontonummer}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, kontonummer: e.target.value.toUpperCase() }))
                   }
                   placeholder="DE81 2559 …"
-                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-sm"
+                  className="font-mono text-sm tracking-wider"
                 />
               </div>
             </div>
 
             {/* Immobilien */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Zugehörige Immobilie(n)</Label>
-              <div className="max-h-28 overflow-y-auto space-y-1 rounded border border-zinc-800 bg-zinc-900 p-2">
+              <Label className="text-xs text-gray-600">Zugehörige Immobilie(n)</Label>
+              <div className="max-h-28 overflow-y-auto space-y-1 rounded-md border p-2 bg-gray-50">
                 {immobilien.map((immo) => (
                   <label
                     key={immo.id}
-                    className="flex items-center gap-2 cursor-pointer px-1 py-0.5 rounded hover:bg-zinc-800"
+                    className="flex items-center gap-2 cursor-pointer px-1 py-0.5 rounded hover:bg-white text-xs text-gray-700"
                   >
                     <input
                       type="checkbox"
                       checked={form.immobilien_ids.includes(immo.id)}
                       onChange={(e) => toggleImmo(immo.id, e.target.checked)}
-                      className="accent-blue-500"
+                      className="accent-red-500"
                     />
-                    <span className="text-xs text-zinc-300">{immo.name}</span>
+                    {immo.name}
                   </label>
                 ))}
               </div>
             </div>
 
             {/* Konditionen */}
-            <div className="border-t border-zinc-800 pt-3">
-              <div className="text-xs text-zinc-500 font-medium mb-3 flex items-center gap-1.5">
+            <div className="border-t pt-3">
+              <div className="text-xs text-gray-500 font-semibold mb-3 flex items-center gap-1.5 uppercase tracking-wide">
                 <Percent className="h-3.5 w-3.5" />
                 Konditionen
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-zinc-400">Darlehensbetrag (€)</Label>
+                  <Label className="text-xs text-gray-600">Darlehensbetrag (€)</Label>
                   <Input
                     type="number"
                     value={form.darlehensbetrag}
                     onChange={(e) => setForm((f) => ({ ...f, darlehensbetrag: e.target.value }))}
-                    className="bg-zinc-900 border-zinc-700 text-white"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-zinc-400">Aktuelle Restschuld (€)</Label>
+                  <Label className="text-xs text-gray-600">Aktuelle Restschuld (€)</Label>
                   <Input
                     type="number"
                     value={form.restschuld}
                     onChange={(e) => setForm((f) => ({ ...f, restschuld: e.target.value }))}
-                    className="bg-zinc-900 border-zinc-700 text-white"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-zinc-400">Zinssatz (% p.a.)</Label>
+                  <Label className="text-xs text-gray-600">Zinssatz (% p.a.)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -997,11 +975,10 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, zinssatz_prozent: e.target.value }))
                     }
-                    className="bg-zinc-900 border-zinc-700 text-white"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-zinc-400">Tilgungssatz (% p.a.)</Label>
+                  <Label className="text-xs text-gray-600">Tilgungssatz (% p.a.)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -1009,7 +986,6 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, tilgungssatz_prozent: e.target.value }))
                     }
-                    className="bg-zinc-900 border-zinc-700 text-white"
                   />
                 </div>
               </div>
@@ -1017,11 +993,11 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
               {/* Rate */}
               <div className="space-y-1.5 mt-3">
                 <div className="flex items-center justify-between">
-                  <Label className="text-xs text-zinc-400">Monatliche Rate (€)</Label>
+                  <Label className="text-xs text-gray-600">Monatliche Rate (€)</Label>
                   <button
                     type="button"
                     onClick={handleAutoRate}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    className="text-xs text-primary hover:underline"
                   >
                     Auto-berechnen
                   </button>
@@ -1031,12 +1007,11 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                   step="0.01"
                   value={form.monatliche_rate}
                   onChange={(e) => setForm((f) => ({ ...f, monatliche_rate: e.target.value }))}
-                  className="bg-zinc-900 border-zinc-700 text-white"
                 />
                 {parseNum(form.darlehensbetrag) > 0 &&
                   parseNum(form.zinssatz_prozent) > 0 &&
                   parseNum(form.tilgungssatz_prozent) > 0 && (
-                    <div className="text-xs text-zinc-600">
+                    <div className="text-xs text-gray-400">
                       Berechnet:{" "}
                       {formatEuro(
                         berechneAutoRate(
@@ -1053,49 +1028,43 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
             {/* Laufzeit */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-400">Laufzeit ab</Label>
+                <Label className="text-xs text-gray-600">Laufzeit ab</Label>
                 <Input
                   type="date"
                   value={form.start_datum}
                   onChange={(e) => setForm((f) => ({ ...f, start_datum: e.target.value }))}
-                  className="bg-zinc-900 border-zinc-700 text-white"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-zinc-400">Laufzeit bis</Label>
+                <Label className="text-xs text-gray-600">Laufzeit bis</Label>
                 <Input
                   type="date"
                   value={form.ende_datum}
                   onChange={(e) => setForm((f) => ({ ...f, ende_datum: e.target.value }))}
-                  className="bg-zinc-900 border-zinc-700 text-white"
                 />
               </div>
             </div>
 
             {/* Notizen */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-zinc-400">Notizen</Label>
+              <Label className="text-xs text-gray-600">Notizen</Label>
               <Textarea
                 value={form.notizen}
                 onChange={(e) => setForm((f) => ({ ...f, notizen: e.target.value }))}
-                className="bg-zinc-900 border-zinc-700 text-white resize-none"
+                className="resize-none"
                 rows={2}
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={closeDialog}
-              className="border-zinc-700 text-zinc-300"
-            >
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={closeDialog}>
               Abbrechen
             </Button>
             <Button
               onClick={handleSave}
               disabled={saveMutation.isPending}
-              className="bg-blue-600 hover:bg-blue-500"
+              className="accent-red text-white"
             >
               {saveMutation.isPending ? "Speichern…" : editId ? "Speichern" : "Erstellen"}
             </Button>
@@ -1103,21 +1072,17 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete Confirm ─────────────────────────────────────────────────── */}
+      {/* ── Delete Confirm ────────────────────────────────────────────────── */}
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent className="max-w-sm bg-zinc-950 border-zinc-800">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-white">Konto löschen?</DialogTitle>
+            <DialogTitle>Konto löschen?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-zinc-400">
-            Das Darlehenskonto und alle zugehörigen Zuordnungen werden unwiderruflich gelöscht.
+          <p className="text-sm text-gray-500">
+            Das Darlehenskonto und alle Zuordnungen werden unwiderruflich gelöscht.
           </p>
           <div className="flex justify-end gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirmId(null)}
-              className="border-zinc-700 text-zinc-300"
-            >
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
               Abbrechen
             </Button>
             <Button
