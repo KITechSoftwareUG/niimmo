@@ -2,204 +2,298 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { 
-  ArrowLeft, Plus, Pencil, Trash2, Building2, Landmark, 
-  TrendingDown, Calendar, Euro, Percent, ChevronDown, ChevronUp,
-  TrendingUp, Wallet, Home, ClipboardPaste, FileText, Loader2, Check, AlertTriangle,
-  ShieldAlert, BarChart3, ArrowUpDown, CreditCard, PiggyBank, Activity
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import {
+  ArrowLeft, Plus, Pencil, Trash2, Building2, CreditCard,
+  X, Euro, Percent, ChevronDown, ChevronUp, AlertCircle,
 } from "lucide-react";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface DarlehenVerwaltungProps {
   onBack: () => void;
+}
+
+interface Darlehen {
+  id: string;
+  bezeichnung: string;
+  bank: string | null;
+  kontonummer: string | null; // stores IBAN
+  darlehensbetrag: number;
+  restschuld: number | null;
+  zinssatz_prozent: number | null;
+  tilgungssatz_prozent: number | null;
+  monatliche_rate: number | null;
+  start_datum: string | null;
+  ende_datum: string | null;
+  notizen: string | null;
+  erstellt_am: string | null;
+}
+
+interface Immobilie {
+  id: string;
+  name: string;
+}
+
+interface Zahlung {
+  id: string;
+  betrag: number;
+  buchungsdatum: string;
+  empfaengername: string | null;
+  iban: string | null;
+  verwendungszweck: string | null;
+  kategorie: string | null;
+}
+
+interface DarlehenImmobilie {
+  id: string;
+  darlehen_id: string;
+  immobilie_id: string;
+}
+
+interface TilgungsplanEintrag {
+  monat: string;
+  datum: Date;
+  rate: number;
+  zinsanteil: number;
+  tilgungsanteil: number;
+  restschuld_davor: number;
+  restschuld_danach: number;
 }
 
 interface DarlehenForm {
   bezeichnung: string;
   bank: string;
   kontonummer: string;
-  darlehensbetrag: number;
-  restschuld: number;
-  zinssatz_prozent: number;
-  tilgungssatz_prozent: number;
-  monatliche_rate: number;
+  darlehensbetrag: string;
+  restschuld: string;
+  zinssatz_prozent: string;
+  tilgungssatz_prozent: string;
+  monatliche_rate: string;
   start_datum: string;
   ende_datum: string;
   notizen: string;
   immobilien_ids: string[];
 }
 
-const emptyForm: DarlehenForm = {
-  bezeichnung: "NiImmo Wohnungsbaugesellschaft",
-  bank: "Volksbank",
+const FORM_EMPTY: DarlehenForm = {
+  bezeichnung: "",
+  bank: "",
   kontonummer: "",
-  darlehensbetrag: 0,
-  restschuld: 0,
-  zinssatz_prozent: 0,
-  tilgungssatz_prozent: 0,
-  monatliche_rate: 0,
+  darlehensbetrag: "",
+  restschuld: "",
+  zinssatz_prozent: "",
+  tilgungssatz_prozent: "",
+  monatliche_rate: "",
   start_datum: "",
   ende_datum: "",
   notizen: "",
   immobilien_ids: [],
 };
 
-export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
-  const queryClient = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatEuro(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "–";
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(value);
+}
+
+function formatProzent(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "–";
+  return value.toFixed(2).replace(".", ",") + " %";
+}
+
+function formatIBAN(raw: string | null | undefined): string {
+  if (!raw) return "–";
+  const clean = raw.replace(/\s/g, "");
+  return clean.replace(/(.{4})/g, "$1 ").trim();
+}
+
+function parseNum(s: string): number {
+  const v = parseFloat(s.replace(",", "."));
+  return isNaN(v) ? 0 : v;
+}
+
+function berechneTilgungsplan(
+  restschuld: number,
+  zinssatz: number,
+  rate: number,
+  endDatum: string | null,
+): TilgungsplanEintrag[] {
+  if (!rate || !zinssatz || !restschuld) return [];
+
+  const plan: TilgungsplanEintrag[] = [];
+  let rs = restschuld;
+  const zinsMtl = zinssatz / 100 / 12;
+
+  // Start next month
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  // Max months: until Ende or 360 (30 Jahre)
+  let maxMonate = 360;
+  if (endDatum) {
+    const end = new Date(endDatum);
+    const diffMs = end.getTime() - start.getTime();
+    maxMonate = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 30)));
+  }
+
+  for (let i = 0; i < maxMonate && rs > 0.01; i++) {
+    const date = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    const zinsanteil = rs * zinsMtl;
+    const tilgungsanteil = Math.min(rate - zinsanteil, rs);
+    if (tilgungsanteil <= 0) break; // Rate doesn't cover interest — avoid infinite loop
+    const rs_nach = Math.max(0, rs - tilgungsanteil);
+
+    plan.push({
+      monat: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
+      datum: date,
+      rate: zinsanteil + tilgungsanteil,
+      zinsanteil,
+      tilgungsanteil,
+      restschuld_davor: rs,
+      restschuld_danach: rs_nach,
+    });
+
+    rs = rs_nach;
+  }
+
+  return plan;
+}
+
+function berechneAutoRate(darlehensbetrag: number, zinssatz: number, tilgungssatz: number): number {
+  return (darlehensbetrag * (zinssatz + tilgungssatz)) / 100 / 12;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState("tilgungsplan");
+  const [showAllMonate, setShowAllMonate] = useState(false);
+
+  const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState<DarlehenForm>(emptyForm);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("kredite");
+  const [form, setForm] = useState<DarlehenForm>(FORM_EMPTY);
 
-  // Text Import state
-  const [showTextImport, setShowTextImport] = useState(false);
-  const [importText, setImportText] = useState("");
-  const [isImporting, setIsImporting] = useState(false);
-  const [showImportReview, setShowImportReview] = useState(false);
-  const [importedData, setImportedData] = useState<any>(null);
-  const [importedZahlungen, setImportedZahlungen] = useState<any[]>([]);
-  const [importImmobilienIds, setImportImmobilienIds] = useState<string[]>([]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Inline editing state for immobilien prices
-  const [editingImmoField, setEditingImmoField] = useState<{ id: string; field: 'kaufpreis' | 'marktwert' } | null>(null);
-  const [editingImmoValue, setEditingImmoValue] = useState("");
+  const queryClient = useQueryClient();
 
-  // Auto-Matching state
-  const [isMatching, setIsMatching] = useState(false);
-  const [matchResults, setMatchResults] = useState<Array<{
-    zahlung_id: string;
-    darlehen_id: string;
-    betrag: number;
-    buchungsdatum: string;
-    verwendungszweck: string;
-    bank_name: string;
-  }> | null>(null);
+  // ── Queries ────────────────────────────────────────────────────────────────
 
-  // Fetch all Darlehen
-  const { data: darlehen, isLoading } = useQuery({
+  const { data: darlehen = [], isLoading } = useQuery<Darlehen[]>({
     queryKey: ["darlehen"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("darlehen")
         .select("*")
-        .order("erstellt_am", { ascending: false });
+        .order("bezeichnung");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
-  // Fetch all Immobilien
-  const { data: immobilien } = useQuery({
-    queryKey: ["immobilien-portfolio"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("immobilien").select("id, name, adresse, kaufpreis, marktwert").order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch Darlehen-Immobilien mappings
-  const { data: darlehenImmobilien } = useQuery({
-    queryKey: ["darlehen-immobilien"],
+  const { data: darlehenImmobilien = [] } = useQuery<DarlehenImmobilie[]>({
+    queryKey: ["darlehen_immobilien"],
     queryFn: async () => {
       const { data, error } = await supabase.from("darlehen_immobilien").select("*");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
-  // Fetch Darlehen-Zahlungen
-  const { data: darlehenZahlungen } = useQuery({
-    queryKey: ["darlehen-zahlungen"],
+  const { data: immobilien = [] } = useQuery<Immobilie[]>({
+    queryKey: ["immobilien_mini"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("darlehen_zahlungen")
-        .select("*")
-        .order("buchungsdatum", { ascending: false });
+        .from("immobilien")
+        .select("id, name")
+        .order("name");
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
   });
 
-  // Fetch Mietverträge for rental income
-  const { data: mietvertraege } = useQuery({
-    queryKey: ["mietvertraege-portfolio"],
+  const selectedDarlehen = darlehen.find((d) => d.id === selectedId) ?? null;
+
+  const { data: zahlungen = [] } = useQuery<Zahlung[]>({
+    queryKey: ["darlehen_zahlungen_iban", selectedDarlehen?.kontonummer],
     queryFn: async () => {
+      if (!selectedDarlehen?.kontonummer) return [];
+      const clean = selectedDarlehen.kontonummer.replace(/\s/g, "");
       const { data, error } = await supabase
-        .from("mietvertrag")
-        .select("id, kaltmiete, betriebskosten, einheit_id, status")
-        .eq("status", "aktiv");
+        .from("zahlungen")
+        .select("id, betrag, buchungsdatum, empfaengername, iban, verwendungszweck, kategorie")
+        .ilike("iban", `%${clean}%`)
+        .order("buchungsdatum", { ascending: false })
+        .limit(100);
       if (error) throw error;
-      return data;
+      return data ?? [];
     },
+    enabled: !!selectedDarlehen?.kontonummer,
   });
 
-  // Fetch Einheiten for mapping contracts to properties
-  const { data: einheiten } = useQuery({
-    queryKey: ["einheiten-portfolio"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("einheiten").select("id, immobilie_id");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // ── Mutations (kept from original) ──
+  // ── Mutations ──────────────────────────────────────────────────────────────
 
   const saveMutation = useMutation({
-    mutationFn: async (formData: DarlehenForm) => {
-      const { immobilien_ids, ...rawData } = formData;
-      const darlehenData = {
-        ...rawData,
-        start_datum: rawData.start_datum || null,
-        ende_datum: rawData.ende_datum || null,
-        bank: rawData.bank || null,
-        kontonummer: rawData.kontonummer || null,
-        notizen: rawData.notizen || null,
+    mutationFn: async ({ id, data }: { id: string | null; data: DarlehenForm }) => {
+      const payload = {
+        bezeichnung: data.bezeichnung.trim(),
+        bank: data.bank.trim() || null,
+        kontonummer: data.kontonummer.trim().replace(/\s/g, "") || null,
+        darlehensbetrag: parseNum(data.darlehensbetrag),
+        restschuld: parseNum(data.restschuld),
+        zinssatz_prozent: parseNum(data.zinssatz_prozent),
+        tilgungssatz_prozent: parseNum(data.tilgungssatz_prozent),
+        monatliche_rate: parseNum(data.monatliche_rate),
+        start_datum: data.start_datum || null,
+        ende_datum: data.ende_datum || null,
+        notizen: data.notizen.trim() || null,
       };
-      
-      let darlehenId = editId;
-      
-      if (editId) {
-        const { error } = await supabase.from("darlehen").update(darlehenData).eq("id", editId);
+
+      let darlehenId = id;
+
+      if (id) {
+        const { error } = await supabase.from("darlehen").update(payload).eq("id", id);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from("darlehen").insert(darlehenData).select("id").single();
+        const { data: created, error } = await supabase
+          .from("darlehen")
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
-        darlehenId = data.id;
+        darlehenId = created.id;
       }
 
-      if (darlehenId) {
-        await supabase.from("darlehen_immobilien").delete().eq("darlehen_id", darlehenId);
-        if (immobilien_ids.length > 0) {
-          const mappings = immobilien_ids.map((immId) => ({
+      // Sync immobilien links
+      await supabase.from("darlehen_immobilien").delete().eq("darlehen_id", darlehenId!);
+      if (data.immobilien_ids.length > 0) {
+        await supabase.from("darlehen_immobilien").insert(
+          data.immobilien_ids.map((immoId) => ({
             darlehen_id: darlehenId!,
-            immobilie_id: immId,
-          }));
-          const { error: mapError } = await supabase.from("darlehen_immobilien").insert(mappings);
-          if (mapError) throw mapError;
-        }
+            immobilie_id: immoId,
+          })),
+        );
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["darlehen"] });
-      queryClient.invalidateQueries({ queryKey: ["darlehen-immobilien"] });
-      toast.success(editId ? "Darlehen aktualisiert" : "Darlehen erstellt");
-      resetForm();
+      queryClient.invalidateQueries({ queryKey: ["darlehen_immobilien"] });
+      closeDialog();
+      toast.success(editId ? "Konto aktualisiert" : "Konto erstellt");
     },
-    onError: (err: any) => toast.error("Fehler: " + err.message),
+    onError: (err: Error) => toast.error("Fehler: " + err.message),
   });
 
   const deleteMutation = useMutation({
@@ -207,1124 +301,837 @@ export const DarlehenVerwaltung = ({ onBack }: DarlehenVerwaltungProps) => {
       const { error } = await supabase.from("darlehen").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["darlehen"] });
-      queryClient.invalidateQueries({ queryKey: ["darlehen-immobilien"] });
-      queryClient.invalidateQueries({ queryKey: ["darlehen-zahlungen"] });
-      toast.success("Darlehen gelöscht");
+      queryClient.invalidateQueries({ queryKey: ["darlehen_immobilien"] });
+      if (selectedId === id) setSelectedId(null);
+      setDeleteConfirmId(null);
+      toast.success("Konto gelöscht");
     },
-    onError: (err: any) => toast.error("Fehler: " + err.message),
+    onError: (err: Error) => toast.error("Fehler: " + err.message),
   });
 
-  // Immobilien-Preise inline bearbeiten
-  const updateImmobilieMutation = useMutation({
-    mutationFn: async ({ id, field, value }: { id: string; field: 'kaufpreis' | 'marktwert'; value: number | null }) => {
-      const { error } = await supabase.from("immobilien").update({ [field]: value }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["immobilien-portfolio"] });
-      setEditingImmoField(null);
-      toast.success("Wert gespeichert");
-    },
-    onError: (err: any) => toast.error("Fehler: " + err.message),
-  });
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
-  const startEditImmoField = (id: string, field: 'kaufpreis' | 'marktwert', currentValue: number | null) => {
-    setEditingImmoField({ id, field });
-    setEditingImmoValue(currentValue ? currentValue.toString() : "");
-  };
-
-  const saveEditImmoField = () => {
-    if (!editingImmoField) return;
-    const parsed = editingImmoValue.trim() === "" ? null : parseFloat(editingImmoValue.replace(/,/g, '.'));
-    updateImmobilieMutation.mutate({ id: editingImmoField.id, field: editingImmoField.field, value: parsed });
-  };
-
-  const resetForm = () => {
-    setForm(emptyForm);
+  function openCreate() {
     setEditId(null);
-    setShowForm(false);
-  };
+    setForm(FORM_EMPTY);
+    setShowDialog(true);
+  }
 
-  // Text Import handler
-  const handleTextImport = async () => {
-    if (!importText.trim() || importText.trim().length < 20) {
-      toast.error("Bitte fügen Sie einen vollständigen Tilgungsplan ein (mindestens 20 Zeichen).");
+  function openEdit(d: Darlehen) {
+    const immoIds = darlehenImmobilien
+      .filter((di) => di.darlehen_id === d.id)
+      .map((di) => di.immobilie_id);
+
+    setEditId(d.id);
+    setForm({
+      bezeichnung: d.bezeichnung,
+      bank: d.bank ?? "",
+      kontonummer: d.kontonummer ? formatIBAN(d.kontonummer) : "",
+      darlehensbetrag: d.darlehensbetrag ? String(d.darlehensbetrag) : "",
+      restschuld: d.restschuld ? String(d.restschuld) : "",
+      zinssatz_prozent: d.zinssatz_prozent ? String(d.zinssatz_prozent) : "",
+      tilgungssatz_prozent: d.tilgungssatz_prozent ? String(d.tilgungssatz_prozent) : "",
+      monatliche_rate: d.monatliche_rate ? String(d.monatliche_rate) : "",
+      start_datum: d.start_datum ?? "",
+      ende_datum: d.ende_datum ?? "",
+      notizen: d.notizen ?? "",
+      immobilien_ids: immoIds,
+    });
+    setShowDialog(true);
+  }
+
+  function closeDialog() {
+    setShowDialog(false);
+    setEditId(null);
+    setForm(FORM_EMPTY);
+  }
+
+  function handleSave() {
+    if (!form.bezeichnung.trim()) {
+      toast.error("Bitte Bezeichnung angeben");
       return;
     }
-    setIsImporting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('process-tilgungsplan-ocr', {
-        body: { textContent: importText.trim() },
-      });
-      if (error) throw new Error(error.message);
-      if (!data?.success) throw new Error(data?.error || 'Verarbeitung fehlgeschlagen');
-      const extracted = data.extractedData;
-      setImportedData(extracted);
-      setImportedZahlungen(extracted.zahlungen || []);
-      setImportImmobilienIds([]);
-      setShowTextImport(false);
-      setShowImportReview(true);
-      toast.success(`Tilgungsplan erkannt: ${extracted.zahlungen?.length || 0} Zahlungen extrahiert`);
-    } catch (err: any) {
-      console.error('Text Import Error:', err);
-      toast.error('Import fehlgeschlagen: ' + err.message);
-    } finally {
-      setIsImporting(false);
+    saveMutation.mutate({ id: editId, data: form });
+  }
+
+  function handleAutoRate() {
+    const db = parseNum(form.darlehensbetrag);
+    const zins = parseNum(form.zinssatz_prozent);
+    const tilg = parseNum(form.tilgungssatz_prozent);
+    if (!db || !zins || !tilg) {
+      toast.error("Darlehensbetrag, Zinssatz und Tilgungssatz erforderlich");
+      return;
     }
-  };
+    const rate = berechneAutoRate(db, zins, tilg);
+    setForm((f) => ({ ...f, monatliche_rate: rate.toFixed(2) }));
+  }
 
-  const saveImportMutation = useMutation({
-    mutationFn: async () => {
-      if (!importedData) throw new Error('Keine Daten');
-      const { zahlungen: _, restschuld_zinsbindungsende, ...loanData } = importedData;
-      let notizen = loanData.notizen || '';
-      if (restschuld_zinsbindungsende && typeof restschuld_zinsbindungsende === 'number' && restschuld_zinsbindungsende > 0) {
-        const formatted = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(restschuld_zinsbindungsende);
-        notizen = notizen ? `${notizen}\nRestschuld zum Zinsbindungsende: ${formatted}` : `Restschuld zum Zinsbindungsende: ${formatted}`;
-      }
-      const darlehenInsert = {
-        bezeichnung: loanData.bezeichnung || 'NiImmo Wohnungsbaugesellschaft',
-        bank: loanData.bank || 'Volksbank',
-        kontonummer: loanData.kontonummer || null,
-        darlehensbetrag: Math.abs(loanData.darlehensbetrag || 0),
-        restschuld: Math.abs(loanData.restschuld || 0),
-        zinssatz_prozent: Math.abs(loanData.zinssatz_prozent || 0),
-        tilgungssatz_prozent: Math.abs(loanData.tilgungssatz_prozent || 0),
-        monatliche_rate: Math.abs(loanData.monatliche_rate || 0),
-        start_datum: loanData.start_datum || null,
-        ende_datum: loanData.ende_datum || null,
-        notizen: notizen || null,
-      };
-      const { data: newDarlehen, error: dError } = await supabase
-        .from('darlehen').insert(darlehenInsert).select('id').single();
-      if (dError) throw dError;
-      if (importImmobilienIds.length > 0) {
-        const mappings = importImmobilienIds.map((immId) => ({
-          darlehen_id: newDarlehen.id,
-          immobilie_id: immId,
-        }));
-        await supabase.from('darlehen_immobilien').insert(mappings);
-      }
-      if (importedZahlungen.length > 0) {
-        const zahlungenInserts = importedZahlungen.map((z: any) => ({
-          darlehen_id: newDarlehen.id,
-          buchungsdatum: z.buchungsdatum,
-          betrag: z.betrag || 0,
-          zinsanteil: z.zinsanteil || 0,
-          tilgungsanteil: z.tilgungsanteil || 0,
-          restschuld_danach: z.restschuld_danach ?? null,
-        }));
-        const { error: zError } = await supabase.from('darlehen_zahlungen').insert(zahlungenInserts);
-        if (zError) throw zError;
-      }
-      return newDarlehen.id;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['darlehen'] });
-      queryClient.invalidateQueries({ queryKey: ['darlehen-immobilien'] });
-      queryClient.invalidateQueries({ queryKey: ['darlehen-zahlungen'] });
-      toast.success('Darlehen mit Tilgungsplan importiert!');
-      setShowImportReview(false);
-      setImportedData(null);
-      setImportedZahlungen([]);
-    },
-    onError: (err: any) => toast.error('Fehler beim Speichern: ' + err.message),
-  });
+  function toggleImmo(id: string, checked: boolean) {
+    setForm((f) => ({
+      ...f,
+      immobilien_ids: checked
+        ? [...f.immobilien_ids, id]
+        : f.immobilien_ids.filter((x) => x !== id),
+    }));
+  }
 
-  // Auto-Matching: Bankzahlungen mit Darlehen ueber Kontonummer/IBAN abgleichen
-  const handleAutoMatch = async () => {
-    if (!darlehen || darlehen.length === 0) return;
-    setIsMatching(true);
-    setMatchResults(null);
+  // ── Derived data ───────────────────────────────────────────────────────────
 
-    try {
-      // Sammle alle Kontonummern der Darlehen
-      const kontoMap = new Map<string, string>(); // kontonummer -> darlehen_id
-      for (const d of darlehen) {
-        if (d.kontonummer) {
-          kontoMap.set(d.kontonummer.trim(), d.id);
-        }
-      }
+  function getLinkedImmobilien(darlehenId: string): Immobilie[] {
+    const ids = darlehenImmobilien
+      .filter((di) => di.darlehen_id === darlehenId)
+      .map((di) => di.immobilie_id);
+    return immobilien.filter((i) => ids.includes(i.id));
+  }
 
-      if (kontoMap.size === 0) {
-        toast.info('Keine Kontonummern bei Darlehen hinterlegt.');
-        setIsMatching(false);
-        return;
-      }
+  const gesamtschuld = darlehen.reduce((sum, d) => sum + (d.restschuld ?? 0), 0);
+  const gesamtrate = darlehen.reduce((sum, d) => sum + (d.monatliche_rate ?? 0), 0);
 
-      // Bereits zugeordnete Zahlungs-IDs ermitteln
-      const existingIds = new Set(
-        (darlehenZahlungen || []).map((dz: any) => dz.zahlung_ref_id).filter(Boolean)
-      );
+  const tilgungsplan = useMemo(() => {
+    if (!selectedDarlehen) return [];
+    return berechneTilgungsplan(
+      selectedDarlehen.restschuld ?? 0,
+      selectedDarlehen.zinssatz_prozent ?? 0,
+      selectedDarlehen.monatliche_rate ?? 0,
+      selectedDarlehen.ende_datum,
+    );
+  }, [selectedDarlehen]);
 
-      // Zahlungen laden die potenziell zu Darlehen gehoeren
-      const { data: zahlungen, error } = await supabase
-        .from('zahlungen')
-        .select('id, betrag, buchungsdatum, verwendungszweck, empfaengername, iban')
-        .or(Array.from(kontoMap.keys()).map(k => `iban.ilike.%${k}%`).join(','))
-        .order('buchungsdatum', { ascending: false })
-        .limit(200);
+  const angezeigterPlan = showAllMonate ? tilgungsplan : tilgungsplan.slice(0, 24);
 
-      if (error) throw error;
-
-      // Matche Zahlungen zu Darlehen
-      const matches: typeof matchResults = [];
-      for (const z of (zahlungen || [])) {
-        if (existingIds.has(z.id)) continue;
-
-        for (const [konto, darlehenId] of kontoMap.entries()) {
-          if (z.iban && z.iban.includes(konto)) {
-            const d = darlehen.find(x => x.id === darlehenId);
-            matches.push({
-              zahlung_id: z.id,
-              darlehen_id: darlehenId,
-              betrag: Math.abs(z.betrag),
-              buchungsdatum: z.buchungsdatum,
-              verwendungszweck: z.verwendungszweck || '',
-              bank_name: d?.bank || '',
-            });
-            break;
-          }
-        }
-      }
-
-      setMatchResults(matches);
-      if (matches.length === 0) {
-        toast.info('Keine neuen Zahlungen gefunden, die zu Darlehen passen.');
-      } else {
-        toast.success(`${matches.length} passende Zahlungen gefunden!`);
-      }
-    } catch (err: any) {
-      toast.error('Fehler beim Abgleich: ' + err.message);
-    } finally {
-      setIsMatching(false);
-    }
-  };
-
-  // Gefundene Matches als darlehen_zahlungen speichern
-  const saveMatchesMutation = useMutation({
-    mutationFn: async (matches: NonNullable<typeof matchResults>) => {
-      const inserts = matches.map(m => ({
-        darlehen_id: m.darlehen_id,
-        buchungsdatum: m.buchungsdatum,
-        betrag: m.betrag,
-        zinsanteil: 0,
-        tilgungsanteil: m.betrag,
-        zahlung_ref_id: m.zahlung_id,
-      }));
-      const { error } = await supabase.from('darlehen_zahlungen').insert(inserts);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['darlehen-zahlungen'] });
-      toast.success('Zahlungen erfolgreich zugeordnet!');
-      setMatchResults(null);
-    },
-    onError: (err: any) => toast.error('Fehler: ' + err.message),
-  });
-
-  const openEdit = (d: any) => {
-    const assignedIds = darlehenImmobilien?.filter((di) => di.darlehen_id === d.id).map((di) => di.immobilie_id) || [];
-    setForm({
-      bezeichnung: d.bezeichnung || "",
-      bank: d.bank || "",
-      kontonummer: d.kontonummer || "",
-      darlehensbetrag: d.darlehensbetrag || 0,
-      restschuld: d.restschuld || 0,
-      zinssatz_prozent: d.zinssatz_prozent || 0,
-      tilgungssatz_prozent: d.tilgungssatz_prozent || 0,
-      monatliche_rate: d.monatliche_rate || 0,
-      start_datum: d.start_datum || "",
-      ende_datum: d.ende_datum || "",
-      notizen: d.notizen || "",
-      immobilien_ids: assignedIds,
-    });
-    setEditId(d.id);
-    setShowForm(true);
-  };
-
-  // ── Helper functions ──
-
-  const getImmobilienForDarlehen = (darlehenId: string) => {
-    const ids = darlehenImmobilien?.filter((di) => di.darlehen_id === darlehenId).map((di) => di.immobilie_id) || [];
-    return immobilien?.filter((i) => ids.includes(i.id)) || [];
-  };
-
-  const getZahlungenForDarlehen = (darlehenId: string) => {
-    return darlehenZahlungen?.filter((dz) => dz.darlehen_id === darlehenId) || [];
-  };
-
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(val);
-
-  const formatPercent = (val: number) => `${val.toFixed(2)}%`;
-
-  const getEffectiveRestschuld = (darlehenId: string, staticRestschuld: number | null): number => {
-    const today = new Date().toISOString().split('T')[0];
-    const zahlungen = darlehenZahlungen
-      ?.filter((z) => z.darlehen_id === darlehenId && z.restschuld_danach != null && z.buchungsdatum <= today)
-      ?.sort((a, b) => new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime());
-    if (zahlungen && zahlungen.length > 0) {
-      return Math.abs(zahlungen[0].restschuld_danach!);
-    }
-    return Math.abs(staticRestschuld || 0);
-  };
-
-  // Automatische Tilgungsplan-Berechnung
-  // Berechnet nur das voraussichtliche Schuldfrei-Datum
-  const berechneTilgungsplan = (
-    restschuld: number,
-    zinssatzProzent: number,
-    monatlicheRate: number,
-    startDatum?: string | null
-  ) => {
-    if (monatlicheRate <= 0 || zinssatzProzent < 0) return { laufzeitEnde: null };
-    const monatszins = zinssatzProzent / 12 / 100;
-    let rs = restschuld;
-    const start = startDatum ? new Date(startDatum) : new Date();
-    let current = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-    let laufzeitEnde: Date | null = null;
-    let monat = 0;
-    while (rs > 0.01) {
-      const zinsanteil = rs * monatszins;
-      const tilgungsanteil = Math.min(monatlicheRate - zinsanteil, rs);
-      rs = Math.max(0, rs - tilgungsanteil);
-      current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
-      monat++;
-      if (monat > 600) break; // Sicherheitsabbruch
-    }
-    if (rs <= 0.01) laufzeitEnde = current;
-    return { laufzeitEnde };
-  };
-
-  // ── Portfolio Calculations ──
-
-  const portfolioMetrics = useMemo(() => {
-    const totalKaufpreis = immobilien?.reduce((s, i) => s + (i.kaufpreis || 0), 0) || 0;
-    const totalMarktwert = immobilien?.reduce((s, i) => s + (i.marktwert || 0), 0) || 0;
-    const totalRestschuld = darlehen?.reduce((s, d) => s + getEffectiveRestschuld(d.id, d.restschuld), 0) || 0;
-    const totalDarlehensbetrag = darlehen?.reduce((s, d) => s + (d.darlehensbetrag || 0), 0) || 0;
-    const totalMonatlicheRate = darlehen?.reduce((s, d) => s + (d.monatliche_rate || 0), 0) || 0;
-    const eigenkapital = totalKaufpreis - totalRestschuld;
-    const ltv = totalKaufpreis > 0 ? (totalRestschuld / totalKaufpreis) * 100 : 0;
-    const totalGetilgt = Math.max(0, totalDarlehensbetrag - totalRestschuld);
-    const tilgungsQuote = totalDarlehensbetrag > 0 ? Math.min(100, Math.max(0, (totalGetilgt / totalDarlehensbetrag) * 100)) : 0;
-
-    const avgZinssatz = totalDarlehensbetrag > 0
-      ? (darlehen?.reduce((s, d) => s + (d.zinssatz_prozent || 0) * (d.darlehensbetrag || 0), 0) || 0) / totalDarlehensbetrag
-      : 0;
-
-    const totalMieteinnahmen = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0) || 0;
-    const totalKaltmiete = mietvertraege?.reduce((s, mv) => s + (mv.kaltmiete || 0), 0) || 0;
-    const cashflow = totalMieteinnahmen - totalMonatlicheRate;
-
-    // Wertsteigerung: Marktwert vs Kaufpreis
-    const wertsteigerung = totalMarktwert > 0 && totalKaufpreis > 0 
-      ? ((totalMarktwert - totalKaufpreis) / totalKaufpreis) * 100 
-      : 0;
-
-    // Per-property breakdown
-    const propertyBreakdown = immobilien?.map(immo => {
-      const assignedDarlehenIds = darlehenImmobilien
-        ?.filter(di => di.immobilie_id === immo.id)
-        .map(di => di.darlehen_id) || [];
-      const assignedDarlehen = darlehen?.filter(d => assignedDarlehenIds.includes(d.id)) || [];
-      
-      let propertyDebt = 0;
-      let propertyMonthlyRate = 0;
-      assignedDarlehen.forEach(d => {
-        const allImmoCount = darlehenImmobilien?.filter(di => di.darlehen_id === d.id).length || 1;
-        propertyDebt += getEffectiveRestschuld(d.id, d.restschuld) / allImmoCount;
-        propertyMonthlyRate += (d.monatliche_rate || 0) / allImmoCount;
-      });
-
-      const propertyEinheiten = einheiten?.filter(e => e.immobilie_id === immo.id).map(e => e.id) || [];
-      const propertyMietvertraege = mietvertraege?.filter(mv => propertyEinheiten.includes(mv.einheit_id)) || [];
-      const propertyMieteinnahmen = propertyMietvertraege.reduce((s, mv) => s + (mv.kaltmiete || 0) + (mv.betriebskosten || 0), 0);
-      const propertyKaltmiete = propertyMietvertraege.reduce((s, mv) => s + (mv.kaltmiete || 0), 0);
-      const propertyCashflow = propertyMieteinnahmen - propertyMonthlyRate;
-      const bruttoRendite = (immo.kaufpreis || 0) > 0 ? ((propertyKaltmiete * 12) / (immo.kaufpreis || 1)) * 100 : 0;
-
-      return {
-        ...immo,
-        schulden: propertyDebt,
-        monatlicheRate: propertyMonthlyRate,
-        mieteinnahmen: propertyMieteinnahmen,
-        cashflow: propertyCashflow,
-        bruttoRendite,
-        anzahlKredite: assignedDarlehen.length,
-        kreditNamen: assignedDarlehen.map(d => d.bezeichnung),
-      };
-    }) || [];
-
-    const warnings: { type: 'high' | 'medium'; message: string }[] = [];
-    if (cashflow < 0) warnings.push({ type: 'high', message: `Negativer Cashflow: ${formatCurrency(cashflow)}/Monat` });
-    darlehen?.forEach(d => {
-      if (d.ende_datum) {
-        const endeDate = new Date(d.ende_datum);
-        const monthsLeft = (endeDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30);
-        if (monthsLeft > 0 && monthsLeft < 12) {
-          warnings.push({ type: 'medium', message: `Zinsbindung von "${d.bezeichnung}" endet in ${Math.round(monthsLeft)} Monaten` });
-        }
-      }
-    });
-
-    return {
-      totalKaufpreis,
-      totalMarktwert,
-      totalRestschuld,
-      totalDarlehensbetrag,
-      totalMonatlicheRate,
-      eigenkapital,
-      ltv,
-      totalGetilgt,
-      tilgungsQuote,
-      avgZinssatz,
-      totalMieteinnahmen,
-      totalKaltmiete,
-      cashflow,
-      wertsteigerung,
-      propertyBreakdown,
-      warnings,
-      anzahlKredite: darlehen?.length || 0,
-    };
-  }, [darlehen, immobilien, darlehenImmobilien, darlehenZahlungen, mietvertraege, einheiten]);
-  
-
-  // ── RENDER ──
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen modern-dashboard-bg">
-      <div className="container mx-auto px-4 py-4 sm:p-6 lg:p-8">
+    <div className="flex flex-col h-full bg-zinc-950 text-white">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onBack}
+          className="h-8 w-8 text-zinc-400 hover:text-white"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h1 className="text-base font-semibold">Darlehenskonten</h1>
+        <div className="flex-1" />
+        <Button
+          size="sm"
+          onClick={openCreate}
+          className="bg-blue-600 hover:bg-blue-500 h-8 text-xs"
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          Neues Konto
+        </Button>
+      </div>
 
-        {/* Header */}
-        <div className="glass-card p-4 sm:p-6 rounded-xl sm:rounded-2xl mb-6">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={onBack} className="h-9 w-9 p-0">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Landmark className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Portfolio & Finanzierung</h1>
-                <p className="text-xs text-muted-foreground">
-                  {portfolioMetrics.anzahlKredite} {portfolioMetrics.anzahlKredite === 1 ? 'Kredit' : 'Kredite'} · {immobilien?.length || 0} Immobilien
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setImportText(""); setShowTextImport(true); }}>
-                <ClipboardPaste className="h-4 w-4" />
-                <span className="hidden sm:inline">Tilgungsplan einfügen</span>
-              </Button>
-              <Button onClick={handleAutoMatch} size="sm" variant="outline" className="gap-1.5" disabled={isMatching}>
-                {isMatching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpDown className="h-4 w-4" />}
-                <span className="hidden sm:inline">Zahlungen abgleichen</span>
-              </Button>
-              <Button onClick={() => { resetForm(); setShowForm(true); }} size="sm" className="gap-1.5">
-                <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Neues Darlehen</span>
-              </Button>
-            </div>
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-3 px-4 py-3 border-b border-zinc-800 shrink-0">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+          <div className="text-xs text-zinc-500 mb-1">Gesamtschuld</div>
+          <div className="text-lg font-mono font-semibold text-red-400">
+            {formatEuro(gesamtschuld)}
           </div>
+          <div className="text-xs text-zinc-600 mt-0.5">{darlehen.length} Konten</div>
         </div>
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
-          <KpiCard icon={Home} label="Kaufpreis ges." value={formatCurrency(portfolioMetrics.totalKaufpreis)} />
-          <KpiCard icon={TrendingUp} label="Marktwert ges." value={portfolioMetrics.totalMarktwert > 0 ? formatCurrency(portfolioMetrics.totalMarktwert) : '–'} variant={portfolioMetrics.wertsteigerung > 0 ? 'success' : portfolioMetrics.wertsteigerung < 0 ? 'destructive' : undefined} />
-          <KpiCard icon={Landmark} label="Gesamtschulden" value={formatCurrency(portfolioMetrics.totalRestschuld)} variant="destructive" />
-          <KpiCard icon={PiggyBank} label="Eigenkapital" value={formatCurrency(portfolioMetrics.eigenkapital)} variant={portfolioMetrics.eigenkapital >= 0 ? 'success' : 'destructive'} />
-          <KpiCard icon={Percent} label="LTV" value={`${portfolioMetrics.ltv.toFixed(1)}%`} variant={portfolioMetrics.ltv > 80 ? 'destructive' : portfolioMetrics.ltv > 60 ? 'warning' : 'success'} />
-          <KpiCard icon={CreditCard} label="Rate/Monat" value={formatCurrency(portfolioMetrics.totalMonatlicheRate)} />
-          <KpiCard icon={Activity} label="Cashflow/Monat" value={formatCurrency(portfolioMetrics.cashflow)} variant={portfolioMetrics.cashflow >= 0 ? 'success' : 'destructive'} />
-          {portfolioMetrics.totalMarktwert > 0 && (
-            <KpiCard icon={BarChart3} label="Wertsteigerung" value={`${portfolioMetrics.wertsteigerung >= 0 ? '+' : ''}${portfolioMetrics.wertsteigerung.toFixed(1)}%`} variant={portfolioMetrics.wertsteigerung >= 0 ? 'success' : 'destructive'} />
-          )}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+          <div className="text-xs text-zinc-500 mb-1">Rate gesamt / Monat</div>
+          <div className="text-lg font-mono font-semibold text-orange-400">
+            {formatEuro(gesamtrate)}
+          </div>
+          <div className="text-xs text-zinc-600 mt-0.5">Annuität</div>
         </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+          <div className="text-xs text-zinc-500 mb-1">Zinsanteil / Monat</div>
+          <div className="text-lg font-mono font-semibold text-yellow-400">
+            {formatEuro(
+              darlehen.reduce((sum, d) => {
+                if (!d.restschuld || !d.zinssatz_prozent) return sum;
+                return sum + d.restschuld * (d.zinssatz_prozent / 100 / 12);
+              }, 0),
+            )}
+          </div>
+          <div className="text-xs text-zinc-600 mt-0.5">aktueller Zins</div>
+        </div>
+      </div>
 
-        {/* Auto-Matching Ergebnisse */}
-        {matchResults && matchResults.length > 0 && (
-          <Card className="mb-4 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
-            <CardHeader className="py-3 px-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <ArrowUpDown className="h-4 w-4" />
-                  {matchResults.length} Zahlungen gefunden
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setMatchResults(null)}
-                  >
-                    Verwerfen
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => saveMatchesMutation.mutate(matchResults)}
-                    disabled={saveMatchesMutation.isPending}
-                  >
-                    {saveMatchesMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />}
-                    Alle zuordnen
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0 px-4 pb-3">
-              <div className="max-h-[200px] overflow-y-auto space-y-1.5">
-                {matchResults.map((m, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs p-2 bg-white dark:bg-background rounded border">
-                    <div className="min-w-0 flex-1">
-                      <span className="font-medium">{m.bank_name}</span>
-                      <span className="text-muted-foreground ml-2">{m.buchungsdatum}</span>
-                      {m.verwendungszweck && (
-                        <p className="text-muted-foreground truncate">{m.verwendungszweck}</p>
-                      )}
-                    </div>
-                    <span className="font-bold whitespace-nowrap ml-2">
-                      {m.betrag.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="kredite" className="gap-1.5"><Landmark className="h-3.5 w-3.5" /> Kredite</TabsTrigger>
-            <TabsTrigger value="immobilien" className="gap-1.5"><Building2 className="h-3.5 w-3.5" /> Immobilien</TabsTrigger>
-          </TabsList>
-
-          {/* ── Tab: Immobilienübersicht ── */}
-          <TabsContent value="immobilien">
-            <div className="space-y-3">
-              {portfolioMetrics.propertyBreakdown.length === 0 ? (
-                <Card className="p-8 text-center text-muted-foreground">Keine Immobilien vorhanden.</Card>
-              ) : (
-                <div className="rounded-lg border overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs font-semibold">Immobilie</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Kaufpreis</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Marktwert</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Schulden</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Miete/Monat</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Rate/Monat</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Cashflow</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Rendite</TableHead>
-                        <TableHead className="text-xs font-semibold">Kredite</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {portfolioMetrics.propertyBreakdown.map((p) => {
-                        const isEditingKaufpreis = editingImmoField?.id === p.id && editingImmoField?.field === 'kaufpreis';
-                        const isEditingMarktwert = editingImmoField?.id === p.id && editingImmoField?.field === 'marktwert';
-
-                        return (
-                          <TableRow key={p.id}>
-                            <TableCell>
-                              <div>
-                                <p className="text-sm font-medium">{p.name}</p>
-                                <p className="text-[10px] text-muted-foreground truncate max-w-[200px]">{p.adresse}</p>
-                              </div>
-                            </TableCell>
-                            {/* Kaufpreis - editable */}
-                            <TableCell className="text-right">
-                              {isEditingKaufpreis ? (
-                                <div className="flex items-center gap-1 justify-end">
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={editingImmoValue}
-                                    onChange={(e) => setEditingImmoValue(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') saveEditImmoField(); if (e.key === 'Escape') setEditingImmoField(null); }}
-                                    className="h-7 w-28 text-xs text-right"
-                                    autoFocus
-                                  />
-                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={saveEditImmoField} disabled={updateImmobilieMutation.isPending}>
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <button
-                                  className="text-xs hover:underline cursor-pointer inline-flex items-center gap-1 ml-auto"
-                                  onClick={() => startEditImmoField(p.id, 'kaufpreis', p.kaufpreis)}
-                                >
-                                  {formatCurrency(p.kaufpreis || 0)}
-                                  <Pencil className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                                </button>
-                              )}
-                            </TableCell>
-                            {/* Marktwert - editable */}
-                            <TableCell className="text-right">
-                              {isEditingMarktwert ? (
-                                <div className="flex items-center gap-1 justify-end">
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={editingImmoValue}
-                                    onChange={(e) => setEditingImmoValue(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') saveEditImmoField(); if (e.key === 'Escape') setEditingImmoField(null); }}
-                                    className="h-7 w-28 text-xs text-right"
-                                    autoFocus
-                                  />
-                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={saveEditImmoField} disabled={updateImmobilieMutation.isPending}>
-                                    <Check className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <button
-                                  className="text-xs hover:underline cursor-pointer inline-flex items-center gap-1 ml-auto"
-                                  onClick={() => startEditImmoField(p.id, 'marktwert', p.marktwert)}
-                                >
-                                  {p.marktwert ? formatCurrency(p.marktwert) : <span className="text-muted-foreground italic">–</span>}
-                                  <Pencil className="h-2.5 w-2.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                                </button>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs text-right text-destructive font-medium">{formatCurrency(p.schulden)}</TableCell>
-                            <TableCell className="text-xs text-right">{formatCurrency(p.mieteinnahmen)}</TableCell>
-                            <TableCell className="text-xs text-right">{formatCurrency(p.monatlicheRate)}</TableCell>
-                            <TableCell className={`text-xs text-right font-bold ${p.cashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                              {formatCurrency(p.cashflow)}
-                            </TableCell>
-                            <TableCell className="text-xs text-right">{p.bruttoRendite.toFixed(1)}%</TableCell>
-                            <TableCell>
-                              {p.anzahlKredite > 0 ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {p.kreditNamen.map((name, i) => (
-                                    <Badge key={i} variant="secondary" className="text-[10px]">{name}</Badge>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-[10px] text-muted-foreground">Keine</span>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                      {/* Totals */}
-                      <TableRow className="bg-muted/50 font-bold">
-                        <TableCell className="text-xs">Gesamt ({portfolioMetrics.propertyBreakdown.length})</TableCell>
-                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalKaufpreis)}</TableCell>
-                        <TableCell className="text-xs text-right">{portfolioMetrics.totalMarktwert > 0 ? formatCurrency(portfolioMetrics.totalMarktwert) : '–'}</TableCell>
-                        <TableCell className="text-xs text-right text-destructive">{formatCurrency(portfolioMetrics.totalRestschuld)}</TableCell>
-                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalMieteinnahmen)}</TableCell>
-                        <TableCell className="text-xs text-right">{formatCurrency(portfolioMetrics.totalMonatlicheRate)}</TableCell>
-                        <TableCell className={`text-xs text-right ${portfolioMetrics.cashflow >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
-                          {formatCurrency(portfolioMetrics.cashflow)}
-                        </TableCell>
-                        <TableCell className="text-xs text-right">
-                          {portfolioMetrics.totalKaufpreis > 0 ? ((portfolioMetrics.totalKaltmiete * 12 / portfolioMetrics.totalKaufpreis) * 100).toFixed(1) : '0.0'}%
-                        </TableCell>
-                        <TableCell></TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+      {/* Main */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Account list */}
+        <div
+          className={`flex flex-col overflow-y-auto border-r border-zinc-800 transition-all ${
+            selectedId ? "w-80 min-w-80 shrink-0" : "flex-1"
+          }`}
+        >
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
+              Lädt…
             </div>
-          </TabsContent>
+          ) : darlehen.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500">
+              <CreditCard className="h-10 w-10 opacity-30" />
+              <div className="text-sm">Noch keine Darlehenskonten</div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openCreate}
+                className="border-zinc-700 text-zinc-300"
+              >
+                Erstes Konto anlegen
+              </Button>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-800/60">
+              {darlehen.map((d) => {
+                const linked = getLinkedImmobilien(d.id);
+                const isSelected = selectedId === d.id;
+                const zinsProMonat =
+                  d.restschuld && d.zinssatz_prozent
+                    ? d.restschuld * (d.zinssatz_prozent / 100 / 12)
+                    : null;
+                const tilgungProMonat =
+                  d.monatliche_rate && zinsProMonat
+                    ? d.monatliche_rate - zinsProMonat
+                    : null;
 
+                return (
+                  <div
+                    key={d.id}
+                    onClick={() => {
+                      setSelectedId(isSelected ? null : d.id);
+                      setShowAllMonate(false);
+                    }}
+                    className={`p-4 cursor-pointer transition-colors border-l-2 ${
+                      isSelected
+                        ? "bg-blue-950/30 border-blue-500"
+                        : "hover:bg-zinc-800/40 border-transparent"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        {/* Name */}
+                        <div className="font-medium text-sm text-white truncate mb-0.5">
+                          {d.bezeichnung}
+                        </div>
 
-
-          {/* ── Tab: Kreditübersicht ── */}
-          <TabsContent value="kredite">
-            {isLoading ? (
-              <div className="text-center py-12 text-muted-foreground">Wird geladen...</div>
-            ) : darlehen && darlehen.length > 0 ? (
-              <div className="space-y-3">
-                {darlehen.map((d) => {
-                  const assignedImmos = getImmobilienForDarlehen(d.id);
-                  const zahlungen = getZahlungenForDarlehen(d.id);
-                  const isExpanded = expandedId === d.id;
-                  const effectiveRestschuld = getEffectiveRestschuld(d.id, d.restschuld);
-                  const tilgungsfortschritt = d.darlehensbetrag > 0 
-                    ? Math.min(100, Math.max(0, ((d.darlehensbetrag - effectiveRestschuld) / d.darlehensbetrag) * 100))
-                    : 0;
-
-                  return (
-                    <Card key={d.id} className="overflow-hidden">
-                      <div 
-                        className="p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-                        onClick={() => setExpandedId(isExpanded ? null : d.id)}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-sm truncate">{d.bezeichnung}</h3>
-                              {d.bank && <Badge variant="outline" className="text-[10px] shrink-0">{d.bank}</Badge>}
-                            </div>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1"><Euro className="h-3 w-3" /> {formatCurrency(d.darlehensbetrag)}</span>
-                              <span className="flex items-center gap-1"><TrendingDown className="h-3 w-3" /> Rest: {formatCurrency(effectiveRestschuld)}</span>
-                              <span className="flex items-center gap-1"><Percent className="h-3 w-3" /> {formatPercent(d.zinssatz_prozent || 0)}</span>
-                              <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {formatCurrency(d.monatliche_rate || 0)}/Monat</span>
-                            </div>
-                            {assignedImmos.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                {assignedImmos.map((immo) => (
-                                  <Badge key={immo.id} variant="secondary" className="text-[10px] gap-1">
-                                    <Building2 className="h-2.5 w-2.5" /> {immo.name}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                            {assignedImmos.length === 0 && (
-                              <Badge variant="outline" className="text-[10px] mt-1.5 gap-1 text-muted-foreground">
-                                <Wallet className="h-2.5 w-2.5" /> Unternehmenskredit (ohne Immobilie)
-                              </Badge>
-                            )}
+                        {/* Immobilien */}
+                        {linked.length > 0 && (
+                          <div className="flex items-center gap-1 mb-1.5">
+                            <Building2 className="h-3 w-3 text-zinc-600 shrink-0" />
+                            <span className="text-xs text-zinc-400 truncate">
+                              {linked.map((i) => i.name).join(", ")}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <div className="w-20 hidden sm:block">
-                              <Progress value={tilgungsfortschritt} className="h-1.5" />
-                              <p className="text-[10px] text-muted-foreground text-center mt-0.5">
-                                {tilgungsfortschritt.toFixed(0)}% getilgt
-                              </p>
-                            </div>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => { e.stopPropagation(); openEdit(d); }}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive" onClick={(e) => { 
-                              e.stopPropagation(); 
-                              if (confirm("Darlehen wirklich löschen?")) deleteMutation.mutate(d.id); 
-                            }}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                            {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        )}
+
+                        {/* IBAN */}
+                        {d.kontonummer && (
+                          <div className="font-mono text-xs text-zinc-600 mb-2">
+                            {formatIBAN(d.kontonummer)}
                           </div>
+                        )}
+
+                        {/* Restschuld + Rate */}
+                        <div className="flex items-baseline gap-2 mb-1.5">
+                          <span className="font-mono text-sm font-semibold text-red-400">
+                            {formatEuro(d.restschuld)}
+                          </span>
+                          {d.monatliche_rate && (
+                            <>
+                              <span className="text-zinc-700 text-xs">·</span>
+                              <span className="font-mono text-xs text-zinc-400">
+                                {formatEuro(d.monatliche_rate)}/Monat
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Zinssatz / Tilgungssatz badges */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {d.zinssatz_prozent !== null && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1.5 py-0 h-4 border-zinc-700 text-zinc-500 font-mono"
+                            >
+                              {formatProzent(d.zinssatz_prozent)} Zins
+                            </Badge>
+                          )}
+                          {d.tilgungssatz_prozent !== null && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1.5 py-0 h-4 border-zinc-700 text-zinc-500 font-mono"
+                            >
+                              {formatProzent(d.tilgungssatz_prozent)} Tilgung
+                            </Badge>
+                          )}
+                          {zinsProMonat !== null && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1.5 py-0 h-4 border-yellow-900 text-yellow-600 font-mono"
+                            >
+                              {formatEuro(zinsProMonat)} Zinsen
+                            </Badge>
+                          )}
+                          {tilgungProMonat !== null && tilgungProMonat > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs px-1.5 py-0 h-4 border-green-900 text-green-600 font-mono"
+                            >
+                              {formatEuro(tilgungProMonat)} Tilgung
+                            </Badge>
+                          )}
                         </div>
                       </div>
 
-                      {isExpanded && (() => {
-                        const prognose = berechneTilgungsplan(
-                          effectiveRestschuld,
-                          d.zinssatz_prozent || 0,
-                          d.monatliche_rate || 0,
-                          d.start_datum
-                        );
-                        const aktuellerZinsanteil = effectiveRestschuld * (d.zinssatz_prozent || 0) / 12 / 100;
-                        const aktuellerTilgungsanteil = Math.max(0, (d.monatliche_rate || 0) - aktuellerZinsanteil);
-                        const zinsProzent = (d.monatliche_rate || 0) > 0 ? (aktuellerZinsanteil / (d.monatliche_rate || 1)) * 100 : 0;
-                        const assignedMarktwert = assignedImmos.reduce((s, i) => s + (i.marktwert || 0), 0);
-                        const eigenkapitalDarlehen = assignedMarktwert > 0 ? assignedMarktwert - effectiveRestschuld : null;
-                        return (
-                        <div className="border-t bg-muted/20 p-4 space-y-4">
-                          {/* Meta */}
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <div>
-                              <p className="text-[10px] text-muted-foreground">Kontonr.</p>
-                              <p className="text-xs font-medium">{d.kontonummer || "–"}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-muted-foreground">Tilgungssatz</p>
-                              <p className="text-xs font-medium">{formatPercent(d.tilgungssatz_prozent || 0)}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-muted-foreground">Laufzeit von</p>
-                              <p className="text-xs font-medium">{d.start_datum ? new Date(d.start_datum).toLocaleDateString("de-DE") : "–"}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-muted-foreground">Laufzeit bis (Zinsbindung)</p>
-                              <p className="text-xs font-medium">{d.ende_datum ? new Date(d.ende_datum).toLocaleDateString("de-DE") : "–"}</p>
-                            </div>
-                          </div>
-                          {d.notizen && (
-                            <p className="text-xs text-muted-foreground italic">{d.notizen}</p>
+                      {/* Actions */}
+                      <div
+                        className="flex items-center gap-0.5 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-zinc-500 hover:text-white"
+                          onClick={() => openEdit(d)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-zinc-500 hover:text-red-400"
+                          onClick={() => setDeleteConfirmId(d.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Detail panel */}
+        {selectedDarlehen && (
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+            {/* Detail header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 shrink-0">
+              <div>
+                <div className="font-semibold text-sm text-white">
+                  {selectedDarlehen.bezeichnung}
+                </div>
+                {selectedDarlehen.bank && (
+                  <div className="text-xs text-zinc-500">{selectedDarlehen.bank}</div>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-zinc-500 hover:text-white"
+                onClick={() => setSelectedId(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <Tabs
+              value={detailTab}
+              onValueChange={setDetailTab}
+              className="flex flex-col flex-1 overflow-hidden"
+            >
+              <TabsList className="mx-4 mt-3 bg-zinc-900 border border-zinc-800 w-fit shrink-0">
+                <TabsTrigger value="tilgungsplan" className="text-xs">
+                  Tilgungsplan
+                </TabsTrigger>
+                <TabsTrigger value="zahlungen" className="text-xs">
+                  Zahlungen
+                </TabsTrigger>
+                <TabsTrigger value="details" className="text-xs">
+                  Details
+                </TabsTrigger>
+              </TabsList>
+
+              {/* ── Tilgungsplan ── */}
+              <TabsContent
+                value="tilgungsplan"
+                className="flex-1 overflow-auto px-4 pb-4 mt-3 data-[state=inactive]:hidden"
+              >
+                {!selectedDarlehen.restschuld ||
+                !selectedDarlehen.zinssatz_prozent ||
+                !selectedDarlehen.monatliche_rate ? (
+                  <div className="flex flex-col items-center gap-2 py-12 text-zinc-500">
+                    <AlertCircle className="h-8 w-8 opacity-40" />
+                    <div className="text-sm text-center">
+                      Zinssatz, Rate und Restschuld hinterlegen,
+                      <br />
+                      um den Tilgungsplan zu berechnen.
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-zinc-700 text-zinc-300 mt-1"
+                      onClick={() => openEdit(selectedDarlehen)}
+                    >
+                      Jetzt bearbeiten
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-xs text-zinc-500">
+                        Ab {format(new Date(), "MMMM yyyy", { locale: de })} ·{" "}
+                        {tilgungsplan.length} Raten bis Laufzeitende
+                        {selectedDarlehen.ende_datum &&
+                          ` (${selectedDarlehen.ende_datum})`}
+                      </div>
+                      {tilgungsplan.length > 24 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs text-zinc-400 hover:text-white px-2"
+                          onClick={() => setShowAllMonate((v) => !v)}
+                        >
+                          {showAllMonate ? (
+                            <>
+                              <ChevronUp className="h-3 w-3 mr-1" />
+                              Weniger
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-3 w-3 mr-1" />
+                              Alle {tilgungsplan.length} anzeigen
+                            </>
                           )}
+                        </Button>
+                      )}
+                    </div>
 
-                          {/* Finanz-Übersicht */}
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <div className="p-2.5 rounded-lg bg-background border text-center">
-                              <p className="text-[10px] text-muted-foreground mb-0.5">Restschuld</p>
-                              <p className="text-sm font-bold text-destructive">{formatCurrency(effectiveRestschuld)}</p>
-                            </div>
-                            {assignedMarktwert > 0 && (
-                              <div className="p-2.5 rounded-lg bg-background border text-center">
-                                <p className="text-[10px] text-muted-foreground mb-0.5">Marktwert</p>
-                                <p className="text-sm font-bold">{formatCurrency(assignedMarktwert)}</p>
-                              </div>
-                            )}
-                            {eigenkapitalDarlehen !== null && (
-                              <div className="p-2.5 rounded-lg bg-background border text-center">
-                                <p className="text-[10px] text-muted-foreground mb-0.5">Eigenkapital</p>
-                                <p className={`text-sm font-bold ${eigenkapitalDarlehen >= 0 ? 'text-green-600' : 'text-destructive'}`}>{formatCurrency(eigenkapitalDarlehen)}</p>
-                              </div>
-                            )}
-                            {prognose.laufzeitEnde && (
-                              <div className="p-2.5 rounded-lg bg-background border text-center">
-                                <p className="text-[10px] text-muted-foreground mb-0.5">Schuldfrei ab</p>
-                                <p className="text-sm font-bold">{prognose.laufzeitEnde.toLocaleDateString("de-DE", { month: "2-digit", year: "numeric" })}</p>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Rate-Split */}
-                          {(d.monatliche_rate || 0) > 0 && (
-                            <div className="p-3 rounded-lg bg-background border">
-                              <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-2">Aktuelle Rate ({formatCurrency(d.monatliche_rate || 0)}/Monat)</p>
-                              <div className="flex h-3 rounded-full overflow-hidden mb-1.5">
-                                <div className="bg-destructive/60" style={{ width: `${zinsProzent}%` }} />
-                                <div className="bg-primary/60 flex-1" />
-                              </div>
-                              <div className="flex justify-between text-[10px]">
-                                <span className="text-destructive">Zinsen: {formatCurrency(aktuellerZinsanteil)} ({zinsProzent.toFixed(0)}%)</span>
-                                <span className="text-primary">Tilgung: {formatCurrency(aktuellerTilgungsanteil)} ({(100 - zinsProzent).toFixed(0)}%)</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Zahlungshistorie */}
-                          <div>
-                            <h4 className="text-xs font-semibold mb-2">Zahlungshistorie ({zahlungen.length})</h4>
-                            {zahlungen.length > 0 ? (
-                              <div className="rounded-md border overflow-auto max-h-[300px]">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="text-xs">Datum</TableHead>
-                                      <TableHead className="text-xs">Betrag</TableHead>
-                                      <TableHead className="text-xs">Zinsanteil</TableHead>
-                                      <TableHead className="text-xs">Tilgung</TableHead>
-                                      <TableHead className="text-xs">Restschuld</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {zahlungen.map((z) => (
-                                      <TableRow key={z.id}>
-                                        <TableCell className="text-xs">{new Date(z.buchungsdatum).toLocaleDateString("de-DE")}</TableCell>
-                                        <TableCell className="text-xs font-medium">{formatCurrency(z.betrag)}</TableCell>
-                                        <TableCell className="text-xs text-destructive">{formatCurrency(z.zinsanteil || 0)}</TableCell>
-                                        <TableCell className="text-xs text-primary">{formatCurrency(z.tilgungsanteil || 0)}</TableCell>
-                                        <TableCell className="text-xs">{z.restschuld_danach != null ? formatCurrency(z.restschuld_danach) : "–"}</TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </div>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">Noch keine Zahlungen zugeordnet.</p>
-                            )}
-                          </div>
-
-                        </div>
-                        );
-                      })()}
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <Card className="p-12 text-center">
-                <Landmark className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-muted-foreground mb-2">Keine Darlehen vorhanden</h3>
-                <p className="text-sm text-muted-foreground/70 mb-4">Erstellen Sie Ihr erstes Darlehen.</p>
-                <Button onClick={() => { resetForm(); setShowForm(true); }} className="gap-1.5">
-                  <Plus className="h-4 w-4" /> Darlehen anlegen
-                </Button>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-
-      </div>
-
-      {/* ── Dialogs (Create/Edit, Import, Review) ── */}
-
-      <Dialog open={showForm} onOpenChange={(open) => { if (!open) resetForm(); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editId ? "Darlehen bearbeiten" : "Neues Darlehen"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Bezeichnung *</Label>
-                <Input value={form.bezeichnung} onChange={(e) => setForm({ ...form, bezeichnung: e.target.value })} placeholder="z.B. Sparkasse Darlehen 1" />
-              </div>
-              <div>
-                <Label className="text-xs">Bank</Label>
-                <Input value={form.bank} onChange={(e) => setForm({ ...form, bank: e.target.value })} placeholder="z.B. Sparkasse" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Kontonummer</Label>
-                <Input value={form.kontonummer} onChange={(e) => setForm({ ...form, kontonummer: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs">Darlehensbetrag (€)</Label>
-                <Input type="number" step="0.01" value={form.darlehensbetrag} onChange={(e) => setForm({ ...form, darlehensbetrag: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Restschuld (€)</Label>
-                <Input type="number" step="0.01" value={form.restschuld} onChange={(e) => setForm({ ...form, restschuld: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
-              </div>
-              <div>
-                <Label className="text-xs">Monatliche Rate (€)</Label>
-                <Input type="number" step="0.01" value={form.monatliche_rate} onChange={(e) => setForm({ ...form, monatliche_rate: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Zinssatz (%)</Label>
-                <Input type="number" step="0.01" value={form.zinssatz_prozent} onChange={(e) => setForm({ ...form, zinssatz_prozent: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
-              </div>
-              <div>
-                <Label className="text-xs">Tilgungssatz (%)</Label>
-                <Input type="number" step="0.01" value={form.tilgungssatz_prozent} onChange={(e) => setForm({ ...form, tilgungssatz_prozent: parseFloat(e.target.value.replace(',', '.')) || 0 })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">Laufzeit von</Label>
-                <Input type="date" value={form.start_datum} onChange={(e) => setForm({ ...form, start_datum: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs">Laufzeit bis</Label>
-                <Input type="date" value={form.ende_datum} onChange={(e) => setForm({ ...form, ende_datum: e.target.value })} />
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs mb-2 block">Zugeordnete Immobilien (optional)</Label>
-              <div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
-                {immobilien?.map((immo) => (
-                  <label key={immo.id} className="flex items-center gap-2 text-xs hover:bg-muted/50 p-1 rounded cursor-pointer">
-                    <Checkbox
-                      checked={form.immobilien_ids.includes(immo.id)}
-                      onCheckedChange={(checked) => {
-                        setForm({
-                          ...form,
-                          immobilien_ids: checked
-                            ? [...form.immobilien_ids, immo.id]
-                            : form.immobilien_ids.filter((id) => id !== immo.id),
-                        });
-                      }}
-                    />
-                    <Building2 className="h-3 w-3 text-muted-foreground" />
-                    <span>{immo.name}</span>
-                    <span className="text-muted-foreground truncate">– {immo.adresse}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs">Notizen</Label>
-              <Textarea value={form.notizen} onChange={(e) => setForm({ ...form, notizen: e.target.value })} rows={2} placeholder="Optionale Notizen..." />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={resetForm}>Abbrechen</Button>
-            <Button onClick={() => saveMutation.mutate(form)} disabled={!form.bezeichnung || saveMutation.isPending}>
-              {saveMutation.isPending ? "Speichern..." : editId ? "Aktualisieren" : "Erstellen"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Import Review Dialog */}
-      <Dialog open={showImportReview} onOpenChange={(open) => { if (!open) { setShowImportReview(false); setImportedData(null); } }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              Tilgungsplan prüfen & importieren
-            </DialogTitle>
-          </DialogHeader>
-          {importedData && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-xs text-amber-800 dark:text-amber-200">
-                  Bitte prüfen Sie die extrahierten Daten sorgfältig. KI-Extraktion kann Fehler enthalten.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Bezeichnung</Label>
-                  <Input value={importedData.bezeichnung || ''} onChange={(e) => setImportedData({ ...importedData, bezeichnung: e.target.value })} className="text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Bank</Label>
-                  <Input value={importedData.bank || ''} onChange={(e) => setImportedData({ ...importedData, bank: e.target.value })} className="text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Kontonummer/IBAN</Label>
-                  <Input value={importedData.kontonummer || ''} onChange={(e) => setImportedData({ ...importedData, kontonummer: e.target.value })} className="text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Darlehensbetrag (€)</Label>
-                  <Input type="number" step="0.01" value={importedData.darlehensbetrag ?? 0} onChange={(e) => setImportedData({ ...importedData, darlehensbetrag: parseFloat(e.target.value.replace(',', '.')) || 0 })} className="text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Restschuld (€)</Label>
-                  <Input type="number" step="0.01" value={importedData.restschuld ?? 0} onChange={(e) => setImportedData({ ...importedData, restschuld: parseFloat(e.target.value.replace(',', '.')) || 0 })} className="text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Zinssatz (%)</Label>
-                  <Input type="number" step="0.01" value={importedData.zinssatz_prozent ?? 0} onChange={(e) => setImportedData({ ...importedData, zinssatz_prozent: parseFloat(e.target.value.replace(',', '.')) || 0 })} className="text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Monatliche Rate (€)</Label>
-                  <Input type="number" step="0.01" value={importedData.monatliche_rate ?? 0} onChange={(e) => setImportedData({ ...importedData, monatliche_rate: parseFloat(e.target.value.replace(',', '.')) || 0 })} className="text-sm" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Laufzeit von</Label>
-                  <Input type="date" value={importedData.start_datum || ''} onChange={(e) => setImportedData({ ...importedData, start_datum: e.target.value })} className="text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Laufzeit bis</Label>
-                  <Input type="date" value={importedData.ende_datum || ''} onChange={(e) => setImportedData({ ...importedData, ende_datum: e.target.value })} className="text-sm" />
-                </div>
-              </div>
-              {importedData.notizen && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Notizen</Label>
-                  <Textarea value={importedData.notizen || ''} onChange={(e) => setImportedData({ ...importedData, notizen: e.target.value })} rows={2} className="text-sm" />
-                </div>
-              )}
-              <div>
-                <Label className="text-xs mb-2 block">Zugeordnete Immobilien</Label>
-                <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
-                  {immobilien?.map((immo) => (
-                    <label key={immo.id} className="flex items-center gap-2 text-xs hover:bg-muted/50 p-1 rounded cursor-pointer">
-                      <Checkbox
-                        checked={importImmobilienIds.includes(immo.id)}
-                        onCheckedChange={(checked) => {
-                          setImportImmobilienIds(checked ? [...importImmobilienIds, immo.id] : importImmobilienIds.filter((id) => id !== immo.id));
-                        }}
-                      />
-                      <Building2 className="h-3 w-3 text-muted-foreground" />
-                      <span>{immo.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
-                  <TrendingDown className="h-4 w-4" /> Tilgungsplan ({importedZahlungen.length} Zahlungen)
-                </h4>
-                {importedZahlungen.length > 0 ? (
-                  <div className="rounded-md border overflow-auto max-h-48">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs">Datum</TableHead>
-                          <TableHead className="text-xs">Rate</TableHead>
-                          <TableHead className="text-xs">Zinsen</TableHead>
-                          <TableHead className="text-xs">Tilgung</TableHead>
-                          <TableHead className="text-xs">Restschuld</TableHead>
+                        <TableRow className="border-zinc-800 hover:bg-transparent">
+                          <TableHead className="text-zinc-500 text-xs py-2">Monat</TableHead>
+                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
+                            Rate
+                          </TableHead>
+                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
+                            Zinsen
+                          </TableHead>
+                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
+                            Tilgung
+                          </TableHead>
+                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
+                            Restschuld
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {importedZahlungen.map((z: any, i: number) => (
-                          <TableRow key={i}>
-                            <TableCell className="text-xs">{z.buchungsdatum ? new Date(z.buchungsdatum).toLocaleDateString('de-DE') : '–'}</TableCell>
-                            <TableCell className="text-xs font-medium">{formatCurrency(z.betrag || 0)}</TableCell>
-                            <TableCell className="text-xs text-destructive">{formatCurrency(z.zinsanteil || 0)}</TableCell>
-                            <TableCell className="text-xs text-primary">{formatCurrency(z.tilgungsanteil || 0)}</TableCell>
-                            <TableCell className="text-xs">{z.restschuld_danach != null ? formatCurrency(z.restschuld_danach) : '–'}</TableCell>
+                        {angezeigterPlan.map((e) => (
+                          <TableRow
+                            key={e.monat}
+                            className="border-zinc-800/50 hover:bg-zinc-800/30"
+                          >
+                            <TableCell className="text-xs text-zinc-300 py-1.5">
+                              {format(e.datum, "MMM yyyy", { locale: de })}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-white py-1.5 text-right">
+                              {formatEuro(e.rate)}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-yellow-500 py-1.5 text-right">
+                              {formatEuro(e.zinsanteil)}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-green-500 py-1.5 text-right">
+                              {formatEuro(e.tilgungsanteil)}
+                            </TableCell>
+                            <TableCell className="text-xs font-mono text-red-400 py-1.5 text-right">
+                              {formatEuro(e.restschuld_danach)}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
+
+                    {!showAllMonate && tilgungsplan.length > 24 && (
+                      <div className="text-center text-xs text-zinc-600 py-3">
+                        + {tilgungsplan.length - 24} weitere Monate
+                      </div>
+                    )}
+                  </>
+                )}
+              </TabsContent>
+
+              {/* ── Zahlungen ── */}
+              <TabsContent
+                value="zahlungen"
+                className="flex-1 overflow-auto px-4 pb-4 mt-3 data-[state=inactive]:hidden"
+              >
+                {!selectedDarlehen.kontonummer ? (
+                  <div className="flex flex-col items-center gap-2 py-12 text-zinc-500">
+                    <AlertCircle className="h-8 w-8 opacity-40" />
+                    <div className="text-sm">Keine IBAN hinterlegt.</div>
+                  </div>
+                ) : zahlungen.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-12 text-zinc-500">
+                    <CreditCard className="h-8 w-8 opacity-40" />
+                    <div className="text-sm text-center">
+                      Keine Zahlungen mit IBAN
+                      <br />
+                      <span className="font-mono text-xs">
+                        {formatIBAN(selectedDarlehen.kontonummer)}
+                      </span>
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Keine Zahlungen gefunden.</p>
+                  <>
+                    <div className="text-xs text-zinc-500 mb-3">
+                      {zahlungen.length} Zahlungen gefunden ·{" "}
+                      <span className="font-mono">{formatIBAN(selectedDarlehen.kontonummer)}</span>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-zinc-800 hover:bg-transparent">
+                          <TableHead className="text-zinc-500 text-xs py-2">Datum</TableHead>
+                          <TableHead className="text-zinc-500 text-xs py-2">Empfänger</TableHead>
+                          <TableHead className="text-zinc-500 text-xs py-2">
+                            Verwendungszweck
+                          </TableHead>
+                          <TableHead className="text-zinc-500 text-xs py-2 text-right">
+                            Betrag
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {zahlungen.map((z) => (
+                          <TableRow
+                            key={z.id}
+                            className="border-zinc-800/50 hover:bg-zinc-800/30"
+                          >
+                            <TableCell className="text-xs text-zinc-300 py-1.5 whitespace-nowrap">
+                              {z.buchungsdatum}
+                            </TableCell>
+                            <TableCell className="text-xs text-zinc-300 py-1.5 max-w-32 truncate">
+                              {z.empfaengername || "–"}
+                            </TableCell>
+                            <TableCell className="text-xs text-zinc-500 py-1.5 max-w-48 truncate">
+                              {z.verwendungszweck || "–"}
+                            </TableCell>
+                            <TableCell
+                              className={`text-xs font-mono py-1.5 text-right ${
+                                z.betrag < 0 ? "text-red-400" : "text-green-400"
+                              }`}
+                            >
+                              {formatEuro(z.betrag)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </>
                 )}
+              </TabsContent>
+
+              {/* ── Details ── */}
+              <TabsContent
+                value="details"
+                className="flex-1 overflow-auto px-4 pb-4 mt-3 data-[state=inactive]:hidden"
+              >
+                <div className="max-w-sm space-y-0 divide-y divide-zinc-800/60">
+                  {(
+                    [
+                      ["Darlehensbetrag", formatEuro(selectedDarlehen.darlehensbetrag)],
+                      ["Aktuelle Restschuld", formatEuro(selectedDarlehen.restschuld)],
+                      ["Monatliche Rate", formatEuro(selectedDarlehen.monatliche_rate)],
+                      ["Zinssatz p.a.", formatProzent(selectedDarlehen.zinssatz_prozent)],
+                      ["Tilgungssatz p.a.", formatProzent(selectedDarlehen.tilgungssatz_prozent)],
+                      [
+                        "Zinsanteil / Monat",
+                        selectedDarlehen.restschuld && selectedDarlehen.zinssatz_prozent
+                          ? formatEuro(
+                              selectedDarlehen.restschuld *
+                                (selectedDarlehen.zinssatz_prozent / 100 / 12),
+                            )
+                          : "–",
+                      ],
+                      ["IBAN", formatIBAN(selectedDarlehen.kontonummer)],
+                      ["Bank", selectedDarlehen.bank || "–"],
+                      ["Laufzeit ab", selectedDarlehen.start_datum || "–"],
+                      ["Laufzeit bis", selectedDarlehen.ende_datum || "–"],
+                    ] as [string, string][]
+                  ).map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between py-2.5">
+                      <span className="text-xs text-zinc-500">{label}</span>
+                      <span className="text-xs font-mono text-white">{value}</span>
+                    </div>
+                  ))}
+                  {selectedDarlehen.notizen && (
+                    <div className="py-2.5">
+                      <div className="text-xs text-zinc-500 mb-1">Notizen</div>
+                      <div className="text-xs text-zinc-300 leading-relaxed">
+                        {selectedDarlehen.notizen}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 border-zinc-700 text-zinc-300"
+                  onClick={() => openEdit(selectedDarlehen)}
+                >
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                  Bearbeiten
+                </Button>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
+      </div>
+
+      {/* ── Create / Edit Dialog ───────────────────────────────────────────── */}
+      <Dialog
+        open={showDialog}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent className="max-w-lg bg-zinc-950 border-zinc-800 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white text-base">
+              {editId ? "Darlehenskonto bearbeiten" : "Neues Darlehenskonto"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-1">
+            {/* Bezeichnung */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-400">Bezeichnung *</Label>
+              <Input
+                value={form.bezeichnung}
+                onChange={(e) => setForm((f) => ({ ...f, bezeichnung: e.target.value }))}
+                placeholder="z. B. Obj. 01 AV MFH Saarstr."
+                className="bg-zinc-900 border-zinc-700 text-white"
+              />
+            </div>
+
+            {/* Bank + IBAN */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-400">Bank</Label>
+                <Input
+                  value={form.bank}
+                  onChange={(e) => setForm((f) => ({ ...f, bank: e.target.value }))}
+                  placeholder="z. B. Sparkasse"
+                  className="bg-zinc-900 border-zinc-700 text-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-400">IBAN</Label>
+                <Input
+                  value={form.kontonummer}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, kontonummer: e.target.value.toUpperCase() }))
+                  }
+                  placeholder="DE81 2559 …"
+                  className="bg-zinc-900 border-zinc-700 text-white font-mono text-sm"
+                />
               </div>
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowImportReview(false); setImportedData(null); }}>Abbrechen</Button>
-            <Button onClick={() => saveImportMutation.mutate()} disabled={saveImportMutation.isPending || !importedData?.bezeichnung} className="gap-1.5">
-              {saveImportMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              {saveImportMutation.isPending ? "Wird gespeichert..." : "Darlehen importieren"}
+
+            {/* Immobilien */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-400">Zugehörige Immobilie(n)</Label>
+              <div className="max-h-28 overflow-y-auto space-y-1 rounded border border-zinc-800 bg-zinc-900 p-2">
+                {immobilien.map((immo) => (
+                  <label
+                    key={immo.id}
+                    className="flex items-center gap-2 cursor-pointer px-1 py-0.5 rounded hover:bg-zinc-800"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.immobilien_ids.includes(immo.id)}
+                      onChange={(e) => toggleImmo(immo.id, e.target.checked)}
+                      className="accent-blue-500"
+                    />
+                    <span className="text-xs text-zinc-300">{immo.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Konditionen */}
+            <div className="border-t border-zinc-800 pt-3">
+              <div className="text-xs text-zinc-500 font-medium mb-3 flex items-center gap-1.5">
+                <Percent className="h-3.5 w-3.5" />
+                Konditionen
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-zinc-400">Darlehensbetrag (€)</Label>
+                  <Input
+                    type="number"
+                    value={form.darlehensbetrag}
+                    onChange={(e) => setForm((f) => ({ ...f, darlehensbetrag: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-700 text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-zinc-400">Aktuelle Restschuld (€)</Label>
+                  <Input
+                    type="number"
+                    value={form.restschuld}
+                    onChange={(e) => setForm((f) => ({ ...f, restschuld: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-700 text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-zinc-400">Zinssatz (% p.a.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.zinssatz_prozent}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, zinssatz_prozent: e.target.value }))
+                    }
+                    className="bg-zinc-900 border-zinc-700 text-white"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-zinc-400">Tilgungssatz (% p.a.)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.tilgungssatz_prozent}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, tilgungssatz_prozent: e.target.value }))
+                    }
+                    className="bg-zinc-900 border-zinc-700 text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Rate */}
+              <div className="space-y-1.5 mt-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-zinc-400">Monatliche Rate (€)</Label>
+                  <button
+                    type="button"
+                    onClick={handleAutoRate}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    Auto-berechnen
+                  </button>
+                </div>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={form.monatliche_rate}
+                  onChange={(e) => setForm((f) => ({ ...f, monatliche_rate: e.target.value }))}
+                  className="bg-zinc-900 border-zinc-700 text-white"
+                />
+                {parseNum(form.darlehensbetrag) > 0 &&
+                  parseNum(form.zinssatz_prozent) > 0 &&
+                  parseNum(form.tilgungssatz_prozent) > 0 && (
+                    <div className="text-xs text-zinc-600">
+                      Berechnet:{" "}
+                      {formatEuro(
+                        berechneAutoRate(
+                          parseNum(form.darlehensbetrag),
+                          parseNum(form.zinssatz_prozent),
+                          parseNum(form.tilgungssatz_prozent),
+                        ),
+                      )}
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            {/* Laufzeit */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-400">Laufzeit ab</Label>
+                <Input
+                  type="date"
+                  value={form.start_datum}
+                  onChange={(e) => setForm((f) => ({ ...f, start_datum: e.target.value }))}
+                  className="bg-zinc-900 border-zinc-700 text-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-zinc-400">Laufzeit bis</Label>
+                <Input
+                  type="date"
+                  value={form.ende_datum}
+                  onChange={(e) => setForm((f) => ({ ...f, ende_datum: e.target.value }))}
+                  className="bg-zinc-900 border-zinc-700 text-white"
+                />
+              </div>
+            </div>
+
+            {/* Notizen */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-zinc-400">Notizen</Label>
+              <Textarea
+                value={form.notizen}
+                onChange={(e) => setForm((f) => ({ ...f, notizen: e.target.value }))}
+                className="bg-zinc-900 border-zinc-700 text-white resize-none"
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={closeDialog}
+              className="border-zinc-700 text-zinc-300"
+            >
+              Abbrechen
             </Button>
-          </DialogFooter>
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-500"
+            >
+              {saveMutation.isPending ? "Speichern…" : editId ? "Speichern" : "Erstellen"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Text Import Dialog */}
-      <Dialog open={showTextImport} onOpenChange={(open) => { if (!open) setShowTextImport(false); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* ── Delete Confirm ─────────────────────────────────────────────────── */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent className="max-w-sm bg-zinc-950 border-zinc-800">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ClipboardPaste className="h-5 w-5 text-primary" />
-              Tilgungsplan einfügen
-            </DialogTitle>
+            <DialogTitle className="text-white">Konto löschen?</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Kopieren Sie den Tilgungsplan aus Ihrem Bankdokument und fügen Sie ihn hier ein.
-            </p>
-            <div>
-              <Label className="text-xs">Tilgungsplan-Text</Label>
-              <Textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                placeholder={`Beispiel:\n\nDarlehen: KFW 124, IBAN DE49 2559...\nDarlehensbetrag: 116.000,00 EUR\nZinssatz: 0,76% p.a.\nRate: 363,33 EUR/Monat\n\nDatum        Rate      Zinsen    Tilgung   Restschuld\n30.10.2021   363,33    73,47     289,86    115.710,14\n...`}
-                rows={14}
-                className="font-mono text-xs"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {importText.length > 0 ? `${importText.length} Zeichen` : "Mindestens 20 Zeichen erforderlich"}
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTextImport(false)}>Abbrechen</Button>
-            <Button onClick={handleTextImport} disabled={isImporting || importText.trim().length < 20} className="gap-1.5">
-              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-              {isImporting ? "KI analysiert..." : "Analysieren"}
+          <p className="text-sm text-zinc-400">
+            Das Darlehenskonto und alle zugehörigen Zuordnungen werden unwiderruflich gelöscht.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmId(null)}
+              className="border-zinc-700 text-zinc-300"
+            >
+              Abbrechen
             </Button>
-          </DialogFooter>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirmId && deleteMutation.mutate(deleteConfirmId)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Löschen…" : "Löschen"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
-// ── KPI Card Component ──
-
-function KpiCard({ icon: Icon, label, value, variant }: {
-  icon: any;
-  label: string;
-  value: string;
-  variant?: 'destructive' | 'success' | 'warning';
-}) {
-  const colorClass = variant === 'destructive' 
-    ? 'text-destructive' 
-    : variant === 'success' 
-      ? 'text-emerald-600 dark:text-emerald-400' 
-      : variant === 'warning'
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-foreground';
-
-  return (
-    <Card className="p-3 sm:p-4">
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
-      </div>
-      <p className={`text-lg sm:text-xl font-bold ${colorClass}`}>{value}</p>
-    </Card>
-  );
 }
+
+export default DarlehenVerwaltung;
