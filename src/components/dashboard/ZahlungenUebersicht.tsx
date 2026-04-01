@@ -52,6 +52,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
   const [showOnlyNichtZugeordnet, setShowOnlyNichtZugeordnet] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+  const [filtersExpanded, setFiltersExpanded] = useState(true);
   const queryClient = useQueryClient();
   const { data: zahlungen, isLoading } = useQuery({
     queryKey: ['zahlungen-overview'],
