@@ -1544,12 +1544,67 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       {/* Assign Payment Dialog */}
       <AssignPaymentDialog
         open={assignDialogOpen}
-        onOpenChange={(open) => {
+        onOpenChange={async (open) => {
           setAssignDialogOpen(open);
           if (!open) {
+            // Clear cache and refetch queries
             setEnrichedPayments({});
-            queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
-            queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+            await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
+            await queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+            await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
+            
+            // Re-enrich the selected payment so its immobilie_name is visible
+            if (selectedZahlungId) {
+              const { data: freshPayment } = await supabase
+                .from('zahlungen')
+                .select('*')
+                .eq('id', selectedZahlungId)
+                .single();
+              
+              if (freshPayment) {
+                let immName: string | null = null;
+                let immAddr: string | null = null;
+                let mieterName: string | null = null;
+                let einheitId: string | null = null;
+                let einheitTyp: string | null = null;
+                
+                if (freshPayment.mietvertrag_id) {
+                  const { data: contract } = await supabase
+                    .from('mietvertrag')
+                    .select(`id, einheit_id, einheiten:einheit_id (id, einheitentyp, immobilien:immobilie_id (name, adresse)), mietvertrag_mieter (mieter:mieter_id (vorname, nachname))`)
+                    .eq('id', freshPayment.mietvertrag_id)
+                    .single();
+                  if (contract) {
+                    const c = contract as any;
+                    mieterName = c.mietvertrag_mieter?.map((mm: any) => `${mm.mieter?.vorname || ''} ${mm.mieter?.nachname || ''}`.trim()).filter(Boolean).join(', ') || null;
+                    immName = c.einheiten?.immobilien?.name || null;
+                    immAddr = c.einheiten?.immobilien?.adresse || null;
+                    einheitId = c.einheiten?.id || null;
+                    einheitTyp = c.einheiten?.einheitentyp || null;
+                  }
+                } else if (freshPayment.immobilie_id) {
+                  const { data: imm } = await supabase
+                    .from('immobilien')
+                    .select('name, adresse')
+                    .eq('id', freshPayment.immobilie_id)
+                    .single();
+                  if (imm) {
+                    immName = imm.name;
+                    immAddr = imm.adresse;
+                  }
+                }
+                
+                const enrichedEntry: ZahlungWithDetails = {
+                  ...freshPayment,
+                  immobilie_name: immName,
+                  immobilie_adresse: immAddr,
+                  mieter_name: mieterName,
+                  einheit_id: einheitId,
+                  einheit_typ: einheitTyp,
+                };
+                setEnrichedPayments({ __selected: { [selectedZahlungId]: enrichedEntry } });
+              }
+            }
           }
         }}
         payment={selectedPayment}

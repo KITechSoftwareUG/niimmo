@@ -175,6 +175,7 @@ export type Database = {
           restschuld_danach: number | null
           tilgungsanteil: number | null
           zahlung_id: string | null
+          zahlung_ref_id: string | null
           zinsanteil: number | null
         }
         Insert: {
@@ -187,6 +188,7 @@ export type Database = {
           restschuld_danach?: number | null
           tilgungsanteil?: number | null
           zahlung_id?: string | null
+          zahlung_ref_id?: string | null
           zinsanteil?: number | null
         }
         Update: {
@@ -199,6 +201,7 @@ export type Database = {
           restschuld_danach?: number | null
           tilgungsanteil?: number | null
           zahlung_id?: string | null
+          zahlung_ref_id?: string | null
           zinsanteil?: number | null
         }
         Relationships: [
@@ -212,6 +215,13 @@ export type Database = {
           {
             foreignKeyName: "darlehen_zahlungen_zahlung_id_fkey"
             columns: ["zahlung_id"]
+            isOneToOne: false
+            referencedRelation: "zahlungen"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "darlehen_zahlungen_zahlung_ref_id_fkey"
+            columns: ["zahlung_ref_id"]
             isOneToOne: false
             referencedRelation: "zahlungen"
             referencedColumns: ["id"]
