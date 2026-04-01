@@ -375,6 +375,7 @@ export type Database = {
           kaltwasser_stand_datum: string | null
           kaltwasser_zaehler: string | null
           qm: number | null
+          soll_miete: number | null
           strom_stand_aktuell: number | null
           strom_stand_datum: string | null
           strom_zaehler: string | null
@@ -400,6 +401,7 @@ export type Database = {
           kaltwasser_stand_datum?: string | null
           kaltwasser_zaehler?: string | null
           qm?: number | null
+          soll_miete?: number | null
           strom_stand_aktuell?: number | null
           strom_stand_datum?: string | null
           strom_zaehler?: string | null
@@ -425,6 +427,7 @@ export type Database = {
           kaltwasser_stand_datum?: string | null
           kaltwasser_zaehler?: string | null
           qm?: number | null
+          soll_miete?: number | null
           strom_stand_aktuell?: number | null
           strom_stand_datum?: string | null
           strom_zaehler?: string | null
