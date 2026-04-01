@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, TrendingUp, Download, Eye, Save, Calculator, Info } from "lucide-react";
+import { Loader2, TrendingUp, Download, Eye, Save, Calculator, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateMieterhoehungPdf, type MieterhoehungPdfData } from "@/utils/mieterhoehungPdfGenerator";
@@ -255,6 +255,17 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-orange-600" />
                 <span>Mieterhöhung erstellen</span>
+                {istAngespannt ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-300">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Angespannter Markt · Kappung 15%
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Normaler Markt · Kappung 20%
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Button
