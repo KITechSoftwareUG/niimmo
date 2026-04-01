@@ -373,9 +373,19 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 w-full">
                       <Euro className="h-5 w-5 text-green-600" />
                       Zahlungen
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="ml-auto shrink-0 h-7 gap-1.5 text-xs"
+                        onClick={() => setFiltersExpanded(v => !v)}
+                      >
+                        {filtersExpanded ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+                        {filtersExpanded ? "Maximieren" : "Wiederherstellen"}
+                      </Button>
                     </CardTitle>
                     <p className="text-sm text-gray-600">
                       {sortedZahlungen?.length || 0} von {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''}
