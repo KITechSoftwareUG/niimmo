@@ -369,173 +369,180 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left: Zahlungsliste */}
           <Card className="h-[calc(100vh-200px)]">
-            <CardHeader className="pb-3">
-              <div className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Euro className="h-5 w-5 text-green-600" />
-                        Zahlungen
-                      </CardTitle>
-                      <p className="text-sm text-gray-600">
-                        {sortedZahlungen?.length || 0} von {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''}
-                      </p>
-                    </div>
-                    <div className="w-48">
-                      <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                        <SelectTrigger className="bg-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-50">
-                          <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
-                          <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
-                          <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
-                          <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
-                          <SelectItem value="status">Zuordnung</SelectItem>
-                          <SelectItem value="kategorie">Kategorie</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+            <CardHeader className={cn("pb-3", !filtersExpanded && "pb-2")}>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Euro className="h-5 w-5 text-green-600" />
+                      Zahlungen
+                    </CardTitle>
+                    <p className="text-sm text-gray-600">
+                      {sortedZahlungen?.length || 0} von {zahlungen?.length || 0} Zahlung{(zahlungen?.length || 0) !== 1 ? 'en' : ''}
+                    </p>
                   </div>
-
-                  {/* Search Filter */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Suchen nach Mieter, Verwendungszweck, IBAN, Betrag, Datum..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 w-full bg-white"
-                    />
-                  </div>
-
-                  {/* Category Filter */}
                   <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700">Kategorie:</label>
-                    <Select 
-                      value={selectedKategorie || 'alle'} 
-                      onValueChange={(value) => setSelectedKategorie(value === 'alle' ? null : value)}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setFiltersExpanded(!filtersExpanded)}
+                      title={filtersExpanded ? "Filter einklappen" : "Filter ausklappen"}
                     >
-                      <SelectTrigger className="bg-white w-48">
-                        <SelectValue placeholder="Alle Kategorien" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white z-50">
-                        <SelectItem value="alle">Alle Kategorien</SelectItem>
-                        {uniqueKategorien.map((kategorie) => (
-                          <SelectItem key={kategorie} value={kategorie}>
-                            {kategorie}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {selectedKategorie && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedKategorie(null)}
-                        className="h-8 px-2"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      {filtersExpanded ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                    </Button>
+                    {filtersExpanded && (
+                      <div className="w-48">
+                        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                          <SelectTrigger className="bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white z-50">
+                            <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
+                            <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
+                            <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
+                            <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
+                            <SelectItem value="status">Zuordnung</SelectItem>
+                            <SelectItem value="kategorie">Kategorie</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     )}
                   </div>
-
-                  {/* Assignment Status Filter */}
-                  <div className="flex items-center gap-4 pt-2">
-                    <label className="text-sm font-medium text-gray-700">Zuordnung:</label>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id="zugeordnet"
-                          checked={showOnlyZugeordnet}
-                          onCheckedChange={(checked) => {
-                            setShowOnlyZugeordnet(!!checked);
-                            if (checked) setShowOnlyNichtZugeordnet(false);
-                          }}
-                        />
-                        <label
-                          htmlFor="zugeordnet"
-                          className="text-sm text-gray-700 cursor-pointer"
-                        >
-                          Nur zugeordnete
-                        </label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id="nicht-zugeordnet"
-                          checked={showOnlyNichtZugeordnet}
-                          onCheckedChange={(checked) => {
-                            setShowOnlyNichtZugeordnet(!!checked);
-                            if (checked) setShowOnlyZugeordnet(false);
-                          }}
-                        />
-                        <label
-                          htmlFor="nicht-zugeordnet"
-                          className="text-sm text-gray-700 cursor-pointer"
-                        >
-                          Nur nicht zugeordnete
-                        </label>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Date Range Filter */}
-                <div className="space-y-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !dateRange.from && !dateRange.to && "text-muted-foreground"
-                        )}
+                {/* Search - always visible */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Suchen nach Mieter, Verwendungszweck, IBAN, Betrag, Datum..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 w-full bg-white"
+                  />
+                </div>
+
+                {filtersExpanded && (
+                  <div className="space-y-3">
+                    {/* Category Filter */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-gray-700">Kategorie:</label>
+                      <Select 
+                        value={selectedKategorie || 'alle'} 
+                        onValueChange={(value) => setSelectedKategorie(value === 'alle' ? null : value)}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange.from && dateRange.to ? (
-                          <span>
-                            {format(dateRange.from, "dd.MM.yyyy", { locale: de })} – {format(dateRange.to, "dd.MM.yyyy", { locale: de })}
-                          </span>
-                        ) : dateRange.from ? (
-                          <span>{format(dateRange.from, "dd.MM.yyyy", { locale: de })} – Enddatum wählen</span>
-                        ) : (
-                          <span>Zeitraum auswählen</span>
-                        )}
-                        {(dateRange.from || dateRange.to) && (
-                          <X 
-                            className="ml-auto h-4 w-4 hover:bg-gray-200 rounded" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDateRange({ from: undefined, to: undefined });
+                        <SelectTrigger className="bg-white w-48">
+                          <SelectValue placeholder="Alle Kategorien" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white z-50">
+                          <SelectItem value="alle">Alle Kategorien</SelectItem>
+                          {uniqueKategorien.map((kategorie) => (
+                            <SelectItem key={kategorie} value={kategorie}>
+                              {kategorie}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedKategorie && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedKategorie(null)}
+                          className="h-8 px-2"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Assignment Status Filter */}
+                    <div className="flex items-center gap-4">
+                      <label className="text-sm font-medium text-gray-700">Zuordnung:</label>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="zugeordnet"
+                            checked={showOnlyZugeordnet}
+                            onCheckedChange={(checked) => {
+                              setShowOnlyZugeordnet(!!checked);
+                              if (checked) setShowOnlyNichtZugeordnet(false);
                             }}
                           />
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-white" align="start">
-                      <CalendarComponent
-                        mode="range"
-                        selected={{ from: dateRange.from, to: dateRange.to }}
-                        onSelect={(range: any) => {
-                          if (range) {
-                            setDateRange({ from: range.from, to: range.to });
-                          } else {
-                            setDateRange({ from: undefined, to: undefined });
-                          }
-                        }}
-                        numberOfMonths={2}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  
-                  {dateRange.from && dateRange.to && (
-                    <div className="text-sm text-gray-600 px-2">
-                      <span className="font-medium">Zeitraum:</span> {getDateRangeDuration()} Tag{getDateRangeDuration() !== 1 ? 'e' : ''}
+                          <label htmlFor="zugeordnet" className="text-sm text-gray-700 cursor-pointer">
+                            Nur zugeordnete
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="nicht-zugeordnet"
+                            checked={showOnlyNichtZugeordnet}
+                            onCheckedChange={(checked) => {
+                              setShowOnlyNichtZugeordnet(!!checked);
+                              if (checked) setShowOnlyZugeordnet(false);
+                            }}
+                          />
+                          <label htmlFor="nicht-zugeordnet" className="text-sm text-gray-700 cursor-pointer">
+                            Nur nicht zugeordnete
+                          </label>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Date Range Filter */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dateRange.from && !dateRange.to && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange.from && dateRange.to ? (
+                            <span>
+                              {format(dateRange.from, "dd.MM.yyyy", { locale: de })} – {format(dateRange.to, "dd.MM.yyyy", { locale: de })}
+                            </span>
+                          ) : dateRange.from ? (
+                            <span>{format(dateRange.from, "dd.MM.yyyy", { locale: de })} – Enddatum wählen</span>
+                          ) : (
+                            <span>Zeitraum auswählen</span>
+                          )}
+                          {(dateRange.from || dateRange.to) && (
+                            <X 
+                              className="ml-auto h-4 w-4 hover:bg-gray-200 rounded" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDateRange({ from: undefined, to: undefined });
+                              }}
+                            />
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-white" align="start">
+                        <CalendarComponent
+                          mode="range"
+                          selected={{ from: dateRange.from, to: dateRange.to }}
+                          onSelect={(range: any) => {
+                            if (range) {
+                              setDateRange({ from: range.from, to: range.to });
+                            } else {
+                              setDateRange({ from: undefined, to: undefined });
+                            }
+                          }}
+                          numberOfMonths={2}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    
+                    {dateRange.from && dateRange.to && (
+                      <div className="text-sm text-gray-600 px-2">
+                        <span className="font-medium">Zeitraum:</span> {getDateRangeDuration()} Tag{getDateRangeDuration() !== 1 ? 'e' : ''}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
