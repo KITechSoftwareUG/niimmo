@@ -551,7 +551,7 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                   <p className="text-muted-foreground">Lade Zahlungen...</p>
                 </div>
               ) : paymentsByYearMonth && paymentsByYearMonth.length > 0 ? (
-                <ScrollArea className="h-[calc(100vh-320px)]">
+                <ScrollArea className={filtersExpanded ? "h-[calc(100vh-520px)]" : "h-[calc(100vh-320px)]"}>
                   <div className="p-4 space-y-4">
                     {paymentsByYearMonth.map((yearGroup) => (
                       <div key={yearGroup.year} className="space-y-2">
