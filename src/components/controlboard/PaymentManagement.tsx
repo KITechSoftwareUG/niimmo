@@ -1239,38 +1239,59 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                                       </div>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
-                                      <div className="space-y-1 pt-1 pl-2">
+                                      <div className="space-y-2 pt-2 pl-6">
                                         {enrichingMonths.has(monthGroup.monthKey) && (
                                           <p className="text-xs text-muted-foreground italic py-1">Details werden geladen...</p>
                                         )}
                                         {monthGroup.payments.map((zahlungRaw) => {
                                           const zahlung = getEnrichedPayment(zahlungRaw, monthGroup.monthKey);
                                           return (
-                                          <div
+                                          <Card
                                             key={zahlung.id}
                                             className={cn(
-                                              "cursor-pointer rounded-md px-2 py-1.5 flex items-center gap-2 transition-colors",
+                                              "cursor-pointer transition-all hover:shadow-md",
                                               selectedZahlungId === zahlung.id
-                                                ? 'bg-primary/10 ring-1 ring-primary'
-                                                : 'hover:bg-muted/60'
+                                                ? 'ring-2 ring-primary bg-primary/5'
+                                                : 'hover:bg-muted/50'
                                             )}
                                             onClick={() => setSelectedZahlungId(zahlung.id)}
                                           >
-                                            <span className="text-xs text-muted-foreground w-16 shrink-0">{formatDatum(zahlung.buchungsdatum)}</span>
-                                            <span className="text-xs truncate flex-1 min-w-0">
-                                              {zahlung.empfaengername || <span className="italic text-muted-foreground">–</span>}
-                                            </span>
-                                            <span className={cn(
-                                              "text-xs font-semibold shrink-0",
-                                              zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'
-                                            )}>
-                                              {formatBetrag(zahlung.betrag)}
-                                            </span>
-                                            {(zahlung.mietvertrag_id || zahlung.immobilie_id)
-                                              ? <span className="text-green-600 text-xs shrink-0">✓</span>
-                                              : <span className="text-orange-400 text-xs shrink-0">○</span>
-                                            }
-                                          </div>
+                                            <CardContent className="p-3">
+                                              <div className="flex items-start justify-between gap-2">
+                                                <div className="flex-1 min-w-0">
+                                                  <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-xs text-muted-foreground">{formatDatum(zahlung.buchungsdatum)}</span>
+                                                  </div>
+                                                  <p className="text-sm font-medium truncate">
+                                                    {zahlung.empfaengername
+                                                      ? `${zahlung.betrag < 0 ? 'An' : 'Von'}: ${zahlung.empfaengername}`
+                                                      : <span className="text-muted-foreground italic">Kein Empfänger/Absender</span>
+                                                    }
+                                                  </p>
+                                                  <p className={cn(
+                                                    "text-lg font-bold",
+                                                    zahlung.betrag < 0 ? 'text-destructive' : 'text-green-600'
+                                                  )}>
+                                                    {formatBetrag(zahlung.betrag)}
+                                                  </p>
+                                                  {zahlung.verwendungszweck && (
+                                                    <p className="text-xs text-muted-foreground truncate mt-1">{zahlung.verwendungszweck}</p>
+                                                  )}
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                                  <PaymentKategorieEditor
+                                                    paymentId={zahlung.id}
+                                                    currentKategorie={zahlung.kategorie}
+                                                    currentImmobilieId={zahlung.immobilie_id}
+                                                    compact
+                                                  />
+                                                  {(zahlung.mietvertrag_id || zahlung.immobilie_id) && (
+                                                    <Badge className="bg-green-600 text-xs">✓ Zugeordnet</Badge>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
                                           );
                                         })}
                                       </div>
