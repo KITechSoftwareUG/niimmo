@@ -382,10 +382,25 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <div className="w-48">
+                      <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white z-50">
+                          <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
+                          <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
+                          <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
+                          <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
+                          <SelectItem value="status">Zuordnung</SelectItem>
+                          <SelectItem value="kategorie">Kategorie</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <Button
                       variant={filtersExpanded ? "outline" : "default"}
                       size="sm"
-                      className="h-8 gap-1.5"
+                      className="h-8 gap-1.5 shrink-0"
                       onClick={() => setFiltersExpanded(!filtersExpanded)}
                     >
                       {filtersExpanded ? (
@@ -396,27 +411,10 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                       ) : (
                         <>
                           <Minimize2 className="h-3.5 w-3.5" />
-                          <span className="text-xs">Filter zeigen</span>
+                          <span className="text-xs">Filter</span>
                         </>
                       )}
                     </Button>
-                    {filtersExpanded && (
-                      <div className="w-48">
-                        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                          <SelectTrigger className="bg-white">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-white z-50">
-                            <SelectItem value="datum-desc">Datum (neueste)</SelectItem>
-                            <SelectItem value="datum-asc">Datum (älteste)</SelectItem>
-                            <SelectItem value="betrag-desc">Betrag (höchste)</SelectItem>
-                            <SelectItem value="betrag-asc">Betrag (niedrigste)</SelectItem>
-                            <SelectItem value="status">Zuordnung</SelectItem>
-                            <SelectItem value="kategorie">Kategorie</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
                   </div>
                 </div>
 
