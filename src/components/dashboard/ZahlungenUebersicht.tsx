@@ -383,13 +383,22 @@ export const ZahlungenUebersicht = ({ onBack }: ZahlungenUebersichtProps = {}) =
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
+                      variant={filtersExpanded ? "outline" : "default"}
+                      size="sm"
+                      className="h-8 gap-1.5"
                       onClick={() => setFiltersExpanded(!filtersExpanded)}
-                      title={filtersExpanded ? "Filter einklappen" : "Filter ausklappen"}
                     >
-                      {filtersExpanded ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                      {filtersExpanded ? (
+                        <>
+                          <Maximize2 className="h-3.5 w-3.5" />
+                          <span className="text-xs">Maximieren</span>
+                        </>
+                      ) : (
+                        <>
+                          <Minimize2 className="h-3.5 w-3.5" />
+                          <span className="text-xs">Filter zeigen</span>
+                        </>
+                      )}
                     </Button>
                     {filtersExpanded && (
                       <div className="w-48">
