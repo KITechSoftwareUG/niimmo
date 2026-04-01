@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ArrowLeft, Upload, Search, FileText, Calendar, Bot, Euro, Building2, Home, User, Edit2, X, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, Upload, Search, FileText, Calendar, Bot, Euro, Building2, Home, User, Edit2, X, AlertTriangle, ChevronDown, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,7 +160,8 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const [showOnlyNichtZugeordnet, setShowOnlyNichtZugeordnet] = useState(false);
   const [allPaymentsSearchTerm, setAllPaymentsSearchTerm] = useState("");
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
-  
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   // Removed progress bar - using simple toast instead
@@ -1092,95 +1093,110 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                           {sortedAllPayments?.length || 0} von {allPayments?.length || 0} Zahlungen
                         </p>
                       </div>
-                      <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                        <SelectTrigger className="bg-white w-40">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-50">
-                          <SelectItem value="datum-desc">Datum ↓</SelectItem>
-                          <SelectItem value="datum-asc">Datum ↑</SelectItem>
-                          <SelectItem value="betrag-desc">Betrag ↓</SelectItem>
-                          <SelectItem value="betrag-asc">Betrag ↑</SelectItem>
-                          <SelectItem value="status">Zuordnung</SelectItem>
-                          <SelectItem value="kategorie">Kategorie</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Search */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Suchen (Name, IBAN, Verwendungszweck, Betrag...)"
-                        value={allPaymentsSearchTerm}
-                        onChange={(e) => setAllPaymentsSearchTerm(e.target.value)}
-                        className="pl-9 bg-white min-w-[300px]"
-                      />
-                      {isServerSearching && (
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                          <div className="h-4 w-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Filters */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Select value={selectedKategorie || 'alle'} onValueChange={(v) => setSelectedKategorie(v === 'alle' ? null : v)}>
-                        <SelectTrigger className="bg-white w-40">
-                          <SelectValue placeholder="Kategorie" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-50">
-                          <SelectItem value="alle">Alle Kategorien</SelectItem>
-                          <SelectItem value="Miete">Miete</SelectItem>
-                          <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
-                          <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
-                          <SelectItem value="Mietkaution">Mietkaution</SelectItem>
-                          <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
-                          <SelectItem value="Ignorieren">Ignorieren</SelectItem>
-                        </SelectContent>
-                      </Select>
-
                       <div className="flex items-center gap-2">
-                        <Checkbox id="zugeordnet" checked={showOnlyZugeordnet} onCheckedChange={(c) => { setShowOnlyZugeordnet(!!c); if (c) setShowOnlyNichtZugeordnet(false); }} />
-                        <label htmlFor="zugeordnet" className="text-xs cursor-pointer">Zugeordnet</label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="nicht-zugeordnet" checked={showOnlyNichtZugeordnet} onCheckedChange={(c) => { setShowOnlyNichtZugeordnet(!!c); if (c) setShowOnlyZugeordnet(false); }} />
-                        <label htmlFor="nicht-zugeordnet" className="text-xs cursor-pointer">Nicht zugeordnet</label>
-                      </div>
-
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className={cn("text-xs", dateRange.from && "bg-blue-50")}>
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {dateRange.from && dateRange.to 
-                              ? `${format(dateRange.from, "dd.MM", { locale: de })} – ${format(dateRange.to, "dd.MM", { locale: de })}`
-                              : "Zeitraum"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 bg-white" align="start">
-                          <CalendarComponent
-                            mode="range"
-                            selected={{ from: dateRange.from, to: dateRange.to }}
-                            onSelect={(range: any) => setDateRange({ from: range?.from, to: range?.to })}
-                            numberOfMonths={2}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      {(dateRange.from || selectedKategorie) && (
-                        <Button variant="ghost" size="sm" onClick={() => { setDateRange({ from: undefined, to: undefined }); setSelectedKategorie(null); }}>
-                          <X className="h-3 w-3" />
+                        <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                          <SelectTrigger className="bg-white w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white z-50">
+                            <SelectItem value="datum-desc">Datum ↓</SelectItem>
+                            <SelectItem value="datum-asc">Datum ↑</SelectItem>
+                            <SelectItem value="betrag-desc">Betrag ↓</SelectItem>
+                            <SelectItem value="betrag-asc">Betrag ↑</SelectItem>
+                            <SelectItem value="status">Zuordnung</SelectItem>
+                            <SelectItem value="kategorie">Kategorie</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="shrink-0 h-9 w-9"
+                          onClick={() => setFiltersCollapsed(v => !v)}
+                          title={filtersCollapsed ? "Filter einblenden" : "Filter ausblenden"}
+                        >
+                          {filtersCollapsed ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
                         </Button>
-                      )}
+                      </div>
                     </div>
+
+                    {!filtersCollapsed && (
+                      <>
+                        {/* Search */}
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Suchen (Name, IBAN, Verwendungszweck, Betrag...)"
+                            value={allPaymentsSearchTerm}
+                            onChange={(e) => setAllPaymentsSearchTerm(e.target.value)}
+                            className="pl-9 bg-white min-w-[300px]"
+                          />
+                          {isServerSearching && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <div className="h-4 w-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Filters */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Select value={selectedKategorie || 'alle'} onValueChange={(v) => setSelectedKategorie(v === 'alle' ? null : v)}>
+                            <SelectTrigger className="bg-white w-40">
+                              <SelectValue placeholder="Kategorie" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-white z-50">
+                              <SelectItem value="alle">Alle Kategorien</SelectItem>
+                              <SelectItem value="Miete">Miete</SelectItem>
+                              <SelectItem value="Nebenkosten">Nebenkosten</SelectItem>
+                              <SelectItem value="Nichtmiete">Nichtmiete</SelectItem>
+                              <SelectItem value="Mietkaution">Mietkaution</SelectItem>
+                              <SelectItem value="Rücklastschrift">Rücklastschrift</SelectItem>
+                              <SelectItem value="Ignorieren">Ignorieren</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <div className="flex items-center gap-2">
+                            <Checkbox id="zugeordnet" checked={showOnlyZugeordnet} onCheckedChange={(c) => { setShowOnlyZugeordnet(!!c); if (c) setShowOnlyNichtZugeordnet(false); }} />
+                            <label htmlFor="zugeordnet" className="text-xs cursor-pointer">Zugeordnet</label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox id="nicht-zugeordnet" checked={showOnlyNichtZugeordnet} onCheckedChange={(c) => { setShowOnlyNichtZugeordnet(!!c); if (c) setShowOnlyZugeordnet(false); }} />
+                            <label htmlFor="nicht-zugeordnet" className="text-xs cursor-pointer">Nicht zugeordnet</label>
+                          </div>
+
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className={cn("text-xs", dateRange.from && "bg-blue-50")}>
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {dateRange.from && dateRange.to
+                                  ? `${format(dateRange.from, "dd.MM", { locale: de })} – ${format(dateRange.to, "dd.MM", { locale: de })}`
+                                  : "Zeitraum"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 bg-white" align="start">
+                              <CalendarComponent
+                                mode="range"
+                                selected={{ from: dateRange.from, to: dateRange.to }}
+                                onSelect={(range: any) => setDateRange({ from: range?.from, to: range?.to })}
+                                numberOfMonths={2}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          {(dateRange.from || selectedKategorie) && (
+                            <Button variant="ghost" size="sm" onClick={() => { setDateRange({ from: undefined, to: undefined }); setSelectedKategorie(null); }}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
                   {allPaymentsLoading ? (
                     <div className="text-center py-12"><p className="text-muted-foreground">Lade Zahlungen...</p></div>
                   ) : paymentsByYearMonth && paymentsByYearMonth.length > 0 ? (
-                    <ScrollArea className="h-[calc(100vh-400px)]">
+                    <ScrollArea className={filtersCollapsed ? "h-[calc(100vh-295px)]" : "h-[calc(100vh-400px)]"}>
                       <div className="p-4 space-y-4">
                         {paymentsByYearMonth.map((yearGroup) => (
                           <div key={yearGroup.year} className="space-y-2">
