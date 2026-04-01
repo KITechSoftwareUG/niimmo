@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Euro, Calendar, Building2, Home, User, Check, Edit2, X, CalendarIcon, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, Euro, Calendar, Building2, Home, User, Check, Edit2, X, CalendarIcon, Search, ChevronDown, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
