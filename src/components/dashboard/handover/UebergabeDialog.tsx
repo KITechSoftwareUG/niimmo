@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, Check, RotateCcw, Mail, Eye, Send, Zap, Flame, Droplets, Copy } from "lucide-react";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, RotateCcw, Mail, Eye, Send, Zap, Flame, Droplets } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,6 +21,7 @@ import { SignatureCanvas } from "./SignatureCanvas";
 import { MeterPhotoUpload } from "./MeterPhotoUpload";
 import { NotizenPhotoUpload } from "./NotizenPhotoUpload";
 import { UebergabeEmailDialog } from "./UebergabeEmailDialog";
+import { VersorgerBenachrichtigungDialog } from "./VersorgerBenachrichtigungDialog";
 import { generateUebergabePdf, type UebergabePdfData } from "@/utils/uebergabePdfGenerator";
 
 interface ContractInfo {
@@ -126,10 +127,12 @@ export const UebergabeDialog = ({
   // Confirmation dialog
   const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
 
+  // Versorger confirmation dialog
+  const [showVersorgerDialog, setShowVersorgerDialog] = useState(false);
+
   // Inline Versorger state
   const [versorgerData, setVersorgerData] = useState<Array<{ typ: 'strom' | 'gas' | 'wasser'; label: string; name: string; email: string }>>([]);
   const [versorgerSelected, setVersorgerSelected] = useState<Set<string>>(new Set());
-  const [versorgerCopied, setVersorgerCopied] = useState<string | null>(null);
   
   // Tenant data
   const [mieterData, setMieterData] = useState<MieterData[]>([]);
@@ -184,35 +187,6 @@ export const UebergabeDialog = ({
     };
     fetchVersorger();
   }, [contracts]);
-
-  const buildVersorgerEmail = useCallback((typ: 'strom' | 'gas' | 'wasser', label: string) => {
-    const firstContract = contracts[0];
-    const zaehlerstand = zaehlerstaendePerContract[firstContract?.id]?.[typ === 'wasser' ? 'wasser' : typ] || 'nicht erfasst';
-    const adresse = firstContract?.einheit?.immobilie?.adresse || '';
-    const datumStr = uebergabeDatum ? format(uebergabeDatum, "dd.MM.yyyy", { locale: de }) : '';
-    const aktion = isEinzug ? 'Einzug' : 'Auszug';
-    return `Sehr geehrte Damen und Herren,\n\nhiermit teilen wir Ihnen mit, dass am ${datumStr} ein ${aktion} in folgender Wohnung stattgefunden hat:\n\nAdresse: ${adresse}\nMieter: ${mieterName || ''}\nDatum: ${datumStr}\nZählerstand ${label}: ${zaehlerstand}\n\nBitte nehmen Sie die ${isEinzug ? 'Anmeldung' : 'Abmeldung'} entsprechend vor.\n\nMit freundlichen Grüßen\nNiImmo Wohnungsbaugesellschaft\nEgestorffstraße 11, 31319 Sehnde\nTel. 05138 – 600 72 72`;
-  }, [contracts, zaehlerstaendePerContract, uebergabeDatum, isEinzug, mieterName]);
-
-  const copyVersorgerEmail = async (v: typeof versorgerData[0]) => {
-    const body = buildVersorgerEmail(v.typ, v.label);
-    const aktion = isEinzug ? 'Einzug' : 'Auszug';
-    const adresse = contracts[0]?.einheit?.immobilie?.adresse || '';
-    const text = `An: ${v.email}\nBetreff: ${aktion}smeldung - ${adresse}, ${mieterName}\n\n${body}`;
-    await navigator.clipboard.writeText(text);
-    setVersorgerCopied(v.typ);
-    setTimeout(() => setVersorgerCopied(null), 2000);
-    toast({ title: "Kopiert", description: `E-Mail-Entwurf für ${v.label} kopiert.` });
-  };
-
-  const openVersorgerMailClient = (v: typeof versorgerData[0]) => {
-    if (!v.email) return;
-    const body = buildVersorgerEmail(v.typ, v.label);
-    const aktion = isEinzug ? 'Einzug' : 'Auszug';
-    const adresse = contracts[0]?.einheit?.immobilie?.adresse || '';
-    const subject = encodeURIComponent(`${aktion}smeldung - ${adresse}, ${mieterName}`);
-    window.open(`mailto:${v.email}?subject=${subject}&body=${encodeURIComponent(body)}`, '_blank');
-  };
 
   // Cleanup blob URL
   useEffect(() => {
@@ -353,6 +327,11 @@ export const UebergabeDialog = ({
         setShowEmailDialog(true);
         return;
       }
+      // No tenants — go directly to versorger dialog if any selected
+      if (versorgerSelected.size > 0) {
+        setShowVersorgerDialog(true);
+        return;
+      }
       onSuccess?.();
       onClose();
     } catch (error) {
@@ -365,6 +344,16 @@ export const UebergabeDialog = ({
 
   const handleEmailDialogClose = async () => {
     setShowEmailDialog(false);
+    if (versorgerSelected.size > 0) {
+      setShowVersorgerDialog(true);
+    } else {
+      onSuccess?.();
+      onClose();
+    }
+  };
+
+  const handleVersorgerDialogClose = () => {
+    setShowVersorgerDialog(false);
     onSuccess?.();
     onClose();
   };
@@ -531,49 +520,32 @@ export const UebergabeDialog = ({
             Versorger benachrichtigen
           </Label>
           <p className="text-xs text-muted-foreground">
-            Versorger ueber {isEinzug ? 'Einzug' : 'Auszug'} informieren. Ankreuzen und E-Mail kopieren oder im Mail-Client oeffnen.
+            Ausgewählte Versorger erhalten nach Abschluss eine E-Mail mit dem Übergabeprotokoll als PDF-Anhang.
           </p>
           <div className="space-y-2">
             {versorgerData.map(v => {
               const Icon = v.typ === 'strom' ? Zap : v.typ === 'gas' ? Flame : Droplets;
-              const isChecked = versorgerSelected.has(v.typ);
               return (
-                <div key={v.typ} className="border rounded-lg p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Checkbox
-                        id={`versorger-${v.typ}`}
-                        checked={isChecked}
-                        onCheckedChange={() => {
-                          setVersorgerSelected(prev => {
-                            const next = new Set(prev);
-                            if (next.has(v.typ)) next.delete(v.typ); else next.add(v.typ);
-                            return next;
-                          });
-                        }}
-                      />
-                      <Label htmlFor={`versorger-${v.typ}`} className="flex items-center gap-1.5 cursor-pointer text-sm">
-                        <Icon className="h-3.5 w-3.5" />
-                        {v.label}
-                        {v.name && <span className="text-muted-foreground text-xs">({v.name})</span>}
-                      </Label>
-                    </div>
-                    {v.email && <span className="text-xs text-muted-foreground">{v.email}</span>}
+                <div key={v.typ} className="flex items-center justify-between border rounded-lg p-3">
+                  <div className="flex items-center gap-2.5">
+                    <Checkbox
+                      id={`versorger-${v.typ}`}
+                      checked={versorgerSelected.has(v.typ)}
+                      onCheckedChange={() => {
+                        setVersorgerSelected(prev => {
+                          const next = new Set(prev);
+                          if (next.has(v.typ)) next.delete(v.typ); else next.add(v.typ);
+                          return next;
+                        });
+                      }}
+                    />
+                    <Label htmlFor={`versorger-${v.typ}`} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <Icon className="h-3.5 w-3.5" />
+                      {v.label}
+                      {v.name && <span className="text-muted-foreground text-xs">({v.name})</span>}
+                    </Label>
                   </div>
-                  {isChecked && (
-                    <div className="flex gap-2 pl-7">
-                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => copyVersorgerEmail(v)}>
-                        {versorgerCopied === v.typ ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                        {versorgerCopied === v.typ ? 'Kopiert' : 'E-Mail kopieren'}
-                      </Button>
-                      {v.email && (
-                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => openVersorgerMailClient(v)}>
-                          <Mail className="h-3 w-3" />
-                          Mail-Client
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  {v.email && <span className="text-xs text-muted-foreground">{v.email}</span>}
                 </div>
               );
             })}
@@ -663,11 +635,33 @@ export const UebergabeDialog = ({
     </AlertDialog>
   );
 
+  const immobilieId = contracts[0]?.einheit?.immobilie_id || contracts[0]?.einheit?.immobilie?.id;
+  const firstZaehler = zaehlerstaendePerContract[contracts[0]?.id] || { strom: "", gas: "", wasser: "", warmwasser: "" };
+
+  const versorgerDialogComponent = showVersorgerDialog && uebergabeDatum && immobilieId && (
+    <VersorgerBenachrichtigungDialog
+      isOpen={showVersorgerDialog}
+      onClose={handleVersorgerDialogClose}
+      immobilieId={immobilieId}
+      mieterName={mieterName || ""}
+      uebergabeDatum={uebergabeDatum}
+      zaehlerstaende={{ strom: firstZaehler.strom, gas: firstZaehler.gas, wasser: firstZaehler.wasser }}
+      adresse={contracts[0]?.einheit?.immobilie?.adresse || ""}
+      einheitBezeichnung={contracts[0]?.einheit?.etage || undefined}
+      isEinzug={isEinzug}
+      pdfBlob={pdfBlob}
+      pdfFileName={getPdfFileName()}
+      contractIds={vertragIds}
+      initialSelected={versorgerSelected}
+    />
+  );
+
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
         {confirmDialog}
         {emailDialogComponent}
+        {versorgerDialogComponent}
         <DrawerContent className="max-h-[95vh]">
           <DrawerHeader className="pb-2">
             <DrawerTitle className="flex items-center gap-2 text-lg">
@@ -692,6 +686,7 @@ export const UebergabeDialog = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       {confirmDialog}
       {emailDialogComponent}
+      {versorgerDialogComponent}
       <DialogContent className={cn(
         "max-h-[90vh] overflow-hidden flex flex-col",
         showPreview ? "sm:max-w-[1200px]" : "sm:max-w-[900px]"
