@@ -233,7 +233,8 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
               id: c.einheit.id,
               nummer: c.einheit.zaehler?.toString(),
               etage: c.einheit.etage || undefined,
-              immobilie: { name: c.einheit.immobilie.name, adresse: c.einheit.immobilie.adresse }
+              immobilie_id: c.einheit.immobilie.id,
+              immobilie: { id: c.einheit.immobilie.id, name: c.einheit.immobilie.name, adresse: c.einheit.immobilie.adresse }
             },
             kuendigungsdatum: c.kuendigungsdatum || undefined
           }))}

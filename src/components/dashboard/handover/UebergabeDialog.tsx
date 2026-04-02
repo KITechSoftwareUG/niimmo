@@ -704,12 +704,12 @@ export const UebergabeDialog = ({
         </DialogHeader>
         <div className={cn("flex-1 overflow-hidden", showPreview ? "flex gap-0" : "")}>
           {/* Left: Form (always visible) */}
-          <ScrollArea className={cn(
-            showPreview ? "w-[480px] flex-shrink-0 border-r pr-1" : "w-full",
-            "max-h-[calc(90vh-80px)]"
+          <div className={cn(
+            showPreview ? "w-[480px] flex-shrink-0 border-r pr-2" : "w-full",
+            "overflow-y-auto max-h-[calc(90vh-80px)]"
           )}>
             {formContent}
-          </ScrollArea>
+          </div>
 
           {/* Right: PDF Preview (shown when generated) */}
           {showPreview && pdfBlobUrl && (

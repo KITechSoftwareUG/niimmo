@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react"; // useCallback kept for performServerSearch
 import { ArrowLeft, Upload, Search, FileText, Calendar, Bot, Euro, Building2, Home, User, Edit2, X, AlertTriangle, ChevronDown, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -161,7 +161,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const [allPaymentsSearchTerm, setAllPaymentsSearchTerm] = useState("");
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
-  const [reEnrichTrigger, setReEnrichTrigger] = useState(0);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -210,10 +209,17 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       while (true) {
         const { data, error } = await supabase
           .from('zahlungen')
-          .select('*')
+          .select(`
+            *,
+            immobilien:immobilie_id (name, adresse),
+            mietvertrag:mietvertrag_id (
+              einheiten:einheit_id (id, einheitentyp, immobilien:immobilie_id (name, adresse)),
+              mietvertrag_mieter (mieter:mieter_id (vorname, nachname))
+            )
+          `)
           .order('buchungsdatum', { ascending: false })
           .range(from, from + pageSize - 1);
-        
+
         if (error) throw error;
         if (!data || data.length === 0) break;
         allData = [...allData, ...data];
@@ -221,24 +227,32 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         from += pageSize;
       }
 
-      // Map to ZahlungWithDetails with null detail fields (loaded lazily)
-      return allData.map((zahlung: any): ZahlungWithDetails => ({
-        id: zahlung.id,
-        betrag: zahlung.betrag,
-        buchungsdatum: zahlung.buchungsdatum,
-        verwendungszweck: zahlung.verwendungszweck,
-        empfaengername: zahlung.empfaengername,
-        iban: zahlung.iban,
-        zugeordneter_monat: zahlung.zugeordneter_monat,
-        kategorie: zahlung.kategorie,
-        mietvertrag_id: zahlung.mietvertrag_id,
-        immobilie_id: zahlung.immobilie_id,
-        immobilie_name: null,
-        immobilie_adresse: null,
-        einheit_id: null,
-        einheit_typ: null,
-        mieter_name: null,
-      }));
+      return allData.map((zahlung: any): ZahlungWithDetails => {
+        const directImmo = zahlung.immobilien;
+        const mv = zahlung.mietvertrag;
+        const einheit = mv?.einheiten;
+        const mvImmo = einheit?.immobilien;
+        const mieterName = mv?.mietvertrag_mieter
+          ?.map((mm: any) => `${mm.mieter?.vorname || ''} ${mm.mieter?.nachname || ''}`.trim())
+          .filter(Boolean).join(', ') || null;
+        return {
+          id: zahlung.id,
+          betrag: zahlung.betrag,
+          buchungsdatum: zahlung.buchungsdatum,
+          verwendungszweck: zahlung.verwendungszweck,
+          empfaengername: zahlung.empfaengername,
+          iban: zahlung.iban,
+          zugeordneter_monat: zahlung.zugeordneter_monat,
+          kategorie: zahlung.kategorie,
+          mietvertrag_id: zahlung.mietvertrag_id,
+          immobilie_id: zahlung.immobilie_id,
+          immobilie_name: mvImmo?.name || directImmo?.name || null,
+          immobilie_adresse: mvImmo?.adresse || directImmo?.adresse || null,
+          einheit_id: einheit?.id || null,
+          einheit_typ: einheit?.einheitentyp || null,
+          mieter_name: mieterName,
+        };
+      });
     },
   });
 
@@ -312,127 +326,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     return () => clearTimeout(timer);
   }, [allPaymentsSearchTerm, performServerSearch]);
 
-  // Lazy-load details for expanded months only
-  const [enrichedPayments, setEnrichedPayments] = useState<Record<string, Record<string, ZahlungWithDetails>>>({});
-  const [enrichingMonths, setEnrichingMonths] = useState<Set<string>>(new Set());
-
-  const enrichMonthPayments = async (monthKey: string, payments: ZahlungWithDetails[]) => {
-    if (enrichedPayments[monthKey] || enrichingMonths.has(monthKey)) return;
-    
-    setEnrichingMonths(prev => new Set([...prev, monthKey]));
-    
-    try {
-      // Collect unique IDs to batch-fetch
-      const contractIds = [...new Set(payments.filter(z => z.mietvertrag_id).map(z => z.mietvertrag_id!))];
-      const immobilieIds = [...new Set(payments.filter(z => z.immobilie_id && !z.mietvertrag_id).map(z => z.immobilie_id!))];
-      
-      // Batch fetch contracts with nested joins
-      const contractMap = new Map<string, { mieter_name: string; immobilie_name: string; immobilie_adresse: string; einheit_id: string; einheit_typ: string }>();
-      
-      if (contractIds.length > 0) {
-        const { data: contractsData } = await supabase
-          .from('mietvertrag')
-          .select(`
-            id, einheit_id,
-            einheiten:einheit_id (id, einheitentyp, immobilie_id, immobilien:immobilie_id (name, adresse)),
-            mietvertrag_mieter (mieter:mieter_id (vorname, nachname))
-          `)
-          .in('id', contractIds);
-        
-        contractsData?.forEach((c: any) => {
-          const mieterNames = c.mietvertrag_mieter?.map((mm: any) => 
-            `${mm.mieter?.vorname || ''} ${mm.mieter?.nachname || ''}`.trim()
-          ).filter(Boolean).join(', ') || null;
-          
-          const einheit = c.einheiten;
-          const immobilie = einheit?.immobilien;
-          
-          contractMap.set(c.id, {
-            mieter_name: mieterNames || '',
-            immobilie_name: immobilie?.name || '',
-            immobilie_adresse: immobilie?.adresse || '',
-            einheit_id: einheit?.id || '',
-            einheit_typ: einheit?.einheitentyp || '',
-          });
-        });
-      }
-      
-      // Batch fetch standalone immobilien
-      const immobilieMap = new Map<string, { name: string; adresse: string }>();
-      if (immobilieIds.length > 0) {
-        const { data: immobilienData } = await supabase
-          .from('immobilien')
-          .select('id, name, adresse')
-          .in('id', immobilieIds);
-        
-        immobilienData?.forEach((p: any) => {
-          immobilieMap.set(p.id, { name: p.name, adresse: p.adresse });
-        });
-      }
-      
-      // Build enriched lookup
-      const enriched: Record<string, ZahlungWithDetails> = {};
-      payments.forEach(z => {
-        const detail = z.mietvertrag_id ? contractMap.get(z.mietvertrag_id) : null;
-        const immDetail = z.immobilie_id ? immobilieMap.get(z.immobilie_id) : null;
-        
-        enriched[z.id] = {
-          ...z,
-          mieter_name: detail?.mieter_name || null,
-          immobilie_name: detail?.immobilie_name || immDetail?.name || null,
-          immobilie_adresse: detail?.immobilie_adresse || immDetail?.adresse || null,
-          einheit_id: detail?.einheit_id || null,
-          einheit_typ: detail?.einheit_typ || null,
-        };
-      });
-      
-      setEnrichedPayments(prev => ({ ...prev, [monthKey]: enriched }));
-    } catch (error) {
-      console.error('Error enriching month payments:', error);
-    } finally {
-      setEnrichingMonths(prev => {
-        const next = new Set(prev);
-        next.delete(monthKey);
-        return next;
-      });
-    }
-  };
-
-  const mergeWithEnrichedDetails = useCallback((
-    base: ZahlungWithDetails,
-    enriched?: ZahlungWithDetails
-  ): ZahlungWithDetails => {
-    if (!enriched) return base;
-
-    return {
-      ...base,
-      mieter_name: enriched.mieter_name ?? base.mieter_name,
-      immobilie_name: enriched.immobilie_name ?? base.immobilie_name,
-      immobilie_adresse: enriched.immobilie_adresse ?? base.immobilie_adresse,
-      einheit_id: enriched.einheit_id ?? base.einheit_id,
-      einheit_typ: enriched.einheit_typ ?? base.einheit_typ,
-    };
-  }, []);
-
-  // Re-enrich expanded months after enrichedPayments was cleared
-  useEffect(() => {
-    if (reEnrichTrigger === 0) return;
-    paymentsByYearMonth.forEach(yearGroup => {
-      yearGroup.months.forEach(monthGroup => {
-        if (!collapsedMonths.has(monthGroup.monthKey)) {
-          enrichMonthPayments(monthGroup.monthKey, monthGroup.payments);
-        }
-      });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reEnrichTrigger]);
-
-  // Helper to get a payment with details (enriched if available)
-  const getEnrichedPayment = (zahlung: ZahlungWithDetails, monthKey: string): ZahlungWithDetails => {
-    const enriched = enrichedPayments[monthKey]?.[zahlung.id];
-    return mergeWithEnrichedDetails(zahlung, enriched);
-  };
-
   // Filter for unassigned payments (simple table)
   const filteredUnassignedPayments = unassignedPayments?.filter(payment => {
     if (!searchTerm) return true;
@@ -479,22 +372,19 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           if (!serverMatch && !directFieldMatch && !betragMatch && !dateMatch) return false;
         } else {
           // Server search not yet done or term too short: use local fields only
-          const enrichedZ = Object.values(enrichedPayments).reduce((acc, month) => ({ ...acc, ...month }), {} as Record<string, ZahlungWithDetails>);
-          const enriched = enrichedZ[zahlung.id];
-          
           const textMatch = (
             zahlung.verwendungszweck?.toLowerCase().includes(search) ||
             zahlung.empfaengername?.toLowerCase().includes(search) ||
             zahlung.iban?.toLowerCase().includes(search) ||
-            (enriched?.mieter_name || zahlung.mieter_name)?.toLowerCase().includes(search) ||
-            (enriched?.immobilie_name || zahlung.immobilie_name)?.toLowerCase().includes(search) ||
-            (enriched?.immobilie_adresse || zahlung.immobilie_adresse)?.toLowerCase().includes(search) ||
+            zahlung.mieter_name?.toLowerCase().includes(search) ||
+            zahlung.immobilie_name?.toLowerCase().includes(search) ||
+            zahlung.immobilie_adresse?.toLowerCase().includes(search) ||
             zahlung.kategorie?.toLowerCase().includes(search) ||
             zahlung.zugeordneter_monat?.toLowerCase().includes(search)
           );
           const betragMatch = zahlung.betrag?.toString().includes(search);
           const dateMatch = format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy').includes(search);
-          
+
           if (!textMatch && !betragMatch && !dateMatch) return false;
         }
       }
@@ -534,7 +424,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       
       return true;
     });
-  }, [allPayments, allPaymentsSearchTerm, selectedKategorie, showOnlyZugeordnet, showOnlyNichtZugeordnet, dateRange, serverSearchIds, enrichedPayments]);
+  }, [allPayments, allPaymentsSearchTerm, selectedKategorie, showOnlyZugeordnet, showOnlyNichtZugeordnet, dateRange, serverSearchIds]);
 
   const sortedAllPayments = useMemo(() => {
     return [...filteredAllPayments].sort((a, b) => {
@@ -607,11 +497,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       const next = new Set(prev);
       if (next.has(monthKey)) {
         next.delete(monthKey);
-        // Trigger enrichment when expanding
-        const monthGroup = paymentsByYearMonth.flatMap(y => y.months).find(m => m.monthKey === monthKey);
-        if (monthGroup) {
-          enrichMonthPayments(monthKey, monthGroup.payments);
-        }
       } else {
         next.add(monthKey);
       }
@@ -628,83 +513,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     }
   }, [allMonthKeysString]);
 
-  const selectedZahlungBase = sortedAllPayments?.find(z => z.id === selectedZahlungId);
-  // Try to get enriched version for the detail panel
-  const selectedZahlung = useMemo(() => {
-    if (!selectedZahlungBase) return undefined;
-
-    for (const monthData of Object.values(enrichedPayments)) {
-      const enriched = monthData[selectedZahlungBase.id];
-      if (enriched) {
-        return mergeWithEnrichedDetails(selectedZahlungBase, enriched);
-      }
-    }
-
-    return selectedZahlungBase;
-  }, [selectedZahlungBase, enrichedPayments, mergeWithEnrichedDetails]);
-
-  // When the selected payment has assignment IDs but no display names, fetch them directly
-  useEffect(() => {
-    if (!selectedZahlungBase) return;
-    if (!selectedZahlungBase.immobilie_id && !selectedZahlungBase.mietvertrag_id) return;
-
-    const monthKey = format(new Date(selectedZahlungBase.buchungsdatum), 'yyyy-MM');
-    const cached = enrichedPayments[monthKey]?.[selectedZahlungBase.id];
-    if (cached?.immobilie_name || cached?.mieter_name) return;
-
-    const z = selectedZahlungBase;
-    const fetchDisplayData = async () => {
-      try {
-        let immobilie_name: string | null = null;
-        let immobilie_adresse: string | null = null;
-        let mieter_name: string | null = null;
-        let einheit_id: string | null = null;
-        let einheit_typ: string | null = null;
-
-        if (z.mietvertrag_id) {
-          const { data } = await supabase
-            .from('mietvertrag')
-            .select(`id, einheit_id, einheiten:einheit_id (id, einheitentyp, immobilie_id, immobilien:immobilie_id (name, adresse)), mietvertrag_mieter (mieter:mieter_id (vorname, nachname))`)
-            .eq('id', z.mietvertrag_id)
-            .single();
-          if (data) {
-            const einheit = (data as any).einheiten;
-            const immo = einheit?.immobilien;
-            immobilie_name = immo?.name || null;
-            immobilie_adresse = immo?.adresse || null;
-            einheit_id = einheit?.id || null;
-            einheit_typ = einheit?.einheitentyp || null;
-            mieter_name = (data as any).mietvertrag_mieter
-              ?.map((mm: any) => `${mm.mieter?.vorname || ''} ${mm.mieter?.nachname || ''}`.trim())
-              .filter(Boolean).join(', ') || null;
-          }
-        } else if (z.immobilie_id) {
-          const { data } = await supabase
-            .from('immobilien')
-            .select('id, name, adresse')
-            .eq('id', z.immobilie_id)
-            .single();
-          if (data) {
-            immobilie_name = data.name;
-            immobilie_adresse = data.adresse;
-          }
-        }
-
-        setEnrichedPayments(prev => ({
-          ...prev,
-          [monthKey]: {
-            ...prev[monthKey],
-            [z.id]: { ...z, immobilie_name, immobilie_adresse, mieter_name, einheit_id, einheit_typ },
-          },
-        }));
-      } catch (err) {
-        console.error('Error fetching display data for selected payment:', err);
-      }
-    };
-
-    fetchDisplayData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedZahlungBase?.id, selectedZahlungBase?.immobilie_id, selectedZahlungBase?.mietvertrag_id]);
+  const selectedZahlung = sortedAllPayments?.find(z => z.id === selectedZahlungId);
 
   const formatBetrag = (betrag: number) => {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(betrag);
@@ -1008,10 +817,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     setAiDuplicates([]);
     setAiStats(null);
     
-    // Refresh queries and clear enrichment cache
-    setEnrichedPayments({});
-    setEnrichingMonths(new Set());
-    setReEnrichTrigger(n => n + 1);
+    // Refresh queries
     queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
     queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
     queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
@@ -1319,11 +1125,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
                                       <div className="space-y-2 pt-2 pl-6">
-                                        {enrichingMonths.has(monthGroup.monthKey) && (
-                                          <p className="text-xs text-muted-foreground italic py-1">Details werden geladen...</p>
-                                        )}
-                                        {monthGroup.payments.map((zahlungRaw) => {
-                                          const zahlung = getEnrichedPayment(zahlungRaw, monthGroup.monthKey);
+                                        {monthGroup.payments.map((zahlung) => {
                                           return (
                                           <Card
                                             key={zahlung.id}
