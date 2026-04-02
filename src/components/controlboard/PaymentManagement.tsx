@@ -643,6 +643,69 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     return selectedZahlungBase;
   }, [selectedZahlungBase, enrichedPayments, mergeWithEnrichedDetails]);
 
+  // When the selected payment has assignment IDs but no display names, fetch them directly
+  useEffect(() => {
+    if (!selectedZahlungBase) return;
+    if (!selectedZahlungBase.immobilie_id && !selectedZahlungBase.mietvertrag_id) return;
+
+    const monthKey = format(new Date(selectedZahlungBase.buchungsdatum), 'yyyy-MM');
+    const cached = enrichedPayments[monthKey]?.[selectedZahlungBase.id];
+    if (cached?.immobilie_name || cached?.mieter_name) return;
+
+    const z = selectedZahlungBase;
+    const fetchDisplayData = async () => {
+      try {
+        let immobilie_name: string | null = null;
+        let immobilie_adresse: string | null = null;
+        let mieter_name: string | null = null;
+        let einheit_id: string | null = null;
+        let einheit_typ: string | null = null;
+
+        if (z.mietvertrag_id) {
+          const { data } = await supabase
+            .from('mietvertrag')
+            .select(`id, einheit_id, einheiten:einheit_id (id, einheitentyp, immobilie_id, immobilien:immobilie_id (name, adresse)), mietvertrag_mieter (mieter:mieter_id (vorname, nachname))`)
+            .eq('id', z.mietvertrag_id)
+            .single();
+          if (data) {
+            const einheit = (data as any).einheiten;
+            const immo = einheit?.immobilien;
+            immobilie_name = immo?.name || null;
+            immobilie_adresse = immo?.adresse || null;
+            einheit_id = einheit?.id || null;
+            einheit_typ = einheit?.einheitentyp || null;
+            mieter_name = (data as any).mietvertrag_mieter
+              ?.map((mm: any) => `${mm.mieter?.vorname || ''} ${mm.mieter?.nachname || ''}`.trim())
+              .filter(Boolean).join(', ') || null;
+          }
+        } else if (z.immobilie_id) {
+          const { data } = await supabase
+            .from('immobilien')
+            .select('id, name, adresse')
+            .eq('id', z.immobilie_id)
+            .single();
+          if (data) {
+            immobilie_name = data.name;
+            immobilie_adresse = data.adresse;
+          }
+        }
+
+        setEnrichedPayments(prev => ({
+          ...prev,
+          [monthKey]: {
+            ...prev[monthKey],
+            [z.id]: { ...z, immobilie_name, immobilie_adresse, mieter_name, einheit_id, einheit_typ },
+          },
+        }));
+      } catch (err) {
+        console.error('Error fetching display data for selected payment:', err);
+      }
+    };
+
+    fetchDisplayData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedZahlungBase?.id, selectedZahlungBase?.immobilie_id, selectedZahlungBase?.mietvertrag_id]);
+
   const formatBetrag = (betrag: number) => {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(betrag);
   };
