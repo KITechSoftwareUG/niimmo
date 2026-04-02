@@ -416,38 +416,38 @@ export function MahnungErstellungModal({
         {step === 'edit' ? (
           <>
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-background flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-destructive" />
-                <h2 className="text-lg font-semibold">Mahnung erstellen</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4 border-b bg-background flex-shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <FileText className="h-5 w-5 text-destructive shrink-0" />
+                <h2 className="text-base sm:text-lg font-semibold">Mahnung erstellen</h2>
                 <Badge variant="outline" className={getMahnstufeColor(mahnstufe)}>
                   Stufe {mahnstufe}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2 mr-6">
+              <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handleDownload} disabled={!pdfBlobUrl}>
                   <Download className="h-4 w-4 mr-1.5" />
-                  Download
+                  <span className="hidden sm:inline">Download</span>
                 </Button>
-                <Button 
-                  size="sm" 
-                  onClick={() => setShowConfirmSave(true)} 
+                <Button
+                  size="sm"
+                  onClick={() => setShowConfirmSave(true)}
                   disabled={isSubmitting || parsedRueckstand <= 0}
                   variant="destructive"
                 >
                   {isSubmitting ? (
                     <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Speichern...</>
                   ) : (
-                    <><Send className="h-4 w-4 mr-1.5" />Speichern & weiter</>
+                    <><Send className="h-4 w-4 mr-1.5" /><span className="hidden sm:inline">Speichern & weiter</span><span className="sm:hidden">Speichern</span></>
                   )}
                 </Button>
               </div>
             </div>
 
             {/* Split-screen content */}
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
               {/* LEFT: Editable Fields */}
-              <ScrollArea className="w-[420px] flex-shrink-0 border-r">
+              <ScrollArea className="w-full md:w-[420px] md:flex-shrink-0 border-b md:border-b-0 border-r-0 md:border-r">
                 <div className="p-5 space-y-5">
                   {/* Vertragsdaten */}
                   <div>
@@ -724,7 +724,7 @@ export function MahnungErstellungModal({
               </ScrollArea>
 
               {/* RIGHT: PDF Preview */}
-              <div className="flex-1 flex flex-col bg-muted/30 min-w-0">
+              <div className="hidden md:flex flex-1 flex-col bg-muted/30 min-w-0">
                 <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50 flex-shrink-0">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Eye className="h-4 w-4" />
@@ -784,9 +784,9 @@ export function MahnungErstellungModal({
               </div>
             </div>
 
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
               {/* Email settings */}
-              <div className="w-[420px] flex-shrink-0 border-r p-5 space-y-5 overflow-auto">
+              <div className="w-full md:w-[420px] md:flex-shrink-0 border-b md:border-b-0 border-r-0 md:border-r p-5 space-y-5 overflow-auto">
                 <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1.5">
                   <p><span className="text-muted-foreground">Objekt:</span> {contractData.immobilie_name}</p>
                   <p>
@@ -848,7 +848,7 @@ export function MahnungErstellungModal({
               </div>
 
               {/* PDF Preview in email step too */}
-              <div className="flex-1 flex flex-col bg-muted/30 min-w-0">
+              <div className="hidden md:flex flex-1 flex-col bg-muted/30 min-w-0">
                 <div className="flex items-center gap-2 px-4 py-2 border-b bg-muted/50 text-sm text-muted-foreground flex-shrink-0">
                   <Eye className="h-4 w-4" />
                   <span>PDF-Anhang Vorschau</span>

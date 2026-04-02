@@ -420,12 +420,14 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center gap-2 justify-between">
             <DialogTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              Mietübersicht ({organizedData.reduce((total, group) => total + group.vertraege.length, 0)} Verträge)
+              <span className="hidden sm:inline">Mietübersicht</span>
+              <span className="sm:hidden">Verträge</span>
+              <span>({organizedData.reduce((total, group) => total + group.vertraege.length, 0)})</span>
             </DialogTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {isEditing && (
                 <>
                   <Button 

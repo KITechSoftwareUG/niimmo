@@ -80,20 +80,20 @@ export default function MietvertragDetailsModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-7xl w-[95vw] max-h-[95vh] h-[95vh] md:h-auto overflow-hidden flex flex-col p-4 md:p-6">
         <DialogHeader className="flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <DialogTitle className="flex items-center gap-2 text-base md:text-lg">
+          <div className="flex flex-wrap items-start gap-2 justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <DialogTitle className="flex items-center gap-2 text-base md:text-lg min-w-0">
                 <Building2 className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0" />
-                <span>Mietvertrag Details</span>
+                <span>Mietvertrag</span>
                 {(immobilie || einheitData) && (
-                  <span className="text-xs md:text-sm font-normal text-muted-foreground truncate">
+                  <span className="text-xs md:text-sm font-normal text-muted-foreground truncate hidden sm:inline">
                     – {immobilie?.name}{immobilie?.adresse ? ` · ${immobilie.adresse}` : ''}{einheitData ? ` · Einheit ${einheitData.zaehler ? String(einheitData.zaehler).padStart(2, '0') : (einheitData.id ? einheitData.id.slice(-2) : '')} · ${einheitData.einheitentyp || ''}${einheitData.etage ? ` ${einheitData.etage}` : ''}` : ''}
                   </span>
                 )}
               </DialogTitle>
             </div>
-            
-            <div className="flex gap-2 mr-8">
+
+            <div className="flex gap-2 shrink-0">
               {!mutations.isGlobalEditMode ? (
                 <Button onClick={mutations.handleStartGlobalEdit} variant="outline" size="sm">
                   Bearbeiten

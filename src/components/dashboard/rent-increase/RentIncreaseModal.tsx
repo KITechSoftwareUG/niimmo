@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, TrendingUp, Download, Eye, Save, Calculator, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, TrendingUp, Download, Eye, Save, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { generateMieterhoehungPdf, type MieterhoehungPdfData } from "@/utils/mieterhoehungPdfGenerator";
@@ -55,12 +54,9 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
   const [mieterPlzOrt, setMieterPlzOrt] = useState("");
   const [einheitBezeichnung, setEinheitBezeichnung] = useState("WE");
   const [istAngespannt, setIstAngespannt] = useState(false);
-  const [erhoehungsModus, setErhoehungsModus] = useState<'standard' | 'indexmiete'>('standard');
-  const [vpiAlt, setVpiAlt] = useState("");
-  const [vpiNeu, setVpiNeu] = useState("");
 
-  // Kappungsgrenze: 15% (angespannt) oder 20% (normal) in 36 Monaten
-  const kappungsgrenze = istAngespannt ? 15 : 20;
+  // Kappungsgrenze: 20% (angespannt) oder 30% (normal) in 36 Monaten (§558 BGB)
+  const kappungsgrenze = istAngespannt ? 20 : 30;
   const maxKaltmiete = contractData ? contractData.current_kaltmiete * (1 + kappungsgrenze / 100) : 0;
   const erhoehungProzent = contractData && contractData.current_kaltmiete > 0
     ? ((parseFloat(neueKaltmiete) - contractData.current_kaltmiete) / contractData.current_kaltmiete * 100)
@@ -84,7 +80,7 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
   // Reset when modal opens
   useEffect(() => {
     if (isOpen && contractData) {
-      setNeueKaltmiete((contractData.current_kaltmiete * 1.04).toFixed(2));
+      setNeueKaltmiete(contractData.current_kaltmiete.toFixed(2));
       setNeueBetriebskosten(contractData.current_betriebskosten.toFixed(2));
       setAnrede("Herr");
       setMieterAdresse(contractData.immobilie_adresse?.split(',')[0]?.trim() || '');
@@ -92,25 +88,8 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
         ? contractData.immobilie_adresse.split(',').slice(1).join(',').trim()
         : '');
       setEinheitBezeichnung("WE");
-      setErhoehungsModus('standard');
-      setVpiAlt("");
-      // Aktuellen VPI aus DB vorausfuellen falls verfuegbar
-      setVpiNeu(aktuellerVpi ? String(aktuellerVpi.wert) : "");
     }
-  }, [isOpen, contractData, aktuellerVpi]);
-
-  // VPI Berechnung: neue Kaltmiete aus Index ableiten
-  useEffect(() => {
-    if (erhoehungsModus !== 'indexmiete' || !contractData) return;
-    const alt = parseFloat(vpiAlt);
-    const neu = parseFloat(vpiNeu);
-    if (!alt || !neu || alt <= 0) return;
-    const prozent = ((neu - alt) / alt) * 100;
-    if (prozent > 0) {
-      const neuerBetrag = contractData.current_kaltmiete * (1 + prozent / 100);
-      setNeueKaltmiete(neuerBetrag.toFixed(2));
-    }
-  }, [erhoehungsModus, vpiAlt, vpiNeu, contractData]);
+  }, [isOpen, contractData]);
 
   // Build PDF data
   const buildPdfData = useCallback((): MieterhoehungPdfData | null => {
@@ -250,20 +229,20 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-[95vw] w-[1200px] max-h-[90vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-orange-600" />
+          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
+            <DialogTitle className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-orange-600 shrink-0" />
                 <span>Mieterhöhung erstellen</span>
                 {istAngespannt ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 border border-orange-300">
                     <AlertTriangle className="h-3.5 w-3.5" />
-                    Angespannter Markt · Kappung 15%
+                    <span className="hidden sm:inline">Angespannter Markt · </span>Kappung 20%
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300">
                     <CheckCircle2 className="h-3.5 w-3.5" />
-                    Normaler Markt · Kappung 20%
+                    <span className="hidden sm:inline">Normaler Markt · </span>Kappung 30%
                   </span>
                 )}
               </div>
@@ -276,7 +255,7 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
                   className="gap-1.5"
                 >
                   <Download className="h-4 w-4" />
-                  Download
+                  <span className="hidden sm:inline">Download</span>
                 </Button>
                 <Button
                   size="sm"
@@ -285,15 +264,16 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
                   className="gap-1.5"
                 >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Speichern & Vertrag aktualisieren
+                  <span className="hidden sm:inline">Speichern & Vertrag aktualisieren</span>
+                  <span className="sm:hidden">Speichern</span>
                 </Button>
               </div>
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-1 overflow-hidden border-t">
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden border-t">
             {/* Left: Edit form */}
-            <ScrollArea className="w-[380px] shrink-0 border-r">
+            <ScrollArea className="w-full md:w-[380px] md:shrink-0 border-b md:border-b-0 border-r-0 md:border-r">
               <div className="p-4 space-y-4">
                 {/* Contract info */}
                 <div className="p-3 bg-muted rounded-lg space-y-1 text-sm">
@@ -348,77 +328,12 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
 
                 <Separator />
 
-                {/* New rent (editable) */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Berechnungsmodus</h3>
-                  <Select value={erhoehungsModus} onValueChange={(v) => setErhoehungsModus(v as 'standard' | 'indexmiete')}>
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="standard">Standard (manuelle Eingabe)</SelectItem>
-                      <SelectItem value="indexmiete">Indexmiete (VPI)</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {aktuellerVpi && (
-                    <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded px-2 py-1.5">
-                      <Info className="h-3 w-3 shrink-0" />
-                      <span>Aktueller VPI (DB): <strong>{aktuellerVpi.wert}</strong> · Stand {new Date(aktuellerVpi.stichtag).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })} · Basis 2020=100</span>
-                    </div>
-                  )}
-
-                  {erhoehungsModus === 'indexmiete' && (
-                    <div className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/20 space-y-2">
-                      <p className="text-xs font-medium text-blue-800 dark:text-blue-200 flex items-center gap-1">
-                        <Calculator className="h-3.5 w-3.5" />
-                        VPI-Berechnung
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs">Alter Index (Vertragsbeginn)</Label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={vpiAlt}
-                            onChange={(e) => setVpiAlt(e.target.value)}
-                            placeholder="z.B. 117.4"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Neuer Index {aktuellerVpi ? "(aus DB)" : ""}</Label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={vpiNeu}
-                            onChange={(e) => setVpiNeu(e.target.value)}
-                            placeholder="z.B. 121.1"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                      </div>
-                      {vpiAlt && vpiNeu && parseFloat(vpiAlt) > 0 && (
-                        <div className="space-y-0.5">
-                          <p className="text-xs text-blue-700 dark:text-blue-300">
-                            Erhöhung: {(((parseFloat(vpiNeu) - parseFloat(vpiAlt)) / parseFloat(vpiAlt)) * 100).toFixed(2)}%
-                          </p>
-                          <p className="text-xs text-blue-600 dark:text-blue-400">
-                            Kappungsgrenze: {kappungsgrenze}% ({istAngespannt ? "angespannter Markt" : "normaler Markt"})
-                          </p>
-                        </div>
-                      )}
-                      <a
-                        href="https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Verbraucherpreisindex/_inhalt.html"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline"
-                      >
-                        Aktuellen VPI beim Statistischen Bundesamt abrufen
-                      </a>
-                    </div>
-                  )}
-                </div>
+                {aktuellerVpi && (
+                  <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded px-2 py-1.5">
+                    <Info className="h-3 w-3 shrink-0" />
+                    <span>Aktueller VPI: <strong>{aktuellerVpi.wert}</strong> · Stand {new Date(aktuellerVpi.stichtag).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })} · Basis 2020=100</span>
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold">Neue Miete</h3>
@@ -489,7 +404,7 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
             </ScrollArea>
 
             {/* Right: PDF Preview */}
-            <div className="flex-1 bg-muted/50 p-4 flex flex-col min-w-0">
+            <div className="hidden md:flex flex-1 bg-muted/50 p-4 flex-col min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 <Eye className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground">Live-Vorschau</span>

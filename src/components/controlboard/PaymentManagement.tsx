@@ -161,6 +161,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const [allPaymentsSearchTerm, setAllPaymentsSearchTerm] = useState("");
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [reEnrichTrigger, setReEnrichTrigger] = useState(0);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -412,6 +413,19 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       einheit_typ: enriched.einheit_typ ?? base.einheit_typ,
     };
   }, []);
+
+  // Re-enrich expanded months after enrichedPayments was cleared
+  useEffect(() => {
+    if (reEnrichTrigger === 0) return;
+    paymentsByYearMonth.forEach(yearGroup => {
+      yearGroup.months.forEach(monthGroup => {
+        if (!collapsedMonths.has(monthGroup.monthKey)) {
+          enrichMonthPayments(monthGroup.monthKey, monthGroup.payments);
+        }
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reEnrichTrigger]);
 
   // Helper to get a payment with details (enriched if available)
   const getEnrichedPayment = (zahlung: ZahlungWithDetails, monthKey: string): ZahlungWithDetails => {
@@ -933,6 +947,8 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     
     // Refresh queries and clear enrichment cache
     setEnrichedPayments({});
+    setEnrichingMonths(new Set());
+    setReEnrichTrigger(n => n + 1);
     queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
     queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
     queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
@@ -963,7 +979,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
   return (
     <div className="min-h-screen modern-dashboard-bg relative z-0">
-      <div className="container mx-auto p-8 relative z-10">
+      <div className="container mx-auto px-4 py-4 sm:p-8 relative z-10">
         {/* Header */}
         <div className="mb-6">
           <Button variant="outline" onClick={onBack} className="mb-4 bg-white/50 hover:bg-white/70">
@@ -1078,9 +1094,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
           {/* Tab 2: Alle Zahlungen */}
           <TabsContent value="alle">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               {/* Left: Zahlungsliste */}
-              <Card className="h-[calc(100vh-280px)] overflow-hidden">
+              <Card className="h-[calc(100vh-280px)] min-h-[400px] overflow-hidden">
                 <CardHeader className="pb-3">
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1128,7 +1144,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                             placeholder="Suchen (Name, IBAN, Verwendungszweck, Betrag...)"
                             value={allPaymentsSearchTerm}
                             onChange={(e) => setAllPaymentsSearchTerm(e.target.value)}
-                            className="pl-9 bg-white min-w-[300px]"
+                            className="pl-9 bg-white w-full"
                           />
                           {isServerSearching && (
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -1449,18 +1465,18 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
           {/* Tab 3: Nicht zugeordnete Mietzahlungen */}
           <TabsContent value="unzugeordnet">
-            <Card className="p-6 bg-white">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-orange-500" />
-                  <h2 className="text-xl font-semibold">
+            <Card className="p-4 sm:p-6 bg-white">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <AlertTriangle className="h-5 w-5 text-orange-500 shrink-0" />
+                  <h2 className="text-base sm:text-xl font-semibold truncate">
                     Nicht zugeordnete Mietzahlungen
                     {unassignedPayments && (
                       <span className="ml-2 text-sm text-muted-foreground">({filteredUnassignedPayments?.length || 0})</span>
                     )}
                   </h2>
                 </div>
-                <div className="relative w-80">
+                <div className="relative w-full sm:w-80 shrink-0">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Suchen..."
@@ -1484,49 +1500,51 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                     <p className="text-green-700 font-medium">Alle Mietzahlungen sind zugeordnet!</p>
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Buchungsdatum</TableHead>
-                        <TableHead className="text-right">Betrag</TableHead>
-                        <TableHead>IBAN</TableHead>
-                        <TableHead>Empfänger</TableHead>
-                        <TableHead>Verwendungszweck</TableHead>
-                        <TableHead>Kategorie</TableHead>
-                        <TableHead className="text-right">Aktion</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredUnassignedPayments?.map((payment) => (
-                        <TableRow key={payment.id}>
-                          <TableCell>{format(new Date(payment.buchungsdatum), 'dd.MM.yyyy')}</TableCell>
-                          <TableCell className={`text-right font-semibold ${payment.betrag < 0 ? 'text-destructive' : 'text-green-600'}`}>
-                            {payment.betrag.toFixed(2)} €
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{payment.iban || '-'}</TableCell>
-                          <TableCell>{payment.empfaengername || '-'}</TableCell>
-                          <TableCell className="max-w-xs truncate">{payment.verwendungszweck || '-'}</TableCell>
-                          <TableCell>
-                            <PaymentKategorieEditor
-                              paymentId={payment.id}
-                              currentKategorie={payment.kategorie}
-                              currentImmobilieId={payment.immobilie_id}
-                              onUpdate={() => {
-                                queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
-                                queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
-                              }}
-                              compact
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => handleAssignPayment(payment)}>
-                              Zuweisen
-                            </Button>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="whitespace-nowrap">Buchungsdatum</TableHead>
+                          <TableHead className="text-right whitespace-nowrap">Betrag</TableHead>
+                          <TableHead className="hidden sm:table-cell">IBAN</TableHead>
+                          <TableHead>Empfänger</TableHead>
+                          <TableHead className="hidden md:table-cell">Verwendungszweck</TableHead>
+                          <TableHead>Kategorie</TableHead>
+                          <TableHead className="text-right">Aktion</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredUnassignedPayments?.map((payment) => (
+                          <TableRow key={payment.id}>
+                            <TableCell className="whitespace-nowrap">{format(new Date(payment.buchungsdatum), 'dd.MM.yyyy')}</TableCell>
+                            <TableCell className={`text-right font-semibold whitespace-nowrap ${payment.betrag < 0 ? 'text-destructive' : 'text-green-600'}`}>
+                              {payment.betrag.toFixed(2)} €
+                            </TableCell>
+                            <TableCell className="font-mono text-xs hidden sm:table-cell">{payment.iban || '-'}</TableCell>
+                            <TableCell className="max-w-[120px] truncate">{payment.empfaengername || '-'}</TableCell>
+                            <TableCell className="max-w-xs truncate hidden md:table-cell">{payment.verwendungszweck || '-'}</TableCell>
+                            <TableCell>
+                              <PaymentKategorieEditor
+                                paymentId={payment.id}
+                                currentKategorie={payment.kategorie}
+                                currentImmobilieId={payment.immobilie_id}
+                                onUpdate={() => {
+                                  queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
+                                  queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
+                                }}
+                                compact
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button size="sm" variant="outline" onClick={() => handleAssignPayment(payment)}>
+                                Zuweisen
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </ScrollArea>
             </Card>
@@ -1552,7 +1570,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
             await queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
             await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
-            
+
             // Re-enrich the selected payment so its immobilie_name is visible
             if (selectedZahlungId) {
               const { data: freshPayment } = await supabase
@@ -1560,14 +1578,14 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                 .select('*')
                 .eq('id', selectedZahlungId)
                 .single();
-              
+
               if (freshPayment) {
                 let immName: string | null = null;
                 let immAddr: string | null = null;
                 let mieterName: string | null = null;
                 let einheitId: string | null = null;
                 let einheitTyp: string | null = null;
-                
+
                 if (freshPayment.mietvertrag_id) {
                   const { data: contract } = await supabase
                     .from('mietvertrag')
@@ -1593,7 +1611,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
                     immAddr = imm.adresse;
                   }
                 }
-                
+
                 const enrichedEntry: ZahlungWithDetails = {
                   ...freshPayment,
                   immobilie_name: immName,

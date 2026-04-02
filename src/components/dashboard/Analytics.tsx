@@ -301,12 +301,12 @@ export const Analytics = ({ onBack }: AnalyticsProps = {}) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 px-4 py-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           {onBack && (
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={onBack}
               className="mb-4 hover:bg-gray-100"
             >
@@ -314,15 +314,15 @@ export const Analytics = ({ onBack }: AnalyticsProps = {}) => {
               Zurück zum Dashboard
             </Button>
           )}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Immobilien Analytics Dashboard</h1>
-              <p className="text-gray-600">Umfassende Übersicht über Portfolio-Werte, Renditen, Prognosen und Wirtschaftlichkeit</p>
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Analytics Dashboard</h1>
+              <p className="text-gray-600 text-sm hidden sm:block">Umfassende Übersicht über Portfolio-Werte, Renditen, Prognosen und Wirtschaftlichkeit</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Calendar className="h-4 w-4 text-gray-500" />
               <Select value={zeitraum} onValueChange={(value: any) => setZeitraum(value)}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px] sm:w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

@@ -382,7 +382,7 @@ export const TerminationDialog = ({
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-[95vw] w-[1400px] max-h-[95vh] h-[90vh] overflow-hidden flex flex-col p-0">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b bg-background flex-shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 sm:py-4 border-b bg-background flex-shrink-0">
             <div className="flex items-center gap-3">
               <FileText className="h-5 w-5 text-destructive" />
               <h2 className="text-lg font-semibold">Mietvertrag kündigen</h2>
@@ -400,7 +400,7 @@ export const TerminationDialog = ({
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
             <div className="px-6 pt-2 border-b flex-shrink-0">
-              <TabsList className="grid w-[400px] grid-cols-2">
+              <TabsList className="grid w-full sm:w-[400px] grid-cols-2">
                 <TabsTrigger value="manual" className="flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   PDF erstellen & kündigen
@@ -414,9 +414,9 @@ export const TerminationDialog = ({
 
             {/* ========== MANUAL TAB: Split-Screen ========== */}
             <TabsContent value="manual" className="flex-1 overflow-hidden m-0">
-              <div className="flex h-full overflow-hidden">
+              <div className="flex flex-col md:flex-row h-full overflow-hidden">
                 {/* LEFT: Form */}
-                <ScrollArea className="w-[420px] flex-shrink-0 border-r">
+                <ScrollArea className="w-full md:w-[420px] md:flex-shrink-0 border-b md:border-b-0 border-r-0 md:border-r">
                   <div className="p-5 space-y-5">
                     {/* Contract info */}
                     <div>
@@ -615,7 +615,7 @@ export const TerminationDialog = ({
                 </ScrollArea>
 
                 {/* RIGHT: PDF Preview */}
-                <div className="flex-1 flex flex-col bg-muted/30 min-w-0">
+                <div className="hidden md:flex flex-1 flex-col bg-muted/30 min-w-0">
                   <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50 flex-shrink-0">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Eye className="h-4 w-4" />

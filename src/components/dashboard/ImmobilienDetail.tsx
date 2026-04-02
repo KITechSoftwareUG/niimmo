@@ -233,7 +233,7 @@ export const ImmobilienDetail = ({
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>;
   }
-  return <div className="min-h-screen p-6 modern-dashboard-bg">
+  return <div className="min-h-screen px-3 py-4 sm:p-6 modern-dashboard-bg">
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="mb-6">
           <Button variant="ghost" onClick={handleBackClick} className="mb-4 hover:bg-gray-100 transition-colors">
@@ -244,9 +244,9 @@ export const ImmobilienDetail = ({
           {/* Immobilien Header */}
           <Card className="mb-6">
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col sm:flex-row items-start gap-3 justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2.5 bg-primary/10 rounded-xl">
+                  <div className="p-2.5 bg-primary/10 rounded-xl shrink-0">
                     <Building className="h-6 w-6 text-primary" />
                   </div>
                   <div>
@@ -254,13 +254,13 @@ export const ImmobilienDetail = ({
                       {immobilie?.name}
                     </CardTitle>
                     <div className="flex items-center text-muted-foreground text-sm">
-                      <MapPin className="h-3.5 w-3.5 mr-1.5" />
+                      <MapPin className="h-3.5 w-3.5 mr-1.5 shrink-0" />
                       <span>{immobilie?.adresse}</span>
                     </div>
                   </div>
                 </div>
-                
-                <div className="text-right space-y-2">
+
+                <div className="text-left sm:text-right space-y-2 shrink-0">
                   <Badge variant="outline" className="text-sm px-3 py-1">
                     {einheiten?.length || 0} von {immobilie?.einheiten_anzahl} Einheiten
                   </Badge>
@@ -449,10 +449,16 @@ export const ImmobilienDetail = ({
         {/* Tabs für Einheiten, Dokumente und Zahlungen */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="einheiten">Einheiten</TabsTrigger>
-            <TabsTrigger value="dokumente">Dokumente</TabsTrigger>
-            <TabsTrigger value="versicherungen">Versicherungen</TabsTrigger>
-            <TabsTrigger value="zahlungen">Nebenkosten</TabsTrigger>
+            <TabsTrigger value="einheiten" className="text-xs sm:text-sm">Einheiten</TabsTrigger>
+            <TabsTrigger value="dokumente" className="text-xs sm:text-sm">Dokumente</TabsTrigger>
+            <TabsTrigger value="versicherungen" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Versicherungen</span>
+              <span className="sm:hidden">Versich.</span>
+            </TabsTrigger>
+            <TabsTrigger value="zahlungen" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Nebenkosten</span>
+              <span className="sm:hidden">NK</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="einheiten">

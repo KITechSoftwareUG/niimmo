@@ -151,7 +151,7 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Row 1: Verschmolzene kompakte Leiste */}
-      <div className="metric-card px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-gray-200 bg-white/80 flex items-center justify-between gap-3 sm:gap-6" style={{ animationDelay: '0s' }}>
+      <div className="metric-card px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border border-gray-200 bg-white/80 flex items-center gap-3 sm:gap-6 overflow-x-auto scrollbar-hide" style={{ animationDelay: '0s' }}>
         {/* Immobilien */}
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-blue-100 border border-blue-200 flex-shrink-0">

@@ -469,10 +469,10 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
         </div>
 
         {/* Main content */}
-        <div className={`flex gap-4 ${selectedId ? "items-start" : ""}`}>
+        <div className={`flex flex-col md:flex-row gap-4 ${selectedId ? "md:items-start" : ""}`}>
 
           {/* Account list */}
-          <div className={`${selectedId ? "w-80 shrink-0" : "w-full"} space-y-2`}>
+          <div className={`${selectedId ? "w-full md:w-80 md:shrink-0" : "w-full"} space-y-2`}>
             {isLoading ? (
               <div className="glass-card rounded-xl p-8 text-center text-gray-400 text-sm">
                 Lädt…
@@ -714,41 +714,43 @@ export function DarlehenVerwaltung({ onBack }: DarlehenVerwaltungProps) {
                           )}
                         </div>
 
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="border-gray-100 hover:bg-transparent">
-                              <TableHead className="text-xs text-gray-500 py-2 font-medium">Monat</TableHead>
-                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Rate</TableHead>
-                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Zinsen</TableHead>
-                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Tilgung</TableHead>
-                              <TableHead className="text-xs text-gray-500 py-2 text-right font-medium">Restschuld</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {angezeigterPlan.map((e) => (
-                              <TableRow
-                                key={e.monat}
-                                className="border-gray-50 hover:bg-gray-50/50"
-                              >
-                                <TableCell className="text-xs text-gray-700 py-1.5">
-                                  {format(e.datum, "MMM yyyy", { locale: de })}
-                                </TableCell>
-                                <TableCell className="text-xs font-mono text-gray-800 py-1.5 text-right">
-                                  {formatEuro(e.rate)}
-                                </TableCell>
-                                <TableCell className="text-xs font-mono text-yellow-700 py-1.5 text-right">
-                                  {formatEuro(e.zinsanteil)}
-                                </TableCell>
-                                <TableCell className="text-xs font-mono text-green-700 py-1.5 text-right">
-                                  {formatEuro(e.tilgungsanteil)}
-                                </TableCell>
-                                <TableCell className="text-xs font-mono text-red-600 py-1.5 text-right">
-                                  {formatEuro(e.restschuld_danach)}
-                                </TableCell>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-gray-100 hover:bg-transparent">
+                                <TableHead className="text-xs text-gray-500 py-2 font-medium whitespace-nowrap">Monat</TableHead>
+                                <TableHead className="text-xs text-gray-500 py-2 text-right font-medium whitespace-nowrap">Rate</TableHead>
+                                <TableHead className="text-xs text-gray-500 py-2 text-right font-medium whitespace-nowrap">Zinsen</TableHead>
+                                <TableHead className="text-xs text-gray-500 py-2 text-right font-medium whitespace-nowrap">Tilgung</TableHead>
+                                <TableHead className="text-xs text-gray-500 py-2 text-right font-medium whitespace-nowrap">Restschuld</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                            </TableHeader>
+                            <TableBody>
+                              {angezeigterPlan.map((e) => (
+                                <TableRow
+                                  key={e.monat}
+                                  className="border-gray-50 hover:bg-gray-50/50"
+                                >
+                                  <TableCell className="text-xs text-gray-700 py-1.5 whitespace-nowrap">
+                                    {format(e.datum, "MMM yyyy", { locale: de })}
+                                  </TableCell>
+                                  <TableCell className="text-xs font-mono text-gray-800 py-1.5 text-right whitespace-nowrap">
+                                    {formatEuro(e.rate)}
+                                  </TableCell>
+                                  <TableCell className="text-xs font-mono text-yellow-700 py-1.5 text-right whitespace-nowrap">
+                                    {formatEuro(e.zinsanteil)}
+                                  </TableCell>
+                                  <TableCell className="text-xs font-mono text-green-700 py-1.5 text-right whitespace-nowrap">
+                                    {formatEuro(e.tilgungsanteil)}
+                                  </TableCell>
+                                  <TableCell className="text-xs font-mono text-red-600 py-1.5 text-right whitespace-nowrap">
+                                    {formatEuro(e.restschuld_danach)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
 
                         {!showAllMonate && tilgungsplan.length > 24 && (
                           <div className="text-center text-xs text-gray-400 py-3">
