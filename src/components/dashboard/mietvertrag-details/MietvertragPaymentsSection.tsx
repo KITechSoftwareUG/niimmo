@@ -68,7 +68,6 @@ export function MietvertragPaymentsSection({
       setLastschriftPopoverOpen(false);
       onContractUpdate?.();
     } catch (error) {
-      console.error('Error saving lastschrift settings:', error);
       toast.error('Fehler beim Speichern');
     } finally {
       setIsSaving(false);

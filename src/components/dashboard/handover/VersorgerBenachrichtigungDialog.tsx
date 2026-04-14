@@ -156,7 +156,6 @@ Tel. 05138 – 600 72 72`;
       .from('dokumente')
       .upload(filePath, pdfBlob, { contentType: 'application/pdf', upsert: true });
     if (error) {
-      console.error('PDF upload error:', error);
       return undefined;
     }
     return filePath;
@@ -178,7 +177,6 @@ Tel. 05138 – 600 72 72`;
       try {
         pdfPath = await uploadPdf();
       } catch (e) {
-        console.error('PDF upload failed, sending without attachment:', e);
       }
 
       for (const v of selectedVersorger) {
@@ -196,7 +194,6 @@ Tel. 05138 – 600 72 72`;
           if (response.error) throw response.error;
           sent.push(v.label);
         } catch (e) {
-          console.error(`Failed to send to ${v.label}:`, e);
           failed.push(v.label);
         }
       }

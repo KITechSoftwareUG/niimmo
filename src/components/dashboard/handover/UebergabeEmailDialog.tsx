@@ -152,7 +152,6 @@ Ihre Hausverwaltung`
       await uploadPdfAndSaveRef();
       toast({ title: "PDF hochgeladen", description: "Das Protokoll wurde in den Dokumenten gespeichert." });
     } catch (error) {
-      console.error("Upload error:", error);
       toast({ title: "Fehler", description: "PDF konnte nicht hochgeladen werden.", variant: "destructive" });
     } finally {
       setIsUploading(false);
@@ -194,7 +193,6 @@ Ihre Hausverwaltung`
       try {
         pdfFilePath = await uploadPdfAndSaveRef();
       } catch (uploadErr) {
-        console.error("PDF upload failed, sending without attachment:", uploadErr);
       }
 
       const response = await supabase.functions.invoke("send-uebergabe-email", {
@@ -228,7 +226,6 @@ Ihre Hausverwaltung`
         description: `${allRecipients.length} E-Mail(s) wurden erfolgreich versendet.`,
       });
     } catch (error) {
-      console.error("Error sending emails:", error);
       toast({
         title: "Fehler beim Versenden",
         description: "Die E-Mails konnten nicht versendet werden.",

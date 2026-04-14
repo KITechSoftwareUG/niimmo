@@ -244,7 +244,6 @@ export function NebenkostenZahlungenVerteiler({ immobilieId }: NebenkostenZahlun
       queryClient.invalidateQueries({ queryKey: ['kostenpositionen-abrechnung', immobilieId] });
       queryClient.invalidateQueries({ queryKey: ['kostenpositionen-verteiler', immobilieId] });
     } catch (error: any) {
-      console.error('Error creating Kostenposition:', error);
       toast({
         title: "Fehler",
         description: error.message || "Die Zahlung konnte nicht verteilt werden.",

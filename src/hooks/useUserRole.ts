@@ -19,7 +19,6 @@ export const useUserRole = () => {
         .maybeSingle();
       
       if (error) {
-        console.error('Error fetching user role:', error);
         return null;
       }
       

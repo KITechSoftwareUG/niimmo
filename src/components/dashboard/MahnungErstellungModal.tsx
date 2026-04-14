@@ -223,7 +223,6 @@ export function MahnungErstellungModal({
       const url = URL.createObjectURL(blob);
       setPdfBlobUrl(url);
     } catch (err) {
-      console.error('PDF preview error:', err);
     } finally {
       setIsGeneratingPreview(false);
     }
@@ -302,7 +301,6 @@ export function MahnungErstellungModal({
       
       setStep('email');
     } catch (err) {
-      console.error('Error saving Mahnung:', err);
       toast({
         title: "Fehler",
         description: err instanceof Error ? err.message : 'Fehler beim Speichern',
@@ -358,7 +356,6 @@ export function MahnungErstellungModal({
       });
       onClose();
     } catch (err) {
-      console.error('Email error:', err);
       toast({
         title: "Fehler",
         description: err instanceof Error ? err.message : 'E-Mail konnte nicht versendet werden',

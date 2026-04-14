@@ -48,7 +48,6 @@ export function WhatsappNachrichten() {
       .select("id, vorname, nachname");
 
     if (error) {
-      console.error("Error loading mieter:", error);
       return;
     }
 
@@ -67,7 +66,6 @@ export function WhatsappNachrichten() {
       .order("zeitstempel", { ascending: false });
 
     if (error) {
-      console.error("Error loading WhatsApp messages:", error);
       toast.error("Fehler beim Laden der Nachrichten");
       setIsLoading(false);
       return;
@@ -84,7 +82,6 @@ export function WhatsappNachrichten() {
       .eq("id", id);
 
     if (error) {
-      console.error("Error marking message as read:", error);
       return;
     }
 

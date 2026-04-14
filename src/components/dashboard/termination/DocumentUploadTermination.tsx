@@ -155,7 +155,6 @@ export const DocumentUploadTermination = ({
         });
 
       if (docError) {
-        console.warn('Dokument konnte nicht erstellt werden:', docError);
       }
 
       clearInterval(progressInterval);
@@ -171,7 +170,6 @@ export const DocumentUploadTermination = ({
           method: 'document_upload'
         });
       } catch (webhookError) {
-        console.warn('Webhook-Benachrichtigung fehlgeschlagen:', webhookError);
       }
 
       toast({
@@ -181,7 +179,6 @@ export const DocumentUploadTermination = ({
 
       onSuccess();
     } catch (error) {
-      console.error('Termination error:', error);
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten",

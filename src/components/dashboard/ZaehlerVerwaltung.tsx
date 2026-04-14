@@ -304,7 +304,6 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
 
       toast.success("Hausanschlusszähler gespeichert");
     } catch (error) {
-      console.error('Error saving property meter readings:', error);
       toast.error("Fehler beim Speichern der Hausanschlusszähler");
     } finally {
       setSavingProperties(prev => {
@@ -371,7 +370,6 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
 
       toast.success("Zählerstände gespeichert");
     } catch (error) {
-      console.error('Error saving meter readings:', error);
       toast.error("Fehler beim Speichern der Zählerstände");
     } finally {
       setSavingUnits(prev => {
@@ -461,7 +459,6 @@ export const ZaehlerVerwaltung = ({ onBack }: ZaehlerVerwaltungProps) => {
       queryClient.invalidateQueries({ queryKey: ['zaehler-verwaltung-immobilien'] });
       toast.success('Versorgungskonfiguration gespeichert');
     } catch (error) {
-      console.error('Error updating utility config:', error);
       toast.error('Fehler beim Speichern');
     }
   };

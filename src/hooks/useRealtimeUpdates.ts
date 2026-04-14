@@ -21,8 +21,6 @@ export const useRealtimeUpdates = () => {
           table: 'mietforderungen'
         },
         (payload) => {
-          console.log('Global forderungen update:', payload);
-          
           // Invalidate global queries
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
           
@@ -42,8 +40,6 @@ export const useRealtimeUpdates = () => {
           table: 'zahlungen'
         },
         (payload) => {
-          console.log('Global zahlungen update:', payload);
-          
           // Invalidate global queries
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
           
@@ -64,8 +60,6 @@ export const useRealtimeUpdates = () => {
           table: 'mietvertrag'
         },
         (payload) => {
-          console.log('Global mietvertrag update:', payload);
-          
           // Invalidate global queries
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
           queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] });
@@ -86,8 +80,6 @@ export const useRealtimeUpdates = () => {
           table: 'mieter'
         },
         (payload) => {
-          console.log('Global mieter update:', payload);
-          
           // Invalidate mieter-related queries
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
           

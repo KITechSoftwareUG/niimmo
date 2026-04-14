@@ -281,7 +281,6 @@ export const NewTenantContractDialog = ({
       try {
         textContent = await OCRProcessingService.extractTextFromPDF(file);
       } catch (e) {
-        console.warn('PDF text extraction failed:', e);
       }
 
       // If no text extracted, render first page as image
@@ -289,7 +288,6 @@ export const NewTenantContractDialog = ({
         try {
           base64 = await OCRProcessingService.renderPdfFirstPageToBase64(file);
         } catch (e) {
-          console.warn('PDF render failed:', e);
         }
       }
 
@@ -310,8 +308,6 @@ export const NewTenantContractDialog = ({
         throw new Error(error.message || 'Verarbeitung fehlgeschlagen');
       }
 
-      console.log('Edge Function Result:', result);
-      
       if (result?.success && result?.extractedData) {
         setOcrResults(result);
         
@@ -371,7 +367,6 @@ export const NewTenantContractDialog = ({
       }
       
     } catch (error: any) {
-      console.error('OCR processing error:', error);
       toast({
         title: "❌ Fehler bei der PDF-Verarbeitung",
         description: error.message || "Bitte fülle die Felder manuell aus.",
@@ -433,8 +428,6 @@ export const NewTenantContractDialog = ({
       let tenantIds: string[] = [];
       
       if (activeTab === 'new-tenant') {
-        console.log('Creating new tenants:', newTenants.length);
-        
         for (const tenant of newTenants) {
           // Bei Unternehmen: Firmenname in Vorname und Nachname aufteilen
           let vorname = tenant.vorname.trim();
@@ -464,20 +457,15 @@ export const NewTenantContractDialog = ({
             .single();
           
           if (error) {
-            console.error('Error creating tenant:', error);
             const displayName = tenant.istUnternehmen ? tenant.firmenname : `${tenant.vorname} ${tenant.nachname}`;
             throw new Error(`Fehler beim Erstellen des Mieters ${displayName}: ${error.message}`);
           }
           
           createdTenantIds.push(data.id);
           tenantIds.push(data.id);
-          console.log('Created tenant:', data.id);
         }
-        
-        console.log('All tenants created successfully:', tenantIds);
       } else {
         tenantIds = selectedTenantIds;
-        console.log('Using existing tenants:', tenantIds);
       }
       
       if (tenantIds.length === 0) {
@@ -485,8 +473,6 @@ export const NewTenantContractDialog = ({
       }
       
       // Step 3: Check for overlapping contracts before creating
-      console.log('Checking for contract overlaps for unit:', einheitId);
-      
       const { checkContractOverlap } = await import('@/utils/contractOverlapValidation');
       const overlapCheck = await checkContractOverlap(
         einheitId,
@@ -494,16 +480,12 @@ export const NewTenantContractDialog = ({
         contractData.ende_datum || null
       );
 
-      console.log('Overlap check result:', overlapCheck);
-
       if (overlapCheck.hasOverlap && overlapCheck.warningMessage) {
         // Show warning dialog to user
         const userConfirmed = window.confirm(
           `${overlapCheck.warningMessage}\n\nMöchten Sie den Mietvertrag mit Startdatum ${new Date(contractData.start_datum).toLocaleDateString('de-DE')} trotzdem erstellen?`
         );
-        
-        console.log('User confirmation for contract creation:', userConfirmed);
-        
+
         if (!userConfirmed) {
           toast({
             title: "Vertragserstellung abgebrochen",
@@ -515,8 +497,6 @@ export const NewTenantContractDialog = ({
       }
       
       // Step 4: Create contract
-      console.log('Creating contract for unit:', einheitId);
-      
       const { data: contractResult, error: contractError } = await supabase
         .from('mietvertrag')
         .insert({
@@ -541,16 +521,12 @@ export const NewTenantContractDialog = ({
         .single();
       
       if (contractError) {
-        console.error('Error creating contract:', contractError);
         throw new Error(`Fehler beim Erstellen des Mietvertrags: ${contractError.message}`);
       }
-      
+
       createdContractId = contractResult.id;
-      console.log('Contract created successfully:', createdContractId);
-      
+
       // Step 4: Link tenants to contract via mietvertrag_mieter
-      console.log('Linking tenants to contract...');
-      
       const tenantLinks = tenantIds.map(tenantId => ({
         mietvertrag_id: contractResult.id,
         mieter_id: tenantId
@@ -561,12 +537,9 @@ export const NewTenantContractDialog = ({
         .insert(tenantLinks);
       
       if (linkError) {
-        console.error('Error linking tenants:', linkError);
         throw new Error(`Fehler beim Verknüpfen der Mieter mit dem Vertrag: ${linkError.message}`);
       }
-      
-      console.log('Tenants linked successfully to contract');
-      
+
       // Verify that all links were created
       const { data: verifyLinks, error: verifyError } = await supabase
         .from('mietvertrag_mieter')
@@ -574,16 +547,11 @@ export const NewTenantContractDialog = ({
         .eq('mietvertrag_id', contractResult.id);
       
       if (verifyError || !verifyLinks || verifyLinks.length !== tenantIds.length) {
-        console.error('Link verification failed:', verifyError);
         throw new Error('Fehler: Nicht alle Mieter wurden korrekt verknüpft.');
       }
-      
-      console.log(`Verified: ${verifyLinks.length} tenant links created`);
-      
+
       // Step 5: Upload documents if any
       if (uploadedFiles.length > 0) {
-        console.log('Uploading documents:', uploadedFiles.length);
-        
         for (const file of uploadedFiles) {
           const fileExt = file.name.split('.').pop();
           const fileName = `${contractResult.id}_${Date.now()}.${fileExt}`;
@@ -593,9 +561,7 @@ export const NewTenantContractDialog = ({
             .upload(fileName, file);
           
           if (uploadError) {
-            console.error('Error uploading document:', uploadError);
-            // Don't fail the whole contract creation, but log the error
-            console.warn('Document upload failed, continuing...');
+            // Don't fail the whole contract creation
             continue;
           }
           
@@ -612,7 +578,6 @@ export const NewTenantContractDialog = ({
             });
           
           if (docError) {
-            console.error('Error creating document record:', docError);
           }
         }
       }
@@ -622,8 +587,6 @@ export const NewTenantContractDialog = ({
       await queryClient.invalidateQueries({ queryKey: ['einheiten'] });
       await queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
       
-      console.log('Contract creation completed successfully!');
-      
       toast({
         title: "✅ Mietvertrag erfolgreich erstellt!",
         description: `Vertrag wurde mit ${tenantIds.length} Mieter${tenantIds.length > 1 ? 'n' : ''} verknüpft und alle Daten gespeichert.`,
@@ -632,34 +595,26 @@ export const NewTenantContractDialog = ({
       onClose();
       
     } catch (error: any) {
-      console.error('Contract creation failed:', error);
-      
       // Rollback: Clean up created records if contract creation failed
       if (createdContractId) {
-        console.log('Rolling back: Deleting created contract:', createdContractId);
         try {
           // Delete contract (this will cascade to mietvertrag_mieter due to foreign key)
           await supabase
             .from('mietvertrag')
             .delete()
             .eq('id', createdContractId);
-          console.log('Contract deleted successfully');
         } catch (rollbackError) {
-          console.error('Rollback failed for contract:', rollbackError);
         }
       }
-      
+
       if (createdTenantIds.length > 0 && !createdContractId) {
         // Only delete tenants if contract creation failed (not if linking failed)
-        console.log('Rolling back: Deleting created tenants:', createdTenantIds);
         try {
           await supabase
             .from('mieter')
             .delete()
             .in('id', createdTenantIds);
-          console.log('Tenants deleted successfully');
         } catch (rollbackError) {
-          console.error('Rollback failed for tenants:', rollbackError);
         }
       }
       

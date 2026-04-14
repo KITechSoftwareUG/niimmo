@@ -102,7 +102,6 @@ export const CreateForderungModal = ({
       await queryClient.invalidateQueries({ queryKey: ['mietforderungen', mietvertragId] });
 
     } catch (error) {
-      console.error('Error creating forderung:', error);
       toast({
         title: "Fehler",
         description: "Forderung konnte nicht erstellt werden.",

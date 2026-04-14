@@ -51,9 +51,6 @@ export class ContractPdfWebhookService {
    */
   static async uploadAndExtractContract(file: File): Promise<WebhookResponse> {
     try {
-      console.log('📤 Sende PDF an Webhook:', this.WEBHOOK_URL);
-      console.log('📄 Datei:', file.name, 'Größe:', file.size, 'bytes');
-      
       // Erstelle FormData für Multipart-Upload
       const formData = new FormData();
       formData.append('pdf', file, file.name);
@@ -72,29 +69,22 @@ export class ContractPdfWebhookService {
         // Keine Content-Type Header setzen - wird automatisch mit boundary gesetzt
       });
       
-      console.log('📥 Response Status:', response.status);
-      console.log('📥 Response Headers:', [...response.headers.entries()]);
-      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Webhook Fehler:', errorText);
         throw new Error(`Webhook-Fehler (Status ${response.status}): ${errorText || 'Unbekannter Fehler'}`);
       }
-      
+
       // Parse JSON-Response
       const responseText = await response.text();
-      console.log('✅ Raw Webhook Response:', responseText);
-      
+
       // Versuche JSON zu parsen
       let data: any;
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('❌ JSON Parse Fehler:', parseError);
         throw new Error(`Ungültige JSON-Antwort vom Webhook: ${responseText.substring(0, 100)}`);
       }
-      
-      console.log('✅ Parsed Webhook Response:', data);
+
       
       // Prüfe ob die Response das erwartete Format hat
       if (!data.success && data.message) {
@@ -110,7 +100,6 @@ export class ContractPdfWebhookService {
       return data as WebhookResponse;
       
     } catch (error: any) {
-      console.error('❌ Fehler beim Webhook-Upload:', error);
       return {
         success: false,
         error: error.message || 'Unbekannter Fehler beim Upload',

@@ -45,7 +45,6 @@ export function PaymentUndoSplitModal({
         splitTimestamp: splitMatch[1]
       };
     } catch (error) {
-      console.error('Error parsing original payment data:', error);
       return null;
     }
   };
@@ -65,10 +64,6 @@ export function PaymentUndoSplitModal({
 
     setIsLoading(true);
     try {
-      console.log('Starting undo split operation');
-      console.log('Split payments to delete:', splitPayments.map(p => p.id));
-      console.log('Original payment to restore:', originalPayment);
-
       // First, restore the original payment
       const restoredPayment = {
         buchungsdatum: originalPayment.buchungsdatum,
@@ -82,34 +77,25 @@ export function PaymentUndoSplitModal({
         import_datum: originalPayment.import_datum || new Date().toISOString()
       };
 
-      console.log('Restoring original payment:', restoredPayment);
-      
       const { data: restoredPaymentData, error: restoreError } = await supabase
         .from('zahlungen')
         .insert([restoredPayment])
         .select();
 
       if (restoreError) {
-        console.error('Restore error:', restoreError);
         throw new Error(`Fehler beim Wiederherstellen der ursprünglichen Zahlung: ${restoreError.message}`);
       }
 
-      console.log('Successfully restored payment:', restoredPaymentData);
-
       // Then delete the split payments
       const splitPaymentIds = splitPayments.map(p => p.id);
-      console.log('Deleting split payments:', splitPaymentIds);
-      
+
       const { error: deleteError } = await supabase
         .from('zahlungen')
         .delete()
         .in('id', splitPaymentIds);
 
       if (deleteError) {
-        console.error('Delete error:', deleteError);
-        
         // Try to rollback by deleting the restored payment
-        console.log('Rolling back restored payment...');
         if (restoredPaymentData && restoredPaymentData.length > 0) {
           await supabase
             .from('zahlungen')
@@ -120,15 +106,12 @@ export function PaymentUndoSplitModal({
         throw new Error(`Fehler beim Löschen der aufgeteilten Zahlungen: ${deleteError.message}`);
       }
 
-      console.log('Successfully deleted split payments');
-
       toast({
         title: "Aufteilen rückgängig gemacht",
         description: `Die ursprüngliche Zahlung von ${formatBetrag(Number(originalPayment.betrag))} wurde wiederhergestellt.`,
       });
 
       // Refresh queries
-      console.log('Refreshing queries...');
       try {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ['zahlungen-detail', vertragId] }),
@@ -136,15 +119,12 @@ export function PaymentUndoSplitModal({
           queryClient.invalidateQueries({ queryKey: ['mietforderungen', vertragId] }),
           queryClient.invalidateQueries({ queryKey: ['zahlungen'] }),
         ]);
-        console.log('Queries refreshed successfully');
       } catch (refreshError) {
-        console.error('Error refreshing queries:', refreshError);
       }
 
       onClose();
 
     } catch (error: any) {
-      console.error('Error undoing split:', error);
       const errorMessage = error.message || 'Unbekannter Fehler beim Rückgängigmachen der Aufteilung.';
       toast({
         title: "Fehler beim Rückgängigmachen",

@@ -136,7 +136,6 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
       if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
       setPdfBlobUrl(URL.createObjectURL(blob));
     } catch (err) {
-      console.error('PDF preview error:', err);
     } finally {
       setIsGeneratingPreview(false);
     }
@@ -211,7 +210,6 @@ export function RentIncreaseModal({ isOpen, onClose, contractData }: RentIncreas
       toast({ title: "Gespeichert", description: "Mieterhöhung wurde gespeichert und Vertrag aktualisiert." });
       onClose();
     } catch (err: any) {
-      console.error('Save error:', err);
       toast({ title: "Fehler", description: err.message || "Speichern fehlgeschlagen.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);

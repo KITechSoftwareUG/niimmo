@@ -192,7 +192,6 @@ export function KostenpositionModal({
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving Kostenposition:', error);
       toast({
         title: "Fehler",
         description: error.message || "Die Kostenposition konnte nicht gespeichert werden.",

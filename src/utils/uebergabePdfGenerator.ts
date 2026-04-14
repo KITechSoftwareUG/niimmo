@@ -239,7 +239,6 @@ export async function generateUebergabePdf(data: UebergabePdfData): Promise<Blob
     try {
       doc.addImage(data.vermieterSignature, 'PNG', leftSigX, y, sigWidth, sigHeight);
     } catch (e) {
-      console.warn('Could not add vermieter signature:', e);
     }
   }
 
@@ -248,7 +247,6 @@ export async function generateUebergabePdf(data: UebergabePdfData): Promise<Blob
     try {
       doc.addImage(data.mieterSignature, 'PNG', rightSigX, y, sigWidth, sigHeight);
     } catch (e) {
-      console.warn('Could not add mieter signature:', e);
     }
   }
 

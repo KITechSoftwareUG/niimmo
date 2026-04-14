@@ -67,7 +67,6 @@ export const ManualTerminationForm = ({
         });
 
       if (docError) {
-        console.warn('Dokument konnte nicht erstellt werden:', docError);
       }
 
       // Call webhook service
@@ -80,7 +79,6 @@ export const ManualTerminationForm = ({
           method: 'manual'
         });
       } catch (webhookError) {
-        console.warn('Webhook-Benachrichtigung fehlgeschlagen:', webhookError);
       }
 
       toast({
@@ -90,7 +88,6 @@ export const ManualTerminationForm = ({
 
       onSuccess();
     } catch (error) {
-      console.error('Termination error:', error);
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten",

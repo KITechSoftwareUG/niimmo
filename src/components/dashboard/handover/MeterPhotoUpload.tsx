@@ -61,7 +61,6 @@ export const MeterPhotoUpload = ({
         description: `${meterLabels[meterType]}-Zählerfoto wurde hochgeladen.`,
       });
     } catch (error) {
-      console.error("Upload error:", error);
       toast({
         title: "Fehler",
         description: "Foto konnte nicht hochgeladen werden.",

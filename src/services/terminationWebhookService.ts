@@ -29,9 +29,8 @@ class TerminationWebhookService {
       }
     };
 
-    // If no webhooks are configured, just log the event
+    // If no webhooks are configured, skip
     if (this.webhookEndpoints.length === 0) {
-      console.log('Termination event (no webhooks configured):', payload);
       return;
     }
 
@@ -50,9 +49,8 @@ class TerminationWebhookService {
           throw new Error(`Webhook failed: ${response.status} ${response.statusText}`);
         }
 
-        console.log(`Webhook notification sent successfully to ${url}`);
       } catch (error) {
-        console.error(`Failed to send webhook to ${url}:`, error);
+        // error is rethrown
         throw error;
       }
     });
@@ -66,12 +64,11 @@ class TerminationWebhookService {
     try {
       // This would integrate with your existing tenant service
       // Placeholder for actual implementation
-      console.log(`Calling tenant service for contract ${vertragId} with termination date ${kuendigungsdatum}`);
       
       // Example of what this might look like:
       // await tenantService.terminateContract(vertragId, kuendigungsdatum);
     } catch (error) {
-      console.error('Error calling tenant service:', error);
+      // error is rethrown
       throw error;
     }
   }

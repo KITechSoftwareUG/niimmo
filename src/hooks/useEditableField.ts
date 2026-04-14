@@ -127,7 +127,6 @@ export const useEditableField = () => {
 
       return true;
     } catch (error) {
-      console.error('Error saving field:', error);
       toast({
         title: "Fehler",
         description: "Fehler beim Speichern der Änderung.",

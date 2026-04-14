@@ -557,7 +557,6 @@ export function NebenkostenZuordnungTab() {
         toast.info('Keine neuen Zahlungen zu analysieren', { description: 'Alle Zahlungen wurden bereits klassifiziert' });
       }
     } catch (error) {
-      console.error('Classification error:', error);
       toast.error('Fehler bei der Klassifizierung');
     } finally {
       setIsClassifying(false);

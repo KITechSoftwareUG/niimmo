@@ -90,7 +90,6 @@ export const MietvertragDocumentsManagement = ({
         description: `${dokument.titel} wurde heruntergeladen.`,
       });
     } catch (error) {
-      console.error('Download error:', error);
       toast({
         title: "Fehler",
         description: "Dokument konnte nicht heruntergeladen werden.",
@@ -166,7 +165,6 @@ export const MietvertragDocumentsManagement = ({
       // Refresh documents list
       queryClient.invalidateQueries({ queryKey: ['dokumente', mietvertragId] });
     } catch (error: any) {
-      console.error('Delete error:', error);
       toast({
         title: "Fehler",
         description: error.message || "Dokument konnte nicht gelöscht werden.",

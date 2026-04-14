@@ -137,7 +137,6 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
       await queryClient.invalidateQueries({ queryKey: ['immobilien-nebenkosten', immobilieId] });
       await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
     } catch (error: any) {
-      console.error('Error unassigning payment:', error);
       toast({
         title: "Fehler",
         description: error.message || "Die Zuordnung konnte nicht aufgehoben werden.",
@@ -168,7 +167,6 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
       setDeleteDialogOpen(false);
       setSelectedPaymentId(null);
     } catch (error: any) {
-      console.error('Error deleting payment:', error);
       toast({
         title: "Fehler",
         description: error.message || "Die Zahlung konnte nicht gelöscht werden.",
@@ -242,7 +240,6 @@ export function ImmobilienNebenkostenTab({ immobilieId }: ImmobilienNebenkostenT
       setEditingPercentage("");
       await queryClient.invalidateQueries({ queryKey: ['einheiten-nebenkosten', immobilieId] });
     } catch (error: any) {
-      console.error('Error updating percentage:', error);
       toast({
         title: "Fehler",
         description: error.message || "Der Prozentsatz konnte nicht gespeichert werden.",

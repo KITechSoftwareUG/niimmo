@@ -79,7 +79,6 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
         queryClient.invalidateQueries({ queryKey: ['all-mietvertraege'] }),
       ]);
     } catch (error) {
-      console.error('Fehler beim Speichern:', error);
       toast({ title: "Fehler", description: "Änderung konnte nicht gespeichert werden.", variant: "destructive" });
     }
   };
@@ -190,7 +189,6 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
       }
       await saveNumericField(field, numericValue, false);
     } catch (error) {
-      console.error('Fehler beim Aktualisieren:', error);
       const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : field === 'betriebskosten' ? 'Betriebskosten' : field === 'neue_anschrift' ? 'Neue Anschrift' : 'Rücklastschrift-Gebühr';
       toast({ title: "Fehler", description: `${fieldName} konnte nicht aktualisiert werden.`, variant: "destructive" });
     }
@@ -230,7 +228,6 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
         queryClient.invalidateQueries({ queryKey: ['immobilien'] }),
       ]);
     } catch (error) {
-      console.error('Fehler beim Aktualisieren:', error);
       toast({ title: "Fehler", description: "Kaution konnte nicht aktualisiert werden.", variant: "destructive" });
     }
   };
@@ -251,7 +248,6 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
         queryClient.invalidateQueries({ queryKey: ['immobilie-detail'] }),
       ]);
     } catch (error) {
-      console.error('Fehler beim Aktualisieren des Zählerstands:', error);
       toast({ title: "Fehler", description: "Zählerstand konnte nicht aktualisiert werden.", variant: "destructive" });
     }
   };
@@ -273,7 +269,6 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
         queryClient.invalidateQueries({ queryKey: ['einheiten'] }),
       ]);
     } catch (error) {
-      console.error('Fehler beim Aktualisieren der Zählernummer:', error);
       toast({ title: "Fehler", description: "Zählernummer konnte nicht aktualisiert werden.", variant: "destructive" });
     }
   };
@@ -392,7 +387,6 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
 
       await finishGlobalSave(mietvertragUpdates);
     } catch (error) {
-      console.error('Fehler beim Speichern:', error);
       toast({ title: "Fehler", description: "Die Änderungen konnten nicht gespeichert werden.", variant: "destructive" });
     }
   };
@@ -463,7 +457,6 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
       setIsGlobalEditMode(false);
       setEditedValues({});
     } catch (error) {
-      console.error('Fehler beim Speichern:', error);
       toast({ title: "Fehler", description: "Die Änderungen konnten nicht gespeichert werden.", variant: "destructive" });
     }
   };

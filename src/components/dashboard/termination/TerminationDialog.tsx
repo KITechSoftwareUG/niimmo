@@ -113,7 +113,6 @@ export const TerminationDialog = ({
         }));
         setMieterList(mieter);
       } catch (err) {
-        console.error('Error fetching contract data:', err);
       }
     };
 
@@ -289,7 +288,6 @@ export const TerminationDialog = ({
       onClose();
       onTerminationSuccess?.();
     } catch (error) {
-      console.error('Termination error:', error);
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : "Unbekannter Fehler",
@@ -365,7 +363,6 @@ export const TerminationDialog = ({
       onClose();
       onTerminationSuccess?.();
     } catch (error) {
-      console.error('Upload termination error:', error);
       toast({
         title: "Fehler",
         description: error instanceof Error ? error.message : "Unbekannter Fehler",

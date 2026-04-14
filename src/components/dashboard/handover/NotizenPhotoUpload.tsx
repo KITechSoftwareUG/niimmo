@@ -56,7 +56,6 @@
          description: `${files.length} Foto(s) wurden gespeichert.`,
        });
      } catch (error) {
-       console.error("Upload error:", error);
        toast({
          title: "Fehler",
          description: "Fotos konnten nicht hochgeladen werden.",

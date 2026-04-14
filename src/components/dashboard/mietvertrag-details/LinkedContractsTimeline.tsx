@@ -225,7 +225,6 @@ export function LinkedContractsTimeline({
         queryClient.invalidateQueries({ queryKey: ['rueckstaende'] }),
       ]);
     } catch (error) {
-      console.error('Error moving payment:', error);
       toast({
         title: "Fehler",
         description: "Zahlung konnte nicht verschoben werden.",

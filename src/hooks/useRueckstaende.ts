@@ -80,7 +80,6 @@ export const useRueckstaende = () => {
           table: 'mietforderungen'
         },
         (payload) => {
-          console.log('Forderungen changed:', payload);
           // Invalidate the rueckstaende query to trigger recalculation
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
           // Also invalidate specific contract queries if we know the contract ID
@@ -102,7 +101,6 @@ export const useRueckstaende = () => {
           table: 'zahlungen'
         },
         (payload) => {
-          console.log('Zahlungen changed:', payload);
           // Invalidate the rueckstaende query to trigger recalculation
           queryClient.invalidateQueries({ queryKey: ['rueckstaende'] });
           // Also invalidate specific contract queries if we know the contract ID
@@ -128,8 +126,6 @@ export const useRueckstaende = () => {
     staleTime: 0,
     refetchOnMount: true,
     queryFn: async () => {
-      console.log('=== NEUE RÜCKSTANDS-BERECHNUNG ===');
-      
       // Lade alle notwendigen Daten parallel
       const [
         { data: mietvertraege, error: mietvertrageError },
@@ -161,14 +157,6 @@ export const useRueckstaende = () => {
       if (immobilienError) throw immobilienError;
       if (mmError) throw mmError;
       if (dokumenteError) throw dokumenteError;
-      
-      console.log('Geladene Daten:', {
-        mietvertraege: mietvertraege?.length,
-        einheiten: einheiten?.length,
-        immobilien: immobilien?.length,
-        mietvertragMieter: mietvertragMieter?.length,
-        dokumente: dokumente?.length
-      });
       
       const rueckstaende: FehlendeMietzahlung[] = [];
       
@@ -202,8 +190,6 @@ export const useRueckstaende = () => {
           forderungenNach4temWerktag,
           mietvertragZahlungen || []
         );
-        
-        console.log(`Mietvertrag ${mietvertrag.id}: Forderungen=${gesamtForderungen}, Zahlungen=${gesamtZahlungen}, Rückstand=${rueckstand}`);
         
         // Zeige nur Nettostand (Rückstand oder Guthaben nach Aufrechnung)
         // Filtere auch sehr kleine Beträge unter 1 Cent aus
@@ -265,12 +251,6 @@ export const useRueckstaende = () => {
           });
         }
       }
-      
-      console.log('=== ENDERGEBNIS (IDENTISCH ZUM MODAL) ===');
-      console.log('Berechnete Einträge:', rueckstaende.length);
-      console.log('Netto-Saldo:', rueckstaende.reduce((sum, item) => {
-        return sum + (item.ist_guthaben ? -item.fehlend_betrag : item.fehlend_betrag);
-      }, 0));
       
       return rueckstaende;
     }

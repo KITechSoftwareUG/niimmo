@@ -140,7 +140,6 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
       ]);
 
     } catch (error) {
-      console.error('Fehler beim Versenden der Mahnung:', error);
       toast({
         title: "Fehler",
         description: "Mahnung konnte nicht versendet werden.",
@@ -174,7 +173,6 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
       ]);
 
     } catch (error) {
-      console.error('Fehler bei der Mahnstufen-Prüfung:', error);
       toast({
         title: "Fehler",
         description: "Mahnstufen-Prüfung konnte nicht durchgeführt werden.",

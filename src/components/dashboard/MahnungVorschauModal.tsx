@@ -59,7 +59,6 @@ export function MahnungVorschauModal({
   const handleSend = () => {
     // Hier später N8N Webhook Integration
     if (webhookUrl) {
-      console.log("N8N Webhook URL:", webhookUrl);
       // TODO: N8N Webhook Call implementieren
     }
     

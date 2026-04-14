@@ -45,7 +45,6 @@ export const MietvertragInfo = ({ vertrag, einheit, immobilie }: MietvertragInfo
       });
       setIsEditingReadings(false);
     } catch (error) {
-      console.error('Error updating readings:', error);
       toast({
         title: "Fehler",
         description: "Fehler beim Speichern der Zählerstände.",

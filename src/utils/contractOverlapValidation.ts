@@ -54,7 +54,7 @@ export async function checkContractOverlap(
     const { data: existingContracts, error } = await query;
 
     if (error) {
-      console.error('Error fetching contracts for overlap check:', error);
+      // error is rethrown
       throw error;
     }
 
@@ -132,7 +132,6 @@ export async function checkContractOverlap(
       warningMessage
     };
   } catch (error) {
-    console.error('Error in checkContractOverlap:', error);
     return { hasOverlap: false, overlappingContracts: [] };
   }
 }

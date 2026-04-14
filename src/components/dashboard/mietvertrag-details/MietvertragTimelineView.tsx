@@ -100,7 +100,6 @@ export function MietvertragTimelineView({
       ]);
 
     } catch (error) {
-      console.error('Error moving payment:', error);
       toast({
         title: "Fehler",
         description: "Zahlung konnte nicht verschoben werden.",
@@ -135,7 +134,6 @@ export function MietvertragTimelineView({
       ]);
 
     } catch (error) {
-      console.error('Fehler beim Löschen:', error);
       toast({
         title: "Fehler",
         description: "Forderung konnte nicht gelöscht werden.",
@@ -179,7 +177,6 @@ export function MietvertragTimelineView({
       setEditingForderung(null);
       setEditForderungValue("");
     } catch (error) {
-      console.error('Error updating forderung:', error);
       toast({
         title: "Fehler",
         description: "Forderung konnte nicht aktualisiert werden.",
@@ -249,7 +246,6 @@ export function MietvertragTimelineView({
       ]);
 
     } catch (error) {
-      console.error('Fehler beim Aktualisieren:', error);
       toast({
         title: "Fehler",
         description: `${editingPayment.field === 'kategorie' ? 'Kategorie' :

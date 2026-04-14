@@ -27,7 +27,6 @@ export const useAutoExpireContract = (
           .update({ status: 'beendet' })
           .eq('id', vertragId);
       } catch (error) {
-        console.error('Error auto-expiring contract:', error);
       }
     };
 

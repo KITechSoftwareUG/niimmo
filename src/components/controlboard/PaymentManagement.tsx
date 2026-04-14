@@ -564,7 +564,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     if (lines.length < 2) return [];
     
     const headers = lines[0].split(';').map(h => h.trim().replace(/"/g, ''));
-    console.log('CSV Headers:', headers);
     const payments: any[] = [];
     
     for (let i = 1; i < lines.length; i++) {
@@ -598,7 +597,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       const wertstellungsdatum = wertstellungsdatumRaw ? toIsoDate(wertstellungsdatumRaw) : undefined;
       const betragNum = parseAmountRobust(betrag);
 
-      console.log(`CSV row ${i}: empfaengername="${empfaengername}", verwendungszweck="${verwendungszweck}", betrag=${betragNum}, iban="${iban}"`);
       payments.push({ buchungsdatum, wertstellungsdatum, betrag: betragNum, iban, verwendungszweck, empfaengername });
     }
     return payments;
@@ -669,9 +667,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         throw new Error(result.error || "AI-Verarbeitung fehlgeschlagen");
       }
       
-      console.log('Edge function response:', JSON.stringify(result.stats), 'results count:', result.results?.length, 'duplicates count:', result.duplicates?.length);
-      console.log('Result categories:', result.results?.map((r: any) => r.kategorie));
-      
       const enrichedResults = await enrichResults(result.results);
       
       setAiResults(enrichedResults);
@@ -687,7 +682,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
       });
       
     } catch (error: any) {
-      console.error('CSV processing error:', error);
       toast({ title: "Fehler bei der Verarbeitung", description: error.message || "Die CSV-Datei konnte nicht verarbeitet werden.", variant: "destructive" });
     } finally {
       setIsUploading(false);
@@ -745,7 +739,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         const hasExistingAssignment = existing.mietvertrag_id && !result.mietvertrag_id;
         
         if (isManuallySet || hasExistingAssignment) {
-          console.log(`Skipping update for existing payment ${existing.id} - already manually categorized as ${existing.kategorie}`);
           continue;
         }
         
@@ -761,7 +754,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
           .update(updatePayload)
           .eq('id', existing.id);
         
-        if (error) console.error("Assignment update error:", error);
         
         // Auto-fill IBAN on contract if empty
         if (result.mietvertrag_id && result.iban) {
@@ -794,7 +786,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             kategorie: result.kategorie as any || null,
           });
         
-        if (error) console.error("Payment insert error:", error);
         
         // Auto-fill IBAN on contract if empty
         if (result.mietvertrag_id && result.iban) {

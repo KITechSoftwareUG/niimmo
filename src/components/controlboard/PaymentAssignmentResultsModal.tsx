@@ -303,7 +303,6 @@ export function PaymentAssignmentResultsModal({
       await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
       await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
     } catch (error) {
-      console.error("Apply error:", error);
       toast({
         title: "Fehler",
         description: "Die Zuordnungen konnten nicht übernommen werden.",

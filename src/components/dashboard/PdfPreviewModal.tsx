@@ -92,7 +92,6 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
 
       setPdfUrl(signedUrlData.signedUrl);
     } catch (error) {
-      console.error('Image loading error:', error);
       toast({
         title: "Fehler",
         description: "Bild konnte nicht geladen werden.",
@@ -117,7 +116,6 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
 
       setPdfUrl(signedUrlData.signedUrl);
     } catch (error) {
-      console.error('HTML loading error:', error);
       toast({
         title: "Fehler",
         description: "Dokument konnte nicht geladen werden.",
@@ -185,7 +183,6 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
       setTotalPages(pdf.numPages);
       setCurrentPage(1);
     } catch (error) {
-      console.error('PDF loading error:', error);
       toast({
         title: "Fehler",
         description: "PDF konnte nicht geladen werden.",
@@ -233,7 +230,6 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
 
       await renderTask.promise;
     } catch (error) {
-      console.error('Page rendering error:', error);
       toast({
         title: "Rendering-Fehler",
         description: "Seite konnte nicht dargestellt werden.",
@@ -264,7 +260,6 @@ export const PdfPreviewModal = ({ isOpen, onClose, dokument }: PdfPreviewModalPr
         description: `${dokument.titel} wurde heruntergeladen.`,
       });
     } catch (error) {
-      console.error('Download error:', error);
       toast({
         title: "Fehler",
         description: "Download fehlgeschlagen.",

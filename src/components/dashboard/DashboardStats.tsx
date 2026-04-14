@@ -61,7 +61,6 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
         .eq('zugeordneter_monat', aktuellerMonat)
         .not('mietvertrag_id', 'is', null);
       if (error) {
-        console.error('Fehler beim Laden der Zahlungen:', error);
         return 0;
       }
       return zahlungen?.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0) || 0;

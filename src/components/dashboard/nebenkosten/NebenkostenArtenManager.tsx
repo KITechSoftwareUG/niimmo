@@ -99,7 +99,6 @@ export function NebenkostenArtenManager({ immobilieId, nebenkostenarten }: Neben
       setIsAdding(false);
       queryClient.invalidateQueries({ queryKey: ['nebenkostenarten', immobilieId] });
     } catch (error: any) {
-      console.error('Error adding Nebenkostenart:', error);
       toast({
         title: "Fehler",
         description: error.message || "Die Nebenkostenart konnte nicht erstellt werden.",
@@ -130,7 +129,6 @@ export function NebenkostenArtenManager({ immobilieId, nebenkostenarten }: Neben
       setEditingId(null);
       queryClient.invalidateQueries({ queryKey: ['nebenkostenarten', immobilieId] });
     } catch (error: any) {
-      console.error('Error updating Nebenkostenart:', error);
       toast({
         title: "Fehler",
         description: error.message || "Die Änderungen konnten nicht gespeichert werden.",
@@ -159,7 +157,6 @@ export function NebenkostenArtenManager({ immobilieId, nebenkostenarten }: Neben
       setDeleteId(null);
       queryClient.invalidateQueries({ queryKey: ['nebenkostenarten', immobilieId] });
     } catch (error: any) {
-      console.error('Error deleting Nebenkostenart:', error);
       toast({
         title: "Fehler",
         description: error.message || "Die Nebenkostenart konnte nicht gelöscht werden.",

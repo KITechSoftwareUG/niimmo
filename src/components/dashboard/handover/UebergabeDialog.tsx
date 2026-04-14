@@ -169,7 +169,7 @@ export const UebergabeDialog = ({
         }
       }
     };
-    fetchMieterData().catch((err) => console.error("Mieter-Daten konnten nicht geladen werden:", err));
+    fetchMieterData().catch(() => {});
   }, [vertragIds]);
 
   // Fetch Versorger-Daten
@@ -192,7 +192,7 @@ export const UebergabeDialog = ({
         liste.push({ typ: 'wasser', label: 'Wasser', name: data.versorger_wasser_name || '', email: data.versorger_wasser_email || '' });
       setVersorgerData(liste);
     };
-    fetchVersorger().catch((err) => console.error("Versorger-Daten konnten nicht geladen werden:", err));
+    fetchVersorger().catch(() => {});
   }, [contracts]);
 
   // Cleanup blob URL
@@ -280,7 +280,6 @@ export const UebergabeDialog = ({
       setPdfBlobUrl(URL.createObjectURL(blob));
       setShowPreview(true);
     } catch (error) {
-      console.error("Error generating preview:", error);
       toast({ title: "Fehler", description: "PDF-Vorschau konnte nicht erstellt werden.", variant: "destructive" });
     } finally {
       setIsGeneratingPreview(false);
@@ -342,7 +341,6 @@ export const UebergabeDialog = ({
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error("Error saving handover:", error);
       toast({ title: "Fehler", description: "Die Übergabe konnte nicht gespeichert werden.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);

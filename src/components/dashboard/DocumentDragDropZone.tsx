@@ -74,7 +74,6 @@ export function DocumentDragDropZone({
         });
         
         if (!isAccepted) {
-          console.warn('File type not accepted:', file.type, file.name);
           return;
         }
       }

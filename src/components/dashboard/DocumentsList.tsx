@@ -45,7 +45,6 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
         .createSignedUrl(dokument.pfad, 60); // Valid for 60 seconds
 
       if (signedUrlError) {
-        console.error('Signed URL Error:', signedUrlError);
         toast({
           variant: "destructive",
           title: "Download fehlgeschlagen",
@@ -73,7 +72,6 @@ export const DocumentsList = ({ dokumente }: DocumentsListProps) => {
         description: `${dokument.titel} wurde heruntergeladen.`,
       });
     } catch (error) {
-      console.error('Download error:', error);
       toast({
         title: "Fehler",
         description: "Dokument konnte nicht heruntergeladen werden.",

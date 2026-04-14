@@ -100,7 +100,6 @@ export const AuthForm = ({ mode, onToggleMode }: AuthFormProps) => {
         }
       }
     } catch (err) {
-      console.error('Unexpected error:', err);
       setError('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
     } finally {
       setLoading(false);

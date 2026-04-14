@@ -112,7 +112,6 @@ export function KostenpositionenManager({
       setDeleteId(null);
       queryClient.invalidateQueries({ queryKey: ['kostenpositionen', immobilieId] });
     } catch (error: any) {
-      console.error('Error deleting Kostenposition:', error);
       toast({
         title: "Fehler",
         description: error.message || "Die Kostenposition konnte nicht gelöscht werden.",

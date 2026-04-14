@@ -51,7 +51,6 @@ export const MieterhöhungManagement = ({
         description: "Das Datum konnte nicht gespeichert werden.",
         variant: "destructive",
       });
-      console.error('Error updating rent increase date:', error);
     }
   });
 

@@ -204,8 +204,6 @@ export function ModernChatbot({ isOpen, onClose }: ModernChatbotProps) {
       }
 
     } catch (error) {
-      console.error('Error sending message:', error);
-      
       const errorText = error instanceof Error ? error.message : "Konnte nicht mit dem KI-Service verbinden.";
       const isFetchError = errorText.toLowerCase().includes("failed to fetch");
 

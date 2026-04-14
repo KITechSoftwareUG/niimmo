@@ -36,15 +36,12 @@ export class ContractWebhookService {
       });
 
       if (!response.ok) {
-        console.error('Webhook notification failed:', response.statusText);
         return false;
       }
 
-      console.log('Contract creation webhook sent successfully');
       return true;
 
     } catch (error: any) {
-      console.error('Webhook error:', error);
       return false;
     }
   }
@@ -71,7 +68,6 @@ export class ContractWebhookService {
       return response.ok;
 
     } catch (error: any) {
-      console.error('Termination webhook error:', error);
       return false;
     }
   }

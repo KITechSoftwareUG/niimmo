@@ -64,7 +64,6 @@ export function PaymentKategorieEditor({
       onUpdate?.();
     },
     onError: (error) => {
-      console.error('Update error:', error);
       toast.error("Fehler beim Aktualisieren der Kategorie");
     }
   });

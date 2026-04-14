@@ -67,7 +67,6 @@ export function MietvertragDocumentsTab({
         .createSignedUrl(dokument.pfad, 3600);
 
       if (signedUrlError) {
-        console.error('Signed URL Error:', signedUrlError);
         toast({
           variant: "destructive",
           title: "Vorschau fehlgeschlagen",
@@ -78,7 +77,6 @@ export function MietvertragDocumentsTab({
 
       window.open(signedUrlData.signedUrl, '_blank');
     } catch (error) {
-      console.error('Preview error:', error);
       toast({
         title: "Fehler",
         description: "Vorschau konnte nicht geöffnet werden.",
@@ -154,7 +152,6 @@ export function MietvertragDocumentsTab({
         .eq('id', dokumentId);
 
       if (error) {
-        console.error('Error updating category:', error);
         toast({
           title: "Fehler",
           description: "Kategorie konnte nicht geändert werden.",
@@ -169,7 +166,6 @@ export function MietvertragDocumentsTab({
         onDocumentsChange?.();
       }
     } catch (error) {
-      console.error('Error updating category:', error);
       toast({
         title: "Fehler", 
         description: "Ein Fehler ist aufgetreten.",
@@ -198,7 +194,6 @@ export function MietvertragDocumentsTab({
         .createSignedUrl(dokument.pfad, 60);
 
       if (signedUrlError) {
-        console.error('Signed URL Error:', signedUrlError);
         toast({
           variant: "destructive",
           title: "Download fehlgeschlagen",
@@ -225,7 +220,6 @@ export function MietvertragDocumentsTab({
         description: `${dokument.titel} wurde heruntergeladen.`,
       });
     } catch (error) {
-      console.error('Download error:', error);
       toast({
         title: "Fehler",
         description: "Dokument konnte nicht heruntergeladen werden.",
@@ -307,7 +301,6 @@ export function MietvertragDocumentsTab({
       queryClient.invalidateQueries({ queryKey: ['dokumente-detail', mietvertragId] });
       onDocumentsChange?.();
     } catch (error: any) {
-      console.error('Delete error:', error);
       toast({
         title: "Fehler",
         description: error.message || "Dokument konnte nicht gelöscht werden.",

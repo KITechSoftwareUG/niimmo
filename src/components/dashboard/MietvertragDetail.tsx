@@ -82,8 +82,7 @@ export const MietvertragDetail = ({ vertragId, onBack }: MietvertragDetailProps)
         .eq('mietvertrag_id', vertragId);
       
       if (error) throw error;
-      console.log('MietvertragDetail - mieter query result:', data);
-      // Add rolle information - for now just set as "Hauptmieter" 
+      // Add rolle information - for now just set as "Hauptmieter"
       return data?.map(item => ({
         ...item,
         rolle: 'Hauptmieter'
