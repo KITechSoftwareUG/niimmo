@@ -137,6 +137,22 @@ export function MahnungErstellungModal({
     setMahnkostenGesamt((preis * anzahl).toFixed(2));
   }, [mahnkostenProSchreiben, anzahlMahnschreiben]);
 
+  // Generate the standard Mahnungstext for the current Mahnstufe
+  const buildStandardText = useCallback((): string => {
+    const rueckstandFormatted = (parseFloat(gesamtRueckstand) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const vertragStart = contractData?.start_datum
+      ? new Date(contractData.start_datum).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : 'N/A';
+
+    if (mahnstufe >= 3) {
+      return `Sie haben seit Beginn des Mietverhältnisses am ${vertragStart} Ihre Mietzahlungen wiederholt verspätet und unregelmäßig erbracht. Trotz meiner Mahnung sind die Mietrückstände nicht ausgeglichen worden.\nDer Mietrückstand beläuft sich inzwischen auf ${anzahlMonatsmieten} Monatsmieten in Höhe von insgesamt ${rueckstandFormatted} €. Damit befinden Sie sich im erheblichen Zahlungsverzug im Sinne der §§ 543 Abs. 2 Nr. 3, 569 Abs. 3 Nr. 1 BGB.`;
+    } else if (mahnstufe === 2) {
+      return `trotz unserer ersten Mahnung sind die folgenden Zahlungen weiterhin nicht bei uns eingegangen. Wir fordern Sie hiermit erneut zur Zahlung auf.\nDer Mietrückstand beläuft sich auf insgesamt ${rueckstandFormatted} €.`;
+    } else {
+      return `wir möchten Sie darauf hinweisen, dass folgende Mietzahlungen noch nicht bei uns eingegangen sind:\nDer Mietrückstand beläuft sich auf insgesamt ${rueckstandFormatted} €.`;
+    }
+  }, [contractData, mahnstufe, gesamtRueckstand, anzahlMonatsmieten]);
+
   // Build PDF data from state
   const buildPdfData = useCallback((): MahnungPdfData | null => {
     if (!contractData) return null;
@@ -668,17 +684,26 @@ export function MahnungErstellungModal({
                         variant={useFreitext ? "default" : "outline"}
                         size="sm"
                         className="h-7 text-xs"
-                        onClick={() => setUseFreitext(!useFreitext)}
+                        onClick={() => {
+                          if (!useFreitext) {
+                            if (!freitext) {
+                              setFreitext(buildStandardText());
+                            }
+                            setUseFreitext(true);
+                          } else {
+                            setUseFreitext(false);
+                          }
+                        }}
                       >
                         {useFreitext ? "Standard verwenden" : "Freitext"}
                       </Button>
                     </div>
                     {useFreitext && (
-                      <Textarea 
-                        value={freitext} 
+                      <Textarea
+                        value={freitext}
                         onChange={(e) => setFreitext(e.target.value)}
                         placeholder="Eigenen Brieftext eingeben..."
-                        className="min-h-[120px] text-sm"
+                        className="min-h-[160px] text-sm"
                       />
                     )}
                     {!useFreitext && (

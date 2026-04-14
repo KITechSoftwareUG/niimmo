@@ -17,17 +17,23 @@ import { HausmeisterDashboard } from "@/components/dashboard/HausmeisterDashboar
 
 import { ZaehlerVerwaltung } from "@/components/dashboard/ZaehlerVerwaltung";
 import { MietaufstellungBank } from "@/components/dashboard/MietaufstellungBank";
+import { DevActivityLog } from "@/components/dashboard/DevActivityLog";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 
 import { useState, useMemo, useCallback } from "react";
-import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties, Gauge, Landmark, FileSpreadsheet } from "lucide-react";
+import { Loader2, Building2, BarChart3, Settings, KeyRound, Wrench, TableProperties, Gauge, Landmark, FileSpreadsheet, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortPropertiesByName } from "@/utils/contractUtils";
 import { useNavigationState } from "@/hooks/useNavigationState";
+import { DEV_EMAIL } from "@/constants/config";
+
 const Index = () => {
   const { isAdmin, isHausmeister, isLoading: roleLoading } = useUserRole();
+  const { user } = useAuth();
   const { navState, updateNav } = useNavigationState();
+  const isDev = user?.email === DEV_EMAIL;
 
   // Derive persisted values
   const selectedImmobilie = navState.selectedImmobilie;
@@ -52,6 +58,7 @@ const Index = () => {
   const [showStammdaten, setShowStammdaten] = useState<boolean>(false);
   const [showZaehlerVerwaltung, setShowZaehlerVerwaltung] = useState<boolean>(false);
   const [showMietaufstellung, setShowMietaufstellung] = useState<boolean>(false);
+  const [showDevLog, setShowDevLog] = useState<boolean>(false);
   const [rueckstaendeOpen, setRueckstaendeOpen] = useState<boolean>(false);
   const [rentIncreaseOpen, setRentIncreaseOpen] = useState<boolean>(false);
   const [listSource, setListSource] = useState<'rueckstaende' | 'rentincrease' | null>(null);
@@ -301,6 +308,11 @@ const Index = () => {
     return <MietaufstellungBank onBack={() => setShowMietaufstellung(false)} />;
   }
 
+  // Dev Activity Log anzeigen (nur für info@kitdienstleistungen.de)
+  if (showDevLog && isDev) {
+    return <DevActivityLog onBack={() => setShowDevLog(false)} />;
+  }
+
   // Stammdaten-Ansicht anzeigen
   if (showStammdaten) {
     return <EditableMietUebersicht onBack={() => setShowStammdaten(false)} />;
@@ -416,6 +428,17 @@ const Index = () => {
                     <FileSpreadsheet className="h-4 w-4 mr-1.5 shrink-0" />
                     <span className="truncate">Mietaufstellung</span>
                   </Button>
+                  {isDev && (
+                    <Button
+                      onClick={() => setShowDevLog(true)}
+                      variant="ghost"
+                      size="sm"
+                      className="bg-red-50/60 hover:bg-red-100/80 backdrop-blur-sm border border-red-200/50 text-red-700 hover:text-red-900 transition-all duration-200 justify-start sm:justify-center h-10 sm:h-9"
+                    >
+                      <Activity className="h-4 w-4 mr-1.5 shrink-0" />
+                      <span className="truncate">Activity Log</span>
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

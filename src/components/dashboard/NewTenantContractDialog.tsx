@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { RUECKLASTSCHRIFT_GEBUEHR_EUR } from "@/constants/config";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -93,14 +94,14 @@ export const NewTenantContractDialog = ({
     ende_datum: '',
     lastschrift: false,
     bankkonto_mieter: '',
-    ruecklastschrift_gebuehr: '7.50',
+    ruecklastschrift_gebuehr: String(RUECKLASTSCHRIFT_GEBUEHR_EUR),
     verwendungszweck: '',
     strom_einzug: '',
     gas_einzug: '',
     kaltwasser_einzug: '',
     warmwasser_einzug: ''
   });
-  
+
   // Document upload state
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [processingOCR, setProcessingOCR] = useState(false);
@@ -146,7 +147,7 @@ export const NewTenantContractDialog = ({
         ende_datum: '',
         lastschrift: false,
         bankkonto_mieter: '',
-        ruecklastschrift_gebuehr: '7.50',
+        ruecklastschrift_gebuehr: String(RUECKLASTSCHRIFT_GEBUEHR_EUR),
         verwendungszweck: '',
         strom_einzug: '',
         gas_einzug: '',

@@ -123,6 +123,7 @@ interface ZahlungWithDetails {
   id: string;
   betrag: number;
   buchungsdatum: string;
+  buchungsdatum_formatted: string; // vorberechnet: "dd.MM.yyyy"
   verwendungszweck: string | null;
   empfaengername: string | null;
   iban: string | null;
@@ -136,6 +137,9 @@ interface ZahlungWithDetails {
   einheit_typ: string | null;
   mieter_name: string | null;
 }
+
+// Einmal instanziieren statt bei jedem Render neu
+const EUR_FORMATTER = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 
 export function PaymentManagement({ onBack }: PaymentManagementProps) {
   const [activeTab, setActiveTab] = useState("upload");
@@ -235,10 +239,13 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
         const mieterName = mv?.mietvertrag_mieter
           ?.map((mm: any) => `${mm.mieter?.vorname || ''} ${mm.mieter?.nachname || ''}`.trim())
           .filter(Boolean).join(', ') || null;
+        // ISO "yyyy-MM-dd" → "dd.MM.yyyy" ohne Date-Objekt
+        const [y, m, d] = (zahlung.buchungsdatum || '').split('-');
         return {
           id: zahlung.id,
           betrag: zahlung.betrag,
           buchungsdatum: zahlung.buchungsdatum,
+          buchungsdatum_formatted: d && m && y ? `${d}.${m}.${y}` : zahlung.buchungsdatum,
           verwendungszweck: zahlung.verwendungszweck,
           empfaengername: zahlung.empfaengername,
           iban: zahlung.iban,
@@ -343,9 +350,12 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
   });
 
   // Filtering and sorting for all payments
-  const uniqueKategorien = allPayments 
-    ? Array.from(new Set(allPayments.map(z => z.kategorie || 'Keine Kategorie'))).sort()
-    : [];
+  const uniqueKategorien = useMemo(
+    () => allPayments
+      ? Array.from(new Set(allPayments.map(z => z.kategorie || 'Keine Kategorie'))).sort()
+      : [],
+    [allPayments]
+  );
 
   const filteredAllPayments = useMemo(() => {
     if (!allPayments) return [];
@@ -367,8 +377,8 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             zahlung.kategorie?.toLowerCase().includes(search)
           );
           const betragMatch = zahlung.betrag?.toString().includes(search);
-          const dateMatch = format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy').includes(search);
-          
+          const dateMatch = zahlung.buchungsdatum_formatted.includes(search);
+
           if (!serverMatch && !directFieldMatch && !betragMatch && !dateMatch) return false;
         } else {
           // Server search not yet done or term too short: use local fields only
@@ -383,7 +393,7 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
             zahlung.zugeordneter_monat?.toLowerCase().includes(search)
           );
           const betragMatch = zahlung.betrag?.toString().includes(search);
-          const dateMatch = format(new Date(zahlung.buchungsdatum), 'dd.MM.yyyy').includes(search);
+          const dateMatch = zahlung.buchungsdatum_formatted.includes(search);
 
           if (!textMatch && !betragMatch && !dateMatch) return false;
         }
@@ -430,9 +440,9 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     return [...filteredAllPayments].sort((a, b) => {
       switch (sortBy) {
         case 'datum-desc':
-          return new Date(b.buchungsdatum).getTime() - new Date(a.buchungsdatum).getTime();
+          return b.buchungsdatum.localeCompare(a.buchungsdatum);
         case 'datum-asc':
-          return new Date(a.buchungsdatum).getTime() - new Date(b.buchungsdatum).getTime();
+          return a.buchungsdatum.localeCompare(b.buchungsdatum);
         case 'betrag-desc':
           return b.betrag - a.betrag;
         case 'betrag-asc':
@@ -456,10 +466,10 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     const yearGroups: { [year: string]: { months: { monthKey: string; label: string; payments: ZahlungWithDetails[]; total: number }[] } } = {};
     
     sortedAllPayments.forEach((zahlung) => {
-      const date = new Date(zahlung.buchungsdatum);
-      const year = format(date, 'yyyy');
-      const monthKey = format(date, 'yyyy-MM');
-      const monthLabel = format(date, 'MMMM', { locale: de });
+      // ISO "yyyy-MM-dd" direkt aufsplitten — kein Date-Objekt nötig
+      const [year, monthNum] = zahlung.buchungsdatum.split('-');
+      const monthKey = `${year}-${monthNum}`;
+      const monthLabel = format(new Date(year, parseInt(monthNum, 10) - 1, 1), 'MMMM', { locale: de });
       
       if (!yearGroups[year]) {
         yearGroups[year] = { months: [] };
@@ -504,24 +514,25 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
     });
   };
 
-  // Initialize all months as collapsed on first render - use useEffect for proper initialization
-  const allMonthKeysString = paymentsByYearMonth.flatMap(y => y.months.map(m => m.monthKey)).join(',');
-  useMemo(() => {
+  // Alle Monate beim ersten Laden einklappen
+  const allMonthKeysString = useMemo(
+    () => paymentsByYearMonth.flatMap(y => y.months.map(m => m.monthKey)).join(','),
+    [paymentsByYearMonth]
+  );
+  useEffect(() => {
     if (allMonthKeysString && collapsedMonths.size === 0) {
-      const allMonthKeys = allMonthKeysString.split(',').filter(Boolean);
-      setCollapsedMonths(new Set(allMonthKeys));
+      setCollapsedMonths(new Set(allMonthKeysString.split(',').filter(Boolean)));
     }
   }, [allMonthKeysString]);
 
   const selectedZahlung = sortedAllPayments?.find(z => z.id === selectedZahlungId);
 
-  const formatBetrag = (betrag: number) => {
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(betrag);
-  };
+  const formatBetrag = useCallback((betrag: number) => EUR_FORMATTER.format(betrag), []);
 
-  const formatDatum = (datum: string) => {
-    return new Date(datum).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
+  const formatDatum = useCallback((datum: string) => {
+    const [y, m, d] = datum.split('-');
+    return d && m && y ? `${d}.${m}.${y}` : datum;
+  }, []);
 
   const getEinheitNr = (einheitId: string | null) => {
     if (!einheitId) return 'N/A';

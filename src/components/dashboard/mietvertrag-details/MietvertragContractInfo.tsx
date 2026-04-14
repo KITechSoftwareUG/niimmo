@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEditableField } from "@/hooks/useEditableField";
 import { useState } from "react";
+import { RUECKLASTSCHRIFT_GEBUEHR_EUR } from "@/constants/config";
 import { toast } from "sonner";
 
 interface MietvertragContractInfoProps {
@@ -357,7 +358,7 @@ export function MietvertragContractInfo({
             {vertrag.lastschrift && (
               <MietvertragEditableField
                 label="Rücklastschrift-Gebühr"
-                value={Number(vertrag.ruecklastschrift_gebuehr || 7.50)}
+                value={Number(vertrag.ruecklastschrift_gebuehr || RUECKLASTSCHRIFT_GEBUEHR_EUR)}
                 isEditing={editingMietvertrag === 'ruecklastschrift_gebuehr'}
                 onEdit={() => onStartEdit('ruecklastschrift_gebuehr')}
                 onSave={(value) => onEditMietvertrag('ruecklastschrift_gebuehr', value)}
@@ -405,6 +406,7 @@ export function MietvertragContractInfo({
                 value={isGlobalEditMode && editedValues.neue_anschrift !== undefined ? editedValues.neue_anschrift : (vertrag.neue_anschrift || '')}
                 isEditing={isGlobalEditMode || editingMietvertrag === 'neue_anschrift'}
                 onEdit={() => !isGlobalEditMode && onStartEdit('neue_anschrift')}
+                onValueChange={isGlobalEditMode ? (raw) => onUpdateEditedValue?.('neue_anschrift', raw) : undefined}
                 onSave={(value) => {
                   if (isGlobalEditMode) onUpdateEditedValue?.('neue_anschrift', value);
                   else onEditMietvertrag('neue_anschrift', value);
@@ -413,7 +415,7 @@ export function MietvertragContractInfo({
                 type="textarea"
                 className="text-muted-foreground"
                 placeholder="Straße, PLZ Ort"
-                hideEditButton={true}
+                hideEditButton={false}
                 isGlobalEditMode={isGlobalEditMode}
               />
             )}

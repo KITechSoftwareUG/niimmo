@@ -198,7 +198,6 @@ export const Uebergabe = ({ onBack }: UebergabeProps) => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 h-11"
-                autoFocus
               />
             </div>
           </div>

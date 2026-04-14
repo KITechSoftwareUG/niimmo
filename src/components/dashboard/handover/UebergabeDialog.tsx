@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,6 +111,13 @@ export const UebergabeDialog = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  // Safari, Chrome-on-iOS (CriOS) und Firefox-on-iOS (FxiOS) können alle
+  // keine Blob-URLs in iframes rendern — alle auf WKWebView basierend
+  const isSafari = typeof navigator !== "undefined" && (
+    /^((?!chrome|android).)*safari/i.test(navigator.userAgent) ||
+    /CriOS/.test(navigator.userAgent) ||
+    /FxiOS/.test(navigator.userAgent)
+  );
 
   // Notes photos
   const [notizenPhotos, setNotizenPhotos] = useState<string[]>([]);
@@ -162,7 +169,7 @@ export const UebergabeDialog = ({
         }
       }
     };
-    fetchMieterData();
+    fetchMieterData().catch((err) => console.error("Mieter-Daten konnten nicht geladen werden:", err));
   }, [vertragIds]);
 
   // Fetch Versorger-Daten
@@ -185,7 +192,7 @@ export const UebergabeDialog = ({
         liste.push({ typ: 'wasser', label: 'Wasser', name: data.versorger_wasser_name || '', email: data.versorger_wasser_email || '' });
       setVersorgerData(liste);
     };
-    fetchVersorger();
+    fetchVersorger().catch((err) => console.error("Versorger-Daten konnten nicht geladen werden:", err));
   }, [contracts]);
 
   // Cleanup blob URL
@@ -232,7 +239,7 @@ export const UebergabeDialog = ({
     setPdfBlob(null);
   };
 
-  const buildPdfData = useCallback((): UebergabePdfData | null => {
+  const buildPdfData = (): UebergabePdfData | null => {
     if (!uebergabeDatum) return null;
     return {
       isEinzug,
@@ -257,7 +264,7 @@ export const UebergabeDialog = ({
       vermieterSignature,
       mieterSignature,
     };
-  }, [uebergabeDatum, isEinzug, mieterName, contracts, schluesselHaustuer, schluesselWohnung, schluesselBriefkasten, schluesselKeller, zaehlerstaendePerContract, protokollNotizen, vermieterSignature, mieterSignature]);
+  };
 
   const handleGeneratePreview = async () => {
     const pdfData = buildPdfData();
@@ -399,7 +406,7 @@ export const UebergabeDialog = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={uebergabeDatum} onSelect={setUebergabeDatum} initialFocus locale={de} />
+            <Calendar mode="single" selected={uebergabeDatum} onSelect={setUebergabeDatum} locale={de} />
           </PopoverContent>
         </Popover>
       </div>
@@ -413,19 +420,19 @@ export const UebergabeDialog = ({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Haustür</Label>
-            <Input type="number" placeholder="0" min="0" value={schluesselHaustuer} onChange={(e) => setSchluesselHaustuer(e.target.value)} className="h-10" />
+            <Input type="number" inputMode="numeric" placeholder="0" min="0" value={schluesselHaustuer} onChange={(e) => setSchluesselHaustuer(e.target.value)} className="h-10" />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Wohnung</Label>
-            <Input type="number" placeholder="0" min="0" value={schluesselWohnung} onChange={(e) => setSchluesselWohnung(e.target.value)} className="h-10" />
+            <Input type="number" inputMode="numeric" placeholder="0" min="0" value={schluesselWohnung} onChange={(e) => setSchluesselWohnung(e.target.value)} className="h-10" />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Briefkasten</Label>
-            <Input type="number" placeholder="0" min="0" value={schluesselBriefkasten} onChange={(e) => setSchluesselBriefkasten(e.target.value)} className="h-10" />
+            <Input type="number" inputMode="numeric" placeholder="0" min="0" value={schluesselBriefkasten} onChange={(e) => setSchluesselBriefkasten(e.target.value)} className="h-10" />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Keller</Label>
-            <Input type="number" placeholder="0" min="0" value={schluesselKeller} onChange={(e) => setSchluesselKeller(e.target.value)} className="h-10" />
+            <Input type="number" inputMode="numeric" placeholder="0" min="0" value={schluesselKeller} onChange={(e) => setSchluesselKeller(e.target.value)} className="h-10" />
           </div>
         </div>
       </div>
@@ -445,28 +452,28 @@ export const UebergabeDialog = ({
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Strom (kWh)</Label>
               <div className="flex gap-2">
-                <Input type="number" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.strom || ""} onChange={(e) => updateZaehlerstand(contract.id, "strom", e.target.value)} className="h-10 flex-1" />
+                <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.strom || ""} onChange={(e) => updateZaehlerstand(contract.id, "strom", e.target.value)} className="h-10 flex-1" />
                 <MeterPhotoUpload contractId={contract.id} meterType="strom" isEinzug={isEinzug} onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "strom", path)} />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Gas (m³)</Label>
               <div className="flex gap-2">
-                <Input type="number" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.gas || ""} onChange={(e) => updateZaehlerstand(contract.id, "gas", e.target.value)} className="h-10 flex-1" />
+                <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.gas || ""} onChange={(e) => updateZaehlerstand(contract.id, "gas", e.target.value)} className="h-10 flex-1" />
                 <MeterPhotoUpload contractId={contract.id} meterType="gas" isEinzug={isEinzug} onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "gas", path)} />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Kaltwasser (m³)</Label>
               <div className="flex gap-2">
-                <Input type="number" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.wasser || ""} onChange={(e) => updateZaehlerstand(contract.id, "wasser", e.target.value)} className="h-10 flex-1" />
+                <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.wasser || ""} onChange={(e) => updateZaehlerstand(contract.id, "wasser", e.target.value)} className="h-10 flex-1" />
                 <MeterPhotoUpload contractId={contract.id} meterType="wasser" isEinzug={isEinzug} onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "wasser", path)} />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Warmwasser (m³)</Label>
               <div className="flex gap-2">
-                <Input type="number" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.warmwasser || ""} onChange={(e) => updateZaehlerstand(contract.id, "warmwasser", e.target.value)} className="h-10 flex-1" />
+                <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.warmwasser || ""} onChange={(e) => updateZaehlerstand(contract.id, "warmwasser", e.target.value)} className="h-10 flex-1" />
                 <MeterPhotoUpload contractId={contract.id} meterType="warmwasser" isEinzug={isEinzug} onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "warmwasser", path)} />
               </div>
             </div>
@@ -669,11 +676,23 @@ export const UebergabeDialog = ({
               {dialogTitle}
             </DrawerTitle>
           </DrawerHeader>
-          <div className="overflow-y-auto px-4 pb-6">
+          <div className="overflow-y-auto px-4 pb-6" style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}>
             {formContent}
             {showPreview && pdfBlobUrl && (
               <div className="mt-4 border-t pt-4">
-                <iframe src={pdfBlobUrl} className="w-full min-h-[500px] rounded-lg border" title="Vorschau" />
+                {isSafari ? (
+                  <a
+                    href={pdfBlobUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full h-12 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    <Eye className="h-4 w-4" />
+                    PDF in neuem Tab öffnen
+                  </a>
+                ) : (
+                  <iframe src={pdfBlobUrl} className="w-full min-h-[500px] rounded-lg border" title="Vorschau" />
+                )}
               </div>
             )}
           </div>
@@ -699,10 +718,13 @@ export const UebergabeDialog = ({
         </DialogHeader>
         <div className={cn("flex-1 overflow-hidden", showPreview ? "flex gap-0" : "")}>
           {/* Left: Form (always visible) */}
-          <div className={cn(
-            showPreview ? "w-[480px] flex-shrink-0 border-r pr-2" : "w-full",
-            "overflow-y-auto max-h-[calc(90vh-80px)]"
-          )}>
+          <div
+            className={cn(
+              showPreview ? "w-[480px] flex-shrink-0 border-r pr-2" : "w-full",
+              "overflow-y-auto max-h-[calc(90vh-80px)]"
+            )}
+            style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          >
             {formContent}
           </div>
 
@@ -716,11 +738,23 @@ export const UebergabeDialog = ({
                 </span>
                 {isGeneratingPreview && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               </div>
-              <iframe
-                src={pdfBlobUrl}
-                className="w-full flex-1 min-h-[500px] rounded-lg border bg-white"
-                title="Übergabeprotokoll Vorschau"
-              />
+              {isSafari ? (
+                <a
+                  href={pdfBlobUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 flex-1 min-h-[500px] rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  <Eye className="h-4 w-4" />
+                  PDF in neuem Tab öffnen
+                </a>
+              ) : (
+                <iframe
+                  src={pdfBlobUrl}
+                  className="w-full flex-1 min-h-[500px] rounded-lg border bg-white"
+                  title="Übergabeprotokoll Vorschau"
+                />
+              )}
             </div>
           )}
         </div>

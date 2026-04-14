@@ -53,12 +53,14 @@ export function PaymentKategorieEditor({
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, newKategorie) => {
       queryClient.invalidateQueries({ queryKey: ['zahlungen-overview'] });
       queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
-      queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
-      queryClient.invalidateQueries({ queryKey: ['nebenkosten-klassifizierungen-cached'] });
+      // Nebenkosten-Queries nur invalidieren wenn Kategorie gewechselt hat
+      if (newKategorie === 'Nebenkosten' || currentKategorie === 'Nebenkosten') {
+        queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
+        queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
+      }
       onUpdate?.();
     },
     onError: (error) => {

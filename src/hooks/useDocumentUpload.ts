@@ -1,16 +1,21 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useActivityLog } from "@/hooks/useActivityLog";
+import type { Database } from "@/integrations/supabase/types";
+
+type DokumentKategorie = Database["public"]["Enums"]["kategorie"];
 
 interface UploadMetadata {
   immobilieId?: string;
   mietvertragId?: string;
-  kategorie?: string;
+  kategorie?: DokumentKategorie;
   titel?: string;
 }
 
 export const useDocumentUpload = () => {
   const { toast } = useToast();
+  const { logActivity } = useActivityLog();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -42,7 +47,7 @@ export const useDocumentUpload = () => {
           groesse_bytes: file.size,
           immobilie_id: metadata.immobilieId || null,
           mietvertrag_id: metadata.mietvertragId || null,
-          kategorie: metadata.kategorie || 'Sonstiges' as any,
+          kategorie: (metadata.kategorie ?? 'Sonstiges') as DokumentKategorie,
         }])
         .select()
         .single();
@@ -56,12 +61,19 @@ export const useDocumentUpload = () => {
         description: `${file.name} wurde hochgeladen.`,
       });
 
+      logActivity('dokument_hochgeladen', 'dokument', doc?.id, {
+        dateiname: file.name,
+        kategorie: metadata.kategorie ?? 'Sonstiges',
+        mietvertragId: metadata.mietvertragId ?? null,
+        immobilieId: metadata.immobilieId ?? null,
+      });
+
       return doc;
-    } catch (error: any) {
-      console.error('Upload error:', error);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Dokument konnte nicht hochgeladen werden.";
       toast({
         title: "Upload fehlgeschlagen",
-        description: error.message || "Dokument konnte nicht hochgeladen werden.",
+        description: msg,
         variant: "destructive",
       });
       throw error;

@@ -69,6 +69,7 @@ export const MeterPhotoUpload = ({
       });
     } finally {
       setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
     }
   };
 
@@ -83,7 +84,6 @@ export const MeterPhotoUpload = ({
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleCapture}
         className="hidden"
       />

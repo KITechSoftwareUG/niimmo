@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, isValid, parseISO } from "date-fns";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 interface AssignPaymentDialogProps {
   open: boolean;
@@ -35,7 +36,7 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
   );
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
+  const { logActivity } = useActivityLog();
 
   // Reset assignment type when payment changes
   useEffect(() => {
@@ -83,6 +84,7 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
       return data;
     },
     enabled: open && assignmentType === 'contract',
+    staleTime: 60 * 1000,
   });
 
   // Fetch properties for property assignment
@@ -98,36 +100,36 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
       return data;
     },
     enabled: open && assignmentType === 'property',
+    staleTime: 60 * 1000,
   });
 
   const isLoading = assignmentType === 'contract' ? contractsLoading : propertiesLoading;
 
-  // Filter contracts based on search
-  const filteredContracts = contracts?.filter(contract => {
-    if (!searchTerm) return true;
-    
+  // Filter contracts based on search — memoized
+  const filteredContracts = useMemo(() => {
+    if (!contracts) return [];
+    if (!searchTerm) return contracts;
     const search = searchTerm.toLowerCase();
-    const mieterNames = contract.mietvertrag_mieter
-      ?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`.toLowerCase())
-      .join(' ') || '';
-    const immobilieName = contract.einheiten?.immobilien?.name?.toLowerCase() || '';
-    const adresse = contract.einheiten?.immobilien?.adresse?.toLowerCase() || '';
-    
-    return mieterNames.includes(search) || 
-           immobilieName.includes(search) || 
-           adresse.includes(search);
-  });
+    return contracts.filter(contract => {
+      const mieterNames = contract.mietvertrag_mieter
+        ?.map(mm => `${mm.mieter?.vorname} ${mm.mieter?.nachname}`.toLowerCase())
+        .join(' ') || '';
+      const immobilieName = contract.einheiten?.immobilien?.name?.toLowerCase() || '';
+      const adresse = contract.einheiten?.immobilien?.adresse?.toLowerCase() || '';
+      return mieterNames.includes(search) || immobilieName.includes(search) || adresse.includes(search);
+    });
+  }, [contracts, searchTerm]);
 
-  // Filter properties based on search
-  const filteredProperties = properties?.filter(property => {
-    if (!searchTerm) return true;
-    
+  // Filter properties based on search — memoized
+  const filteredProperties = useMemo(() => {
+    if (!properties) return [];
+    if (!searchTerm) return properties;
     const search = searchTerm.toLowerCase();
-    const name = property.name?.toLowerCase() || '';
-    const adresse = property.adresse?.toLowerCase() || '';
-    
-    return name.includes(search) || adresse.includes(search);
-  });
+    return properties.filter(property =>
+      property.name?.toLowerCase().includes(search) ||
+      property.adresse?.toLowerCase().includes(search)
+    );
+  }, [properties, searchTerm]);
 
   const handleAssignToContract = async (contractId: string) => {
     if (!payment) return;
@@ -165,19 +167,27 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
         description: "Die Zahlung wurde erfolgreich dem Mietvertrag zugeordnet.",
       });
 
-      // Refresh queries
-      await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
-      await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
-      await queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] });
-      await queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
-      await queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
-      
+      logActivity('zahlung_zugeordnet', 'zahlung', payment.id, {
+        mietvertragId: contractId,
+        betrag: payment.betrag,
+        kategorie: payment.kategorie ?? null,
+        empfaenger: payment.empfaengername ?? null,
+      });
+
+      // Refresh queries parallel
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['zahlungen'] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] }),
+        queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] }),
+        queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] }),
+      ]);
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error assigning payment:', error);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Die Zahlung konnte nicht zugeordnet werden.";
       toast({
         title: "Fehler",
-        description: error.message || "Die Zahlung konnte nicht zugeordnet werden.",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -205,19 +215,27 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
         description: "Die Zahlung wurde erfolgreich der Immobilie zugeordnet.",
       });
 
-      // Refresh queries
-      await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
-      await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
-      await queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] });
-      await queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] });
-      await queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] });
-      
+      logActivity('zahlung_zugeordnet', 'zahlung', payment.id, {
+        immobilieId: propertyId,
+        betrag: payment.betrag,
+        kategorie: payment.kategorie ?? null,
+        empfaenger: payment.empfaengername ?? null,
+      });
+
+      // Refresh queries parallel
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['zahlungen'] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] }),
+        queryClient.invalidateQueries({ queryKey: ['unzugeordnete-nebenkosten'] }),
+        queryClient.invalidateQueries({ queryKey: ['zugeordnete-nebenkosten'] }),
+      ]);
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error assigning payment:', error);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Die Zahlung konnte nicht zugeordnet werden.";
       toast({
         title: "Fehler",
-        description: error.message || "Die Zahlung konnte nicht zugeordnet werden.",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -278,12 +296,13 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
         description: "Die Zahlung wurde von allen Zuordnungen getrennt.",
       });
 
-      // Refresh queries
-      await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
-      await queryClient.invalidateQueries({ queryKey: ['zahlungen'] });
-      await queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] });
-      await queryClient.invalidateQueries({ queryKey: ['immobilien-nebenkosten'] });
-      
+      // Refresh queries parallel
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] }),
+        queryClient.invalidateQueries({ queryKey: ['zahlungen'] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilien-zahlungen'] }),
+        queryClient.invalidateQueries({ queryKey: ['immobilien-nebenkosten'] }),
+      ]);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error unassigning payment:', error);

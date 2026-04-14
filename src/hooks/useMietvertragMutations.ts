@@ -2,17 +2,25 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useActivityLog } from "@/hooks/useActivityLog";
+import { RUECKLASTSCHRIFT_GEBUEHR_EUR } from "@/constants/config";
+import type { Database } from "@/integrations/supabase/types";
+
+type Mietvertrag = Database["public"]["Tables"]["mietvertrag"]["Row"];
+type Einheit = Database["public"]["Tables"]["einheiten"]["Row"];
+type Mieter = Database["public"]["Tables"]["mieter"]["Row"];
 
 interface UseMietvertragMutationsProps {
   vertragId: string;
-  vertrag: any;
-  einheitData: any;
-  mieter: any[] | undefined;
+  vertrag: Mietvertrag | null;
+  einheitData: Einheit | null;
+  mieter: Mieter[] | undefined;
 }
 
 export function useMietvertragMutations({ vertragId, vertrag, einheitData, mieter }: UseMietvertragMutationsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { logActivity } = useActivityLog();
 
   // Per-field editing state
   const [editingKaution, setEditingKaution] = useState<'soll' | 'ist' | null>(null);
@@ -22,12 +30,12 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
 
   // Global edit mode state
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
-  const [editedValues, setEditedValues] = useState<Record<string, any>>({});
+  const [editedValues, setEditedValues] = useState<Record<string, unknown>>({});
 
   // Rent increase confirmation state
   const [showRentIncreaseConfirm, setShowRentIncreaseConfirm] = useState(false);
   const [pendingKaltmieteValue, setPendingKaltmieteValue] = useState<number | null>(null);
-  const [pendingGlobalUpdates, setPendingGlobalUpdates] = useState<any>(null);
+  const [pendingGlobalUpdates, setPendingGlobalUpdates] = useState<Partial<Mietvertrag> | null>(null);
 
   // Dialog visibility state
   const [showCreateForderungModal, setShowCreateForderungModal] = useState(false);
@@ -45,7 +53,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
   // Helper to save a numeric field on mietvertrag
   const saveNumericField = async (field: string, numericValue: number, isOfficialRentIncrease: boolean) => {
     try {
-      const updateData: any = { [field]: numericValue };
+      const updateData: Partial<Mietvertrag> = { [field]: numericValue };
       if (field === 'kaltmiete' && isOfficialRentIncrease) {
         updateData.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
       }
@@ -55,9 +63,11 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
 
       if (field === 'kaltmiete' && isOfficialRentIncrease) {
         toast({ title: "Mieterhöhung dokumentiert", description: "Kaltmiete wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt." });
+        logActivity('mieterhoehung_dokumentiert', 'mietvertrag', vertragId, { neueKaltmiete: numericValue });
       } else {
         const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : field === 'betriebskosten' ? 'Betriebskosten' : 'Rücklastschrift-Gebühr';
         toast({ title: "Aktualisiert", description: `${fieldName} wurde erfolgreich aktualisiert.` });
+        logActivity('mietvertrag_geaendert', 'mietvertrag', vertragId, { feld: field, neuerWert: numericValue });
       }
 
       setEditingMietvertrag(null);
@@ -212,6 +222,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
       const { error } = await supabase.from('mietvertrag').update(updateData).eq('id', vertragId);
       if (error) throw error;
       toast({ title: "Aktualisiert", description: `Kaution ${field === 'soll' ? 'Soll' : 'Ist'} wurde erfolgreich aktualisiert.` });
+      logActivity('kaution_geaendert', 'mietvertrag', vertragId, { feld: field, neuerWert: numericValue });
       setEditingKaution(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
@@ -271,6 +282,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
     setShowTerminationDialog(false);
     invalidateAll();
     toast({ title: "Kündigung erfolgreich", description: "Der Mietvertrag wurde erfolgreich gekündigt." });
+    logActivity('kuendigung_durchgefuehrt', 'mietvertrag', vertragId);
   };
 
   // Global edit mode handlers
@@ -281,7 +293,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
       kaltmiete: vertrag?.kaltmiete || 0,
       betriebskosten: vertrag?.betriebskosten || 0,
       anzahl_personen: vertrag?.anzahl_personen ?? null,
-      ruecklastschrift_gebuehr: vertrag?.ruecklastschrift_gebuehr || 7.50,
+      ruecklastschrift_gebuehr: vertrag?.ruecklastschrift_gebuehr || RUECKLASTSCHRIFT_GEBUEHR_EUR,
       neue_anschrift: vertrag?.neue_anschrift || '',
       bankkonto_mieter: vertrag?.bankkonto_mieter || '',
       kaution_betrag: vertrag?.kaution_betrag || 0,
@@ -303,7 +315,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
       initialValues.qm = einheitData.qm ?? null;
     }
     if (mieter) {
-      mieter.forEach((m: any) => {
+      mieter.forEach((m) => {
         initialValues[`mieter_${m.id}_vorname`] = m.vorname || '';
         initialValues[`mieter_${m.id}_nachname`] = m.nachname || '';
         initialValues[`mieter_${m.id}_hauptmail`] = m.hauptmail || '';
@@ -321,7 +333,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
 
   const handleSaveGlobalEdit = async () => {
     try {
-      const mietvertragUpdates: any = {};
+      const mietvertragUpdates: Partial<Mietvertrag> = {};
       const rawStart = (editedValues.start_datum ?? vertrag?.start_datum ?? '') as string;
       const rawEnd = (editedValues.ende_datum ?? vertrag?.ende_datum ?? '') as string;
       const startForDb = rawStart && rawStart.trim() !== '' ? rawStart : null;
@@ -385,7 +397,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
     }
   };
 
-  const finishGlobalSave = async (mietvertragUpdates: any) => {
+  const finishGlobalSave = async (mietvertragUpdates: Partial<Mietvertrag>) => {
     try {
       if (Object.keys(mietvertragUpdates).length > 0) {
         const { error } = await supabase.from('mietvertrag').update(mietvertragUpdates).eq('id', vertragId);
@@ -394,7 +406,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
 
       // Update einheit fields
       if (einheitData) {
-        const einheitUpdates: any = {};
+        const einheitUpdates: Partial<Einheit> = {};
         ['kaltwasser_zaehler', 'warmwasser_zaehler', 'strom_zaehler', 'gas_zaehler', 'qm'].forEach(field => {
           if (editedValues[field] !== undefined) einheitUpdates[field] = editedValues[field];
         });
@@ -407,7 +419,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
       // Update mieter data
       if (mieter) {
         for (const m of mieter) {
-          const mieterUpdates: any = {};
+          const mieterUpdates: Partial<Mieter> = {};
           if (editedValues[`mieter_${m.id}_vorname`] !== undefined) mieterUpdates.vorname = editedValues[`mieter_${m.id}_vorname`];
           if (editedValues[`mieter_${m.id}_nachname`] !== undefined) mieterUpdates.nachname = editedValues[`mieter_${m.id}_nachname`];
           if (editedValues[`mieter_${m.id}_hauptmail`] !== undefined) mieterUpdates.hauptmail = editedValues[`mieter_${m.id}_hauptmail`];
@@ -441,6 +453,13 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
         description: isRentIncrease ? "Kaltmiete wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt." : "Alle Änderungen wurden übernommen.",
       });
 
+      logActivity(
+        isRentIncrease ? 'mieterhoehung_dokumentiert' : 'mietvertrag_geaendert',
+        'mietvertrag',
+        vertragId,
+        { geaenderteFelder: Object.keys(mietvertragUpdates) }
+      );
+
       setIsGlobalEditMode(false);
       setEditedValues({});
     } catch (error) {
@@ -449,7 +468,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
     }
   };
 
-  const handleUpdateEditedValue = (key: string, value: any) => {
+  const handleUpdateEditedValue = (key: string, value: unknown) => {
     setEditedValues(prev => ({ ...prev, [key]: value }));
   };
 

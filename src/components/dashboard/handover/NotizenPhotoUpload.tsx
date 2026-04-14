@@ -1,4 +1,4 @@
- import { useState, useRef } from "react";
+ import { useState, useRef, useEffect } from "react";
  import { Button } from "@/components/ui/button";
  import { Camera, X, Image as ImageIcon, Loader2 } from "lucide-react";
  import { supabase } from "@/integrations/supabase/client";
@@ -78,29 +78,36 @@
  
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
-  const getPhotoUrl = (path: string) => {
-    if (signedUrls[path]) return signedUrls[path];
-    // Generate signed URL asynchronously
-    supabase.storage.from("dokumente").createSignedUrl(path, 3600).then(({ data }) => {
-      if (data?.signedUrl) {
-        setSignedUrls(prev => ({ ...prev, [path]: data.signedUrl }));
-      }
+  // Load signed URLs in a useEffect to avoid side-effects during render
+  useEffect(() => {
+    const missing = photos.filter((p) => !signedUrls[p]);
+    if (missing.length === 0) return;
+    Promise.all(
+      missing.map((p) =>
+        supabase.storage
+          .from("dokumente")
+          .createSignedUrl(p, 3600)
+          .then(({ data }) => (data?.signedUrl ? { path: p, url: data.signedUrl } : null))
+      )
+    ).then((results) => {
+      const next: Record<string, string> = {};
+      results.forEach((r) => { if (r) next[r.path] = r.url; });
+      setSignedUrls((prev) => ({ ...prev, ...next }));
     });
-    return ''; // Return empty until signed URL is ready
-  };
- 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos]);
+
    return (
      <div className="space-y-2">
        <input
          ref={inputRef}
          type="file"
          accept="image/*"
-         capture="environment"
          multiple
          onChange={handleCapture}
          className="hidden"
        />
- 
+
        {photos.length > 0 && (
          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
            {photos.map((photoPath, index) => (
@@ -109,7 +116,7 @@
                className="relative aspect-square rounded-lg overflow-hidden bg-gray-100"
              >
               <img
-                  src={getPhotoUrl(photoPath)}
+                  src={signedUrls[photoPath] || ""}
                   alt={`Übergabe Foto ${index + 1}`}
                  className="w-full h-full object-cover"
                />
