@@ -609,8 +609,12 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonder
     
     if (bestContract) {
       const matchInfo = ibanMatchedContracts.find(m => m.contract.id === bestContract.id);
-      const isKaution = verwendungszweck.includes("kaution") && 
-                        bestContract.kaution && 
+      const kautionImText = verwendungszweck.includes("kaution") ||
+                            verwendungszweck.includes("depot") ||
+                            verwendungszweck.includes("sicherheitsleistung") ||
+                            verwendungszweck.includes("mietkaution");
+      const isKaution = kautionImText &&
+                        bestContract.kaution &&
                         Math.abs(payment.betrag - bestContract.kaution) <= BETRAG_TOLERANZ;
       const matchType = matchInfo?.matchType === 'weitere' ? 'Weitere IBAN' : 'IBAN';
       const multiInfo = ibanMatchedContracts.length > 1 ? ` (1 von ${ibanMatchedContracts.length} Verträgen, ausgewählt nach Datum)` : '';
@@ -630,8 +634,12 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonder
     if (contract.verwendungszweck && Array.isArray(contract.verwendungszweck)) {
       for (const vzweck of contract.verwendungszweck) {
         if (vzweck && verwendungszweck.includes(vzweck.toLowerCase())) {
-          const isKaution = verwendungszweck.includes("kaution") && 
-                            contract.kaution && 
+          const kautionImText = verwendungszweck.includes("kaution") ||
+                                verwendungszweck.includes("depot") ||
+                                verwendungszweck.includes("sicherheitsleistung") ||
+                                verwendungszweck.includes("mietkaution");
+          const isKaution = kautionImText &&
+                            contract.kaution &&
                             Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
           return {
             ...payment,
@@ -674,7 +682,10 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonder
     // OR one distinctive name (6+ chars) that's unlikely to be coincidental
     // Lowered from 7 to 6 chars for names like "Razgeen"
     if (matchedParts >= 2 || (matchedParts === 1 && matchedNames[0]?.length >= 6)) {
-      const kautionInText = verwendungszweck.includes("kaution");
+      const kautionInText = verwendungszweck.includes("kaution") ||
+                            verwendungszweck.includes("depot") ||
+                            verwendungszweck.includes("sicherheitsleistung") ||
+                            verwendungszweck.includes("mietkaution");
       const kautionBetragMatch = contract.kaution ? Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ : false;
       const isKaution = kautionInText && contract.kaution && kautionBetragMatch;
       console.log(`Name-Match result for ${contract.mieter}: betrag=${payment.betrag}, kaution=${contract.kaution}, kautionInText=${kautionInText}, kautionBetragMatch=${kautionBetragMatch}, isKaution=${isKaution}`);
@@ -696,10 +707,10 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonder
     // Extrahiere relevante Wörter aus Immobilien-Name und Adresse (mind. 4 Zeichen, keine Zahlen)
     const locationWords = immobilie
       .split(/[\s,.\-\/]+/)
-      .filter(w => w.length >= 4 && !/^\d+$/.test(w))
+      .filter(w => w.length >= 6 && !/^\d+$/.test(w))
       // Filtere generische Wörter raus die zu False-Positives führen
-      .filter(w => !["straße", "strasse", "gasse", "platz", "ring"].includes(w));
-    
+      .filter(w => !["straße", "strasse", "gasse", "platz", "ring", "allee", "graben", "nord", "sued", "west", "ost", "neue", "alte", "objekt"].includes(w));
+
     for (const keyword of locationWords) {
       if (verwendungszweck.includes(keyword)) {
         console.log(`Location-Match found: "${keyword}" for ${contract.mieter} at ${contract.immobilie}`);
@@ -723,8 +734,12 @@ function matchPaymentByRules(payment: Payment, contracts: ContractInfo[], sonder
   
   if (amountMatches.length === 1) {
     const contract = amountMatches[0];
-    const isKaution = verwendungszweck.includes("kaution") && 
-                      contract.kaution && 
+    const kautionImText = verwendungszweck.includes("kaution") ||
+                          verwendungszweck.includes("depot") ||
+                          verwendungszweck.includes("sicherheitsleistung") ||
+                          verwendungszweck.includes("mietkaution");
+    const isKaution = kautionImText &&
+                      contract.kaution &&
                       Math.abs(payment.betrag - contract.kaution) <= BETRAG_TOLERANZ;
     // LOW confidence - user should verify!
     return {
@@ -806,8 +821,8 @@ function matchBGPaymentByName(payment: Payment, contracts: ContractInfo[]): Proc
     // Extract meaningful location words from immobilie (≥4 chars, no pure numbers)
     const locationWords = immobilieLower
       .split(/[\s,.\-\/]+/)
-      .filter(w => w.length >= 4 && !/^\d+$/.test(w))
-      .filter(w => !["straße", "strasse", "gasse", "platz", "ring"].includes(w));
+      .filter(w => w.length >= 6 && !/^\d+$/.test(w))
+      .filter(w => !["straße", "strasse", "gasse", "platz", "ring", "allee", "graben", "nord", "sued", "west", "ost", "neue", "alte", "objekt"].includes(w));
     
     for (const locWord of locationWords) {
       if (verwendungszweck.includes(locWord)) {
@@ -863,8 +878,11 @@ function matchBGPaymentByName(payment: Payment, contracts: ContractInfo[]): Proc
   
   // Determine category: Kaution or Miete
   let kategorie = "Miete";
-  const kautionInText = verwendungszweck.includes("kaution");
-  if (kautionInText && bestMatch.contract.kaution && 
+  const kautionInText = verwendungszweck.includes("kaution") ||
+                        verwendungszweck.includes("depot") ||
+                        verwendungszweck.includes("sicherheitsleistung") ||
+                        verwendungszweck.includes("mietkaution");
+  if (kautionInText && bestMatch.contract.kaution &&
       Math.abs(payment.betrag - bestMatch.contract.kaution) <= BETRAG_TOLERANZ) {
     kategorie = "Mietkaution";
   }
@@ -996,14 +1014,9 @@ async function processStandardPayment(
   const verwendungszweck = (payment.verwendungszweck || "").toLowerCase();
   
   // Check if payment looks like rent based on keywords
-  const looksLikeRent = verwendungszweck.includes("miete") || 
+  const looksLikeRent = verwendungszweck.includes("miete") ||
                         verwendungszweck.includes("miet") ||
-                        verwendungszweck.includes("bv.") ||
-                        verwendungszweck.includes("habichtweg") ||
-                        verwendungszweck.includes("bennigsen") ||
-                        verwendungszweck.includes("sarstedt") ||
-                        verwendungszweck.includes("hauptstr") ||
-                        payment.betrag > 200; // Larger payments are likely rent
+                        verwendungszweck.includes("bv.");
   
   if (!looksLikeRent && !nichtmieteVerdacht) {
     // Doesn't look like rent, skip AI
@@ -1029,8 +1042,7 @@ ${contractContext}
 AUFGABE:
 Analysiere diese Zahlung und ordne sie dem richtigen Mieter zu.
 - Extrahiere Namen aus dem Verwendungszweck (z.B. "Miete Salo Razgeen" → Suche nach "Salo" oder "Razgeen")
-- Extrahiere Adressen/Objekte (z.B. "BV. Habichtweg 9" → Suche nach Immobilie mit Habichtweg)
-- Suche nach "Bennigsen", "Sarstedt" etc. für Ortsangaben
+- Extrahiere Adressen/Immobilien-Namen aus dem KONTEXT oben und suche nach Übereinstimmungen im Verwendungszweck
 - WICHTIG: Wenn "Miete" im Text steht, ist es IMMER eine Mietzahlung, NIEMALS Nichtmiete!
 - Bei Kaution im Text UND passendem Betrag → Mietkaution
 - Bei Mieternamen im Text → Miete für diesen Mieter
@@ -1376,9 +1388,7 @@ serve(async (req) => {
     for (const { payment } of skippedAI) {
       // For skipped payments, check if they look like rent based on keywords
       const vzLower = (payment.verwendungszweck || "").toLowerCase();
-      const looksLikeRent = vzLower.includes("miete") || vzLower.includes("miet") || 
-                           vzLower.includes("bv.") || vzLower.includes("habichtweg") ||
-                           vzLower.includes("bennigsen") || vzLower.includes("sarstedt");
+      const looksLikeRent = vzLower.includes("miete") || vzLower.includes("miet") || vzLower.includes("bv.");
       
       results.push({
         ...payment,

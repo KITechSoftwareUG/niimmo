@@ -195,7 +195,6 @@ export const TerminationDialog = ({
       if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
       setPdfBlobUrl(URL.createObjectURL(blob));
     } catch (err) {
-      console.error('PDF preview error:', err);
     } finally {
       setIsGeneratingPreview(false);
     }

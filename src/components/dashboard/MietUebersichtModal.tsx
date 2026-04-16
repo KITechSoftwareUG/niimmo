@@ -234,7 +234,6 @@ export const MietUebersichtModal = ({ open, onOpenChange }: MietUebersichtModalP
       });
 
     } catch (error) {
-      console.error('Fehler beim Speichern:', error);
       toast({
         title: "Fehler beim Speichern",
         description: "Die Änderungen konnten nicht gespeichert werden.",

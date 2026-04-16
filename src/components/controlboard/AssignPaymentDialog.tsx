@@ -138,29 +138,15 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
     try {
       const { error } = await supabase
         .from('zahlungen')
-        .update({ 
+        .update({
           mietvertrag_id: contractId,
-          immobilie_id: null 
+          immobilie_id: null,
+          // Bei Zuordnungswechsel von Nebenkosten zu Mietvertrag → Kategorie anpassen
+          ...(payment.kategorie === 'Nebenkosten' ? { kategorie: 'Miete' } : {})
         })
         .eq('id', payment.id);
 
       if (error) throw error;
-
-      // Auto-fill IBAN on contract if empty and payment has an IBAN
-      if (payment.iban) {
-        const { data: contract } = await supabase
-          .from('mietvertrag')
-          .select('bankkonto_mieter')
-          .eq('id', contractId)
-          .maybeSingle();
-
-        if (contract && !contract.bankkonto_mieter) {
-          await supabase
-            .from('mietvertrag')
-            .update({ bankkonto_mieter: payment.iban })
-            .eq('id', contractId);
-        }
-      }
 
       toast({
         title: "Zahlung zugeordnet",
@@ -264,11 +250,11 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
       await queryClient.invalidateQueries({ queryKey: ['unassigned-payments'] });
       
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error categorizing payment:', error);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Die Kategorisierung konnte nicht durchgeführt werden.";
       toast({
         title: "Fehler",
-        description: error.message || "Die Kategorisierung konnte nicht durchgeführt werden.",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -304,11 +290,11 @@ export function AssignPaymentDialog({ open, onOpenChange, payment }: AssignPayme
         queryClient.invalidateQueries({ queryKey: ['immobilien-nebenkosten'] }),
       ]);
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error unassigning payment:', error);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Die Zuordnung konnte nicht aufgehoben werden.";
       toast({
         title: "Fehler",
-        description: error.message || "Die Zuordnung konnte nicht aufgehoben werden.",
+        description: msg,
         variant: "destructive",
       });
     } finally {

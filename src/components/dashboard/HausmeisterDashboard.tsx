@@ -261,7 +261,6 @@ export const HausmeisterDashboard = () => {
 
       toast.success("Hausanschlusszähler gespeichert");
     } catch (error) {
-      console.error('Error saving property meter readings:', error);
       toast.error("Fehler beim Speichern");
     } finally {
       setSavingProperties(prev => {
@@ -318,7 +317,6 @@ export const HausmeisterDashboard = () => {
 
       toast.success("Zählerstände gespeichert");
     } catch (error) {
-      console.error('Error saving meter readings:', error);
       toast.error("Fehler beim Speichern");
     } finally {
       setSavingUnits(prev => {

@@ -92,14 +92,20 @@ Deno.serve(async (req) => {
         const betriebskosten = contract.betriebskosten || 0;
         let sollbetrag = kaltmiete + betriebskosten;
 
-        // Half-month logic: if contract starts in current month and day >= 14
+        // Anteilige Miete wenn Vertrag nicht am 1. des Monats beginnt
         if (contract.start_datum) {
           const startDate = new Date(contract.start_datum);
           const startMonth = `${startDate.getFullYear()}-${(startDate.getMonth() + 1).toString().padStart(2, '0')}`;
-          
-          if (startMonth === currentMonth && startDate.getDate() >= 14) {
-            sollbetrag = sollbetrag / 2;
-            console.log(`[generate-mietforderungen] Half-month applied for contract ${contract.id}`);
+
+          if (startMonth === currentMonth) {
+            const startDay = startDate.getDate();
+            if (startDay > 1) {
+              // Proportionale Berechnung: Tage im Monat von Einzugstag bis Monatsende
+              const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+              const remainingDays = daysInMonth - startDay + 1;
+              sollbetrag = Math.round((sollbetrag / daysInMonth) * remainingDays * 100) / 100;
+              console.log(`[generate-mietforderungen] Anteilige Miete für contract ${contract.id}: Tag ${startDay}/${daysInMonth}, ${remainingDays} Tage = ${sollbetrag}€`);
+            }
           }
         }
 

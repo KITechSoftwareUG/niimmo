@@ -140,7 +140,6 @@ export const DokumentenModal = ({
           .createSignedUrl(dokument.pfad, 60); // Valid for 60 seconds
 
         if (signedUrlError) {
-          console.error('Signed URL Error:', signedUrlError);
           toast({
             variant: "destructive",
             title: "Download fehlgeschlagen",
@@ -171,7 +170,6 @@ export const DokumentenModal = ({
 
       setSelectedDokumente([]);
     } catch (error) {
-      console.error('Download Error:', error);
       toast({
         variant: "destructive",
         title: "Download fehlgeschlagen",

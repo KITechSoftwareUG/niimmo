@@ -7,11 +7,18 @@ interface SignatureCanvasProps {
   label: string;
 }
 
+// Fixed logical drawing space. The canvas is rendered at LOGICAL_W×LOGICAL_H
+// CSS-pixel coordinates, scaled up by devicePixelRatio for sharp Retina output.
+// getPos always maps from current CSS rect to this fixed logical space so the
+// coordinates are correct regardless of when the element was laid out.
+const LOGICAL_W = 600;
+const LOGICAL_H = 200;
+
 export const SignatureCanvas = ({ onSignatureChange, label }: SignatureCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
   const [hasSignature, setHasSignature] = useState(false);
-  // Stable ref so event listeners never need re-registration when prop changes
+  // Stable ref so event listeners never need re-registration when the prop changes
   const onSignatureChangeRef = useRef(onSignatureChange);
   useEffect(() => {
     onSignatureChangeRef.current = onSignatureChange;
@@ -21,15 +28,15 @@ export const SignatureCanvas = ({ onSignatureChange, label }: SignatureCanvasPro
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Scale canvas to device pixel ratio for sharp rendering on Retina/iPad displays
+    // Physical canvas resolution = logical × DPR for sharp Retina/iPad output
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
+    canvas.width  = LOGICAL_W * dpr;
+    canvas.height = LOGICAL_H * dpr;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Scale the context so all draw calls use logical CSS-pixel coordinates
     ctx.scale(dpr, dpr);
     ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2;
@@ -37,26 +44,37 @@ export const SignatureCanvas = ({ onSignatureChange, label }: SignatureCanvasPro
     ctx.lineJoin = "round";
     ctx.fillStyle = "#000000";
 
+    // Map a mouse/touch event to logical canvas coordinates.
+    // We always recompute the scale from the current CSS rect so the result is
+    // correct even if the canvas was resized (e.g. dialog open animation) after
+    // the useEffect ran.
     const getPos = (e: MouseEvent | TouchEvent): { x: number; y: number } => {
       const r = canvas.getBoundingClientRect();
+      const scaleX = LOGICAL_W / r.width;
+      const scaleY = LOGICAL_H / r.height;
+
       if (window.TouchEvent && e instanceof TouchEvent) {
-        // touches is empty on touchend → fall back to changedTouches
         const touch = e.touches[0] ?? e.changedTouches[0];
         if (!touch) return { x: 0, y: 0 };
-        return { x: touch.clientX - r.left, y: touch.clientY - r.top };
+        return {
+          x: (touch.clientX - r.left) * scaleX,
+          y: (touch.clientY - r.top)  * scaleY,
+        };
       }
       const me = e as MouseEvent;
-      return { x: me.clientX - r.left, y: me.clientY - r.top };
+      return {
+        x: (me.clientX - r.left) * scaleX,
+        y: (me.clientY - r.top)  * scaleY,
+      };
     };
 
     const startDrawing = (e: MouseEvent | TouchEvent) => {
-      // Prevent page scroll while signing — requires passive: false
-      e.preventDefault();
+      e.preventDefault(); // stop page scroll — requires passive: false
       isDrawingRef.current = true;
       const pos = getPos(e);
       ctx.beginPath();
       ctx.moveTo(pos.x, pos.y);
-      // Draw a dot so a single tap is visible
+      // Draw a dot so a single tap/click is visible as a signature
       ctx.arc(pos.x, pos.y, 1, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
@@ -79,33 +97,35 @@ export const SignatureCanvas = ({ onSignatureChange, label }: SignatureCanvasPro
       onSignatureChangeRef.current(canvas.toDataURL("image/png"));
     };
 
-    // Native listeners with { passive: false } so e.preventDefault() works on iOS Safari
-    canvas.addEventListener("mousedown", startDrawing, { passive: false });
-    canvas.addEventListener("mousemove", draw, { passive: false });
-    canvas.addEventListener("mouseup", stopDrawing);
+    // Use native listeners with { passive: false } so e.preventDefault() is
+    // honoured on iOS Safari (React synthetic events are passive by default)
+    canvas.addEventListener("mousedown",  startDrawing, { passive: false });
+    canvas.addEventListener("mousemove",  draw,         { passive: false });
+    canvas.addEventListener("mouseup",    stopDrawing);
     canvas.addEventListener("mouseleave", stopDrawing);
     canvas.addEventListener("touchstart", startDrawing, { passive: false });
-    canvas.addEventListener("touchmove", draw, { passive: false });
-    canvas.addEventListener("touchend", stopDrawing);
-    canvas.addEventListener("touchcancel", stopDrawing);
+    canvas.addEventListener("touchmove",  draw,         { passive: false });
+    canvas.addEventListener("touchend",   stopDrawing);
+    canvas.addEventListener("touchcancel",stopDrawing);
 
     return () => {
-      canvas.removeEventListener("mousedown", startDrawing);
-      canvas.removeEventListener("mousemove", draw);
-      canvas.removeEventListener("mouseup", stopDrawing);
+      canvas.removeEventListener("mousedown",  startDrawing);
+      canvas.removeEventListener("mousemove",  draw);
+      canvas.removeEventListener("mouseup",    stopDrawing);
       canvas.removeEventListener("mouseleave", stopDrawing);
       canvas.removeEventListener("touchstart", startDrawing);
-      canvas.removeEventListener("touchmove", draw);
-      canvas.removeEventListener("touchend", stopDrawing);
-      canvas.removeEventListener("touchcancel", stopDrawing);
+      canvas.removeEventListener("touchmove",  draw);
+      canvas.removeEventListener("touchend",   stopDrawing);
+      canvas.removeEventListener("touchcancel",stopDrawing);
     };
-  }, []); // Empty deps — canvas is stable, callback is accessed via ref
+  }, []); // Empty deps — canvas DOM node is stable, callback via ref
 
   const clearSignature = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Clear in logical coordinate space (ctx is already scaled by DPR)
+    ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
     setHasSignature(false);
     onSignatureChangeRef.current(null);
   };
@@ -128,7 +148,6 @@ export const SignatureCanvas = ({ onSignatureChange, label }: SignatureCanvasPro
         )}
       </div>
       <div className="relative border-2 border-dashed border-gray-300 rounded-lg bg-white overflow-hidden">
-        {/* No width/height attributes — set dynamically via DPR in useEffect */}
         <canvas
           ref={canvasRef}
           className="w-full h-[160px] cursor-crosshair"

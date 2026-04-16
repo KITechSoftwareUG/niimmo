@@ -34,36 +34,6 @@ export interface FehlendeMietzahlung {
   ist_guthaben: boolean;
 }
 
-// Hilfsfunktion: Berechnet den 4. Werktag eines Monats
-const get4thBusinessDay = (year: number, month: number): Date => {
-  let businessDays = 0;
-  let day = 1;
-  while (businessDays < 4) {
-    const date = new Date(year, month - 1, day);
-    const dayOfWeek = date.getDay();
-    // Montag=1 bis Freitag=5 sind Werktage
-    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      businessDays++;
-    }
-    if (businessDays < 4) day++;
-  }
-  return new Date(year, month - 1, day);
-};
-
-// Prüft ob der 4. Werktag des Monats schon vorbei ist
-const is4thBusinessDayPassed = (sollmonat: string): boolean => {
-  if (!sollmonat) return false;
-  const [yearStr, monthStr] = sollmonat.split('-');
-  const year = parseInt(yearStr);
-  const month = parseInt(monthStr);
-  const fourthBusinessDay = get4thBusinessDay(year, month);
-  
-  const heute = new Date();
-  heute.setHours(0, 0, 0, 0);
-  fourthBusinessDay.setHours(0, 0, 0, 0);
-  
-  return heute > fourthBusinessDay;
-};
 
 export const useRueckstaende = () => {
   const queryClient = useQueryClient();
@@ -123,7 +93,7 @@ export const useRueckstaende = () => {
 
   return useQuery({
     queryKey: ['rueckstaende'],
-    staleTime: 0,
+    staleTime: 60 * 1000,
     refetchOnMount: true,
     queryFn: async () => {
       // Lade alle notwendigen Daten parallel
@@ -132,7 +102,9 @@ export const useRueckstaende = () => {
         { data: einheiten, error: einheitenError },
         { data: immobilien, error: immobilienError },
         { data: mietvertragMieter, error: mmError },
-        { data: dokumente, error: dokumenteError }
+        { data: dokumente, error: dokumenteError },
+        { data: alleForderungen, error: forderungenError },
+        { data: alleZahlungen, error: zahlungenError }
       ] = await Promise.all([
         supabase.from('mietvertrag').select('*'),
         supabase.from('einheiten').select('*'),
@@ -148,49 +120,50 @@ export const useRueckstaende = () => {
             telnr
           )
         `),
-        supabase.from('dokumente').select('*')
+        supabase.from('dokumente').select('*'),
+        supabase.from('mietforderungen').select('*, ist_faellig, faelligkeitsdatum, faellig_seit'),
+        supabase.from('zahlungen').select('*')
       ]);
-      
+
       // Error handling
       if (mietvertrageError) throw mietvertrageError;
       if (einheitenError) throw einheitenError;
       if (immobilienError) throw immobilienError;
       if (mmError) throw mmError;
       if (dokumenteError) throw dokumenteError;
-      
+      if (forderungenError) throw forderungenError;
+      if (zahlungenError) throw zahlungenError;
+
       const rueckstaende: FehlendeMietzahlung[] = [];
-      
+
       // Berechne für jeden Mietvertrag (aktiv, gekündigt, beendet)
       for (const mietvertrag of mietvertraege || []) {
         // Alle Verträge berücksichtigen, die potenziell Rückstände haben könnten
         // (aktiv, gekündigt, beendet)
-        
+
         // Skip wenn keine Miete definiert ist
         if ((mietvertrag.kaltmiete || 0) === 0 && (mietvertrag.betriebskosten || 0) === 0) continue;
-        
-        // IDENTISCH ZUM MODAL: Lade Daten für diesen spezifischen Mietvertrag
-        const [
-          { data: mietvertragForderungen, error: forderungenError },
-          { data: mietvertragZahlungen, error: zahlungenError }
-        ] = await Promise.all([
-          supabase.from('mietforderungen').select('*, ist_faellig, faelligkeitsdatum, faellig_seit').eq('mietvertrag_id', mietvertrag.id),
-          supabase.from('zahlungen').select('*').eq('mietvertrag_id', mietvertrag.id)
-        ]);
-        
-        if (forderungenError || zahlungenError) continue;
-        
-        // RÜCKSTANDSTABELLE: Nur Forderungen berücksichtigen, deren 4. Werktag im sollmonat bereits vorbei ist
+
+        // Filter vorgeladene Daten für diesen Mietvertrag
+        const mietvertragForderungen = alleForderungen?.filter(f => f.mietvertrag_id === mietvertrag.id) || [];
+        const mietvertragZahlungen = alleZahlungen?.filter(z => z.mietvertrag_id === mietvertrag.id) || [];
+
+        // RÜCKSTANDSTABELLE: Nur Forderungen berücksichtigen, deren Fälligkeitsdatum (DB) bereits erreicht ist
         // Dies unterscheidet sich von den Mietvertrag-Details, wo ALLE Forderungen sofort zählen
-        const forderungenNach4temWerktag = (mietvertragForderungen || []).filter(f => 
-          f.sollmonat && is4thBusinessDayPassed(f.sollmonat)
-        );
-        
+        // Hinweis: 'T00:00:00' erzwingt lokale Zeitzone-Interpretation statt UTC (verhindert Off-by-one in CET/CEST)
+        const heute = new Date();
+        heute.setHours(0, 0, 0, 0);
+        const faelligeForderungen = mietvertragForderungen.filter(f => {
+          if (!f.faelligkeitsdatum) return false;
+          return new Date(f.faelligkeitsdatum + 'T00:00:00') <= heute;
+        });
+
         const { gesamtForderungen, gesamtZahlungen, rueckstand } = calculateMietvertragRueckstand(
           mietvertrag,
-          forderungenNach4temWerktag,
-          mietvertragZahlungen || []
+          faelligeForderungen,
+          mietvertragZahlungen
         );
-        
+
         // Zeige nur Nettostand (Rückstand oder Guthaben nach Aufrechnung)
         // Filtere auch sehr kleine Beträge unter 1 Cent aus
         if (Math.abs(rueckstand) >= 0.01) {
@@ -200,15 +173,12 @@ export const useRueckstaende = () => {
           const alleMieter = mietvertragMieter?.filter(mm => mm.mietvertrag_id === mietvertrag.id) || [];
           const ersteMieter = alleMieter[0];
           const mietvertragDokumente = dokumente?.filter(dok => dok.mietvertrag_id === mietvertrag.id) || [];
-          
+
           // Berechne Miete-Zahlungen separat
-          const mieteZahlungenSumme = calculateMieteZahlungen(mietvertragZahlungen || []);
-          
-        // Berechne Fälligkeitsinformationen - alle Forderungen verwenden
-        const alleForderungen = mietvertragForderungen || [];
-        
-        // Alle Forderungen verwenden (ohne Startdatum-Filter)
-        const alleForderungenAbStart = alleForderungen.filter(f => {
+          const mieteZahlungenSumme = calculateMieteZahlungen(mietvertragZahlungen);
+
+        // Berechne Fälligkeitsinformationen - alle Forderungen verwenden (ohne Startdatum-Filter)
+        const alleForderungenAbStart = mietvertragForderungen.filter(f => {
           return f.sollmonat; // Nur Forderungen mit sollmonat
         });
         

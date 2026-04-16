@@ -99,16 +99,13 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
   };
 
   const getStatusBadge = () => {
-    console.log('EinheitCard - Vertrag status:', vertrag?.status, 'Vertrag:', vertrag);
-    
     if (!vertrag) return <Badge variant="destructive">Leerstehend</Badge>;
-    
+
     if (vertrag.status === 'aktiv') {
       return <Badge variant={undefined} className="bg-green-600 text-white border-transparent">Aktiv</Badge>;
     }
     if (vertrag.status === 'gekuendigt') {
-      console.log('Rendering gekuendigt badge with yellow background');
-      return <Badge 
+      return <Badge
         style={{ backgroundColor: '#d97706', color: 'white', border: 'none' }}
         className="hover:bg-yellow-700"
       >
@@ -118,8 +115,7 @@ export const EinheitCard = ({ einheit, vertrag, immobilie, openMietvertragId, ei
     if (vertrag.status === 'beendet') {
       return <Badge variant="destructive">Beendet</Badge>;
     }
-    
-    console.log('Unknown status, using default badge:', vertrag.status);
+
     return <Badge>{vertrag.status}</Badge>;
   };
 

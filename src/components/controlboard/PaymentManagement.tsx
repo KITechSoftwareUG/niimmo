@@ -315,7 +315,6 @@ export function PaymentManagement({ onBack }: PaymentManagementProps) {
 
       setServerSearchIds(contractPaymentIds);
     } catch (err) {
-      console.error('Server search error:', err);
       setServerSearchIds(null);
     } finally {
       setIsServerSearching(false);
