@@ -128,6 +128,9 @@ export const UebergabeDialog = ({
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   
+  // Gespeicherter PDF-Pfad (nach handleSubmit) — wird an Email/Versorger-Dialog weitergegeben
+  const [savedPdfPath, setSavedPdfPath] = useState<string | null>(null);
+
   // Email dialog
   const [showEmailDialog, setShowEmailDialog] = useState(false);
 
@@ -237,6 +240,7 @@ export const UebergabeDialog = ({
     setShowPreview(false);
     setPdfBlobUrl(null);
     setPdfBlob(null);
+    setSavedPdfPath(null);
   };
 
   const buildPdfData = async (): Promise<UebergabePdfData | null> => {
@@ -402,6 +406,34 @@ export const UebergabeDialog = ({
       if (dokumenteInserts.length > 0) {
         const { error: dokError } = await supabase.from("dokumente").insert(dokumenteInserts);
         if (dokError) throw dokError;
+      }
+
+      // PDF-Protokoll in Storage hochladen und als Dokument speichern
+      // → unabhängig davon, ob E-Mail versendet wird
+      let pdfSavedPath: string | null = null;
+      if (pdfBlob) {
+        const fileName = getPdfFileName();
+        const filePath = `uebergabeprotokolle/${contracts[0].id}/${fileName}`;
+        const { error: pdfUploadError } = await supabase.storage
+          .from("dokumente")
+          .upload(filePath, pdfBlob, { contentType: "application/pdf", upsert: true });
+        if (!pdfUploadError) {
+          const pdfDokInserts = contracts.map((contract) => ({
+            pfad: filePath,
+            titel: `Übergabeprotokoll (${uebergabeTypLabel}) – ${format(uebergabeDatum!, "dd.MM.yyyy", { locale: de })}`,
+            kategorie: "Übergabeprotokoll" as const,
+            dateityp: "application/pdf",
+            groesse_bytes: pdfBlob.size,
+            mietvertrag_id: contract.id,
+            immobilie_id: contract.einheit.immobilie_id ?? contract.einheit.immobilie?.id ?? null,
+            erstellt_von: user?.id ?? null,
+            hochgeladen_am: new Date().toISOString(),
+            geloescht: false,
+          }));
+          await supabase.from("dokumente").insert(pdfDokInserts);
+          pdfSavedPath = filePath;
+          setSavedPdfPath(filePath);
+        }
       }
 
       // Show email dialog if we have tenants
@@ -685,6 +717,7 @@ export const UebergabeDialog = ({
       mieterName={mieterName || ""}
       pdfBlob={pdfBlob}
       pdfFileName={getPdfFileName()}
+      preSavedPdfPath={savedPdfPath ?? undefined}
     />
   );
 
@@ -726,6 +759,7 @@ export const UebergabeDialog = ({
       pdfFileName={getPdfFileName()}
       contractIds={vertragIds}
       initialSelected={versorgerSelected}
+      preSavedPdfPath={savedPdfPath ?? undefined}
     />
   );
 

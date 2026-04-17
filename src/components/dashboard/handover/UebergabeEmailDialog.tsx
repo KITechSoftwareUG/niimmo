@@ -37,6 +37,8 @@ interface UebergabeEmailDialogProps {
   mieterName: string;
   pdfBlob?: Blob | null;
   pdfFileName?: string;
+  /** Bereits gespeicherter Storage-Pfad aus UebergabeDialog — Upload wird übersprungen */
+  preSavedPdfPath?: string;
 }
 
 export const UebergabeEmailDialog = ({
@@ -48,6 +50,7 @@ export const UebergabeEmailDialog = ({
   mieterName,
   pdfBlob,
   pdfFileName,
+  preSavedPdfPath,
 }: UebergabeEmailDialogProps) => {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
@@ -115,6 +118,8 @@ Ihre Hausverwaltung`
 
   // Upload PDF to Supabase and save document reference
   const uploadPdfAndSaveRef = async (): Promise<string | undefined> => {
+    // PDF wurde bereits in UebergabeDialog gespeichert — direkt Pfad zurückgeben
+    if (preSavedPdfPath) return preSavedPdfPath;
     if (!pdfBlob || !pdfFileName) return undefined;
     if (pdfAlreadyUploaded) {
       return `uebergabeprotokolle/${contracts[0]?.id || 'unknown'}/${pdfFileName}`;

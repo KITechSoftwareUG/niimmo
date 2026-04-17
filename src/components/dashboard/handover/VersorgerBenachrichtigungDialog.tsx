@@ -37,6 +37,8 @@ interface VersorgerBenachrichtigungDialogProps {
   pdfFileName?: string;
   contractIds?: string[];
   initialSelected?: Set<string>;
+  /** Bereits gespeicherter Storage-Pfad aus UebergabeDialog — Upload wird übersprungen */
+  preSavedPdfPath?: string;
 }
 
 export const VersorgerBenachrichtigungDialog = ({
@@ -53,6 +55,7 @@ export const VersorgerBenachrichtigungDialog = ({
   pdfFileName,
   contractIds = [],
   initialSelected,
+  preSavedPdfPath,
 }: VersorgerBenachrichtigungDialogProps) => {
   const { toast } = useToast();
   const [versorger, setVersorger] = useState<VersorgerInfo[]>([]);
@@ -150,6 +153,8 @@ Tel. 05138 – 600 72 72`;
   };
 
   const uploadPdf = async (): Promise<string | undefined> => {
+    // PDF wurde bereits in UebergabeDialog gespeichert — direkt Pfad zurückgeben
+    if (preSavedPdfPath) return preSavedPdfPath;
     if (!pdfBlob || !pdfFileName || contractIds.length === 0) return undefined;
     const filePath = `uebergabeprotokolle/${contractIds[0]}/${pdfFileName}`;
     const { error } = await supabase.storage
