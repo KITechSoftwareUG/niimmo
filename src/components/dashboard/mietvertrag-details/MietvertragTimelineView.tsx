@@ -291,7 +291,8 @@ export function MietvertragTimelineView({
   // Add ALL months with Forderungen
   if (forderungen) {
     forderungen.forEach(forderung => {
-      const month = forderung.sollmonat;
+      // sollmonat ist DATE ('YYYY-MM-DD'), normalisieren auf 'YYYY-MM' für Map-Key-Konsistenz
+      const month = forderung.sollmonat?.slice(0, 7);
       if (!monthlyData.has(month)) {
         monthlyData.set(month, { forderungen: [], zahlungen: [] });
       }
@@ -550,7 +551,7 @@ export function MietvertragTimelineView({
                   {(() => {
                     const availableMonths = new Set<string>();
                     (forderungen || []).forEach(forderung => {
-                      if (forderung.sollmonat) availableMonths.add(forderung.sollmonat);
+                      if (forderung.sollmonat) availableMonths.add(forderung.sollmonat.slice(0, 7));
                     });
                     const now = new Date();
                     for (let i = -6; i <= 12; i++) {

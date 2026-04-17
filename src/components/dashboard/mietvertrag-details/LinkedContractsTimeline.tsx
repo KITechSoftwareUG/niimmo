@@ -145,10 +145,12 @@ export function LinkedContractsTimeline({
     
     forderungen.forEach(f => {
       if (!f.sollmonat) return;
-      if (!monthlyData.has(f.sollmonat)) {
-        monthlyData.set(f.sollmonat, { forderungen: [], zahlungen: [] });
+      // sollmonat ist DATE ('YYYY-MM-DD'), normalisieren auf 'YYYY-MM' für Map-Key-Konsistenz mit zugeordneter_monat
+      const monat = f.sollmonat.slice(0, 7);
+      if (!monthlyData.has(monat)) {
+        monthlyData.set(monat, { forderungen: [], zahlungen: [] });
       }
-      monthlyData.get(f.sollmonat)!.forderungen.push(f);
+      monthlyData.get(monat)!.forderungen.push(f);
     });
 
     zahlungen.forEach(z => {

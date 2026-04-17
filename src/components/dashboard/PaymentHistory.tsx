@@ -70,7 +70,8 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
   const getPaymentStatus = (forderung: any) => {
     if (!zahlungen) return { paid: false, paymentDate: null, isLate: false };
     
-    const sollMonat = forderung.sollmonat; // z.B. "2025-10"
+    // sollmonat ist DATE ('YYYY-MM-DD'), normalisieren auf 'YYYY-MM' für zugeordneter_monat-Vergleich
+    const sollMonat = forderung.sollmonat?.slice(0, 7); // z.B. "2025-10"
     const fälligkeitsDatum = new Date(sollMonat + '-08'); // 8. des Monats
     
     // Primär: Match über zugeordneter_monat (zuverlässigste Methode)
@@ -298,7 +299,7 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
                     </div>
                     <div>
                       <h4 className="text-lg font-semibold mb-1">
-                        {new Date(forderung.sollmonat + '-01').toLocaleDateString('de-DE', { 
+                        {new Date(forderung.sollmonat).toLocaleDateString('de-DE', {
                           month: 'long', 
                           year: 'numeric' 
                         })}

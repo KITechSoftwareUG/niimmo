@@ -90,7 +90,7 @@ export const CreateForderungModal = ({
 
       toast({
         title: "Erfolgreich erstellt",
-        description: `Forderung für ${sollmonat} über ${betrag.toLocaleString()}€ wurde erstellt.`,
+        description: `Forderung für ${sollmonat.slice(0, 7)} über ${betrag.toLocaleString()}€ wurde erstellt.`,
       });
 
       // Reset form
@@ -142,9 +142,11 @@ export const CreateForderungModal = ({
                 <SelectContent>
                   {years.map(year => 
                     months.map(month => {
-                      const monthValue = `${year}-${month.value}`;
+                      // DATE-Spalte erwartet ISO-Format 'YYYY-MM-DD' (erster des Monats)
+                      const monthValue = `${year}-${month.value}-01`;
+                      const displayKey = `${year}-${month.value}`;
                       return (
-                        <SelectItem key={monthValue} value={monthValue}>
+                        <SelectItem key={displayKey} value={monthValue}>
                           {month.label} {year}
                         </SelectItem>
                       );

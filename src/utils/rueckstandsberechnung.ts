@@ -24,7 +24,8 @@ export const calculateMietvertragRueckstand = (
   // Vereinfachte Vorauszahlungs-Logik basierend auf zugeordneter_monat aus DB
   const processVorauszahlungen = (zahlungen: any[], forderungen: any[]) => {
     // Sammle alle Forderungsmonate
-    const forderungsmonate = new Set(forderungen.map(f => f.sollmonat).filter(Boolean));
+    // sollmonat ist DATE ('YYYY-MM-DD'), normalisieren auf 'YYYY-MM' für Vergleich mit zugeordneter_monat
+    const forderungsmonate = new Set(forderungen.map(f => f.sollmonat?.slice(0, 7)).filter(Boolean));
     
     // Gruppiere Zahlungen nach zugeordnetem Monat (kommt jetzt aus der DB)
     const zahlungenByMonth = new Map<string, any[]>();

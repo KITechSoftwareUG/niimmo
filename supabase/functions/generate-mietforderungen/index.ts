@@ -54,11 +54,11 @@ Deno.serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Calculate current month (YYYY-MM)
+    // Calculate current month as DATE (YYYY-MM-01, erster des Monats)
     const today = new Date();
     const year = today.getFullYear();
     const month = (today.getMonth() + 1).toString().padStart(2, '0');
-    const currentMonth = `${year}-${month}`;
+    const currentMonth = `${year}-${month}-01`;
     const currentDate = today.toISOString().split('T')[0];
 
     console.log(`[generate-mietforderungen] Starting for month: ${currentMonth}`);
@@ -97,7 +97,8 @@ Deno.serve(async (req) => {
           const startDate = new Date(contract.start_datum);
           const startMonth = `${startDate.getFullYear()}-${(startDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-          if (startMonth === currentMonth) {
+          // currentMonth ist jetzt 'YYYY-MM-01', startMonth ist 'YYYY-MM' → slice für Vergleich
+          if (startMonth === currentMonth.slice(0, 7)) {
             const startDay = startDate.getDate();
             if (startDay > 1) {
               // Proportionale Berechnung: Tage im Monat von Einzugstag bis Monatsende

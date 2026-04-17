@@ -714,21 +714,27 @@ export const UebergabeDialog = ({
             {dialogTitle}
           </DialogTitle>
         </DialogHeader>
-        <div className={cn("flex-1 overflow-hidden", showPreview ? "flex gap-0" : "")}>
-          {/* Left: Form (always visible) */}
+        <div className={cn(
+          "flex-1 min-h-0",
+          showPreview
+            ? "flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden"
+            : "overflow-hidden"
+        )}>
+          {/* Form (always visible) */}
           <div
             className={cn(
-              showPreview ? "w-[480px] flex-shrink-0 border-r pr-2" : "w-full",
-              "overflow-y-auto max-h-[calc(90vh-80px)]"
+              showPreview
+                ? "lg:w-[480px] lg:flex-shrink-0 lg:border-r lg:pr-2 lg:overflow-y-auto lg:max-h-[calc(90vh-80px)]"
+                : "w-full overflow-y-auto max-h-[calc(90vh-80px)]"
             )}
             style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
           >
             {formContent}
           </div>
 
-          {/* Right: PDF Preview (shown when generated) */}
+          {/* PDF Preview — rechts auf Desktop, unten auf Tablet */}
           {showPreview && pdfBlobUrl && (
-            <div className="flex-1 flex flex-col min-w-0 pl-4">
+            <div className="lg:flex-1 flex flex-col min-w-0 lg:pl-4 pt-4 lg:pt-0 border-t lg:border-t-0">
               <div className="flex items-center justify-between pb-2 mb-2 border-b flex-shrink-0">
                 <span className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                   <Eye className="h-4 w-4" />
@@ -741,7 +747,7 @@ export const UebergabeDialog = ({
                   href={pdfBlobUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 flex-1 min-h-[500px] rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-muted transition-colors"
+                  className="flex items-center justify-center gap-2 flex-1 min-h-[350px] lg:min-h-[500px] rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-muted transition-colors"
                 >
                   <Eye className="h-4 w-4" />
                   PDF in neuem Tab öffnen
@@ -749,7 +755,7 @@ export const UebergabeDialog = ({
               ) : (
                 <iframe
                   src={pdfBlobUrl}
-                  className="w-full flex-1 min-h-[500px] rounded-lg border bg-white"
+                  className="w-full flex-1 min-h-[350px] lg:min-h-[500px] rounded-lg border bg-white"
                   title="Übergabeprotokoll Vorschau"
                 />
               )}

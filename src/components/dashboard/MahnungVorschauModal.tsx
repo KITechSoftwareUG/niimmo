@@ -136,7 +136,7 @@ export function MahnungVorschauModal({
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-3 w-3 text-muted-foreground" />
                     <span className="text-sm">
-                      {new Date(forderung.sollmonat + '-01').toLocaleDateString('de-DE', { 
+                      {new Date(forderung.sollmonat).toLocaleDateString('de-DE', { 
                         month: 'long', 
                         year: 'numeric' 
                       })}
