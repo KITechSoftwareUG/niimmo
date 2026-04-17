@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.send-uebergabe-email]
 verify_jwt = false
+
+[functions.agent-api]
+verify_jwt = false
