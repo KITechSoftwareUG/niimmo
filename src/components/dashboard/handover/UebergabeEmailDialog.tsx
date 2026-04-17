@@ -206,7 +206,18 @@ Ihre Hausverwaltung`
         },
       });
 
-      if (response.error) throw response.error;
+      if (response.error) {
+        // Tatsächliche Fehlermeldung aus dem Response-Body extrahieren
+        let errorMessage = response.error.message || "Unbekannter Fehler";
+        try {
+          const ctx = (response.error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (body?.error) errorMessage = body.error;
+          }
+        } catch {}
+        throw new Error(errorMessage);
+      }
 
       setEmailsSent(true);
 
@@ -228,7 +239,7 @@ Ihre Hausverwaltung`
     } catch (error) {
       toast({
         title: "Fehler beim Versenden",
-        description: "Die E-Mails konnten nicht versendet werden.",
+        description: error instanceof Error ? error.message : "Die E-Mails konnten nicht versendet werden.",
         variant: "destructive",
       });
     } finally {

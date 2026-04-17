@@ -26,6 +26,13 @@ export interface UebergabePdfData {
       wasser: string;
       warmwasser: string;
     };
+    // base64 DataURLs der Zählerfotos, gruppiert nach Zählertyp
+    zaehlerfotos?: {
+      strom?: string[];
+      gas?: string[];
+      wasser?: string[];
+      warmwasser?: string[];
+    };
   }>;
   
   protokollNotizen: string;
@@ -199,6 +206,11 @@ export async function generateUebergabePdf(data: UebergabePdfData): Promise<Blob
       y += 5;
     }
     y += 5;
+
+    // Zählerfotos einbetten falls vorhanden
+    if (einheit.zaehlerfotos) {
+      y = addZaehlerfotos(doc, einheit.zaehlerfotos, marginLeft, contentWidth, y, checkPageBreak);
+    }
   }
 
   // ============ NOTIZEN ============
@@ -273,6 +285,88 @@ export async function generateUebergabePdf(data: UebergabePdfData): Promise<Blob
   addFooter(doc);
 
   return doc.output('blob');
+}
+
+function addZaehlerfotos(
+  doc: jsPDF,
+  zaehlerfotos: { strom?: string[]; gas?: string[]; wasser?: string[]; warmwasser?: string[] },
+  marginLeft: number,
+  contentWidth: number,
+  y: number,
+  checkPageBreak: (y: number, space?: number) => number
+): number {
+  const meterTypen: Array<{ key: keyof typeof zaehlerfotos; label: string }> = [
+    { key: 'strom',      label: 'Strom'      },
+    { key: 'gas',        label: 'Gas'        },
+    { key: 'wasser',     label: 'Kaltwasser' },
+    { key: 'warmwasser', label: 'Warmwasser' },
+  ];
+
+  // Alle vorhandenen Fotos mit Label sammeln
+  const allPhotos: Array<{ label: string; base64: string }> = [];
+  for (const { key, label } of meterTypen) {
+    for (const base64 of zaehlerfotos[key] ?? []) {
+      if (base64) allPhotos.push({ label, base64 });
+    }
+  }
+  if (allPhotos.length === 0) return y;
+
+  // Abschnittstitel
+  y = checkPageBreak(y, 20);
+  y += 3;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Zählerfotos', marginLeft, y);
+  y += 7;
+
+  // Bildgitter: 3 Spalten
+  const cols = 3;
+  const gap = 3;
+  const imgW = (contentWidth - gap * (cols - 1)) / cols; // ~51 mm
+  const imgH = Math.round(imgW * 0.75);                  // 4:3 → ~38 mm
+  const labelH = 5;
+  const rowH = imgH + labelH + gap;
+
+  for (let i = 0; i < allPhotos.length; i++) {
+    const col = i % cols;
+
+    // Neue Zeile → Seitenumbruch prüfen
+    if (col === 0) {
+      y = checkPageBreak(y, rowH + 5);
+    }
+
+    const x = marginLeft + col * (imgW + gap);
+    const { label, base64 } = allPhotos[i];
+    const fmt = base64.includes('image/png') ? 'PNG' : 'JPEG';
+
+    try {
+      doc.addImage(base64, fmt, x, y, imgW, imgH);
+    } catch {
+      // Platzhalter-Box wenn Bild nicht eingebettet werden kann
+      doc.setDrawColor(200, 200, 200);
+      doc.setFillColor(245, 245, 245);
+      doc.rect(x, y, imgW, imgH, 'FD');
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(150, 150, 150);
+      doc.text('Foto', x + imgW / 2, y + imgH / 2, { align: 'center' });
+    }
+
+    // Zählertyp-Label unter dem Bild
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(label, x + imgW / 2, y + imgH + 3.5, { align: 'center' });
+
+    // Nach letztem Bild einer Zeile: Y weiterrücken
+    if (col === cols - 1 || i === allPhotos.length - 1) {
+      y += rowH;
+    }
+  }
+
+  doc.setTextColor(0, 0, 0);
+  return y + 3;
 }
 
 function addFirstPageHeader(doc: jsPDF, logo: string | null, marginLeft: number, pageWidth: number) {

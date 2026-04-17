@@ -1,8 +1,8 @@
- import { useState, useRef, useEffect } from "react";
- import { Button } from "@/components/ui/button";
- import { Camera, X, Image as ImageIcon, Loader2 } from "lucide-react";
+ import { useState, useEffect } from "react";
+ import { Camera, X, Loader2 } from "lucide-react";
  import { supabase } from "@/integrations/supabase/client";
  import { useToast } from "@/hooks/use-toast";
+ import { cn } from "@/lib/utils";
  
  interface NotizenPhotoUploadProps {
    contractId: string;
@@ -19,8 +19,8 @@
  }: NotizenPhotoUploadProps) => {
    const [uploading, setUploading] = useState(false);
    const [photos, setPhotos] = useState<string[]>(existingPhotos);
-   const inputRef = useRef<HTMLInputElement>(null);
    const { toast } = useToast();
+   const inputId = `notizen-photo-${contractId}`;
  
    const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
      const files = e.target.files;
@@ -63,9 +63,8 @@
        });
      } finally {
        setUploading(false);
-       if (inputRef.current) {
-         inputRef.current.value = "";
-       }
+       const el = document.getElementById(inputId) as HTMLInputElement | null;
+       if (el) el.value = "";
      }
    };
  
@@ -98,13 +97,14 @@
 
    return (
      <div className="space-y-2">
+       {/* sr-only statt hidden — iOS Safari triggert display:none-Inputs nicht */}
        <input
-         ref={inputRef}
+         id={inputId}
          type="file"
          accept="image/*"
          multiple
          onChange={handleCapture}
-         className="hidden"
+         className="sr-only"
        />
 
        {photos.length > 0 && (
@@ -131,13 +131,14 @@
          </div>
        )}
  
-       <Button
-         type="button"
-         variant="outline"
-         size="sm"
-         onClick={() => inputRef.current?.click()}
-         disabled={uploading}
-         className="w-full h-10 border-dashed"
+       {/* label statt Button+onClick — einzige zuverlässige Methode auf iOS Safari */}
+       <label
+         htmlFor={inputId}
+         className={cn(
+           "flex items-center justify-center w-full h-10 rounded-md border border-dashed text-sm font-medium",
+           "bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors",
+           uploading && "opacity-50 pointer-events-none"
+         )}
        >
          {uploading ? (
            <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -145,7 +146,7 @@
            <Camera className="h-4 w-4 mr-2" />
          )}
          {uploading ? "Wird hochgeladen..." : "Fotos hinzufügen"}
-       </Button>
+       </label>
      </div>
    );
  };

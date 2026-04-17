@@ -68,10 +68,10 @@ interface ZaehlerstaendePerContract {
 
 interface MeterPhotosPerContract {
   [contractId: string]: {
-    strom?: string;
-    gas?: string;
-    wasser?: string;
-    warmwasser?: string;
+    strom?: string[];
+    gas?: string[];
+    wasser?: string[];
+    warmwasser?: string[];
   };
 }
 
@@ -209,10 +209,10 @@ export const UebergabeDialog = ({
     }));
   };
 
-  const updateMeterPhoto = (contractId: string, meterType: string, photoPath: string) => {
+  const updateMeterPhotos = (contractId: string, meterType: string, paths: string[]) => {
     setMeterPhotosPerContract(prev => ({
       ...prev,
-      [contractId]: { ...prev[contractId], [meterType]: photoPath }
+      [contractId]: { ...prev[contractId], [meterType]: paths }
     }));
   };
 
@@ -239,8 +239,59 @@ export const UebergabeDialog = ({
     setPdfBlob(null);
   };
 
-  const buildPdfData = (): UebergabePdfData | null => {
+  const buildPdfData = async (): Promise<UebergabePdfData | null> => {
     if (!uebergabeDatum) return null;
+
+    // Zählerfotos als base64 für PDF-Einbettung laden
+    const meterTypen = ["strom", "gas", "wasser", "warmwasser"] as const;
+
+    const einheitenWithPhotos = await Promise.all(
+      contracts.map(async (c) => {
+        const photos = meterPhotosPerContract[c.id] ?? {};
+        const zaehlerfotos: Record<string, string[]> = {};
+
+        for (const typ of meterTypen) {
+          const paths = photos[typ] ?? [];
+          if (paths.length === 0) continue;
+
+          const base64s = await Promise.all(
+            paths.map(async (path) => {
+              try {
+                const { data } = await supabase.storage
+                  .from("dokumente")
+                  .createSignedUrl(path, 300);
+                if (!data?.signedUrl) return null;
+                const resp = await fetch(data.signedUrl);
+                const blob = await resp.blob();
+                return await new Promise<string | null>((resolve) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result as string);
+                  reader.onerror = () => resolve(null);
+                  reader.readAsDataURL(blob);
+                });
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          const valid = base64s.filter(Boolean) as string[];
+          if (valid.length > 0) zaehlerfotos[typ] = valid;
+        }
+
+        return {
+          name: c.einheit.immobilie.name,
+          adresse: c.einheit.immobilie.adresse,
+          etage: c.einheit.etage || "",
+          qm: null,
+          zaehlerstaende: zaehlerstaendePerContract[c.id] || { strom: "", gas: "", wasser: "", warmwasser: "" },
+          zaehlerfotos: Object.keys(zaehlerfotos).length > 0
+            ? zaehlerfotos as UebergabePdfData["einheiten"][number]["zaehlerfotos"]
+            : undefined,
+        };
+      })
+    );
+
     return {
       isEinzug,
       uebergabeDatum: format(uebergabeDatum, "dd.MM.yyyy", { locale: de }),
@@ -253,13 +304,7 @@ export const UebergabeDialog = ({
         briefkasten: schluesselBriefkasten,
         keller: schluesselKeller,
       },
-      einheiten: contracts.map(c => ({
-        name: c.einheit.immobilie.name,
-        adresse: c.einheit.immobilie.adresse,
-        etage: c.einheit.etage || "",
-        qm: null,
-        zaehlerstaende: zaehlerstaendePerContract[c.id] || { strom: "", gas: "", wasser: "", warmwasser: "" },
-      })),
+      einheiten: einheitenWithPhotos,
       protokollNotizen,
       vermieterSignature,
       mieterSignature,
@@ -267,7 +312,7 @@ export const UebergabeDialog = ({
   };
 
   const handleGeneratePreview = async () => {
-    const pdfData = buildPdfData();
+    const pdfData = await buildPdfData();
     if (!pdfData) {
       toast({ title: "Fehler", description: "Bitte wählen Sie ein Übergabedatum aus.", variant: "destructive" });
       return;
@@ -328,6 +373,37 @@ export const UebergabeDialog = ({
           }).eq("id", contract.id);
         }
       }
+
+      // Zählerfotos als Einträge in der dokumente-Tabelle speichern
+      const { data: { user } } = await supabase.auth.getUser();
+      const meterTypen = ["strom", "gas", "wasser", "warmwasser"] as const;
+      const meterLabels: Record<string, string> = {
+        strom: "Strom", gas: "Gas", wasser: "Kaltwasser", warmwasser: "Warmwasser",
+      };
+      const uebergabeTypLabel = isEinzug ? "Einzug" : "Auszug";
+      const dokumenteInserts = contracts.flatMap((contract) => {
+        const photos = meterPhotosPerContract[contract.id] ?? {};
+        return meterTypen.flatMap((typ) => {
+          const paths = photos[typ] ?? [];
+          return paths.map((pfad) => ({
+            pfad,
+            titel: `Zähler ${meterLabels[typ]} (${uebergabeTypLabel}) – ${format(uebergabeDatum!, "dd.MM.yyyy", { locale: de })}`,
+            kategorie: "Übergabeprotokoll" as const,
+            dateityp: null,
+            groesse_bytes: null,
+            mietvertrag_id: contract.id,
+            immobilie_id: contract.einheit.immobilie_id ?? contract.einheit.immobilie?.id ?? null,
+            erstellt_von: user?.id ?? null,
+            hochgeladen_am: new Date().toISOString(),
+            geloescht: false,
+          }));
+        });
+      });
+      if (dokumenteInserts.length > 0) {
+        const { error: dokError } = await supabase.from("dokumente").insert(dokumenteInserts);
+        if (dokError) throw dokError;
+      }
+
       // Show email dialog if we have tenants
       if (mieterData.length > 0) {
         setShowEmailDialog(true);
@@ -446,34 +522,26 @@ export const UebergabeDialog = ({
             )}
             Zählerstände bei {isEinzug ? "Einzug" : "Auszug"}
           </Label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Strom (kWh)</Label>
-              <div className="flex gap-2">
-                <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.strom || ""} onChange={(e) => updateZaehlerstand(contract.id, "strom", e.target.value)} className="h-10 flex-1" />
-                <MeterPhotoUpload contractId={contract.id} meterType="strom" isEinzug={isEinzug} onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "strom", path)} />
-              </div>
+              <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.strom || ""} onChange={(e) => updateZaehlerstand(contract.id, "strom", e.target.value)} className="h-10" />
+              <MeterPhotoUpload contractId={contract.id} meterType="strom" isEinzug={isEinzug} onPhotosChange={(paths) => updateMeterPhotos(contract.id, "strom", paths)} existingPhotos={meterPhotosPerContract[contract.id]?.strom ?? []} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Gas (m³)</Label>
-              <div className="flex gap-2">
-                <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.gas || ""} onChange={(e) => updateZaehlerstand(contract.id, "gas", e.target.value)} className="h-10 flex-1" />
-                <MeterPhotoUpload contractId={contract.id} meterType="gas" isEinzug={isEinzug} onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "gas", path)} />
-              </div>
+              <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.gas || ""} onChange={(e) => updateZaehlerstand(contract.id, "gas", e.target.value)} className="h-10" />
+              <MeterPhotoUpload contractId={contract.id} meterType="gas" isEinzug={isEinzug} onPhotosChange={(paths) => updateMeterPhotos(contract.id, "gas", paths)} existingPhotos={meterPhotosPerContract[contract.id]?.gas ?? []} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Kaltwasser (m³)</Label>
-              <div className="flex gap-2">
-                <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.wasser || ""} onChange={(e) => updateZaehlerstand(contract.id, "wasser", e.target.value)} className="h-10 flex-1" />
-                <MeterPhotoUpload contractId={contract.id} meterType="wasser" isEinzug={isEinzug} onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "wasser", path)} />
-              </div>
+              <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.wasser || ""} onChange={(e) => updateZaehlerstand(contract.id, "wasser", e.target.value)} className="h-10" />
+              <MeterPhotoUpload contractId={contract.id} meterType="wasser" isEinzug={isEinzug} onPhotosChange={(paths) => updateMeterPhotos(contract.id, "wasser", paths)} existingPhotos={meterPhotosPerContract[contract.id]?.wasser ?? []} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Warmwasser (m³)</Label>
-              <div className="flex gap-2">
-                <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.warmwasser || ""} onChange={(e) => updateZaehlerstand(contract.id, "warmwasser", e.target.value)} className="h-10 flex-1" />
-                <MeterPhotoUpload contractId={contract.id} meterType="warmwasser" isEinzug={isEinzug} onPhotoUploaded={(path) => updateMeterPhoto(contract.id, "warmwasser", path)} />
-              </div>
+              <Input type="number" inputMode="decimal" placeholder="0" value={zaehlerstaendePerContract[contract.id]?.warmwasser || ""} onChange={(e) => updateZaehlerstand(contract.id, "warmwasser", e.target.value)} className="h-10" />
+              <MeterPhotoUpload contractId={contract.id} meterType="warmwasser" isEinzug={isEinzug} onPhotosChange={(paths) => updateMeterPhotos(contract.id, "warmwasser", paths)} existingPhotos={meterPhotosPerContract[contract.id]?.warmwasser ?? []} />
             </div>
           </div>
         </div>
