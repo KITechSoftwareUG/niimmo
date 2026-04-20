@@ -61,7 +61,7 @@ function generateMahnungHtml(data: MahnungEmailRequest): string {
   let forderungenRows = '';
   if (data.forderungen && data.forderungen.length > 0) {
     forderungenRows = data.forderungen.map(f => {
-      const monat = new Date(f.sollmonat + '-01').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+      const monat = new Date(f.sollmonat).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
       return `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;">${monat}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;">${f.sollbetrag.toFixed(2)} €</td></tr>`;
     }).join('');
   }

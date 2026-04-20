@@ -4,13 +4,16 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Send, AlertTriangle, Euro, Calendar, User, Building2 } from "lucide-react";
+import { Send, AlertTriangle, Euro, Calendar, User, Building2, Save, Loader2, CheckCircle } from "lucide-react";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface MahnungVorschauModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  mietvertragId?: string;
   vertragData?: any;
   mieterData?: any;
   forderungen?: any[];
@@ -23,6 +26,7 @@ export function MahnungVorschauModal({
   isOpen,
   onClose,
   onConfirm,
+  mietvertragId,
   vertragData,
   mieterData,
   forderungen = [],
@@ -31,6 +35,38 @@ export function MahnungVorschauModal({
   isLoading = false
 }: MahnungVorschauModalProps) {
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedPdfPath, setSavedPdfPath] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const handleSpeichern = async () => {
+    if (!mietvertragId) return;
+    setIsSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-mahnung-pdf', {
+        body: {
+          mietvertragId,
+          mahnstufe: neueMahnstufe,
+          offeneForderungen: forderungen.map(f => ({ sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })),
+          mahngebuehren: 0,
+          verzugszinsen: 0,
+          zusaetzlicheKosten: 0,
+          zahlungsfristTage: 14
+        }
+      });
+      if (error) throw error;
+      setSavedPdfPath(data?.filePath || null);
+      toast({ title: "Gespeichert", description: "Mahnung wurde als Dokument archiviert." });
+    } catch (err: unknown) {
+      toast({
+        title: "Fehler",
+        description: err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Berechne Gesamtbetrag
   const gesamtbetrag = forderungen.reduce((sum, f) => sum + parseFloat(f.sollbetrag || 0), 0);
@@ -177,11 +213,35 @@ export function MahnungVorschauModal({
             </div>
           </div>
 
+          {/* Gespeichert-Indikator */}
+          {savedPdfPath && (
+            <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span className="text-sm text-green-700">Mahnung wurde als Dokument gespeichert.</span>
+            </div>
+          )}
+
           {/* Aktions-Buttons */}
           <div className="flex justify-end space-x-3 pt-4">
             <Button variant="outline" onClick={onClose} disabled={isLoading}>
               Abbrechen
             </Button>
+            {mietvertragId && (
+              <Button
+                variant="outline"
+                onClick={handleSpeichern}
+                disabled={isSaving || isLoading || !!savedPdfPath}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : savedPdfPath ? (
+                  <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {savedPdfPath ? "Gespeichert" : "Nur speichern"}
+              </Button>
+            )}
             <Button 
               onClick={handleSend} 
               variant="destructive"

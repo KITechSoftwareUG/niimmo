@@ -51,16 +51,25 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
     }
   });
 
-  // Lade Mietvertrag-Details
+  // Lade Mietvertrag-Details inkl. Mieter + Immobilie für Mahnung-Versand
   const { data: vertrag, refetch: refetchVertrag } = useQuery({
     queryKey: ['mietvertrag-payment-detail', mietvertragId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('mietvertrag')
-        .select('*')
+        .select(`
+          *,
+          einheiten(
+            id,
+            immobilien(id, name, adresse)
+          ),
+          mietvertrag_mieter(
+            mieter(id, vorname, nachname, hauptmail, telnr)
+          )
+        `)
         .eq('id', mietvertragId)
         .single();
-      
+
       if (error) throw error;
       return data;
     }
@@ -109,41 +118,73 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
 
   const handleSendMahnung = async () => {
     if (!vertrag) return;
-    
     setIsSendingMahnung(true);
     try {
-      const offeneForderungen = forderungen?.filter(f => {
-        const status = getPaymentStatus(f);
-        return !status.paid;
-      });
+      const offeneForderungen = forderungen?.filter(f => !getPaymentStatus(f).paid) || [];
+      const aktuelleMahnstufe = vertrag.mahnstufe || currentMahnstufe;
+      const neueMahnstufe = Math.min(aktuelleMahnstufe + 1, 3);
 
-      const { data, error } = await supabase.functions.invoke('send-mahnung', {
+      // Schritt 1: PDF generieren und als Dokument speichern
+      const { data: pdfData, error: pdfError } = await supabase.functions.invoke('generate-mahnung-pdf', {
         body: {
           mietvertragId,
-          mahnstufe: vertrag.mahnstufe || currentMahnstufe,
-          vertragData: vertrag,
-          forderungen: offeneForderungen
+          mahnstufe: neueMahnstufe,
+          offeneForderungen: offeneForderungen.map(f => ({ sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })),
+          mahngebuehren: 0,
+          verzugszinsen: 0,
+          zusaetzlicheKosten: 0,
+          zahlungsfristTage: 14
         }
       });
+      if (pdfError) throw pdfError;
+      const pdfPath: string | undefined = pdfData?.filePath;
 
-      if (error) throw error;
+      // Schritt 2: E-Mail versenden (mit allen benötigten Parametern)
+      const mieter = (vertrag as any).mietvertrag_mieter?.[0]?.mieter;
+      const immobilie = (vertrag as any).einheiten?.immobilien;
+      const recipientEmail: string | undefined = mieter?.hauptmail;
+
+      if (!recipientEmail) {
+        toast({
+          title: "Dokument gespeichert",
+          description: "Mahnung wurde archiviert, aber keine E-Mail-Adresse gefunden — kein Versand.",
+        });
+        await Promise.all([refetchForderungen(), refetchZahlungen(), refetchVertrag()]);
+        return;
+      }
+
+      const gesamtbetrag = offeneForderungen.reduce((sum, f) => sum + (Number(f.sollbetrag) || 0), 0);
+
+      const { error: sendError } = await supabase.functions.invoke('send-mahnung', {
+        body: {
+          recipientEmail,
+          recipientName: `${mieter.vorname} ${mieter.nachname || ''}`.trim(),
+          mahnstufe: neueMahnstufe,
+          gesamtbetrag,
+          rueckstandBetrag: gesamtbetrag,
+          mahngebuehren: 0,
+          verzugszinsen: 0,
+          zusaetzlicheKosten: 0,
+          zahlungsfristTage: 14,
+          immobilieName: immobilie?.name || '',
+          immobilieAdresse: immobilie?.adresse || '',
+          pdfPath,
+          mietvertragId,
+          forderungen: offeneForderungen.map(f => ({ sollmonat: f.sollmonat, sollbetrag: f.sollbetrag }))
+        }
+      });
+      if (sendError) throw sendError;
 
       toast({
         title: "Mahnung versendet",
-        description: `Mahnung Stufe ${vertrag.mahnstufe || currentMahnstufe} wurde erfolgreich versendet.`,
+        description: `Mahnung Stufe ${neueMahnstufe} wurde gespeichert und an ${recipientEmail} versendet.`,
       });
 
-      // Refresh data
-      await Promise.all([
-        refetchForderungen(),
-        refetchZahlungen(),
-        refetchVertrag()
-      ]);
-
-    } catch (error) {
+      await Promise.all([refetchForderungen(), refetchZahlungen(), refetchVertrag()]);
+    } catch (error: unknown) {
       toast({
         title: "Fehler",
-        description: "Mahnung konnte nicht versendet werden.",
+        description: error instanceof Error ? error.message : "Mahnung konnte nicht versendet werden.",
         variant: "destructive",
       });
     } finally {
@@ -367,11 +408,12 @@ export const PaymentHistory = ({ mietvertragId, currentMahnstufe = 0 }: PaymentH
         isOpen={showMahnungModal}
         onClose={() => setShowMahnungModal(false)}
         onConfirm={handleSendMahnung}
+        mietvertragId={mietvertragId}
         vertragData={vertrag}
-        mieterData={[]} // TODO: Mieter-Daten laden
+        mieterData={(vertrag as any)?.mietvertrag_mieter || []}
         forderungen={forderungen?.filter(f => !getPaymentStatus(f).paid) || []}
         currentMahnstufe={currentMahnstufeFromDB}
-        immobilieData={null} // TODO: Immobilien-Daten laden
+        immobilieData={(vertrag as any)?.einheiten?.immobilien || null}
         isLoading={isSendingMahnung}
       />
     </Card>
