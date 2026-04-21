@@ -3,6 +3,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { calculateMietvertragRueckstand, calculateMieteZahlungen } from "@/utils/rueckstandsberechnung";
 import { useEffect } from "react";
 
+// Lädt alle Seiten einer Supabase-Query (umgeht das serverseitige 1000-Zeilen-Limit)
+async function loadAllPages<T>(
+  queryFn: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>
+): Promise<T[]> {
+  const PAGE_SIZE = 1000;
+  const result: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await queryFn(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    result.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return result;
+}
+
 export interface FehlendeMietzahlung {
   mietvertrag_id: string;
   fehlend_betrag: number;
@@ -96,21 +114,17 @@ export const useRueckstaende = () => {
     staleTime: 60 * 1000,
     refetchOnMount: true,
     queryFn: async () => {
-      // Lade alle notwendigen Daten parallel
-      // WICHTIG: .range(0, 9999) verhindert das Supabase-Default-Limit von 1000 Zeilen,
-      // das bei >1000 Zahlungen/Forderungen falsche Rückstände verursacht.
+      // Kleine Tabellen (<1000 Zeilen) normal laden, große mit Pagination
       const [
         { data: mietvertraege, error: mietvertrageError },
         { data: einheiten, error: einheitenError },
         { data: immobilien, error: immobilienError },
         { data: mietvertragMieter, error: mmError },
         { data: dokumente, error: dokumenteError },
-        { data: alleForderungen, error: forderungenError },
-        { data: alleZahlungen, error: zahlungenError }
       ] = await Promise.all([
-        supabase.from('mietvertrag').select('*').range(0, 9999),
-        supabase.from('einheiten').select('*').range(0, 9999),
-        supabase.from('immobilien').select('*').range(0, 9999),
+        supabase.from('mietvertrag').select('*'),
+        supabase.from('einheiten').select('*'),
+        supabase.from('immobilien').select('*'),
         supabase.from('mietvertrag_mieter').select(`
           mietvertrag_id,
           mieter_id,
@@ -121,20 +135,31 @@ export const useRueckstaende = () => {
             hauptmail,
             telnr
           )
-        `).range(0, 9999),
-        supabase.from('dokumente').select('*').range(0, 9999),
-        supabase.from('mietforderungen').select('id, mietvertrag_id, sollmonat, sollbetrag, ist_faellig, faelligkeitsdatum, faellig_seit').range(0, 9999),
-        supabase.from('zahlungen').select('id, mietvertrag_id, betrag, buchungsdatum, kategorie, zugeordneter_monat, ruecklastschrift_gebuehr').range(0, 9999)
+        `),
+        supabase.from('dokumente').select('*'),
       ]);
 
-      // Error handling
       if (mietvertrageError) throw mietvertrageError;
       if (einheitenError) throw einheitenError;
       if (immobilienError) throw immobilienError;
       if (mmError) throw mmError;
       if (dokumenteError) throw dokumenteError;
-      if (forderungenError) throw forderungenError;
-      if (zahlungenError) throw zahlungenError;
+
+      // Große Tabellen mit Pagination laden (umgeht serverseitiges 1000-Zeilen-Limit)
+      const [alleForderungen, alleZahlungen] = await Promise.all([
+        loadAllPages<any>((from, to) =>
+          supabase
+            .from('mietforderungen')
+            .select('id, mietvertrag_id, sollmonat, sollbetrag, ist_faellig, faelligkeitsdatum, faellig_seit')
+            .range(from, to)
+        ),
+        loadAllPages<any>((from, to) =>
+          supabase
+            .from('zahlungen')
+            .select('id, mietvertrag_id, betrag, buchungsdatum, kategorie, zugeordneter_monat, ruecklastschrift_gebuehr')
+            .range(from, to)
+        ),
+      ]);
 
       const rueckstaende: FehlendeMietzahlung[] = [];
 
