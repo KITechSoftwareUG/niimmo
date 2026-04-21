@@ -97,6 +97,8 @@ export const useRueckstaende = () => {
     refetchOnMount: true,
     queryFn: async () => {
       // Lade alle notwendigen Daten parallel
+      // WICHTIG: .range(0, 9999) verhindert das Supabase-Default-Limit von 1000 Zeilen,
+      // das bei >1000 Zahlungen/Forderungen falsche Rückstände verursacht.
       const [
         { data: mietvertraege, error: mietvertrageError },
         { data: einheiten, error: einheitenError },
@@ -106,9 +108,9 @@ export const useRueckstaende = () => {
         { data: alleForderungen, error: forderungenError },
         { data: alleZahlungen, error: zahlungenError }
       ] = await Promise.all([
-        supabase.from('mietvertrag').select('*'),
-        supabase.from('einheiten').select('*'),
-        supabase.from('immobilien').select('*'),
+        supabase.from('mietvertrag').select('*').range(0, 9999),
+        supabase.from('einheiten').select('*').range(0, 9999),
+        supabase.from('immobilien').select('*').range(0, 9999),
         supabase.from('mietvertrag_mieter').select(`
           mietvertrag_id,
           mieter_id,
@@ -119,10 +121,10 @@ export const useRueckstaende = () => {
             hauptmail,
             telnr
           )
-        `),
-        supabase.from('dokumente').select('*'),
-        supabase.from('mietforderungen').select('*, ist_faellig, faelligkeitsdatum, faellig_seit'),
-        supabase.from('zahlungen').select('*')
+        `).range(0, 9999),
+        supabase.from('dokumente').select('*').range(0, 9999),
+        supabase.from('mietforderungen').select('id, mietvertrag_id, sollmonat, sollbetrag, ist_faellig, faelligkeitsdatum, faellig_seit').range(0, 9999),
+        supabase.from('zahlungen').select('id, mietvertrag_id, betrag, buchungsdatum, kategorie, zugeordneter_monat, ruecklastschrift_gebuehr').range(0, 9999)
       ]);
 
       // Error handling
