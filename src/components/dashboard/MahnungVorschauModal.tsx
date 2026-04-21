@@ -2,9 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Send, AlertTriangle, Euro, Calendar, User, Building2, Save, Loader2, CheckCircle } from "lucide-react";
+import { Send, AlertTriangle, Euro, Calendar, User, Building2, Save, Loader2, CheckCircle, Mail } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -12,66 +10,33 @@ import { useToast } from "@/hooks/use-toast";
 interface MahnungVorschauModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onSend: (pdfPath: string) => void;
   mietvertragId?: string;
   vertragData?: any;
   mieterData?: any;
   forderungen?: any[];
   currentMahnstufe: number;
   immobilieData?: any;
-  isLoading?: boolean;
+  isSending?: boolean;
 }
 
 export function MahnungVorschauModal({
   isOpen,
   onClose,
-  onConfirm,
+  onSend,
   mietvertragId,
   vertragData,
   mieterData,
   forderungen = [],
   currentMahnstufe,
   immobilieData,
-  isLoading = false
+  isSending = false,
 }: MahnungVorschauModalProps) {
-  const [webhookUrl, setWebhookUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [savedPdfPath, setSavedPdfPath] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleSpeichern = async () => {
-    if (!mietvertragId) return;
-    setIsSaving(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-mahnung-pdf', {
-        body: {
-          mietvertragId,
-          mahnstufe: neueMahnstufe,
-          offeneForderungen: forderungen.map(f => ({ sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })),
-          mahngebuehren: 0,
-          verzugszinsen: 0,
-          zusaetzlicheKosten: 0,
-          zahlungsfristTage: 14
-        }
-      });
-      if (error) throw error;
-      setSavedPdfPath(data?.filePath || null);
-      toast({ title: "Gespeichert", description: "Mahnung wurde als Dokument archiviert." });
-    } catch (err: unknown) {
-      toast({
-        title: "Fehler",
-        description: err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Berechne Gesamtbetrag
   const gesamtbetrag = forderungen.reduce((sum, f) => sum + parseFloat(f.sollbetrag || 0), 0);
-
-  // Bestimme neue Mahnstufe
   const neueMahnstufe = Math.min(currentMahnstufe + 1, 3);
 
   const getMahnstufeText = (stufe: number) => {
@@ -92,43 +57,85 @@ export function MahnungVorschauModal({
     }
   };
 
-  const handleSend = () => {
-    // Hier später N8N Webhook Integration
-    if (webhookUrl) {
-      // TODO: N8N Webhook Call implementieren
+  const handleSpeichern = async () => {
+    if (!mietvertragId) return;
+    setIsSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-mahnung-pdf', {
+        body: {
+          mietvertragId,
+          mahnstufe: neueMahnstufe,
+          offeneForderungen: forderungen.map(f => ({ sollmonat: f.sollmonat, sollbetrag: f.sollbetrag })),
+          mahngebuehren: 0,
+          verzugszinsen: 0,
+          zusaetzlicheKosten: 0,
+          zahlungsfristTage: 14
+        }
+      });
+      if (error) throw error;
+      const path: string = data?.filePath || '';
+      setSavedPdfPath(path);
+      toast({ title: "Mahnung gespeichert", description: "Das Dokument wurde archiviert. Jetzt per E-Mail versenden?" });
+    } catch (err: unknown) {
+      toast({
+        title: "Fehler beim Speichern",
+        description: err instanceof Error ? err.message : "Speichern fehlgeschlagen.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
     }
-    
-    onConfirm();
+  };
+
+  const handleClose = () => {
+    setSavedPdfPath(null);
+    onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <Send className="h-5 w-5 text-destructive" />
-            <span>Mahnung verschicken</span>
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <span>Mahnung vorbereiten</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Mahnstufe Info */}
+        <div className="space-y-5">
+          {/* Schritt-Indikator */}
+          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg text-sm">
+            <div className={`flex items-center gap-1.5 font-medium ${savedPdfPath ? 'text-green-600' : 'text-foreground'}`}>
+              {savedPdfPath
+                ? <CheckCircle className="h-4 w-4" />
+                : <span className="h-5 w-5 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">1</span>
+              }
+              Speichern
+            </div>
+            <div className="h-px flex-1 bg-border" />
+            <div className={`flex items-center gap-1.5 font-medium ${savedPdfPath ? 'text-foreground' : 'text-muted-foreground'}`}>
+              <span className="h-5 w-5 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold">2</span>
+              Per E-Mail senden
+            </div>
+          </div>
+
+          {/* Mahnstufe */}
           <div className="text-center">
-            <Badge className={`text-lg px-4 py-2 ${getMahnstufeColor(neueMahnstufe)}`}>
+            <Badge className={`text-base px-4 py-1.5 ${getMahnstufeColor(neueMahnstufe)}`}>
               {getMahnstufeText(neueMahnstufe)}
             </Badge>
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-sm text-muted-foreground mt-1">
               Aktuelle Stufe: {currentMahnstufe} → Neue Stufe: {neueMahnstufe}
             </p>
           </div>
 
           <Separator />
 
-          {/* Mieter-Informationen */}
-          <div className="space-y-3">
+          {/* Mieter */}
+          <div className="space-y-2">
             <div className="flex items-center space-x-2">
               <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-semibold">Mieter-Informationen</span>
+              <span className="font-semibold text-sm">Mieter</span>
             </div>
             {mieterData && mieterData.length > 0 && (
               <div className="bg-muted/30 p-3 rounded-lg">
@@ -141,11 +148,11 @@ export function MahnungVorschauModal({
             )}
           </div>
 
-          {/* Immobilien-Informationen */}
-          <div className="space-y-3">
+          {/* Immobilie */}
+          <div className="space-y-2">
             <div className="flex items-center space-x-2">
               <Building2 className="h-4 w-4 text-muted-foreground" />
-              <span className="font-semibold">Immobilie</span>
+              <span className="font-semibold text-sm">Immobilie</span>
             </div>
             {immobilieData && (
               <div className="bg-muted/30 p-3 rounded-lg">
@@ -156,110 +163,96 @@ export function MahnungVorschauModal({
           </div>
 
           {/* Offene Forderungen */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Euro className="h-4 w-4 text-muted-foreground" />
-                <span className="font-semibold">Offene Forderungen</span>
+                <span className="font-semibold text-sm">Offene Forderungen</span>
               </div>
-              <Badge variant="destructive" className="text-lg px-3 py-1">
-                {gesamtbetrag.toFixed(2)}€
+              <Badge variant="destructive" className="text-sm px-3 py-0.5">
+                {gesamtbetrag.toFixed(2)} €
               </Badge>
             </div>
-            <div className="bg-muted/30 p-3 rounded-lg space-y-2">
+            <div className="bg-muted/30 p-3 rounded-lg space-y-1.5">
               {forderungen.map((forderung) => (
                 <div key={forderung.id} className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-3 w-3 text-muted-foreground" />
                     <span className="text-sm">
-                      {new Date(forderung.sollmonat).toLocaleDateString('de-DE', { 
-                        month: 'long', 
-                        year: 'numeric' 
+                      {new Date(forderung.sollmonat).toLocaleDateString('de-DE', {
+                        month: 'long',
+                        year: 'numeric'
                       })}
                     </span>
                   </div>
                   <span className="text-sm font-medium text-destructive">
-                    {parseFloat(forderung.sollbetrag).toFixed(2)}€
+                    {parseFloat(forderung.sollbetrag).toFixed(2)} €
                   </span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* N8N Webhook (Optional) */}
-          <div className="space-y-3">
-            <Label htmlFor="webhook">N8N Webhook URL (optional)</Label>
-            <Input
-              id="webhook"
-              placeholder="https://your-n8n-instance.com/webhook/..."
-              value={webhookUrl}
-              onChange={(e) => setWebhookUrl(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Optional: URL für N8N Webhook Integration
-            </p>
-          </div>
-
           <Separator />
 
-          {/* Warnung */}
-          <div className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-yellow-800">Achtung</p>
-              <p className="text-xs text-yellow-700">
-                Nach dem Versenden wird die Mahnstufe automatisch auf {neueMahnstufe} erhöht und das Datum der letzten Mahnung gespeichert.
-              </p>
+          {/* Status-Bereich */}
+          {savedPdfPath ? (
+            <div className="flex items-center space-x-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-green-800">Mahnung wurde gespeichert</p>
+                <p className="text-xs text-green-700">Das Dokument ist im Archiv. Jetzt per E-Mail versenden.</p>
+              </div>
             </div>
-          </div>
-
-          {/* Gespeichert-Indikator */}
-          {savedPdfPath && (
-            <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-green-700">Mahnung wurde als Dokument gespeichert.</span>
+          ) : (
+            <div className="flex items-start space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-yellow-700">
+                Bitte zuerst speichern — danach kannst du die Mahnung per E-Mail versenden und die Mahnstufe wird auf {neueMahnstufe} erhöht.
+              </p>
             </div>
           )}
 
           {/* Aktions-Buttons */}
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="outline" onClick={onClose} disabled={isLoading}>
-              Abbrechen
+          <div className="flex justify-end space-x-3 pt-2">
+            <Button variant="outline" onClick={handleClose} disabled={isSaving || isSending}>
+              {savedPdfPath ? "Schließen" : "Abbrechen"}
             </Button>
-            {mietvertragId && (
-              <Button
-                variant="outline"
-                onClick={handleSpeichern}
-                disabled={isSaving || isLoading || !!savedPdfPath}
-              >
+
+            {!savedPdfPath ? (
+              <Button onClick={handleSpeichern} disabled={isSaving || !mietvertragId}>
                 {isSaving ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : savedPdfPath ? (
-                  <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Speichert...
+                  </>
                 ) : (
-                  <Save className="h-4 w-4 mr-2" />
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Mahnung speichern
+                  </>
                 )}
-                {savedPdfPath ? "Gespeichert" : "Nur speichern"}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => onSend(savedPdfPath)}
+                variant="destructive"
+                disabled={isSending}
+                className="min-w-[150px]"
+              >
+                {isSending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Wird gesendet...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Per E-Mail senden
+                  </>
+                )}
               </Button>
             )}
-            <Button 
-              onClick={handleSend} 
-              variant="destructive"
-              disabled={isLoading}
-              className="min-w-[120px]"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                  Sende...
-                </>
-              ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Mahnung senden
-                </>
-              )}
-            </Button>
           </div>
         </div>
       </DialogContent>
