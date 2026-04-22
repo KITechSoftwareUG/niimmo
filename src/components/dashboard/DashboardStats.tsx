@@ -57,12 +57,13 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
       const { data: zahlungen, error } = await supabase
         .from('zahlungen')
         .select('betrag')
-        .eq('kategorie', 'Miete')
+        .in('kategorie', ['Miete', 'Rücklastschrift'])
         .eq('zugeordneter_monat', aktuellerMonat)
         .not('mietvertrag_id', 'is', null);
       if (error) {
         return 0;
       }
+      // Rücklastschriften haben negativen betrag → reduzieren die Erfasste Miete automatisch
       return zahlungen?.reduce((sum, zahlung) => sum + (zahlung.betrag || 0), 0) || 0;
     }
   });
