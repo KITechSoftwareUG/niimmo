@@ -16,7 +16,6 @@ import {
   ArrowRightLeft, 
   AlertCircle,
   Split,
-  Undo2,
   Eye,
   EyeOff,
   FileText,
@@ -27,7 +26,6 @@ import {
   ChevronRight
 } from "lucide-react";
 import { PaymentSplitModal } from "../PaymentSplitModal";
-import { PaymentUndoSplitModal } from "../PaymentUndoSplitModal";
 
 
 interface MietvertragTimelineViewProps {
@@ -59,7 +57,8 @@ export function MietvertragTimelineView({
   const [editForderungValue, setEditForderungValue] = useState<string>("");
   const [draggedPayment, setDraggedPayment] = useState<string | null>(null);
   const [splittingPayment, setSplittingPayment] = useState<any | null>(null);
-  const [undoingSplitPayments, setUndoingSplitPayments] = useState<any[] | null>(null);
+  const [splitEditMode, setSplitEditMode] = useState(false);
+  const [splitEditPayments, setSplitEditPayments] = useState<any[]>([]);
   const [showIgnoredPayments, setShowIgnoredPayments] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
@@ -325,6 +324,16 @@ export function MietvertragTimelineView({
     return Array.from(years).sort().reverse();
   }, [allSortedMonths]);
 
+  const availableMonthsForSplit = useMemo(() => {
+    const months = new Set<string>();
+    forderungen?.forEach(f => { if (f.sollmonat) months.add(f.sollmonat.slice(0, 7)); });
+    zahlungen.forEach(z => {
+      if (z.zugeordneter_monat) months.add(z.zugeordneter_monat.slice(0, 7));
+      if (z.buchungsdatum) months.add(z.buchungsdatum.slice(0, 7));
+    });
+    return Array.from(months).sort().reverse();
+  }, [forderungen, zahlungen]);
+
   // Filter months by selected year (or show all if no year selected)
   const sortedMonths = useMemo(() => {
     if (selectedYear === null) return allSortedMonths;
@@ -516,7 +525,7 @@ export function MietvertragTimelineView({
               </Button>
               {!isSplitPayment(zahlung) ? (
                 <Button
-                  onClick={() => setSplittingPayment(zahlung)}
+                  onClick={() => { setSplitEditMode(false); setSplitEditPayments([]); setSplittingPayment(zahlung); }}
                   size="sm"
                   variant="ghost"
                   className="h-5 w-5 sm:h-6 sm:w-6 p-0 opacity-60 hover:opacity-100 text-blue-600 hover:text-blue-800"
@@ -526,13 +535,18 @@ export function MietvertragTimelineView({
                 </Button>
               ) : (
                 <Button
-                  onClick={() => setUndoingSplitPayments(getSplitGroupPayments(zahlung))}
+                  onClick={() => {
+                    const groupPayments = getSplitGroupPayments(zahlung);
+                    setSplitEditMode(true);
+                    setSplitEditPayments(groupPayments);
+                    setSplittingPayment(zahlung);
+                  }}
                   size="sm"
                   variant="ghost"
                   className="h-5 w-5 sm:h-6 sm:w-6 p-0 opacity-60 hover:opacity-100 text-amber-600 hover:text-amber-800"
-                  title="Aufteilung rückgängig machen"
+                  title="Aufteilung bearbeiten"
                 >
-                  <Undo2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                  <Split className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                 </Button>
               )}
             </div>
@@ -821,22 +835,15 @@ export function MietvertragTimelineView({
         })}
       </div>
       
-      {/* Payment Split Modal */}
       <PaymentSplitModal
         isOpen={!!splittingPayment}
-        onClose={() => setSplittingPayment(null)}
+        onClose={() => { setSplittingPayment(null); setSplitEditMode(false); setSplitEditPayments([]); }}
         payment={splittingPayment}
         vertragId={vertragId}
         formatBetrag={formatBetrag}
-      />
-
-      {/* Payment Undo Split Modal */}
-      <PaymentUndoSplitModal
-        isOpen={!!undoingSplitPayments}
-        onClose={() => setUndoingSplitPayments(null)}
-        splitPayments={undoingSplitPayments || []}
-        vertragId={vertragId}
-        formatBetrag={formatBetrag}
+        availableMonths={availableMonthsForSplit}
+        editMode={splitEditMode}
+        existingSplitPayments={splitEditPayments}
       />
     </div>
   );
