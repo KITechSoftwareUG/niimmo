@@ -301,7 +301,7 @@ export function PaymentSplitModal({
                 <Button onClick={resetSplits} variant="outline" size="sm">
                   Zurücksetzen
                 </Button>
-                <Button onClick={addSplit} size="sm" disabled={splits.length >= 5}>
+                <Button onClick={addSplit} size="sm" disabled={splits.length >= 20}>
                   <Plus className="h-4 w-4 mr-2" />
                   Weitere Teilung
                 </Button>
