@@ -96,7 +96,13 @@ export const DashboardStats = ({ immobilien, onNavigateToContract }: DashboardSt
 
   const aktiveMietvertraege = mietvertraege?.filter(mv => mv.status === 'aktiv') || [];
   const gekuendigteMietvertraege = mietvertraege?.filter(mv => mv.status === 'gekuendigt') || [];
-  const relevanteVertraege = [...aktiveMietvertraege, ...gekuendigteMietvertraege];
+  // Nur Verträge die bereits begonnen haben (start_datum <= heute)
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+  const relevanteVertraege = [...aktiveMietvertraege, ...gekuendigteMietvertraege].filter(v => {
+    if (!v.start_datum) return true;
+    return new Date(v.start_datum + 'T00:00:00') <= heute;
+  });
   
   const gesamtKaltmiete = relevanteVertraege.reduce((sum, v) => sum + (v.kaltmiete || 0), 0);
   const gesamtBetriebskosten = relevanteVertraege.reduce((sum, v) => sum + (v.betriebskosten || 0), 0);
