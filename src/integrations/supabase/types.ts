@@ -50,6 +50,84 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_logs: {
+        Row: {
+          content: string | null
+          created_at: string
+          direction: string | null
+          duration_ms: number | null
+          error_message: string | null
+          estimated_cost_usd: number | null
+          event_type: string
+          id: string
+          is_error: boolean | null
+          message_id: string | null
+          model: string | null
+          provider: string | null
+          raw_event: Json | null
+          session_id: string | null
+          telegram_user_id: string | null
+          telegram_user_name: string | null
+          tokens_cache_read: number | null
+          tokens_in: number | null
+          tokens_out: number | null
+          tool_input: Json | null
+          tool_name: string | null
+          tool_output_preview: string | null
+          user_role: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          direction?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          estimated_cost_usd?: number | null
+          event_type: string
+          id?: string
+          is_error?: boolean | null
+          message_id?: string | null
+          model?: string | null
+          provider?: string | null
+          raw_event?: Json | null
+          session_id?: string | null
+          telegram_user_id?: string | null
+          telegram_user_name?: string | null
+          tokens_cache_read?: number | null
+          tokens_in?: number | null
+          tokens_out?: number | null
+          tool_input?: Json | null
+          tool_name?: string | null
+          tool_output_preview?: string | null
+          user_role?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          direction?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          estimated_cost_usd?: number | null
+          event_type?: string
+          id?: string
+          is_error?: boolean | null
+          message_id?: string | null
+          model?: string | null
+          provider?: string | null
+          raw_event?: Json | null
+          session_id?: string | null
+          telegram_user_id?: string | null
+          telegram_user_name?: string | null
+          tokens_cache_read?: number | null
+          tokens_in?: number | null
+          tokens_out?: number | null
+          tool_input?: Json | null
+          tool_name?: string | null
+          tool_output_preview?: string | null
+          user_role?: string | null
+        }
+        Relationships: []
+      }
       angespannte_maerkte: {
         Row: {
           bundesland: string
@@ -1876,3 +1954,4 @@ export const Constants = {
     },
   },
 } as const
+
