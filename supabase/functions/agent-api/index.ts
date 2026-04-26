@@ -316,6 +316,128 @@ const TOOLS = [
       },
     },
   },
+  // ── Write: Zahlung Vertrag zuordnen ──
+  {
+    type: 'function',
+    function: {
+      name: 'assign_payment_to_contract',
+      description: 'Ordnet eine Bankzahlung einem Mietvertrag zu (setzt mietvertrag_id). Zahlung-ID aus get_payment_history holen.',
+      parameters: {
+        type: 'object',
+        properties: {
+          zahlung_id: { type: 'string', description: 'UUID der Zahlung' },
+          mieter_name: { type: 'string', description: 'Name des Mieters dessen Vertrag zugeordnet werden soll' },
+        },
+        required: ['zahlung_id', 'mieter_name'],
+      },
+    },
+  },
+  // ── Write: Neuen Mieter anlegen ──
+  {
+    type: 'function',
+    function: {
+      name: 'create_mieter',
+      description: 'Legt einen neuen Mieter in der Datenbank an',
+      parameters: {
+        type: 'object',
+        properties: {
+          vorname: { type: 'string' },
+          nachname: { type: 'string' },
+          hauptmail: { type: 'string', description: 'E-Mail-Adresse' },
+          telnr: { type: 'string', description: 'Telefonnummer' },
+          geburtsdatum: { type: 'string', description: 'YYYY-MM-DD' },
+        },
+        required: ['vorname', 'nachname'],
+      },
+    },
+  },
+  // ── Write: Neuen Mietvertrag anlegen ──
+  {
+    type: 'function',
+    function: {
+      name: 'create_mietvertrag',
+      description: 'Legt einen neuen Mietvertrag für einen bestehenden Mieter und eine freie Einheit an',
+      parameters: {
+        type: 'object',
+        properties: {
+          mieter_name: { type: 'string', description: 'Name des Mieters (muss bereits existieren, sonst create_mieter aufrufen)' },
+          immobilie_name: { type: 'string', description: 'Name der Immobilie' },
+          einheit_beschreibung: { type: 'string', description: 'Etage/Typ der Einheit z.B. "EG", "1.OG", "links"' },
+          kaltmiete: { type: 'number' },
+          betriebskosten: { type: 'number' },
+          start_datum: { type: 'string', description: 'YYYY-MM-DD' },
+          kaution_betrag: { type: 'number', description: 'Kautionsbetrag in Euro' },
+        },
+        required: ['mieter_name', 'immobilie_name', 'kaltmiete', 'betriebskosten', 'start_datum'],
+      },
+    },
+  },
+  // ── Write: Mietvertrag kündigen ──
+  {
+    type: 'function',
+    function: {
+      name: 'terminate_contract',
+      description: 'Kündigt einen aktiven Mietvertrag (setzt Kündigungsdatum + Status auf gekuendigt)',
+      parameters: {
+        type: 'object',
+        properties: {
+          mieter_name: { type: 'string' },
+          kuendigungsdatum: { type: 'string', description: 'YYYY-MM-DD — Datum des Kündigungsschreibens' },
+          ende_datum: { type: 'string', description: 'YYYY-MM-DD — geplantes Auszugsdatum' },
+        },
+        required: ['mieter_name', 'kuendigungsdatum'],
+      },
+    },
+  },
+  // ── Write: Mieter-Kontakt aktualisieren ──
+  {
+    type: 'function',
+    function: {
+      name: 'update_mieter',
+      description: 'Kontaktdaten eines Mieters aktualisieren (E-Mail, Telefon)',
+      parameters: {
+        type: 'object',
+        properties: {
+          mieter_name: { type: 'string' },
+          hauptmail: { type: 'string', description: 'Neue E-Mail-Adresse' },
+          telnr: { type: 'string', description: 'Neue Telefonnummer' },
+        },
+        required: ['mieter_name'],
+      },
+    },
+  },
+  // ── Write: Miete anpassen ──
+  {
+    type: 'function',
+    function: {
+      name: 'update_vertrag_miete',
+      description: 'Kaltmiete und/oder Betriebskosten eines aktiven Vertrags anpassen (z.B. nach Mieterhöhung)',
+      parameters: {
+        type: 'object',
+        properties: {
+          mieter_name: { type: 'string' },
+          neue_kaltmiete: { type: 'number', description: 'Neue Kaltmiete in Euro' },
+          neue_betriebskosten: { type: 'number', description: 'Neue Betriebskosten in Euro' },
+        },
+        required: ['mieter_name'],
+      },
+    },
+  },
+  // ── Read: Mieterhöhungs-Berechtigung prüfen ──
+  {
+    type: 'function',
+    function: {
+      name: 'get_rent_increase_eligibility',
+      description: 'Prüft ob eine Mieterhöhung möglich ist: Sperrfrist (15 Monate), Kappungsgrenze (15%/20%), aktueller VPI und Basiszinssatz',
+      parameters: {
+        type: 'object',
+        properties: {
+          mieter_name: { type: 'string' },
+        },
+        required: ['mieter_name'],
+      },
+    },
+  },
 ]
 
 // ─── Tool Execution ───────────────────────────────────────────────────────────
@@ -621,15 +743,13 @@ async function executeTool(
       const sql = String(args.sql).trim()
       if (!/^select\s/i.test(sql)) return { error: 'Nur SELECT-Abfragen erlaubt' }
       const limited = /\blimit\s+\d+/i.test(sql) ? sql : `${sql} LIMIT 50`
-      const { data, error } = await supabase.rpc('execute_agent_query', { query_sql: limited }).single()
-        .catch(() => ({ data: null, error: { message: 'RPC nicht verfügbar' } }))
-      if (error || !data) {
-        // Fallback: direkt via REST wenn RPC nicht vorhanden
-        const { data: rows, error: e2 } = await (supabase as SupabaseClient & { from: (t: string) => unknown }).from('_agent_query_placeholder') as unknown as { data: unknown; error: { message: string } | null }
-        void rows; void e2
+      try {
+        const { data, error } = await supabase.rpc('execute_agent_query', { query_sql: limited }).single()
+        if (error) return { error: 'Direkte SQL-Abfragen nicht verfügbar – nutze spezifische Tools' }
+        return data
+      } catch {
         return { error: 'Direkte SQL-Abfragen nicht verfügbar – nutze spezifische Tools' }
       }
-      return data
     }
 
     case 'upload_document': {
@@ -717,6 +837,177 @@ async function executeTool(
         .update({ kategorie: args.kategorie }).eq('id', String(args.zahlung_id))
       if (error) return { error: error.message }
       return { success: true, message: `Zahlung ${args.zahlung_id} als "${args.kategorie}" kategorisiert` }
+    }
+
+    case 'assign_payment_to_contract': {
+      const list = await findMieter(String(args.mieter_name))
+      if (!list.length) return { error: `Mieter "${args.mieter_name}" nicht gefunden` }
+      const v = await getAktiverVertrag((list[0] as { id: string }).id)
+      if (!v) return { error: 'Kein aktiver Vertrag gefunden' }
+      const { error } = await supabase.from('zahlungen')
+        .update({ mietvertrag_id: v.id })
+        .eq('id', String(args.zahlung_id))
+      if (error) return { error: error.message }
+      const m = list[0] as { vorname: string; nachname: string }
+      return { success: true, message: `Zahlung ${args.zahlung_id} wurde Vertrag von ${m.vorname} ${m.nachname} zugeordnet` }
+    }
+
+    case 'create_mieter': {
+      const { data, error } = await supabase.from('mieter').insert({
+        vorname: String(args.vorname),
+        nachname: String(args.nachname),
+        hauptmail: args.hauptmail ? String(args.hauptmail) : null,
+        telnr: args.telnr ? String(args.telnr) : null,
+        geburtsdatum: args.geburtsdatum ? String(args.geburtsdatum) : null,
+      }).select('id, vorname, nachname').single()
+      if (error) return { error: error.message }
+      return { success: true, message: `Mieter ${args.vorname} ${args.nachname} angelegt`, mieter: data }
+    }
+
+    case 'create_mietvertrag': {
+      const list = await findMieter(String(args.mieter_name))
+      if (!list.length) return { error: `Mieter "${args.mieter_name}" nicht gefunden — zuerst create_mieter aufrufen` }
+      const m = list[0] as { id: string; vorname: string; nachname: string }
+
+      const { data: immos } = await supabase.from('immobilien').select('id, name')
+        .ilike('name', `%${String(args.immobilie_name)}%`).limit(3)
+      if (!immos?.length) return { error: `Immobilie "${args.immobilie_name}" nicht gefunden` }
+      const immo = immos[0] as { id: string; name: string }
+
+      let einheitQuery = supabase.from('einheiten').select('id, etage, einheitentyp, qm').eq('immobilie_id', immo.id)
+      if (args.einheit_beschreibung) {
+        einheitQuery = einheitQuery.ilike('etage', `%${String(args.einheit_beschreibung)}%`)
+      }
+      const { data: einheiten } = await einheitQuery.limit(10)
+
+      const { data: belegtData } = await supabase.from('mietvertrag').select('einheit_id').in('status', ['aktiv', 'gekuendigt'])
+      const besetzt = new Set(belegtData?.map((v: { einheit_id: string }) => v.einheit_id) ?? [])
+      const freieEinheiten = (einheiten ?? []).filter((e: { id: string }) => !besetzt.has(e.id))
+
+      if (!freieEinheiten.length) {
+        if (einheiten?.length) return { error: `Alle passenden Einheiten in ${immo.name} sind belegt. Freie Einheiten: get_vacant_units aufrufen.` }
+        return { error: `Keine Einheit "${args.einheit_beschreibung}" in "${immo.name}" gefunden` }
+      }
+      const einheit = freieEinheiten[0] as { id: string; etage: string; einheitentyp: string }
+
+      const { data: vertrag, error: vErr } = await supabase.from('mietvertrag').insert({
+        einheit_id: einheit.id,
+        kaltmiete: Number(args.kaltmiete),
+        betriebskosten: Number(args.betriebskosten),
+        start_datum: String(args.start_datum),
+        status: 'aktiv',
+        kaution_betrag: args.kaution_betrag ? Number(args.kaution_betrag) : null,
+        kaution_status: args.kaution_betrag ? 'ausstehend' : null,
+      }).select('id').single()
+      if (vErr || !vertrag) return { error: `Vertrag konnte nicht erstellt werden: ${vErr?.message}` }
+
+      const { error: linkErr } = await supabase.from('mietvertrag_mieter').insert({
+        mietvertrag_id: (vertrag as { id: string }).id,
+        mieter_id: m.id,
+      })
+      if (linkErr) return { error: `Mieter-Verknüpfung fehlgeschlagen: ${linkErr.message}` }
+
+      return {
+        success: true,
+        message: `Mietvertrag für ${m.vorname} ${m.nachname} in ${immo.name} (${einheit.etage}, ${einheit.einheitentyp}) ab ${args.start_datum} angelegt. Kaltmiete: ${args.kaltmiete}€, BK: ${args.betriebskosten}€${args.kaution_betrag ? `, Kaution: ${args.kaution_betrag}€` : ''}`,
+        vertrag_id: (vertrag as { id: string }).id,
+      }
+    }
+
+    case 'terminate_contract': {
+      const list = await findMieter(String(args.mieter_name))
+      if (!list.length) return { error: `Mieter "${args.mieter_name}" nicht gefunden` }
+      const v = await getAktiverVertrag((list[0] as { id: string }).id)
+      if (!v) return { error: 'Kein aktiver Vertrag gefunden' }
+      const update: Record<string, unknown> = {
+        kuendigungsdatum: String(args.kuendigungsdatum),
+        status: 'gekuendigt',
+      }
+      if (args.ende_datum) update.ende_datum = String(args.ende_datum)
+      const { error } = await supabase.from('mietvertrag').update(update).eq('id', v.id)
+      if (error) return { error: error.message }
+      const m = list[0] as { vorname: string; nachname: string }
+      return {
+        success: true,
+        message: `Vertrag von ${m.vorname} ${m.nachname} gekündigt (Datum: ${args.kuendigungsdatum}${args.ende_datum ? `, Ende: ${args.ende_datum}` : ''})`,
+      }
+    }
+
+    case 'update_mieter': {
+      const list = await findMieter(String(args.mieter_name))
+      if (!list.length) return { error: `Mieter "${args.mieter_name}" nicht gefunden` }
+      const update: Record<string, unknown> = {}
+      if (args.hauptmail) update.hauptmail = String(args.hauptmail)
+      if (args.telnr) update.telnr = String(args.telnr)
+      if (!Object.keys(update).length) return { error: 'Keine Felder zum Aktualisieren angegeben (hauptmail oder telnr)' }
+      const { error } = await supabase.from('mieter').update(update).eq('id', (list[0] as { id: string }).id)
+      if (error) return { error: error.message }
+      const m = list[0] as { vorname: string; nachname: string }
+      return { success: true, message: `Kontaktdaten von ${m.vorname} ${m.nachname} aktualisiert: ${Object.keys(update).join(', ')}` }
+    }
+
+    case 'update_vertrag_miete': {
+      const list = await findMieter(String(args.mieter_name))
+      if (!list.length) return { error: `Mieter "${args.mieter_name}" nicht gefunden` }
+      const v = await getAktiverVertrag((list[0] as { id: string }).id)
+      if (!v) return { error: 'Kein aktiver Vertrag gefunden' }
+      const update: Record<string, unknown> = {}
+      if (args.neue_kaltmiete != null) update.kaltmiete = Number(args.neue_kaltmiete)
+      if (args.neue_betriebskosten != null) update.betriebskosten = Number(args.neue_betriebskosten)
+      if (!Object.keys(update).length) return { error: 'Keine neuen Beträge angegeben' }
+      const { error } = await supabase.from('mietvertrag').update(update).eq('id', v.id)
+      if (error) return { error: error.message }
+      const m = list[0] as { vorname: string; nachname: string }
+      const parts: string[] = []
+      if (update.kaltmiete != null) parts.push(`Kaltmiete: ${update.kaltmiete}€`)
+      if (update.betriebskosten != null) parts.push(`BK: ${update.betriebskosten}€`)
+      return { success: true, message: `Miete für ${m.vorname} ${m.nachname} angepasst: ${parts.join(', ')}` }
+    }
+
+    case 'get_rent_increase_eligibility': {
+      const list = await findMieter(String(args.mieter_name))
+      if (!list.length) return { error: `Mieter "${args.mieter_name}" nicht gefunden` }
+      const m = list[0] as { id: string; vorname: string; nachname: string }
+      const v = await getAktiverVertrag(m.id)
+      if (!v) return { error: 'Kein aktiver Vertrag gefunden' }
+
+      const einheit = await getEinheitAndImmo(v.einheit_id)
+      const immoId = (einheit as { immobilie_id?: string } | null)?.immobilie_id
+
+      const { data: immo } = immoId
+        ? await supabase.from('immobilien').select('ist_angespannt, name').eq('id', immoId).single()
+        : { data: null }
+      const istAngespannt = (immo as { ist_angespannt?: boolean } | null)?.ist_angespannt ?? false
+      const kappungsgrenze = istAngespannt ? 15 : 20
+
+      const startDate = v.start_datum ? new Date(v.start_datum) : null
+      const today = new Date()
+      const monthsSinceStart = startDate
+        ? (today.getFullYear() - startDate.getFullYear()) * 12 + (today.getMonth() - startDate.getMonth())
+        : null
+      const sperrfristErfuellt = monthsSinceStart != null && monthsSinceStart >= 15
+
+      const maxErhoehung = v.kaltmiete * (kappungsgrenze / 100)
+      const maxNeueKaltmiete = v.kaltmiete + maxErhoehung
+
+      const { data: markt } = await supabase.from('marktdaten')
+        .select('typ, wert, gueltig_ab').order('gueltig_ab', { ascending: false }).limit(10)
+
+      return {
+        mieter: `${m.vorname} ${m.nachname}`,
+        immobilie: (immo as { name?: string } | null)?.name ?? '',
+        aktuelle_kaltmiete: v.kaltmiete,
+        ist_angespannt: istAngespannt,
+        kappungsgrenze_prozent: kappungsgrenze,
+        max_neue_kaltmiete: Number(maxNeueKaltmiete.toFixed(2)),
+        max_erhoehung_euro: Number(maxErhoehung.toFixed(2)),
+        monate_seit_vertragsbeginn: monthsSinceStart,
+        sperrfrist_erfuellt: sperrfristErfuellt,
+        hinweis: sperrfristErfuellt
+          ? `✅ Mieterhöhung möglich. Max. +${kappungsgrenze}% = ${maxNeueKaltmiete.toFixed(2)}€ (${istAngespannt ? 'angespannter Markt' : 'normaler Markt'})`
+          : `⏳ Sperrfrist noch nicht erfüllt. Noch ${15 - (monthsSinceStart ?? 0)} Monate warten.`,
+        marktdaten: markt ?? [],
+      }
     }
 
     default:
@@ -968,6 +1259,13 @@ WRITE (aktiv handeln):
 • update_mahnstufe – Mahnstufe setzen
 • create_mietforderung – Mietforderung erstellen
 • update_payment_category – Zahlung kategorisieren
+• assign_payment_to_contract – Zahlung einem Mietvertrag zuordnen
+• create_mieter – Neuen Mieter anlegen
+• create_mietvertrag – Neuen Mietvertrag anlegen (Mieter + freie Einheit)
+• terminate_contract – Vertrag kündigen (Kündigungsdatum + Status setzen)
+• update_mieter – E-Mail / Telefon eines Mieters aktualisieren
+• update_vertrag_miete – Kaltmiete / BK nach Mieterhöhung anpassen
+• get_rent_increase_eligibility – Mieterhöhung prüfen (Sperrfrist, Kappungsgrenze)
 
 REGELN:
 - Antworte IMMER auf Deutsch
