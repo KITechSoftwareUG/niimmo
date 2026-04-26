@@ -8,12 +8,11 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, RotateCcw, Mail, Eye, Send, Zap, Flame, Droplets } from "lucide-react";
+import { CalendarIcon, KeyRound, ClipboardList, Loader2, Building2, FileDown, RotateCcw, Mail, Eye, Zap, Flame, Droplets, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -131,11 +130,11 @@ export const UebergabeDialog = ({
   // Gespeicherter PDF-Pfad (nach handleSubmit) — wird an Email/Versorger-Dialog weitergegeben
   const [savedPdfPath, setSavedPdfPath] = useState<string | null>(null);
 
+  // Protokoll wurde gespeichert
+  const [isSaved, setIsSaved] = useState(false);
+
   // Email dialog
   const [showEmailDialog, setShowEmailDialog] = useState(false);
-
-  // Confirmation dialog
-  const [showConfirmFinalize, setShowConfirmFinalize] = useState(false);
 
   // Versorger confirmation dialog
   const [showVersorgerDialog, setShowVersorgerDialog] = useState(false);
@@ -241,6 +240,7 @@ export const UebergabeDialog = ({
     setPdfBlobUrl(null);
     setPdfBlob(null);
     setSavedPdfPath(null);
+    setIsSaved(false);
   };
 
   const buildPdfData = async (): Promise<UebergabePdfData | null> => {
@@ -359,6 +359,8 @@ export const UebergabeDialog = ({
     }
     setIsSubmitting(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       for (const contract of contracts) {
         const zaehlerstaende = zaehlerstaendePerContract[contract.id] || { strom: "", gas: "", wasser: "", warmwasser: "" };
         if (isEinzug) {
@@ -378,8 +380,38 @@ export const UebergabeDialog = ({
         }
       }
 
+      // Zählerstände in zaehlerstand_historie eintragen
+      const historieDatum = format(uebergabeDatum, "yyyy-MM-dd");
+      const historieQuelle = isEinzug ? "Übergabe (Einzug)" : "Übergabe (Auszug)";
+      const historieEintraege = contracts.flatMap((contract) => {
+        const z = zaehlerstaendePerContract[contract.id] || { strom: "", gas: "", wasser: "", warmwasser: "" };
+        const einheitId = contract.einheit.id;
+        const immobilieId = contract.einheit.immobilie_id ?? contract.einheit.immobilie?.id ?? null;
+        return (
+          [
+            { typ: "strom", wert: z.strom },
+            { typ: "gas", wert: z.gas },
+            { typ: "kaltwasser", wert: z.wasser },
+            { typ: "warmwasser", wert: z.warmwasser },
+          ] as const
+        )
+          .filter(({ wert }) => wert !== "" && !isNaN(parseFloat(wert)))
+          .map(({ typ, wert }) => ({
+            einheit_id: einheitId,
+            immobilie_id: immobilieId,
+            zaehler_typ: typ,
+            stand: parseFloat(wert),
+            datum: historieDatum,
+            quelle: historieQuelle,
+            erstellt_von: user?.id ?? null,
+          }));
+      });
+      if (historieEintraege.length > 0) {
+        const { error: historieError } = await supabase.from("zaehlerstand_historie").insert(historieEintraege);
+        if (historieError) throw historieError;
+      }
+
       // Zählerfotos als Einträge in der dokumente-Tabelle speichern
-      const { data: { user } } = await supabase.auth.getUser();
       const meterTypen = ["strom", "gas", "wasser", "warmwasser"] as const;
       const meterLabels: Record<string, string> = {
         strom: "Strom", gas: "Gas", wasser: "Kaltwasser", warmwasser: "Warmwasser",
@@ -436,18 +468,8 @@ export const UebergabeDialog = ({
         }
       }
 
-      // Show email dialog if we have tenants
-      if (mieterData.length > 0) {
-        setShowEmailDialog(true);
-        return;
-      }
-      // No tenants — go directly to versorger dialog if any selected
-      if (versorgerSelected.size > 0) {
-        setShowVersorgerDialog(true);
-        return;
-      }
-      onSuccess?.();
-      onClose();
+      setIsSaved(true);
+      toast({ title: "Protokoll gespeichert", description: "Das Übergabeprotokoll wurde erfolgreich gespeichert." });
     } catch (error) {
       toast({ title: "Fehler", description: "Die Übergabe konnte nicht gespeichert werden.", variant: "destructive" });
     } finally {
@@ -455,18 +477,15 @@ export const UebergabeDialog = ({
     }
   };
 
-  const handleEmailDialogClose = async () => {
+  const handleEmailDialogClose = () => {
     setShowEmailDialog(false);
-    if (versorgerSelected.size > 0) {
-      setShowVersorgerDialog(true);
-    } else {
-      onSuccess?.();
-      onClose();
-    }
   };
 
   const handleVersorgerDialogClose = () => {
     setShowVersorgerDialog(false);
+  };
+
+  const handleClose = () => {
     onSuccess?.();
     onClose();
   };
@@ -669,33 +688,71 @@ export const UebergabeDialog = ({
 
       {/* Action Buttons */}
       <div className="flex flex-col gap-3 pt-4 border-t">
-        <Button onClick={handleGeneratePreview} className="w-full h-12 sm:h-10" disabled={isGeneratingPreview || isSubmitting}>
-          {isGeneratingPreview ? (
-            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Vorschau wird erstellt...</>
-          ) : showPreview ? (
-            <><Eye className="mr-2 h-4 w-4" />Vorschau aktualisieren</>
-          ) : (
-            <><Eye className="mr-2 h-4 w-4" />Vorschau erstellen</>
-          )}
-        </Button>
+        {!isSaved ? (
+          <>
+            <Button onClick={handleGeneratePreview} className="w-full h-12 sm:h-10" disabled={isGeneratingPreview || isSubmitting}>
+              {isGeneratingPreview ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Vorschau wird erstellt...</>
+              ) : showPreview ? (
+                <><Eye className="mr-2 h-4 w-4" />Vorschau aktualisieren</>
+              ) : (
+                <><Eye className="mr-2 h-4 w-4" />Vorschau erstellen</>
+              )}
+            </Button>
 
-        {showPreview && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleDownloadPdf} disabled={!pdfBlobUrl} className="flex-1 h-10">
-              <FileDown className="mr-2 h-4 w-4" />
-              Download
+            {showPreview && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleDownloadPdf} disabled={!pdfBlobUrl} className="flex-1 h-10">
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Download
+                </Button>
+                <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 h-10">
+                  {isSubmitting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Wird gespeichert...</>
+                  ) : (
+                    <><Save className="mr-2 h-4 w-4" />Protokoll speichern</>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            <Button variant="ghost" onClick={resetForm} className="w-full h-10 text-muted-foreground" disabled={isSubmitting || isGeneratingPreview}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Formular zurücksetzen
             </Button>
-            <Button onClick={() => setShowConfirmFinalize(true)} disabled={isSubmitting} className="flex-1 h-10">
-              <Send className="mr-2 h-4 w-4" />
-              Abschliessen & Senden
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3 text-green-700 text-sm">
+              <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+              Protokoll wurde gespeichert.
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleDownloadPdf} disabled={!pdfBlobUrl} className="flex-1 h-10">
+                <FileDown className="mr-2 h-4 w-4" />
+                Download
+              </Button>
+              {mieterData.length > 0 && (
+                <Button variant="outline" onClick={() => setShowEmailDialog(true)} className="flex-1 h-10">
+                  <Mail className="mr-2 h-4 w-4" />
+                  E-Mail senden
+                </Button>
+              )}
+            </div>
+
+            {versorgerData.length > 0 && (
+              <Button variant="outline" onClick={() => setShowVersorgerDialog(true)} className="w-full h-10">
+                <Zap className="mr-2 h-4 w-4" />
+                Versorger benachrichtigen
+              </Button>
+            )}
+
+            <Button onClick={handleClose} className="w-full h-10">
+              Schließen
             </Button>
-          </div>
+          </>
         )}
-
-        <Button variant="ghost" onClick={resetForm} className="w-full h-10 text-muted-foreground" disabled={isSubmitting || isGeneratingPreview}>
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Formular zurücksetzen
-        </Button>
       </div>
     </div>
   );
@@ -719,26 +776,6 @@ export const UebergabeDialog = ({
       pdfFileName={getPdfFileName()}
       preSavedPdfPath={savedPdfPath ?? undefined}
     />
-  );
-
-  const confirmDialog = (
-    <AlertDialog open={showConfirmFinalize} onOpenChange={setShowConfirmFinalize}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Übergabe abschließen?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Zählerstände werden gespeichert und das Übergabeprotokoll wird abgeschlossen. 
-            Bitte stellen Sie sicher, dass alle Angaben korrekt sind.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-          <AlertDialogAction onClick={handleSubmit}>
-            Bestätigen & Abschließen
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 
   const immobilieId = contracts[0]?.einheit?.immobilie_id || contracts[0]?.einheit?.immobilie?.id;
@@ -766,7 +803,6 @@ export const UebergabeDialog = ({
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        {confirmDialog}
         {emailDialogComponent}
         {versorgerDialogComponent}
         <DrawerContent className="max-h-[95vh]">
@@ -803,7 +839,6 @@ export const UebergabeDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      {confirmDialog}
       {emailDialogComponent}
       {versorgerDialogComponent}
       <DialogContent className={cn(
