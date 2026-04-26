@@ -23,7 +23,7 @@ const READ_TOOLS = [
     function: {
       name: 'rpc_agent_portfolio_summary',
       description:
-        'KPI-Übersicht: Anzahl Immobilien, Einheiten, aktive/gekündigte Verträge, Kaltmiete/Warmmiete monatlich, offene Forderungen, Mahnfälle, Restschuld, Leerstand. Für jede Frage nach Portfolio-Status, Übersicht, Gesamtmiete.',
+        'KPI-Übersicht: Anzahl Immobilien, Einheiten, aktive/gekündigte Verträge, Kaltmiete/Warmmiete monatlich, vertraege_mit_rueckstand (echte Schuldner-Anzahl), gesamtrueckstand (Summe aller Mietrückstände in €), Mahnfälle, Darlehen-Restschuld, Leerstand. Für jede Frage nach Portfolio-Status, Übersicht, Gesamtmiete.',
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
@@ -64,11 +64,11 @@ const READ_TOOLS = [
     function: {
       name: 'rpc_agent_outstanding',
       description:
-        'Listet fällige Soll-Forderungen (mietforderungen mit ist_faellig=true). NUR für "welche Monate sind offen/fällig?" — NICHT für Schulden/Rückstandsberechnung. Für Schulden stattdessen rpc_agent_tenant_balance verwenden.',
+        'Verträge mit echtem Mietrückstand (Soll > Ist). Für alle Fragen nach Schuldnern, Rückstandsliste, "Wer zahlt nicht?", "Welche Mieter haben Rückstände?". Ohne p_search: Portfolio-Liste aller Schuldner. Mit p_search: Rückstand eines bestimmten Mieters. Felder: soll_gesamt, ist_gesamt, rueckstand (sortiert nach Rückstand absteigend).',
       parameters: {
         type: 'object',
         properties: {
-          p_search: { type: 'string', description: 'Mieter-Name für Filterung' },
+          p_search: { type: 'string', description: 'Mieter-Name (optional; ohne = alle Schuldner)' },
         },
       },
     },
@@ -78,7 +78,7 @@ const READ_TOOLS = [
     function: {
       name: 'rpc_agent_tenant_balance',
       description:
-        'Berechnet den echten Mietrückstand eines Mieters: Soll (alle mietforderungen) minus Ist (gezahlte Miete-Zahlungen) = Rückstand. Für alle Fragen nach Schulden, Rückstand, Mietschulden, wie viel schuldet jemand. Mindestens p_search ODER p_mieter_id angeben.',
+        'Detailliertes Soll-Ist für EINEN einzelnen Mieter: soll_gesamt, ist_gesamt, rueckstand, warmmiete, monate_soll, letzte_zahlung. Für "Wie viel schuldet [Name] genau?", "Wann hat [Name] zuletzt gezahlt?". Mindestens p_search ODER p_mieter_id angeben.',
       parameters: {
         type: 'object',
         properties: {
