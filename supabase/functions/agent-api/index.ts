@@ -117,7 +117,7 @@ const READ_TOOLS = [
     function: {
       name: 'rpc_agent_rent_received',
       description:
-        'Aggregierte Zahlungseingänge eines Monats (Summe gesamt + Kategorie Miete + Anzahl). Erforderlich: p_year + p_month.',
+        'Zahlungsübersicht eines Monats. Felder: miete_eingegangen (nur positive Miete-Buchungen), ruecklastschriften (negative Buchungen), netto_gesamt (Netto aller Buchungen), anzahl_miete. Erforderlich: p_year + p_month.',
       parameters: {
         type: 'object',
         properties: {
