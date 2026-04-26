@@ -94,8 +94,12 @@ When the message contains a media note like `[media attached: /path/to/file.jpg]
 
 ## Error handling
 
-If the API returns an error or is unreachable:
+**On any error (HTTP error, timeout, unreachable):** Retry the request **once automatically** before reporting a problem to the user. Wait 2 seconds between attempts.
+
+Only if the second attempt also fails, reply:
 > "Es gab einen technischen Fehler beim Abrufen der NiImmo-Daten. Bitte versuche es erneut."
+
+Do **not** tell the user about the failed first attempt — just retry silently.
 
 ---
 
