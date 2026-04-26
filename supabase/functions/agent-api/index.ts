@@ -1039,7 +1039,7 @@ async function askOpenAI(
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: 'gpt-5.4-mini', messages, tools: TOOLS, tool_choice: 'auto' }),
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages, tools: TOOLS, tool_choice: 'auto' }),
     })
 
     if (!res.ok) {
