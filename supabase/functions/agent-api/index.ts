@@ -64,11 +64,26 @@ const READ_TOOLS = [
     function: {
       name: 'rpc_agent_outstanding',
       description:
-        'Offene Forderungen / Rückstände. Optional gefiltert nach Mieter-Name (p_search). Ohne p_search: alle offenen Forderungen.',
+        'Listet fällige Soll-Forderungen (mietforderungen mit ist_faellig=true). NUR für "welche Monate sind offen/fällig?" — NICHT für Schulden/Rückstandsberechnung. Für Schulden stattdessen rpc_agent_tenant_balance verwenden.',
       parameters: {
         type: 'object',
         properties: {
           p_search: { type: 'string', description: 'Mieter-Name für Filterung' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_tenant_balance',
+      description:
+        'Berechnet den echten Mietrückstand eines Mieters: Soll (alle mietforderungen) minus Ist (gezahlte Miete-Zahlungen) = Rückstand. Für alle Fragen nach Schulden, Rückstand, Mietschulden, wie viel schuldet jemand. Mindestens p_search ODER p_mieter_id angeben.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Mieter-Name' },
+          p_mieter_id: { type: 'string', description: 'UUID des Mieters' },
         },
       },
     },
