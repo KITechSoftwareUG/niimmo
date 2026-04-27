@@ -43,6 +43,146 @@ const ACTION_COLORS: Record<string, string> = {
   mietforderung_erstellt: "bg-violet-100 text-violet-800 border-violet-200",
 };
 
+const FELD_LABELS: Record<string, string> = {
+  kaltmiete: "Kaltmiete",
+  betriebskosten: "Betriebskosten",
+  ruecklastschrift_gebuehr: "RL-Gebühr",
+  soll: "Kaution Soll",
+  ist: "Kaution Ist",
+  start_datum: "Startdatum",
+  ende_datum: "Mietende",
+  anzahl_personen: "Personenzahl",
+  neue_anschrift: "Neue Anschrift",
+  bankkonto_mieter: "Bankkonto",
+};
+
+function eur(val: unknown): string {
+  const n = Number(val);
+  if (isNaN(n)) return String(val);
+  return n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+
+function buildSummary(action: string, details: Record<string, unknown> | null): string {
+  if (!details) {
+    if (action === "login") return "Eingeloggt";
+    if (action === "logout") return "Ausgeloggt";
+    return "";
+  }
+
+  const mieter = details.mieter ? String(details.mieter) : null;
+  const prefix = mieter ? `${mieter} — ` : "";
+
+  switch (action) {
+    case "mietvertrag_geaendert": {
+      if (details.geaenderteFelder && Array.isArray(details.geaenderteFelder)) {
+        const felder = (details.geaenderteFelder as string[]).join(", ");
+        return `${prefix}Felder geändert: ${felder}`;
+      }
+      const feld = details.feld ? (FELD_LABELS[String(details.feld)] ?? String(details.feld)) : null;
+      if (feld && details.altWert !== undefined && details.neuerWert !== undefined) {
+        const istWaehrung = ["kaltmiete", "betriebskosten", "ruecklastschrift_gebuehr"].includes(String(details.feld));
+        const fmt = istWaehrung ? eur : (v: unknown) => String(v);
+        return `${prefix}${feld}: ${fmt(details.altWert)} → ${fmt(details.neuerWert)}`;
+      }
+      if (feld && details.neuerWert !== undefined) {
+        return `${prefix}${feld} auf ${details.neuerWert} gesetzt`;
+      }
+      return prefix || "Vertrag aktualisiert";
+    }
+
+    case "mieterhoehung_dokumentiert": {
+      if (details.altKaltmiete !== undefined && details.neueKaltmiete !== undefined) {
+        return `${prefix}Kaltmiete erhöht: ${eur(details.altKaltmiete)} → ${eur(details.neueKaltmiete)}`;
+      }
+      if (details.neueKaltmiete !== undefined) {
+        return `${prefix}Neue Kaltmiete: ${eur(details.neueKaltmiete)}`;
+      }
+      return `${prefix}Mieterhöhung dokumentiert`;
+    }
+
+    case "kaution_geaendert": {
+      const feld = details.feld ? (FELD_LABELS[String(details.feld)] ?? String(details.feld)) : "Kaution";
+      if (details.altWert !== undefined && details.neuerWert !== undefined) {
+        return `${prefix}${feld}: ${eur(details.altWert)} → ${eur(details.neuerWert)}`;
+      }
+      if (details.neuerWert !== undefined) {
+        return `${prefix}${feld} auf ${eur(details.neuerWert)} gesetzt`;
+      }
+      return `${prefix}Kaution geändert`;
+    }
+
+    case "kuendigung_durchgefuehrt": {
+      const datum = details.kuendigungsDatum
+        ? format(parseISO(String(details.kuendigungsDatum)), "dd.MM.yyyy", { locale: de })
+        : null;
+      if (mieter && datum) return `${mieter} — Kündigung zum ${datum}`;
+      if (mieter) return `${mieter} — Vertrag gekündigt`;
+      if (datum) return `Kündigung zum ${datum}`;
+      return "Vertrag gekündigt";
+    }
+
+    case "zahlung_zugeordnet": {
+      const betrag = details.betrag !== undefined ? eur(details.betrag) : null;
+      const empf = details.empfaenger ? String(details.empfaenger) : null;
+      const ziel = details.mietvertragId ? "Mietvertrag" : details.immobilieId ? "Immobilie" : null;
+      const parts: string[] = [];
+      if (betrag) parts.push(betrag);
+      if (empf) parts.push(`von ${empf}`);
+      if (ziel) parts.push(`→ ${ziel}`);
+      return parts.length ? parts.join(" ") : "Zahlung zugeordnet";
+    }
+
+    case "zahlung_kategorie_geaendert": {
+      if (details.alteKategorie && details.neueKategorie) {
+        return `Kategorie: ${details.alteKategorie} → ${details.neueKategorie}`;
+      }
+      if (details.neueKategorie) return `Neue Kategorie: ${details.neueKategorie}`;
+      return "Kategorie geändert";
+    }
+
+    case "dokument_hochgeladen": {
+      const dateiname = details.dateiname ? String(details.dateiname) : null;
+      const kategorie = details.kategorie ? String(details.kategorie) : null;
+      if (dateiname && kategorie) return `${dateiname} (${kategorie})`;
+      if (dateiname) return dateiname;
+      return "Dokument hochgeladen";
+    }
+
+    case "mahnung_gesendet": {
+      if (details.mieter) return `Mahnung an ${details.mieter}`;
+      if (details.empfaenger) return `Mahnung an ${details.empfaenger}`;
+      return "Mahnung versendet";
+    }
+
+    case "pdf_generiert": {
+      if (details.typ) return `PDF: ${details.typ}`;
+      return "PDF generiert";
+    }
+
+    case "mietforderung_erstellt": {
+      if (details.betrag && details.monat) return `${eur(details.betrag)} für ${details.monat}`;
+      if (details.betrag) return `Forderung: ${eur(details.betrag)}`;
+      return "Mietforderung erstellt";
+    }
+
+    case "zählerstand_geaendert": {
+      const typ = details.typ ? String(details.typ) : "Zähler";
+      if (details.altWert !== undefined && details.neuerWert !== undefined) {
+        return `${typ}: ${details.altWert} → ${details.neuerWert}`;
+      }
+      if (details.neuerWert !== undefined) return `${typ}: ${details.neuerWert}`;
+      return "Zählerstand geändert";
+    }
+
+    default: {
+      const entries = Object.entries(details)
+        .filter(([, v]) => v !== null && v !== undefined && v !== "")
+        .map(([k, v]) => `${k}: ${v}`);
+      return entries.join(" · ");
+    }
+  }
+}
+
 export function DevActivityLog({ onBack }: DevActivityLogProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -63,10 +203,12 @@ export function DevActivityLog({ onBack }: DevActivityLogProps) {
   const filtered = logs?.filter((log) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
+    const summary = buildSummary(log.action, log.details as Record<string, unknown> | null);
     return (
       log.action?.toLowerCase().includes(term) ||
       log.user_email?.toLowerCase().includes(term) ||
       log.entity_type?.toLowerCase().includes(term) ||
+      summary.toLowerCase().includes(term) ||
       JSON.stringify(log.details ?? {}).toLowerCase().includes(term)
     );
   });
@@ -106,7 +248,7 @@ export function DevActivityLog({ onBack }: DevActivityLogProps) {
           <div className="mt-4 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Suche nach Aktion, User, Entität..."
+              placeholder="Suche nach Aktion, User, Mieter, Betrag..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -134,60 +276,46 @@ export function DevActivityLog({ onBack }: DevActivityLogProps) {
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">Zeitpunkt</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">Aktion</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">User</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">Entität</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Details</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600">Was passiert ist</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((log, i) => (
-                    <tr
-                      key={log.id}
-                      className={`border-b border-gray-100 hover:bg-white/60 transition-colors ${
-                        i % 2 === 0 ? "bg-white/20" : "bg-white/40"
-                      }`}
-                    >
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-500 font-mono text-xs">
-                        {format(parseISO(log.created_at), "dd.MM.yy HH:mm:ss", { locale: de })}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <Badge
-                          variant="outline"
-                          className={`text-xs font-medium ${ACTION_COLORS[log.action] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}
-                        >
-                          {ACTION_LABELS[log.action] ?? log.action}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-700 text-xs">
-                        {log.user_email ?? <span className="text-gray-400 italic">unbekannt</span>}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-500 text-xs">
-                        {log.entity_type ? (
-                          <span>
-                            <span className="font-medium text-gray-700">{log.entity_type}</span>
-                            {log.entity_id && (
-                              <span className="ml-1 font-mono text-gray-400">
-                                #{log.entity_id.slice(0, 8)}
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs max-w-xs">
-                        {log.details ? (
-                          <span className="font-mono break-all">
-                            {Object.entries(log.details as Record<string, unknown>)
-                              .filter(([, v]) => v !== null && v !== undefined)
-                              .map(([k, v]) => `${k}: ${v}`)
-                              .join(" · ")}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((log, i) => {
+                    const summary = buildSummary(
+                      log.action,
+                      log.details as Record<string, unknown> | null
+                    );
+                    return (
+                      <tr
+                        key={log.id}
+                        className={`border-b border-gray-100 hover:bg-white/60 transition-colors ${
+                          i % 2 === 0 ? "bg-white/20" : "bg-white/40"
+                        }`}
+                      >
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-500 font-mono text-xs">
+                          {format(parseISO(log.created_at), "dd.MM.yy HH:mm:ss", { locale: de })}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs font-medium ${ACTION_COLORS[log.action] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}
+                          >
+                            {ACTION_LABELS[log.action] ?? log.action}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-700 text-xs">
+                          {log.user_email ?? <span className="text-gray-400 italic">unbekannt</span>}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 text-xs">
+                          {summary ? (
+                            <span>{summary}</span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

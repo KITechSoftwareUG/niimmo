@@ -53,6 +53,7 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
   // Helper to save a numeric field on mietvertrag
   const saveNumericField = async (field: string, numericValue: number, isOfficialRentIncrease: boolean) => {
     try {
+      const altWert = vertrag ? Number(vertrag[field as keyof Mietvertrag] ?? 0) : undefined;
       const updateData: Partial<Mietvertrag> = { [field]: numericValue };
       if (field === 'kaltmiete' && isOfficialRentIncrease) {
         updateData.letzte_mieterhoehung_am = new Date().toISOString().split('T')[0];
@@ -61,13 +62,15 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
       const { error } = await supabase.from('mietvertrag').update(updateData).eq('id', vertragId);
       if (error) throw error;
 
+      const mieterName = mieter?.map(m => `${m.vorname} ${m.nachname}`.trim()).join(', ') || undefined;
+
       if (field === 'kaltmiete' && isOfficialRentIncrease) {
         toast({ title: "Mieterhöhung dokumentiert", description: "Kaltmiete wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt." });
-        logActivity('mieterhoehung_dokumentiert', 'mietvertrag', vertragId, { neueKaltmiete: numericValue });
+        logActivity('mieterhoehung_dokumentiert', 'mietvertrag', vertragId, { altKaltmiete: altWert, neueKaltmiete: numericValue, mieter: mieterName });
       } else {
         const fieldName = field === 'kaltmiete' ? 'Kaltmiete' : field === 'betriebskosten' ? 'Betriebskosten' : 'Rücklastschrift-Gebühr';
         toast({ title: "Aktualisiert", description: `${fieldName} wurde erfolgreich aktualisiert.` });
-        logActivity('mietvertrag_geaendert', 'mietvertrag', vertragId, { feld: field, neuerWert: numericValue });
+        logActivity('mietvertrag_geaendert', 'mietvertrag', vertragId, { feld: field, altWert, neuerWert: numericValue, mieter: mieterName });
       }
 
       setEditingMietvertrag(null);
@@ -220,7 +223,9 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
       const { error } = await supabase.from('mietvertrag').update(updateData).eq('id', vertragId);
       if (error) throw error;
       toast({ title: "Aktualisiert", description: `Kaution ${field === 'soll' ? 'Soll' : 'Ist'} wurde erfolgreich aktualisiert.` });
-      logActivity('kaution_geaendert', 'mietvertrag', vertragId, { feld: field, neuerWert: numericValue });
+      const altKautionWert = field === 'soll' ? Number(vertrag?.kaution_betrag ?? 0) : Number(vertrag?.kaution_ist ?? 0);
+      const mieterNameKaution = mieter?.map(m => `${m.vorname} ${m.nachname}`.trim()).join(', ') || undefined;
+      logActivity('kaution_geaendert', 'mietvertrag', vertragId, { feld: field, altWert: altKautionWert, neuerWert: numericValue, mieter: mieterNameKaution });
       setEditingKaution(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['mietvertrag-detail', vertragId] }),
@@ -277,7 +282,8 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
     setShowTerminationDialog(false);
     invalidateAll();
     toast({ title: "Kündigung erfolgreich", description: "Der Mietvertrag wurde erfolgreich gekündigt." });
-    logActivity('kuendigung_durchgefuehrt', 'mietvertrag', vertragId);
+    const mieterNameKuendigung = mieter?.map(m => `${m.vorname} ${m.nachname}`.trim()).join(', ') || undefined;
+    logActivity('kuendigung_durchgefuehrt', 'mietvertrag', vertragId, { mieter: mieterNameKuendigung, kuendigungsDatum: vertrag?.kuendigungsdatum ?? undefined });
   };
 
   // Global edit mode handlers
@@ -447,11 +453,21 @@ export function useMietvertragMutations({ vertragId, vertrag, einheitData, miete
         description: isRentIncrease ? "Kaltmiete wurde erhöht und Datum der letzten Mieterhöhung wurde automatisch gesetzt." : "Alle Änderungen wurden übernommen.",
       });
 
+      const mieterNameGlobal = mieter?.map(m => `${m.vorname} ${m.nachname}`.trim()).join(', ') || undefined;
+      const feldLabels: Record<string, string> = {
+        kaltmiete: 'Kaltmiete', betriebskosten: 'Betriebskosten', start_datum: 'Startdatum',
+        ende_datum: 'Mietende', kaution_betrag: 'Kaution Soll', kaution_ist: 'Kaution Ist',
+        anzahl_personen: 'Personenzahl', neue_anschrift: 'Neue Anschrift', ruecklastschrift_gebuehr: 'Rücklastschrift-Gebühr',
+        bankkonto_mieter: 'Bankkonto',
+      };
+      const lesbareFelder = Object.keys(mietvertragUpdates)
+        .filter(f => f !== 'letzte_mieterhoehung_am' && f !== 'status')
+        .map(f => feldLabels[f] ?? f);
       logActivity(
         isRentIncrease ? 'mieterhoehung_dokumentiert' : 'mietvertrag_geaendert',
         'mietvertrag',
         vertragId,
-        { geaenderteFelder: Object.keys(mietvertragUpdates) }
+        { geaenderteFelder: lesbareFelder, mieter: mieterNameGlobal }
       );
 
       setIsGlobalEditMode(false);
