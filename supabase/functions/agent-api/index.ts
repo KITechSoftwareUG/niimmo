@@ -4,6 +4,23 @@ const SYSTEM_PROMPT = `Du bist Chilla, der KI-Assistent der NiImmo Holding GmbH 
 
 Beantworte Fragen zum Portfolio in präzisem, knappem Deutsch (Telegram-Format).
 
+══════════════════════════════════════════════════════════
+ANTI-HALLUZINATION — OBERSTE PRIORITÄT (NIEMALS UMGEHEN)
+══════════════════════════════════════════════════════════
+1. NIEMALS behaupten, eine Schreib-Aktion sei ausgeführt worden, wenn das Write-Tool in DIESER Anfrage NICHT aufgerufen wurde.
+2. Verbotene Phrasen ohne vorherigen Tool-Call in dieser Session:
+   "wurde gesetzt", "wurde geändert", "wurde aktualisiert", "wurde gespeichert",
+   "habe gesetzt", "habe geändert", "ist jetzt", "erfolgreich gesetzt",
+   "Mahnstufe gesetzt", "Zählerstand eingetragen", "Zahlung gebucht".
+3. Wenn der User eine Schreib-Aktion fordert und du das Tool NICHT aufrufst:
+   → Antworte: "Bitte bestätige die Aktion — ich führe sie dann sofort aus."
+4. Nach einem Write-Tool-Call: Antworte NUR basierend auf dem Rückgabewert.
+   - ok=true → Erfolg melden mit den tatsächlichen Werten aus dem Ergebnis.
+   - ok=false → Fehler melden. NIEMALS trotzdem Erfolg behaupten.
+   - bestaetigt=false → "Gespeichert, aber DB-Rücklese weicht ab — bitte prüfen."
+5. Lesende Tools (rpc_agent_*) NIEMALS als Beweis für eine ausgeführte Schreib-Aktion verwenden.
+══════════════════════════════════════════════════════════
+
 REGELN:
 - Nutze IMMER die verfügbaren Tools um echte Daten abzurufen — nie raten, nie schätzen.
 - Bei Folgefragen mit Pronomen ("er", "sie", "dort") nutze den Kontext der vorherigen Tool-Calls.
@@ -11,11 +28,7 @@ REGELN:
 - Aktuelles Datum: ${new Date().toISOString().split('T')[0]}.
 - Kategorisiere bei Mieteingängen nach Kategorie "Miete" wenn der User explizit nach Mieten fragt.
 
-SCHREIB-REGELN (ABSOLUT ZWINGEND — NIEMALS UMGEHEN):
-- Behaupte NIEMALS, dass eine Schreibaktion ausgeführt wurde, wenn du das Write-Tool in dieser Anfrage NICHT aufgerufen hast.
-- Antworte nach einem Write-Tool AUSSCHLIESSLICH basierend auf dem tatsächlichen Tool-Ergebnis: ok=true → Erfolg, ok=false → Fehler.
-- Wenn ein Write-Tool ok=false zurückgibt: teile dem User den genauen Fehler mit — sage NIEMALS "wurde gesetzt" oder "wurde geändert".
-- Wenn das Tool-Ergebnis "bestaetigt: false" enthält: melde dies explizit als Diskrepanz.
+SCHREIB-BESTÄTIGUNG:
 - Frage bei ALLEN schreibenden Aktionen (Mahnstufe setzen, Kündigung, Mieterhöhung) nach Bestätigung, bevor du das Tool aufrufst — außer der User hat die Aktion bereits explizit bestätigt.
 
 ANTWORTFORMAT:
@@ -638,6 +651,28 @@ async function callOpenAI(messages: unknown[]) {
   return res.json();
 }
 
+// ── OpenAI Call mit Retry-Wrapper ─────────────────────────────────────────
+async function callOpenAIWithRetry(messages: unknown[], maxRetries = 3): Promise<unknown> {
+  let lastError: Error = new Error('OpenAI nicht erreichbar');
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await callOpenAI(messages);
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      const isTransient =
+        lastError.message.includes('429') ||
+        lastError.message.includes('500') ||
+        lastError.message.includes('502') ||
+        lastError.message.includes('503') ||
+        lastError.message.includes('504');
+      if (!isTransient || attempt === maxRetries) throw lastError;
+      // Exponential backoff: 1s → 2s → 4s
+      await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
+    }
+  }
+  throw lastError;
+}
+
 // ── RPC Executor (Read Tools via Postgres) ─────────────────────────────────
 async function executeRPC(
   supabase: ReturnType<typeof createClient>,
@@ -979,6 +1014,15 @@ function validateAgentKey(req: Request): boolean {
 
 // ── Main Handler ───────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
+  // Health-Check — kein Auth erforderlich
+  const url = new URL(req.url);
+  if (req.method === 'GET' && url.pathname.endsWith('/ping')) {
+    return new Response(
+      JSON.stringify({ ok: true, version: 19, ts: new Date().toISOString() }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
   if (!validateAgentKey(req)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
@@ -1027,7 +1071,7 @@ Deno.serve(async (req) => {
     ];
 
     for (let round = 0; round < 4; round++) {
-      const completion = await callOpenAI(messages);
+      const completion = await callOpenAIWithRetry(messages) as { choices?: { message?: { content?: string; tool_calls?: unknown[] } }[] };
       const msg = completion.choices?.[0]?.message;
       if (!msg) throw new Error('Leere OpenAI-Antwort');
 
