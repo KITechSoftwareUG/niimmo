@@ -133,7 +133,7 @@ const READ_TOOLS = [
     function: {
       name: 'rpc_agent_meter_readings',
       description:
-        'Aktuelle Zählerstände (Kaltwasser, Warmwasser, Strom, Gas) pro Einheit. p_search = Mieter-Name ODER Immobilien-Name/Adresse. Für Fragen nach Zählerstand, Verbrauch, Zählernummer.',
+        'Aktuelle Zählerstände (Kaltwasser, Warmwasser, Strom, Gas) pro Einheit. p_search = Mieter-Name ODER Immobilien-Name/Adresse. Für Fragen nach aktuellem Zählerstand, Zählernummer.',
       parameters: {
         type: 'object',
         properties: {
@@ -198,6 +198,100 @@ const READ_TOOLS = [
           p_search: { type: 'string', description: 'Mieter-Name' },
           p_mieter_id: { type: 'string', description: 'UUID des Mieters (optional)' },
         },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_upcoming_endings',
+      description:
+        'Verträge die bald enden oder bereits gekündigt sind. p_months: Vorausschau in Monaten (default 3). Felder: mieter_name, immobilie, einheit, ende_datum, kuendigungsdatum, tage_bis_ende, vertrag_status. Für "Wer zieht bald aus?", "Welche Verträge enden demnächst?", "Alle gekündigten Verträge".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_months: { type: 'integer', description: 'Vorausschau in Monaten (default 3)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_tenant_contacts',
+      description:
+        'Vollständige Kontaktdaten eines Mieters: E-Mail, Telefonnummer, weitere_mails, Geburtsdatum, Immobilie, Einheit. Suche auch via E-Mail oder Telefonnummer. Für "Wie ist die Nummer von X?", "E-Mail von Y", "Kontaktdaten Müller".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Name, E-Mail oder Telefonnummer des Mieters' },
+        },
+        required: ['p_search'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_property_units',
+      description:
+        'Alle Einheiten einer Immobilie mit Belegungsstatus: Mieter, Kaltmiete, Warmmiete, Einzugsdatum, Mahnstufe, qm. Für "Zeig alle Wohnungen in [Immobilie]", "Welche Einheiten hat [Adresse]?", "Belegungsübersicht [Immobilie]".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Immobilienname oder Adresse' },
+        },
+        required: ['p_search'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_all_tenants',
+      description:
+        'Gesamtliste aller Mieter mit Kontakt, Immobilie, Kaltmiete/Warmmiete. p_status: "aktiv" (default), "gekuendigt" oder "beendet". Für "Liste alle Mieter", "Alle aktiven Mieter", "Alle gekündigten".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_status: {
+            type: 'string',
+            enum: ['aktiv', 'gekuendigt', 'beendet'],
+            description: 'Vertragsstatus-Filter (default: aktiv)',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_meter_history',
+      description:
+        'Historische Zählerstände aus der Zählerstand-Historie (Vergangenheitsverlauf). p_search: Mieter- oder Immobilienname. Für "Wie war der Zählerstand von X im letzten Jahr?", "Zählerhistorie Hildesheim".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Mieter-Name oder Immobilienname' },
+          p_limit: { type: 'integer', description: 'Anzahl Einträge (default 15)' },
+        },
+        required: ['p_search'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_whatsapp',
+      description:
+        'WhatsApp-Nachrichten eines Mieters (ein- und ausgehend). Für "Was hat Müller zuletzt geschrieben?", "WhatsApp-Verlauf von X", "Letzte Nachrichten von [Name]".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Mieter-Name oder Telefonnummer' },
+          p_limit: { type: 'integer', description: 'Anzahl Nachrichten (default 20)' },
+        },
+        required: ['p_search'],
       },
     },
   },
@@ -309,6 +403,70 @@ const WRITE_TOOLS = [
           betriebskosten: { type: 'number' },
         },
         required: ['mietvertrag_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_meter_reading',
+      description:
+        'Aktuellen Zählerstand für eine Einheit eintragen. Speichert in einheiten-Tabelle + Zählerstand-Historie. medium: kaltwasser | warmwasser | strom | gas. Für "Trag Zählerstand X für Müller ein", "Zählerstand aktualisieren".',
+      parameters: {
+        type: 'object',
+        properties: {
+          mieter_search: { type: 'string', description: 'Mieter-Name zum Finden der Einheit' },
+          einheit_id: { type: 'string', description: 'UUID der Einheit (alternativ zu mieter_search)' },
+          medium: {
+            type: 'string',
+            enum: ['kaltwasser', 'warmwasser', 'strom', 'gas'],
+            description: 'Zählertyp',
+          },
+          wert: { type: 'number', description: 'Zählerstand (aktueller Wert)' },
+          datum: { type: 'string', description: 'Ablesedatum ISO YYYY-MM-DD (default: heute)' },
+        },
+        required: ['medium', 'wert'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_mahnstufe',
+      description:
+        'Mahnstufe eines aktiven Mietvertrags setzen (0 = keine Mahnung, 1–3 = Mahnstufe). Für "Setze Mahnstufe auf 2 für Meier", "Mahnstufe zurücksetzen".',
+      parameters: {
+        type: 'object',
+        properties: {
+          mieter_search: { type: 'string', description: 'Mieter-Name (alternativ zu mietvertrag_id)' },
+          mietvertrag_id: { type: 'string', description: 'UUID des Mietvertrags' },
+          mahnstufe: { type: 'integer', description: 'Neue Mahnstufe (0–3)' },
+        },
+        required: ['mahnstufe'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_manual_payment',
+      description:
+        'Manuelle Zahlung erfassen (z.B. Bareinzahlung, Banküberweisung). Für "Buche Miete von Müller für März", "Erfasse Zahlung 850€ für Vertrag X".',
+      parameters: {
+        type: 'object',
+        properties: {
+          mietvertrag_id: { type: 'string', description: 'UUID des Mietvertrags' },
+          betrag: { type: 'number', description: 'Betrag in € (positiv = Eingang)' },
+          buchungsdatum: { type: 'string', description: 'ISO YYYY-MM-DD' },
+          kategorie: {
+            type: 'string',
+            enum: ['Miete', 'Nichtmiete', 'Nebenkosten', 'Mietkaution', 'Rücklastschrift', 'Ignorieren'],
+            description: 'Zahlungskategorie (default: Miete)',
+          },
+          verwendungszweck: { type: 'string', description: 'Verwendungszweck / Notiz (optional)' },
+          empfaengername: { type: 'string', description: 'Name des Auftraggebers (optional)' },
+        },
+        required: ['mietvertrag_id', 'betrag', 'buchungsdatum'],
       },
     },
   },
@@ -464,7 +622,7 @@ async function executeWrite(
       case 'update_mieter': {
         const updates: Record<string, unknown> = {};
         if (args.hauptmail !== undefined) updates.hauptmail = args.hauptmail;
-        if (args.telefon !== undefined) updates.telefon = args.telefon;
+        if (args.telefon !== undefined) updates.telnr = args.telefon;
         if (args.vorname !== undefined) updates.vorname = args.vorname;
         if (args.nachname !== undefined) updates.nachname = args.nachname;
         const { error } = await supabase.from('mieter').update(updates).eq('id', args.mieter_id);
@@ -479,6 +637,93 @@ async function executeWrite(
         const { error } = await supabase.from('mietvertrag').update(updates).eq('id', args.mietvertrag_id);
         if (error) return { ok: false, error: error.message };
         return { ok: true, data: { updated: true } };
+      }
+
+      case 'update_meter_reading': {
+        let einheitId = args.einheit_id as string | undefined;
+        if (!einheitId && args.mieter_search) {
+          const { data: mieter } = await supabase
+            .from('mieter')
+            .select('id')
+            .or(`vorname.ilike.%${args.mieter_search}%,nachname.ilike.%${args.mieter_search}%`)
+            .limit(1)
+            .single();
+          if (mieter) {
+            const { data: mm } = await supabase
+              .from('mietvertrag_mieter')
+              .select('mietvertrag:mietvertrag_id(einheit_id)')
+              .eq('mieter_id', mieter.id)
+              .limit(1)
+              .single();
+            einheitId = (mm?.mietvertrag as { einheit_id?: string } | null)?.einheit_id;
+          }
+        }
+        if (!einheitId) return { ok: false, error: 'Einheit nicht gefunden — bitte mieter_search oder einheit_id angeben' };
+
+        const medium = args.medium as string;
+        const datum = (args.datum as string | undefined) ?? new Date().toISOString().split('T')[0];
+        const updates: Record<string, unknown> = {
+          [`${medium}_stand_aktuell`]: args.wert,
+          [`${medium}_stand_datum`]: datum,
+        };
+        const { error } = await supabase.from('einheiten').update(updates).eq('id', einheitId);
+        if (error) return { ok: false, error: error.message };
+
+        await supabase.from('zaehlerstand_historie').insert({
+          einheit_id: einheitId,
+          zaehler_typ: medium,
+          stand: args.wert,
+          datum,
+          quelle: 'agent',
+        });
+
+        return { ok: true, data: { updated: true, einheit_id: einheitId, medium, wert: args.wert, datum } };
+      }
+
+      case 'set_mahnstufe': {
+        let mietvertragId = args.mietvertrag_id as string | undefined;
+        if (!mietvertragId && args.mieter_search) {
+          const { data: mieter } = await supabase
+            .from('mieter')
+            .select('id')
+            .or(`vorname.ilike.%${args.mieter_search}%,nachname.ilike.%${args.mieter_search}%`)
+            .limit(1)
+            .single();
+          if (mieter) {
+            const { data: mm } = await supabase
+              .from('mietvertrag_mieter')
+              .select('mietvertrag_id')
+              .eq('mieter_id', mieter.id)
+              .limit(1)
+              .single();
+            mietvertragId = mm?.mietvertrag_id;
+          }
+        }
+        if (!mietvertragId) return { ok: false, error: 'Mietvertrag nicht gefunden — bitte mieter_search oder mietvertrag_id angeben' };
+
+        const { error } = await supabase
+          .from('mietvertrag')
+          .update({ mahnstufe: args.mahnstufe })
+          .eq('id', mietvertragId);
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, data: { updated: true, mietvertrag_id: mietvertragId, mahnstufe: args.mahnstufe } };
+      }
+
+      case 'create_manual_payment': {
+        const { data: zahlung, error } = await supabase
+          .from('zahlungen')
+          .insert({
+            mietvertrag_id: args.mietvertrag_id,
+            betrag: args.betrag,
+            buchungsdatum: args.buchungsdatum,
+            kategorie: (args.kategorie as string | undefined) ?? 'Miete',
+            verwendungszweck: (args.verwendungszweck as string | undefined) ?? null,
+            empfaengername: (args.empfaengername as string | undefined) ?? null,
+          })
+          .select()
+          .single();
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, data: { created: true, zahlung } };
       }
 
       case 'get_rent_increase_eligibility': {
