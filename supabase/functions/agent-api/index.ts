@@ -11,6 +11,13 @@ REGELN:
 - Aktuelles Datum: ${new Date().toISOString().split('T')[0]}.
 - Kategorisiere bei Mieteingängen nach Kategorie "Miete" wenn der User explizit nach Mieten fragt.
 
+SCHREIB-REGELN (ABSOLUT ZWINGEND — NIEMALS UMGEHEN):
+- Behaupte NIEMALS, dass eine Schreibaktion ausgeführt wurde, wenn du das Write-Tool in dieser Anfrage NICHT aufgerufen hast.
+- Antworte nach einem Write-Tool AUSSCHLIESSLICH basierend auf dem tatsächlichen Tool-Ergebnis: ok=true → Erfolg, ok=false → Fehler.
+- Wenn ein Write-Tool ok=false zurückgibt: teile dem User den genauen Fehler mit — sage NIEMALS "wurde gesetzt" oder "wurde geändert".
+- Wenn das Tool-Ergebnis "bestaetigt: false" enthält: melde dies explizit als Diskrepanz.
+- Frage bei ALLEN schreibenden Aktionen (Mahnstufe setzen, Kündigung, Mieterhöhung) nach Bestätigung, bevor du das Tool aufrufst — außer der User hat die Aktion bereits explizit bestätigt.
+
 ANTWORTFORMAT:
 - Beträge mit Tausendertrennzeichen: 1.234,56 €
 - Daten als TT.MM.JJJJ
@@ -799,6 +806,11 @@ async function executeWrite(
       }
 
       case 'set_mahnstufe': {
+        const mahnstufe = Number(args.mahnstufe);
+        if (!Number.isInteger(mahnstufe) || mahnstufe < 0 || mahnstufe > 3) {
+          return { ok: false, error: `Ungültige Mahnstufe ${args.mahnstufe} — erlaubt: 0, 1, 2 oder 3` };
+        }
+
         let mietvertragId = args.mietvertrag_id as string | undefined;
         if (!mietvertragId && args.mieter_search) {
           const { data: mieter } = await supabase
@@ -821,10 +833,27 @@ async function executeWrite(
 
         const { error } = await supabase
           .from('mietvertrag')
-          .update({ mahnstufe: args.mahnstufe })
+          .update({ mahnstufe })
           .eq('id', mietvertragId);
         if (error) return { ok: false, error: error.message };
-        return { ok: true, data: { updated: true, mietvertrag_id: mietvertragId, mahnstufe: args.mahnstufe } };
+
+        // Read-back: tatsächlich gespeicherten Wert bestätigen
+        const { data: verify } = await supabase
+          .from('mietvertrag')
+          .select('mahnstufe')
+          .eq('id', mietvertragId)
+          .single();
+
+        return {
+          ok: true,
+          data: {
+            updated: true,
+            mietvertrag_id: mietvertragId,
+            mahnstufe_gesetzt: mahnstufe,
+            mahnstufe_aktuell: verify?.mahnstufe,
+            bestaetigt: verify?.mahnstufe === mahnstufe,
+          },
+        };
       }
 
       case 'create_manual_payment': {
@@ -964,9 +993,15 @@ Deno.serve(async (req) => {
   }
 
   let query: string;
+  let sessionId: string | undefined;
+  let telegramUserId: string | undefined;
+  let telegramUserName: string | undefined;
   try {
     const body = await req.json();
     query = (body.query ?? '').trim();
+    sessionId = body.session_id as string | undefined;
+    telegramUserId = body.telegram_user_id as string | undefined;
+    telegramUserName = body.telegram_user_name as string | undefined;
   } catch {
     return new Response(JSON.stringify({ error: 'Ungültiger JSON-Body' }), {
       status: 400,
@@ -1011,9 +1046,26 @@ Deno.serve(async (req) => {
         toolCalls.map(async (call: { id: string; function: { name: string; arguments: string } }) => {
           const args = JSON.parse(call.function.arguments || '{}');
           const toolName = call.function.name;
+          const t0 = Date.now();
           const result = READ_TOOL_NAMES.has(toolName)
             ? await executeRPC(supabase, toolName, args)
             : await executeWrite(supabase, toolName, args);
+          const durationMs = Date.now() - t0;
+
+          // Tool-Call in agent_logs persistieren (fire-and-forget)
+          supabase.from('agent_logs').insert({
+            event_type: 'tool_call',
+            direction: 'internal',
+            session_id: sessionId ?? null,
+            telegram_user_id: telegramUserId ?? null,
+            telegram_user_name: telegramUserName ?? null,
+            tool_name: toolName,
+            tool_input: args,
+            tool_output_preview: JSON.stringify(result.ok ? result.data : { error: result.error }).slice(0, 500),
+            duration_ms: durationMs,
+            is_error: !result.ok,
+            error_message: result.ok ? null : (result.error ?? null),
+          }).then(() => {}).catch(() => {});
 
           return {
             tool_call_id: call.id,
