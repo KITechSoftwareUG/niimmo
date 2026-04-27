@@ -295,6 +295,87 @@ const READ_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_unassigned_payments',
+      description:
+        'Nicht zugeordnete Zahlungen (ohne Mietvertrag-Zuordnung). Für "Welche Zahlungen sind noch offen?", "Nicht zugeordnete Eingänge", "Was muss ich noch verbuchen?". Felder: buchungsdatum, betrag, empfaengername, verwendungszweck, iban.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_limit: { type: 'integer', description: 'Anzahl Einträge (default 25)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_revenue_by_property',
+      description:
+        'Einnahmen pro Immobilie für einen bestimmten Monat: Warmmiete-Soll vs. tatsächlich eingegangen. Ohne p_year/p_month = aktueller Monat. Für "Wie viel kam pro Immobilie rein?", "Einnahmenverteilung", "Welche Immobilie hat die größte Lücke?".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_year:  { type: 'integer', description: 'Jahr (default: aktuell)' },
+          p_month: { type: 'integer', description: 'Monat 1–12 (default: aktuell)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_loan_details',
+      description:
+        'Detaillierte Darlehen-Infos: Darlehensbetrag, Restschuld, Zinssatz, monatliche Rate, letzte Tilgungszahlung, zugeordnete Immobilien. Für "Details zu Darlehen X", "Welche Bank, welcher Zinssatz?".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Darlehens-Bezeichnung, Bank oder Immobilienname (optional = alle)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_contract_history',
+      description:
+        'Vollständige Vertragshistorie einer Einheit, Immobilie oder eines Mieters — alle Statuse inkl. beendete Verträge. Für "Wer wohnte früher in Wohnung X?", "Alle Verträge von Immobilie Y", "Vergangenheit von Mieter Z".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Immobilienname, Adresse, Einheit oder Mieter-Name' },
+        },
+        required: ['p_search'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_market_data',
+      description:
+        'Aktuelle Marktdaten: Basiszinssatz und VPI (Verbraucherpreisindex) mit Stichtag. Für "Wie hoch ist der Basiszinssatz?", "Aktueller VPI", "Verzugszinsen berechnen".',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_documents',
+      description:
+        'Dokumente eines Mieters oder einer Immobilie: Titel, Kategorie, Dateityp, Hochladedatum. Für "Welche Dokumente gibt es für Müller?", "Dokumente von Immobilie X", "Gibt es einen Mietvertrag für Y?".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Mieter-Name, Immobilienname oder Dokumenttitel (optional = alle)' },
+        },
+      },
+    },
+  },
 ];
 
 // ── Write Tools (direkte Supabase-Operationen) ─────────────────────────────
@@ -467,6 +548,43 @@ const WRITE_TOOLS = [
           empfaengername: { type: 'string', description: 'Name des Auftraggebers (optional)' },
         },
         required: ['mietvertrag_id', 'betrag', 'buchungsdatum'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_kostenposition',
+      description:
+        'Neue Nebenkosten-Position anlegen (z.B. Hausmeister, Versicherung, Müll). Für "Trag Kostenposition X für Immobilie Y ein", "Neue Nebenkostenposition buchen".',
+      parameters: {
+        type: 'object',
+        properties: {
+          immobilie_name:   { type: 'string', description: 'Name der Immobilie' },
+          bezeichnung:      { type: 'string', description: 'Beschreibung der Kosten' },
+          gesamtbetrag:     { type: 'number', description: 'Betrag in €' },
+          zeitraum_von:     { type: 'string', description: 'ISO YYYY-MM-DD (Beginn Abrechnungszeitraum)' },
+          zeitraum_bis:     { type: 'string', description: 'ISO YYYY-MM-DD (Ende Abrechnungszeitraum)' },
+          ist_umlagefaehig: { type: 'boolean', description: 'Umlagefähig nach BetrKV? (default: true)' },
+        },
+        required: ['immobilie_name', 'bezeichnung', 'gesamtbetrag', 'zeitraum_von', 'zeitraum_bis'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_loan_balance',
+      description:
+        'Restschuld eines Darlehens aktualisieren. Für "Aktualisiere Restschuld von Darlehen X auf Y €", "Neue Restschuld nach Sondertilgung".',
+      parameters: {
+        type: 'object',
+        properties: {
+          darlehen_id:       { type: 'string', description: 'UUID des Darlehens' },
+          bezeichnung_search: { type: 'string', description: 'Darlehens-Bezeichnung (alternativ zu darlehen_id)' },
+          neue_restschuld:   { type: 'number', description: 'Neue Restschuld in €' },
+        },
+        required: ['neue_restschuld'],
       },
     },
   },
@@ -768,6 +886,51 @@ async function executeWrite(
               : `Sperrfrist noch nicht erfüllt (${monate}/15 Monate).`,
           },
         };
+      }
+
+      case 'create_kostenposition': {
+        const { data: immo, error: immoErr } = await supabase
+          .from('immobilien')
+          .select('id')
+          .ilike('name', `%${args.immobilie_name}%`)
+          .limit(1)
+          .single();
+        if (immoErr || !immo) return { ok: false, error: 'Immobilie nicht gefunden' };
+        const { data, error } = await supabase
+          .from('kostenpositionen')
+          .insert({
+            immobilie_id:    immo.id,
+            bezeichnung:     args.bezeichnung,
+            gesamtbetrag:    args.gesamtbetrag,
+            zeitraum_von:    args.zeitraum_von,
+            zeitraum_bis:    args.zeitraum_bis,
+            ist_umlagefaehig: args.ist_umlagefaehig ?? true,
+            quelle:          'agent',
+          })
+          .select()
+          .single();
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, data: { created: true, kostenposition: data } };
+      }
+
+      case 'update_loan_balance': {
+        let darlehenId = args.darlehen_id as string | undefined;
+        if (!darlehenId && args.bezeichnung_search) {
+          const { data } = await supabase
+            .from('darlehen')
+            .select('id')
+            .ilike('bezeichnung', `%${args.bezeichnung_search}%`)
+            .limit(1)
+            .single();
+          darlehenId = data?.id;
+        }
+        if (!darlehenId) return { ok: false, error: 'Darlehen nicht gefunden — bitte darlehen_id oder bezeichnung_search angeben' };
+        const { error } = await supabase
+          .from('darlehen')
+          .update({ restschuld: args.neue_restschuld })
+          .eq('id', darlehenId);
+        if (error) return { ok: false, error: error.message };
+        return { ok: true, data: { updated: true, darlehen_id: darlehenId, neue_restschuld: args.neue_restschuld } };
       }
 
       default:
