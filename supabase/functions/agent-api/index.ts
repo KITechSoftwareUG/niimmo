@@ -32,7 +32,7 @@ const READ_TOOLS = [
     function: {
       name: 'rpc_agent_find_tenants',
       description:
-        'Mieter per Namens-Such-String finden. Gibt bis zu 5 beste Treffer mit Vertrag, Miete und Mahnstufe zurück.',
+        'Mieter per Namens-Such-String finden. Gibt bis zu 5 Treffer zurück mit: Vertrag, Miete, Mahnstufe, start_datum (Vertragsbeginn/Einzug), ende_datum, kuendigungsdatum. Für Fragen nach Einzugsdatum, Vertragsdauer, Mietbeginn, Kündigung.',
       parameters: {
         type: 'object',
         properties: {
@@ -78,7 +78,7 @@ const READ_TOOLS = [
     function: {
       name: 'rpc_agent_tenant_balance',
       description:
-        'Detailliertes Soll-Ist für EINEN einzelnen Mieter: soll_gesamt, ist_gesamt, rueckstand, warmmiete, monate_soll, letzte_zahlung. Für "Wie viel schuldet [Name] genau?", "Wann hat [Name] zuletzt gezahlt?". Mindestens p_search ODER p_mieter_id angeben.',
+        'Detailliertes Soll-Ist für EINEN einzelnen Mieter: soll_gesamt, ist_gesamt, rueckstand, warmmiete, start_datum, ende_datum, kuendigungsdatum, monate_soll, letzte_zahlung. Für "Wie viel schuldet [Name]?", "Seit wann wohnt [Name]?", "Wann endet der Vertrag?". Mindestens p_search ODER p_mieter_id angeben.',
       parameters: {
         type: 'object',
         properties: {
