@@ -128,6 +128,79 @@ const READ_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_meter_readings',
+      description:
+        'Aktuelle Zählerstände (Kaltwasser, Warmwasser, Strom, Gas) pro Einheit. p_search = Mieter-Name ODER Immobilien-Name/Adresse. Für Fragen nach Zählerstand, Verbrauch, Zählernummer.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Mieter-Name oder Immobilien-Name' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_insurance',
+      description:
+        'Versicherungen je Immobilie: Typ (Wohngebäude, Haftpflicht…), Firma, Jahresbeitrag, Vertragsnummer, Kontakt. Ohne p_search: alle Versicherungen. Mit p_search: Immobilienname oder Versicherungsfirma filtern.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Immobilienname oder Versicherungsfirma (optional)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_nebenkosten',
+      description:
+        'Kostenpositionen (Nebenkosten) je Immobilie: Bezeichnung, Nebenkostenart, Gesamtbetrag, Zeitraum, umlagefähig ja/nein. p_search: Immobilienname. p_year: Abrechnungsjahr filtern.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Immobilienname oder Adresse (optional)' },
+          p_year: { type: 'integer', description: 'Abrechnungsjahr filtern (optional)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_property_details',
+      description:
+        'Vollständige Immobilien-Details: Adresse, Baujahr, Kaufpreis, Marktwert, Versorger (Strom/Gas/Wasser), Hausanschluss-Zählerstände, Einheitenanzahl, Leerstand. Für Fragen zu einer einzelnen Immobilie.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Immobilienname oder Adresse' },
+        },
+        required: ['p_search'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rpc_agent_tenant_deposit',
+      description:
+        'Kautions-Status eines Mieters: kaution_betrag (Soll), kaution_ist (eingegangen), kaution_status, kaution_gezahlt_am. Für "Hat X Kaution gezahlt?", "Kautionsstand von X", "Offene Kaution".',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_search: { type: 'string', description: 'Mieter-Name' },
+          p_mieter_id: { type: 'string', description: 'UUID des Mieters (optional)' },
+        },
+      },
+    },
+  },
 ];
 
 // ── Write Tools (direkte Supabase-Operationen) ─────────────────────────────
