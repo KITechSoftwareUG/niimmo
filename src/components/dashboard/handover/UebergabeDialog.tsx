@@ -407,8 +407,7 @@ export const UebergabeDialog = ({
           }));
       });
       if (historieEintraege.length > 0) {
-        const { error: historieError } = await supabase.from("zaehlerstand_historie").insert(historieEintraege);
-        if (historieError) throw historieError;
+        await supabase.from("zaehlerstand_historie").insert(historieEintraege);
       }
 
       // Zählerfotos als Einträge in der dokumente-Tabelle speichern
@@ -428,7 +427,7 @@ export const UebergabeDialog = ({
             dateityp: null,
             groesse_bytes: null,
             mietvertrag_id: contract.id,
-            immobilie_id: contract.einheit.immobilie_id ?? contract.einheit.immobilie?.id ?? null,
+            immobilie_id: null,
             erstellt_von: user?.id ?? null,
             hochgeladen_am: new Date().toISOString(),
             geloescht: false,
@@ -457,12 +456,13 @@ export const UebergabeDialog = ({
             dateityp: "application/pdf",
             groesse_bytes: pdfBlob.size,
             mietvertrag_id: contract.id,
-            immobilie_id: contract.einheit.immobilie_id ?? contract.einheit.immobilie?.id ?? null,
+            immobilie_id: null,
             erstellt_von: user?.id ?? null,
             hochgeladen_am: new Date().toISOString(),
             geloescht: false,
           }));
-          await supabase.from("dokumente").insert(pdfDokInserts);
+          const { error: pdfDokError } = await supabase.from("dokumente").insert(pdfDokInserts);
+          if (pdfDokError) throw pdfDokError;
           pdfSavedPath = filePath;
           setSavedPdfPath(filePath);
         }
